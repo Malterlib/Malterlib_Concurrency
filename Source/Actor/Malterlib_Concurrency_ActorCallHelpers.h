@@ -1170,10 +1170,10 @@ namespace NMib::NConcurrency
 			;
 	#endif
 			auto Result = (pActor->*_pMemberFunctor)(fg_CopyOrMove<tfp_CFunctionParams>(fg_Forward<tfp_CParams>(p_Params))...);
-			DMibFastCheck(!PromiseThreadLocal.m_bSupendOnInitialSuspend); // Function calls over actor needs to co-routines
+			DMibFastCheck(!PromiseThreadLocal.m_bSupendOnInitialSuspend); // Function calls over actor needs to be co-routines
 
 			auto &PromiseData = *Result.f_Unsafe_PromiseData();
-			DMibFastCheck(PromiseData.m_BeforeSuspend.m_bIsCoroutine); // Function calls over actor needs to co-routines
+			DMibFastCheck(PromiseData.m_BeforeSuspend.m_bIsCoroutine); // Function calls over actor needs to be co-routines
 			DMibFastCheck(PromiseData.m_Coroutine);
 
 			auto &Promise = TCCoroutineHandle<NPrivate::TCFutureCoroutineContextShared<CReturn>>::from_address(PromiseData.m_Coroutine.address()).promise();
@@ -1302,12 +1302,12 @@ namespace NMib::NConcurrency
 			auto Result = (pActor->*_pMemberFunctor)(fg_CopyOrMove<tfp_CFunctionParams>(fg_Forward<tfp_CParams>(p_Params))...);
 
 #if DMibEnableSafeCheck > 0
-			DMibFastCheck(!PromiseThreadLocal.m_bSupendOnInitialSuspend); // Function calls over actor needs to co-routines
+			DMibFastCheck(!PromiseThreadLocal.m_bSupendOnInitialSuspend); // Function calls over actor needs to be co-routines
 			DMibFastCheck(!PromiseThreadLocal.m_pOnResultSet);
 			DMibFastCheck(Result.f_Debug_HasData(PromiseThreadLocal.m_pOnResultSetConsumedBy));
 #endif
 			auto &PromiseData = *Result.f_Unsafe_PromiseData();
-			DMibFastCheck(PromiseData.m_BeforeSuspend.m_bIsCoroutine); // Function calls over actor needs to co-routines
+			DMibFastCheck(PromiseData.m_BeforeSuspend.m_bIsCoroutine); // Function calls over actor needs to be co-routines
 			DMibFastCheck(PromiseData.m_Coroutine);
 
 			auto &Promise = TCCoroutineHandle<NPrivate::TCFutureCoroutineContextShared<CReturn>>::from_address(PromiseData.m_Coroutine.address()).promise();
@@ -1445,10 +1445,10 @@ namespace NMib::NConcurrency
 			;
 	#endif
 			auto Result = _pFunctionPointer(fg_CopyOrMove<tfp_CFunctionParams>(fg_Forward<tfp_CParams>(p_Params))...);
-			DMibFastCheck(!PromiseThreadLocal.m_bSupendOnInitialSuspend); // Function calls over actor needs to co-routines
+			DMibFastCheck(!PromiseThreadLocal.m_bSupendOnInitialSuspend); // Function calls over actor needs to be co-routines
 
 			auto &PromiseData = *Result.f_Unsafe_PromiseData();
-			DMibFastCheck(PromiseData.m_BeforeSuspend.m_bIsCoroutine); // Function calls over actor needs to co-routines
+			DMibFastCheck(PromiseData.m_BeforeSuspend.m_bIsCoroutine); // Function calls over actor needs to be co-routines
 			DMibFastCheck(PromiseData.m_Coroutine);
 
 			auto &Promise = TCCoroutineHandle<NPrivate::TCFutureCoroutineContextShared<CReturn>>::from_address(PromiseData.m_Coroutine.address()).promise();
@@ -1575,12 +1575,12 @@ namespace NMib::NConcurrency
 			auto Result = _pFunctionPointer(fg_CopyOrMove<tfp_CFunctionParams>(fg_Forward<tfp_CParams>(p_Params))...);
 
 #if DMibEnableSafeCheck > 0
-			DMibFastCheck(!PromiseThreadLocal.m_bSupendOnInitialSuspend); // Function calls over actor needs to co-routines
+			DMibFastCheck(!PromiseThreadLocal.m_bSupendOnInitialSuspend); // Function calls over actor needs to be co-routines
 			DMibFastCheck(!PromiseThreadLocal.m_pOnResultSet);
 			DMibFastCheck(Result.f_Debug_HasData(PromiseThreadLocal.m_pOnResultSetConsumedBy));
 #endif
 			auto &PromiseData = *Result.f_Unsafe_PromiseData();
-			DMibFastCheck(PromiseData.m_BeforeSuspend.m_bIsCoroutine); // Function calls over actor needs to co-routines
+			DMibFastCheck(PromiseData.m_BeforeSuspend.m_bIsCoroutine); // Function calls over actor needs to be co-routines
 			DMibFastCheck(PromiseData.m_Coroutine);
 
 			auto &Promise = TCCoroutineHandle<NPrivate::TCFutureCoroutineContextShared<CReturn>>::from_address(PromiseData.m_Coroutine.address()).promise();

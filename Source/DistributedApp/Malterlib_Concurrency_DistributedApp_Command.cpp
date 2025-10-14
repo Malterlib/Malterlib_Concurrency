@@ -6,6 +6,7 @@
 #include <Mib/CommandLine/TableRenderer>
 
 #include "Malterlib_Concurrency_DistributedApp.h"
+#include "Malterlib_Concurrency_DistributedApp_Internal.h"
 
 namespace NMib::NConcurrency
 {
@@ -17,6 +18,10 @@ namespace NMib::NConcurrency
 
 	void CDistributedAppActor::fp_BuildDefaultCommandLine(CDistributedAppCommandLineSpecification &o_CommandLine, EDefaultCommandLineFunctionality _Functionalities)
 	{
+		auto &Internal = *mp_pInternal;
+
+		bool bRemoteCommandLineConfigure = Internal.m_AppType == EDistributedAppType_ForceLocalConfigureRemoteCommandLine || fg_DistributedAppThreadLocal().m_bRemoteCommandLineConfigure;
+
 		if (_Functionalities & EDefaultCommandLineFunctionality_Terminal)
 			o_CommandLine.f_AddTerminalOptions();
 
@@ -26,13 +31,13 @@ namespace NMib::NConcurrency
 		if (_Functionalities & EDefaultCommandLineFunctionality_Logging)
 			fp_BuildDefaultCommandLine_Logging(o_CommandLine);
 
-		if (_Functionalities & EDefaultCommandLineFunctionality_Sensor)
+		if ((_Functionalities & EDefaultCommandLineFunctionality_Sensor) && !bRemoteCommandLineConfigure)
 			fp_BuildDefaultCommandLine_Sensor(o_CommandLine);
 
-		if (_Functionalities & EDefaultCommandLineFunctionality_DistributedLog)
+		if ((_Functionalities & EDefaultCommandLineFunctionality_DistributedLog) && !bRemoteCommandLineConfigure)
 			fp_BuildDefaultCommandLine_DistributedLog(o_CommandLine);
 
-		if (_Functionalities & EDefaultCommandLineFunctionality_Authentication)
+		if ((_Functionalities & EDefaultCommandLineFunctionality_Authentication) && !bRemoteCommandLineConfigure)
 			fp_BuildDefaultCommandLine_DistributedComputingAuthentication(o_CommandLine);
 
 		if (_Functionalities & EDefaultCommandLineFunctionality_DistributedComputing)

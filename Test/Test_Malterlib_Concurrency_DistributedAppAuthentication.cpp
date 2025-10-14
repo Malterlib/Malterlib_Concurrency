@@ -1476,6 +1476,8 @@ public:
 				, "HelpCurrentCommand"_= false
 				, "HelpCurrentCommandVerbose"_= false
 				, "AuthenticationLifetime"_= CPermissionRequirements::mc_OverrideLifetimeNotSet
+				, "RemoteCommandLine"_= false
+				, "RemoteCommandLineConfigure"_= false
 			}
 		;
 
@@ -1597,6 +1599,8 @@ public:
 						, "HelpCurrentCommand"_= false
 						, "HelpCurrentCommandVerbose"_= false
 						, "AuthenticationLifetime"_= CurrentAuthLifetime
+						, "RemoteCommandLine"_= false
+						, "RemoteCommandLineConfigure"_= false
 					}
 				;
 			}
@@ -2379,6 +2383,8 @@ public:
 				, "HelpCurrentCommand"_= false
 				, "HelpCurrentCommandVerbose"_= false
 				, "AuthenticationLifetime"_= CPermissionRequirements::mc_OverrideLifetimeNotSet
+				, "RemoteCommandLine"_= false
+				, "RemoteCommandLineConfigure"_= false
 			}
 		;
 
@@ -2449,6 +2455,8 @@ public:
 						, "HelpCurrentCommand"_= false
 						, "HelpCurrentCommandVerbose"_= false
 						, "AuthenticationLifetime"_= 0
+						, "RemoteCommandLine"_= false
+						, "RemoteCommandLineConfigure"_= false
 					}
 				;
 			}

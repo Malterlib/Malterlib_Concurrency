@@ -4,6 +4,7 @@
 #include <Mib/Core/Core>
 
 #include "Malterlib_Concurrency_DistributedApp.h"
+#include "Malterlib_Concurrency_DistributedApp_Internal.h"
 
 namespace NMib::NConcurrency
 {
@@ -13,8 +14,8 @@ namespace NMib::NConcurrency
 
 	uint32 CDistributedAppActor::f_CommandLine_RemoveAllTrust(bool _bConfirm)
 	{
-		CStr TrustDatabaseLocation = fg_Format("{}/TrustDatabase.{}", mp_Settings.m_RootDirectory, mp_Settings.m_AppName);
-		CStr TrustDatabaseCommandLineLocation = fg_Format("{}/CommandLineTrustDatabase.{}", mp_Settings.m_RootDirectory, mp_Settings.m_AppName);
+		CStr TrustDatabaseLocation = mp_Settings.m_RootDirectory / ("TrustDatabase.{}"_f << mp_Settings.m_AppName);
+		CStr TrustDatabaseCommandLineLocation = mp_Settings.m_RootDirectory / ("CommandLineTrustDatabase.{}"_f << mp_Settings.m_AppName);
 
 		auto fLogAction = [&](CStr const &_ToLog)
 			{

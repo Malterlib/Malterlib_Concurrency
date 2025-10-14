@@ -41,7 +41,7 @@ namespace NMib::NConcurrency
 
 	TCFuture<void> CDistributedAppActor::fp_CreateCommandLineTrust()
 	{
-		CStr CommandLineTrustPath = fg_Format("{}/CommandLineTrustDatabase.{}", mp_Settings.m_RootDirectory, mp_Settings.m_AppName);
+		CStr CommandLineTrustPath = mp_Settings.m_RootDirectory / ("CommandLineTrustDatabase.{}"_f << mp_Settings.m_AppName);
 
 		auto ExpectedAddress = fp_GetLocalAddress();
 
@@ -189,10 +189,14 @@ namespace NMib::NConcurrency
 
 	TCFuture<void> CDistributedAppActor::fp_SetupCommandLineTrust()
 	{
+		auto &Internal = *mp_pInternal;
+
 		DMibLogWithCategory(Mib/Concurrency/App, Debug, "Setting up command line trust");
 
 		co_await fp_SetupCommandLineListen();
 		co_await fp_CreateCommandLineTrust();
+		if (Internal.m_AppType != EDistributedAppType_ForceLocalConfigureRemoteCommandLine)
+			co_await fp_SetupRemoteCommandLine();
 
 		if (auto pCommandLineHost = mp_State.m_StateDatabase.m_Data.f_GetMember("CommandLineHostID", EJsonType_String))
 			mp_State.m_CommandLineHostID = pCommandLineHost->f_String();
@@ -205,5 +209,19 @@ namespace NMib::NConcurrency
 	bool CDistributedAppActor::fp_HasCommandLineAccess(CStr const &_HostID)
 	{
 		return _HostID == mp_State.m_CommandLineHostID;
+	}
+
+	TCFuture<void> CDistributedAppActor::fp_SetupRemoteCommandLine()
+	{
+		co_await mp_State.m_TrustManager(&CDistributedActorTrustManager::f_RegisterPermissions, TCSet<CStr>{gc_Str<"DistributedApp/RunCommandLine">});
+
+		auto &Internal = *mp_pInternal;
+
+		TCVector<CStr> SubscribePermissions;
+		SubscribePermissions.f_Insert("DistributedApp/RunCommandLine");
+
+		Internal.m_Permissions = co_await mp_State.m_TrustManager(&CDistributedActorTrustManager::f_SubscribeToPermissions, fg_Move(SubscribePermissions), fg_ThisActor(this));
+
+		co_return {};
 	}
 }

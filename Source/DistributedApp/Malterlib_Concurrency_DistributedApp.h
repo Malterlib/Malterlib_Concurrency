@@ -360,7 +360,7 @@ namespace NMib::NConcurrency
 
 		auto f_OpenLogReporter(CDistributedAppLogReporter::CLogInfo _LogInfo) -> TCFuture<CDistributedAppLogReporter::CLogReporter>;
 		TCFuture<TCActor<CDistributedAppLogStoreLocal>> f_OpenLogStoreLocal();
-		
+
 #if DMibConfig_Tests_Enable
 		TCFuture<NEncoding::CEJsonSorted> f_Test_Command(NStr::CStr _Command, NEncoding::CEJsonSorted const _Params);
 #endif
@@ -577,6 +577,7 @@ namespace NMib::NConcurrency
 		TCFuture<void> fp_CreateCommandLineTrust();
 		TCFuture<void> fp_SetupCommandLineListen();
 		TCFuture<void> fp_SetupCommandLineTrust();
+		TCFuture<void> fp_SetupRemoteCommandLine();
 
 		TCFuture<uint32> fp_RunCommandLineAndLogError
 			(

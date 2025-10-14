@@ -16,10 +16,11 @@ namespace NMib::NConcurrency
 		, EDistributedAppType_Daemon
 		, EDistributedAppType_Local
 		, EDistributedAppType_ForceLocal
+		, EDistributedAppType_ForceLocalConfigureRemoteCommandLine
 		, EDistributedAppType_CommandLine
 		, EDistributedAppType_DirectCommandLine
 	};
-	
+
 	enum EDistributedAppUpdateType
 	{
 		EDistributedAppUpdateType_Independent

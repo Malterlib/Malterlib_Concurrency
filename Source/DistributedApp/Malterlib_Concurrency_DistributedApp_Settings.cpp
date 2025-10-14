@@ -69,12 +69,15 @@ namespace NMib::NConcurrency
 	CDistributedAppActor_Settings::CDistributedAppActor_Settings(NStr::CStr const &_AppName)
 		: CDistributedAppActor_SettingsProperties(fg_DistributedAppThreadLocal().m_DefaultSettings)
 	{
-		m_AppName = _AppName;
+		if (fg_DistributedAppThreadLocal().m_bRemoteCommandLine)
+			m_AppName = "{}.Remote"_f << _AppName;
+		else
+			m_AppName = _AppName;
 
 		if (m_AuditCategory.f_IsEmpty())
 			m_AuditCategory = _AppName;
 #ifndef DPlatformFamily_Windows
-		// A longer app name and enclave results in a unix socket name becoming too long 
+		// A longer app name and enclave results in a unix socket name becoming too long
 		DMibRequire
 			(
 				fp_GetLocalSocketPath(fg_Format("/tmp/{}", g_HostnameRootUUID.f_GetAsString(EUniversallyUniqueIdentifierFormat_AlphaNum)), true, m_Enclave).f_GetLen()
@@ -100,52 +103,52 @@ namespace NMib::NConcurrency
 		mint MaxLength = NSys::NNetwork::fg_GetMaxUnixSocketNameLength();
 		if (fp_GetLocalSocketPath(m_RootDirectory, true, m_Enclave).f_GetLen() <= aint(MaxLength))
 			return fp_GetLocalSocketPath(m_RootDirectory, _bEnclaveSpecific, _Enclave);
-		
+
 		CStr ConfigHash = fg_GetHashedUuidString(m_RootDirectory, g_HostnameRootUUID, EUniversallyUniqueIdentifierFormat_AlphaNum);
 		CStr TempDir = CFile::fs_GetRawTemporaryDirectory();
 		CStr Prefix = TempDir / ConfigHash;
 		if (fp_GetLocalSocketPath(Prefix, true, m_Enclave).f_GetLen() <= aint(MaxLength))
 			return fp_GetLocalSocketPath(Prefix, _bEnclaveSpecific, _Enclave);
-		
+
 		Prefix = fg_Format("/tmp/{}", ConfigHash);
 		DMibCheck(fp_GetLocalSocketPath(Prefix, true, m_Enclave).f_GetLen() <= aint(MaxLength));
 		return fp_GetLocalSocketPath(Prefix, _bEnclaveSpecific, _Enclave);
 	}
-	
+
 	NStr::CStr CDistributedAppActor_Settings::f_GetLocalSocketWildcard(bool _bEnclaveSpecific) const
 	{
 		return f_GetLocalSocketFileName(_bEnclaveSpecific, "*");
 	}
-	
+
 	NStr::CStr CDistributedAppActor_Settings::f_GetLocalSocketHostname(bool _bEnclaveSpecific) const
 	{
 		return fg_Format("UNIX(666):{}", f_GetLocalSocketFileName(_bEnclaveSpecific, m_Enclave));
 	}
-	
+
 	CDistributedAppActor_Settings &&CDistributedAppActor_Settings::f_RootDirectory(CStr const &_RootDirectory) &&
 	{
 		m_RootDirectory = _RootDirectory;
 		return fg_Move(*this);
 	}
-	
+
 	CDistributedAppActor_Settings &&CDistributedAppActor_Settings::f_SeparateDistributionManager(bool _bSeparateDistributionManager) &&
 	{
 		m_bSeparateDistributionManager = _bSeparateDistributionManager;
 		return fg_Move(*this);
 	}
-	
+
 	CDistributedAppActor_Settings &&CDistributedAppActor_Settings::f_KeySetting(NCryptography::CPublicKeySetting _KeySetting) &&
 	{
 		m_KeySetting = _KeySetting;
 		return fg_Move(*this);
 	}
-	
+
 	CDistributedAppActor_Settings &&CDistributedAppActor_Settings::f_FriendlyName(CStr const &_FriendlyName) &&
 	{
 		m_FriendlyName = _FriendlyName;
 		return fg_Move(*this);
 	}
-	
+
 	CDistributedAppActor_Settings &&CDistributedAppActor_Settings::f_Enclave(CStr const &_Enclave) &&
 	{
 		m_Enclave = _Enclave;
@@ -169,7 +172,7 @@ namespace NMib::NConcurrency
 		m_RunAsGroup = _Group;
 		return fg_Move(*this);
 	}
-	
+
 	CDistributedAppActor_Settings &&CDistributedAppActor_Settings::f_UpdateType(EDistributedAppUpdateType _UpdateType) &&
 	{
 		m_UpdateType = _UpdateType;
@@ -246,7 +249,7 @@ namespace NMib::NConcurrency
 	{
 		CStr FriendlyName = m_FriendlyName;
 		if (FriendlyName.f_IsEmpty())
-			FriendlyName = fg_Format("{}@{}", NProcess::NPlatform::fg_Process_GetUserName(), NProcess::NPlatform::fg_Process_GetComputerName()); 
+			FriendlyName = fg_Format("{}@{}", NProcess::NPlatform::fg_Process_GetUserName(), NProcess::NPlatform::fg_Process_GetComputerName());
 		return fg_Format("{}/{}", FriendlyName, m_AppName);
 	}
 }

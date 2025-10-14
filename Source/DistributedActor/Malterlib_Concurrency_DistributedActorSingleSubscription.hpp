@@ -1,4 +1,4 @@
-// Copyright © 2015 Hansoft AB 
+// Copyright © 2015 Hansoft AB
 // Distributed under the MIT license, see license text in LICENSE.Malterlib
 
 #pragma once
@@ -6,18 +6,21 @@
 namespace NMib::NConcurrency
 {
 	template <typename t_CActor>
-	TCDistributedActorSingleSubscription<t_CActor>::TCDistributedActorSingleSubscription(NStr::CStr const &_Namespace, TCActor<CActorDistributionManager> const &_DistributionManager)
-		: mp_Namespace(_Namespace)
+	TCDistributedActorSingleSubscription<t_CActor>::TCDistributedActorSingleSubscription(CFilter const &_Filter, TCActor<CActorDistributionManager> const &_DistributionManager)
+		: mp_Filter(_Filter)
 		, mp_DistributionManager(_DistributionManager)
 	{
 		DMibCheck(fg_CurrentActor() == fg_ThisActor(this));
 		mp_DistributionManager
 			(
 				&CActorDistributionManager::f_SubscribeActors
-				, mp_Namespace
+				, mp_Filter.m_Namespace
 				, fg_CurrentActor()
 				, [this](CAbstractDistributedActor _NewActor) -> TCFuture<void>
 				{
+					if (mp_Filter.m_HostID && _NewActor.f_GetHostInfo().m_HostID != mp_Filter.m_HostID)
+						co_return {};
+
 					mp_DistributedActor = {};
 					auto Actor = _NewActor.f_GetActor<t_CActor>();
 					if (!Actor)

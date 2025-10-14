@@ -583,7 +583,8 @@ namespace NMib::NConcurrency
 				}
 				, [this](CDistributedAppCommandLineSpecification &o_CommandLine, CDistributedAppActor_Settings const &_Settings)
 				{
-					fp_AddDaemonCommands(o_CommandLine, _Settings);
+					if (!fg_DistributedAppThreadLocal().m_bRemoteCommandLine)
+						fp_AddDaemonCommands(o_CommandLine, _Settings);
 				}
 				, false
 				, m_pRunLoop

@@ -170,7 +170,7 @@ namespace NMib::NConcurrency
 
 				if (auto pValue = _Params.f_GetMember("IdentifierScope"))
 					Filter.m_IdentifierScope = pValue->f_String();
-					
+
 				if (auto pValue = _Params.f_GetMember("IgnoreRemoved"); pValue->f_Boolean())
 					Filter.m_Flags |= CDistributedAppLogReader_LogFilter::ELogFlag_IgnoreRemoved;
 
@@ -433,7 +433,7 @@ namespace NMib::NConcurrency
 		Columns.f_AddHeading("Metadata", 1);
 
 		Columns.f_SetSortByColumns({"Environment", "Host Description", "Host ID", "Application", "Identifier", "Identifier Scope"});
-		
+
 		TableRenderer.f_AddHeadings(&Columns);
 		TableRenderer.f_SetOptions(CTableRenderHelper::EOption_Rounded | CTableRenderHelper::EOption_AvoidRowSeparators);
 
@@ -476,7 +476,7 @@ namespace NMib::NConcurrency
 					CStr Environment;
 					if (auto *pEnvironment = LogInfo.m_Metadata.f_FindEqual("Environment"); pEnvironment && pEnvironment->f_IsString())
 						Environment = pEnvironment->f_String();
-					
+
 					bHasEnvironment = bHasEnvironment || Environment;
 					bHasHostID = bHasHostID || LogInfo.m_HostID;
 					bHasHostName = bHasHostName || LogInfo.m_HostName;

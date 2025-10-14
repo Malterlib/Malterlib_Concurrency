@@ -11,6 +11,8 @@ namespace NMib::NConcurrency
 	{
 		CDistributedAppActor_SettingsProperties m_DefaultSettings;
 		EDistributedAppType m_DefaultAppType = EDistributedAppType_Unknown;
+		bool m_bRemoteCommandLine = false;
+		bool m_bRemoteCommandLineConfigure = false;
 	};
 
 	CDistributedAppThreadLocal &fg_DistributedAppThreadLocal();

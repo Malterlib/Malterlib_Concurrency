@@ -101,10 +101,19 @@ namespace NMib::NConcurrency
 			, TCSharedPointer<CCommandLineControl> _pCommandLine
 		)
 	{
-		if (!fp_HasCommandLineAccess(fg_GetCallingHostInfo().f_GetRealHostID()))
-			co_return DMibErrorInstance("Access denied");
-
 		auto &Internal = *mp_pInternal;
+
+		auto Auditor = f_Auditor();
+		auto &CallingHostInfo = Auditor.f_HostInfo();
+
+		if (!fp_HasCommandLineAccess(CallingHostInfo.f_GetRealHostID()))
+		{
+			TCVector<CStr> Permissions = {"DistributedApp/RunCommandLine"};
+
+			bool bHasPermission = co_await (Internal.m_Permissions.f_HasPermission("Run command line", Permissions) % "Permission denied running command line" % Auditor);
+			if (!bHasPermission)
+				co_return Auditor.f_AccessDenied("(Run command line)", Permissions);
+		}
 
 		auto &SpecInternal = Internal.m_pCommandLineSpec->f_AccessInternal();
 		auto *pCommand = SpecInternal.m_CommandByName.f_FindEqual(_Command);

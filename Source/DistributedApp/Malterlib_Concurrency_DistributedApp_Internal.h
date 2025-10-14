@@ -48,6 +48,8 @@ namespace NMib::NConcurrency
 
 		NContainer::TCMap<NStr::CStr, CActorSubscription> m_TicketPermissionSubscriptions;
 
+		CTrustedPermissionSubscription m_Permissions;
+
 		NStr::CStr m_CurrentLogDirectory;
 		EDistributedAppType m_AppType = fg_DistributedAppThreadLocal().m_DefaultAppType;
 

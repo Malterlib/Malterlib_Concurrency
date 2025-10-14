@@ -263,7 +263,8 @@ namespace NMib::NConcurrency
 			FStopApp fStopApp;
 			if (mp_fLazyStartApp)
 				fStopApp = mp_fLazyStartApp(_Params, Command.m_Flags);
-			fp_Init();
+
+			fp_Init(_Params);
 
 			auto &Internal = *mp_pInternal;
 
@@ -403,8 +404,10 @@ namespace NMib::NConcurrency
 			mp_pInternal->m_TrustManager->f_BlockDestroy();
 	}
 
-	void CDistributedAppCommandLineClient::fp_Init()
+	void CDistributedAppCommandLineClient::fp_Init(NEncoding::CEJsonSorted const &_Params)
 	{
+		using namespace NStr;
+
 		auto &Internal = *mp_pInternal;
 		if (!Internal.m_bInitialized)
 		{
@@ -425,21 +428,33 @@ namespace NMib::NConcurrency
 			Options.m_bSupportAuthentication = false;
 			Options.m_ReconnectDelay = Internal.m_Settings.m_ReconnectDelay;
 
-			Internal.m_TrustManager =
-				fg_ConstructActor<CDistributedActorTrustManager>
+			CStr TrustDatabase;
+			CStr RemoteCommandLineHostID;
+			if (auto pValue = _Params.f_GetMember("RemoteCommandLine"); pValue && pValue->f_Boolean())
+			{
+				TrustDatabase = Internal.m_Settings.m_RootDirectory  / ("TrustDatabase.{}"_f << Internal.m_Settings.m_AppName);
+
+				if (auto pValue = _Params.f_GetMember("RemoteCommandLineHost"))
+					RemoteCommandLineHostID = pValue->f_String();
+			}
+			else
+				TrustDatabase = Internal.m_Settings.m_RootDirectory / ("CommandLineTrustDatabase.{}"_f << Internal.m_Settings.m_AppName);
+
+			Internal.m_TrustManager = fg_ConstructActor<CDistributedActorTrustManager>
 				(
-					fg_ConstructActor<CDistributedActorTrustManagerDatabase_JsonDirectory>
-					(
-						fg_Format("{}/CommandLineTrustDatabase.{}", Internal.m_Settings.m_RootDirectory, Internal.m_Settings.m_AppName)
-					)
+					fg_ConstructActor<CDistributedActorTrustManagerDatabase_JsonDirectory>(TrustDatabase)
 					, fg_Move(Options)
 				)
 			;
-			Internal.m_TrustManager(&CDistributedActorTrustManager::f_Initialize).f_CallSync(60.0);
+
 			Internal.m_DistributionManager = Internal.m_TrustManager(&CDistributedActorTrustManager::f_GetDistributionManager).f_CallSync();
 			Internal.m_CommandLineSubscription = fg_ConstructActor<TCDistributedActorSingleSubscription<ICCommandLine>>
 				(
-					"com.malterlib/Concurrency/Commandline"
+					TCDistributedActorSingleSubscription<ICCommandLine>::CFilter
+					{
+						.m_Namespace = "com.malterlib/Concurrency/Commandline"
+						, .m_HostID = RemoteCommandLineHostID
+					}
 					, Internal.m_DistributionManager
 				)
 			;

@@ -52,8 +52,8 @@ namespace NMib::NConcurrency
 	CDistributedAppState::~CDistributedAppState() = default;
 
 	CDistributedAppState::CDistributedAppState(CDistributedAppActor_Settings const &_Settings)
-		: m_StateDatabase(fg_Format("{}/{}State.json", _Settings.m_RootDirectory, _Settings.m_AppName))
-		, m_ConfigDatabase(fg_Format("{}/{}Config.json", _Settings.m_RootDirectory, _Settings.m_AppName))
+		: m_StateDatabase(_Settings.m_RootDirectory / ("{}State.json"_f << _Settings.m_AppName))
+		, m_ConfigDatabase(_Settings.m_RootDirectory / ("{}Config.json"_f << _Settings.m_AppName))
 		, m_RootDirectory(_Settings.m_RootDirectory)
 	{
 	}
@@ -189,7 +189,7 @@ namespace NMib::NConcurrency
 		CStr Category = _AuditParams.m_Category;
 		if (Category.f_IsEmpty())
 			Category = _DefaultCategory;
-		
+
 		NMib::NLog::CSysLogCatScope Scope(NMib::fg_GetSys()->f_GetLogger(), Category);
 		CStr UserID = _AuditParams.m_CallingHostInfo.f_GetClaimedUserID();
 		CStr UserName = _AuditParams.m_CallingHostInfo.f_GetClaimedUserName();
@@ -233,6 +233,7 @@ namespace NMib::NConcurrency
 		case EDistributedAppType_Daemon:
 		case EDistributedAppType_Local:
 		case EDistributedAppType_ForceLocal:
+		case EDistributedAppType_ForceLocalConfigureRemoteCommandLine:
 			{
 				fp_AuditToDistributedLogger(fg_Move(_AuditParams)) > [](TCAsyncResult<void> &&_Result)
 					{
@@ -598,6 +599,7 @@ namespace NMib::NConcurrency
 			case EDistributedAppType_Daemon: return "as daemon";
 			case EDistributedAppType_Local: return "as local";
 			case EDistributedAppType_ForceLocal: return "as forced local";
+			case EDistributedAppType_ForceLocalConfigureRemoteCommandLine: return "as forced local for remote command line configuration";
 			case EDistributedAppType_CommandLine:  return "as command line";
 			case EDistributedAppType_DirectCommandLine:  return "as direct command line";
 			case EDistributedAppType_Unchanged:
@@ -676,6 +678,7 @@ namespace NMib::NConcurrency
 			break;
 		case EDistributedAppType_CommandLine:
 		case EDistributedAppType_DirectCommandLine:
+		case EDistributedAppType_ForceLocalConfigureRemoteCommandLine:
 			NewLogDirectory = mp_Settings.m_RootDirectory + "/Log/CommandLine";
 			break;
 		case EDistributedAppType_Unknown:
@@ -710,11 +713,8 @@ namespace NMib::NConcurrency
 
 		if (!Internal.m_pInitOnce)
 		{
-			Internal.m_TrustManagerDatabase = fg_ConstructActor<CDistributedActorTrustManagerDatabase_JsonDirectory>
-				(
-					fg_Format("{}/TrustDatabase.{}", mp_Settings.m_RootDirectory, mp_Settings.m_AppName)
-				)
-			;
+			CStr TrustDatabaseLocation = mp_Settings.m_RootDirectory / ("TrustDatabase.{}"_f << mp_Settings.m_AppName);
+			Internal.m_TrustManagerDatabase = fg_ConstructActor<CDistributedActorTrustManagerDatabase_JsonDirectory>(TrustDatabaseLocation);
 
 			Internal.m_pInitOnce = fg_Construct
 				(
@@ -741,7 +741,8 @@ namespace NMib::NConcurrency
 
 				DMibLogWithCategory(Mib/Concurrency/App, Debug, "Running specific application startup");
 
-				co_await (fp_StartApp(_Params) % "Failed to start app");
+				if (Internal.m_AppType != EDistributedAppType_ForceLocalConfigureRemoteCommandLine)
+					co_await (fp_StartApp(_Params) % "Failed to start app");
 
 				if (mp_State.m_bStoppingApp)
 					co_return DMibErrorInstance("Startup aborted");
@@ -791,7 +792,8 @@ namespace NMib::NConcurrency
 
 		Internal.m_pCommandLineSpec = fg_Construct();
 		fp_BuildDefaultCommandLine(*Internal.m_pCommandLineSpec, mp_Settings.m_DefaultCommandLineFunctionality);
-		fp_BuildCommandLine(*Internal.m_pCommandLineSpec);
+		if (Internal.m_AppType != EDistributedAppType_ForceLocalConfigureRemoteCommandLine && !fg_DistributedAppThreadLocal().m_bRemoteCommandLineConfigure)
+			fp_BuildCommandLine(*Internal.m_pCommandLineSpec);
 	}
 
 	TCFuture<void> CDistributedAppActor::f_StopApp()
@@ -836,6 +838,8 @@ namespace NMib::NConcurrency
 				> LogError("Failed to destroy app interface")
 			;
 		}
+
+		Internal.m_Permissions.f_Clear();
 
 		DMibLogWithCategory(Mib/Concurrency/App, Info, "App interface destroyed");
 
@@ -1097,9 +1101,31 @@ namespace NMib::NConcurrency
 		aint Ret = 1;
 		try
 		{
+			auto CommandLineArgs = fg_GetSys()->f_GetCommandLineArgs();
+			bool bRemoteCommandLineConfigure = false;
+			bool bRemoteCommandLine = false;
+
+			for (auto &Arg : CommandLineArgs)
 			{
-				auto &SuggestedEnclave = fg_DistributedAppThreadLocal().m_DefaultSettings.m_Enclave;
-				auto &bSuggestedWaitForRemotes = fg_DistributedAppThreadLocal().m_DefaultSettings.m_bWaitForRemotes;
+				if (Arg == gc_Str<"--remote-command-line-configure">.m_Str || Arg == gc_Str<"--remote-command-line-configure=true">.m_Str)
+				{
+					bRemoteCommandLineConfigure = true;
+					bRemoteCommandLine = true;
+					break;
+				}
+				else if (Arg == gc_Str<"--remote-command-line">.m_Str || Arg == gc_Str<"--remote-command-line=true">.m_Str)
+				{
+					bRemoteCommandLine = true;
+					break;
+				}
+			}
+
+			{
+				auto &ThreadLocal = fg_DistributedAppThreadLocal();
+				auto &SuggestedEnclave = ThreadLocal.m_DefaultSettings.m_Enclave;
+				auto &bSuggestedWaitForRemotes = ThreadLocal.m_DefaultSettings.m_bWaitForRemotes;
+				ThreadLocal.m_bRemoteCommandLine = bRemoteCommandLine;
+				ThreadLocal.m_bRemoteCommandLineConfigure = bRemoteCommandLineConfigure;
 
 				auto OldEnclave = SuggestedEnclave;
 				SuggestedEnclave = NCryptography::fg_RandomID();
@@ -1115,22 +1141,27 @@ namespace NMib::NConcurrency
 				;
 				m_AppActor = _fActorFactory();
 			}
-			CDistributedAppCommandLineClient CommandLineClient = m_AppActor(&CDistributedAppActor::f_GetCommandLineClient).f_CallSync(m_pRunLoop);
+			CDistributedAppCommandLineClient CommandLineClient = m_AppActor(&CDistributedAppActor::f_GetCommandLineClient, m_pRunLoop).f_CallSync(m_pRunLoop);
 
 			if (_fMutateCommandLine)
 				CommandLineClient.f_MutateCommandLineSpecification(_fMutateCommandLine);
 
 			CommandLineClient.f_SetLazyPreRunDirectCommand
 				(
-					[this](NEncoding::CEJsonSorted const &_Params, EDistributedAppCommandFlag _Flags)
+					[&](NEncoding::CEJsonSorted const &_Params, EDistributedAppCommandFlag _Flags)
 					{
 						if (!(_Flags & EDistributedAppCommandFlag_DontApplyLogging))
 							m_ApplyLoggingResults = fg_ApplyLoggingOption(_Params, nullptr);
 
-						if (_Flags & EDistributedAppCommandFlag_RunLocalApp)
-						{
-							EDistributedAppType AppType = EDistributedAppType_ForceLocal;
+						EDistributedAppType AppType = EDistributedAppType_DirectCommandLine;
 
+						if (bRemoteCommandLineConfigure)
+							AppType = EDistributedAppType_ForceLocalConfigureRemoteCommandLine;
+						else if (_Flags & EDistributedAppCommandFlag_RunLocalApp)
+							AppType = EDistributedAppType_ForceLocal;
+
+						if (AppType != EDistributedAppType_DirectCommandLine)
+						{
 							m_AppActor(&CDistributedAppActor::f_StartApp, _Params, m_ApplyLoggingResults.m_LogActor, AppType).f_CallSync(m_pRunLoop);
 							m_bStartedApp = true;
 						}
@@ -1145,17 +1176,30 @@ namespace NMib::NConcurrency
 					[&](NEncoding::CEJsonSorted const &_Params, EDistributedAppCommandFlag _Flags) -> CDistributedAppCommandLineClient::FStopApp
 					{
 						EDistributedAppType AppType = EDistributedAppType_Unchanged;
-						if (_Flags & EDistributedAppCommandFlag_RunLocalApp)
+						bool bStartLocal = false;
+
+						if (bRemoteCommandLineConfigure)
+						{
+							AppType = EDistributedAppType_ForceLocalConfigureRemoteCommandLine;
+							bStartLocal = true;
+						}
+						else if (_Flags & EDistributedAppCommandFlag_RunLocalApp)
+						{
 							AppType = EDistributedAppType_ForceLocal;
+							bStartLocal = true;
+						}
 						else if (_bStartApp)
+						{
 							AppType = EDistributedAppType_Local;
+							bStartLocal = true;
+						}
 						else
 							AppType = EDistributedAppType_CommandLine;
 
 						if (!(_Flags & EDistributedAppCommandFlag_DontApplyLogging))
 							m_ApplyLoggingResults = fg_ApplyLoggingOption(_Params, nullptr);
 
-						if (_bStartApp || (_Flags & EDistributedAppCommandFlag_RunLocalApp))
+						if (bStartLocal)
 						{
 							m_AppActor(&CDistributedAppActor::f_StartApp, _Params, m_ApplyLoggingResults.m_LogActor, AppType).f_CallSync(m_pRunLoop);
 							m_bStartedApp = true;
@@ -1179,7 +1223,7 @@ namespace NMib::NConcurrency
 					}
 				)
 			;
-			Ret = CommandLineClient.f_RunCommandLine(fg_GetSys()->f_GetCommandLineArgs());
+			Ret = CommandLineClient.f_RunCommandLine(fg_Move(CommandLineArgs));
 		}
 		catch (NException::CException const &_Exception)
 		{
@@ -1241,7 +1285,7 @@ namespace NMib::NConcurrency
 		TCSharedPointer<CRunLoop> pRunLoop = _pRunLoop;
 		if (!pRunLoop)
 			pRunLoop = fg_Construct<CDefaultRunLoop>();
-		
+
 		CRunDistributedAppHelper Helper;
 		auto Ret = Helper.f_RunCommandLine(_fActorFactory, _fMutateCommandLine, _bStartApp, pRunLoop);
 		Helper.f_Stop();

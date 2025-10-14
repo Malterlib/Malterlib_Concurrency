@@ -1309,6 +1309,45 @@ namespace NMib::NConcurrency
 				, EDistributedAppCommandFlag_WaitForRemotes
 			)
 		;
+
+		o_CommandLine.f_RegisterGlobalOptions
+			(
+				{
+					"RemoteCommandLine?"_o=
+					{
+						"Names"_o= _o["--remote-command-line"]
+						,"Default"_o= false
+						, "Description"_o= "Use the remote command line trust database to connect to a remote command line.\n"
+					}
+				}
+			)
+		;
+
+		o_CommandLine.f_RegisterGlobalOptions
+			(
+				{
+					"RemoteCommandLineConfigure?"_o=
+					{
+						"Names"_o= _o["--remote-command-line-configure"]
+						,"Default"_o= false
+						, "Description"_o= "Configure the trust database for remote command line.\n"
+					}
+				}
+			)
+		;
+
+		o_CommandLine.f_RegisterGlobalOptions
+			(
+				{
+					"RemoteCommandLineHost?"_o=
+					{
+						"Names"_o= _o["--remote-command-line-host"]
+						,"Type"_o= ""
+						, "Description"_o= "The host to run remote command line on. If only one host is available it will default to this host.\n"
+					}
+				}
+			)
+		;
 	}
 
 	void CDistributedAppActor::fp_BuildDefaultCommandLine_DistributedComputingAuthentication(CDistributedAppCommandLineSpecification &o_CommandLine)

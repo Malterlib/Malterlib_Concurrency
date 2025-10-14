@@ -25,6 +25,7 @@ namespace NMib::NConcurrency
 		TCActor<TCDistributedActorSingleSubscription<ICCommandLine>> m_CommandLineSubscription;
 		CDistributedAppActor_Settings m_Settings;
 		NContainer::TCMap<NStr::CStr, NStr::CStr> m_TranslateHostnames;
+		NStorage::TCSharedPointer<CRunLoop> m_pRunLoop;
 		bool m_bInitialized = false;
 	};
 
@@ -270,7 +271,10 @@ namespace NMib::NConcurrency
 
 			TCDistributedActor<CCommandLineControlActor> pCommandLineControl = Internal.m_DistributionManager->f_ConstructActor<CCommandLineControlActor>();
 
-			auto CommandLineActor = Internal.m_CommandLineSubscription(&TCDistributedActorSingleSubscription<ICCommandLine>::f_GetActor).f_CallSync(30.0);
+			auto CommandLineActor = Internal.m_CommandLineSubscription(&TCDistributedActorSingleSubscription<ICCommandLine>::f_GetActor)
+				.f_Timeout(30.0, "Timed out waiting for command line actor to appear")
+				.f_CallSync(Internal.m_pRunLoop)
+			;
 
 			CCommandLineControl CommandLineControl;
 			CommandLineControl.m_ControlActor = pCommandLineControl->f_ShareInterface<ICCommandLineControl>();
@@ -281,13 +285,15 @@ namespace NMib::NConcurrency
 
 			struct CState
 			{
-				NThread::CEventAutoReset m_Event;
 				NThread::CMutual m_ResultLock;
 				TCAsyncResult<uint32> m_Result;
 				bool m_bAborted = false;
+
+				NStorage::TCSharedPointer<CRunLoop> m_pRunLoop;
 			};
 
 			NStorage::TCSharedPointer<CState> pState = fg_Construct();
+			pState->m_pRunLoop = Internal.m_pRunLoop;
 
 			CommandLineActor.f_CallActor(&ICCommandLine::f_RunCommandLine)
 				(
@@ -301,7 +307,7 @@ namespace NMib::NConcurrency
 					{
 						DMibLock(pState->m_ResultLock);
 						pState->m_Result = fg_Move(_Result);
-						pState->m_Event.f_Signal();
+						pState->m_pRunLoop->f_Wake();
 					}
 				)
 			;
@@ -319,7 +325,7 @@ namespace NMib::NConcurrency
 								{
 									DMibLock(pState->m_ResultLock);
 									pState->m_bAborted = true;
-									pState->m_Event.f_Signal();
+									pState->m_pRunLoop->f_Wake();
 								}
 							}
 						;
@@ -351,7 +357,7 @@ namespace NMib::NConcurrency
 							break;
 					}
 				}
-				pState->m_Event.f_Wait();
+				pState->m_pRunLoop->f_WaitOnce();
 			}
 
 			if (!Result.f_IsSet())
@@ -368,7 +374,7 @@ namespace NMib::NConcurrency
 					 Result = pState->m_Result;
 			}
 
-			fg_Move(pCommandLineControl).f_Destroy().f_CallSync();
+			fg_Move(pCommandLineControl).f_Destroy().f_CallSync(Internal.m_pRunLoop);
 
 			return *Result;
 		}
@@ -389,6 +395,7 @@ namespace NMib::NConcurrency
 			CDistributedAppActor_Settings const &_Settings
 			, NStorage::TCSharedPointer<CDistributedAppCommandLineSpecification> const &_pCommandLineSpecification
 			, NContainer::TCMap<NStr::CStr, NStr::CStr> &&_TranslateHostnames
+			, NStorage::TCSharedPointer<CRunLoop> const &_pRunLoop
 		)
 		: NCommandLine::TCCommandLineClient<CCommandLineSpecificationDistributedAppCustomization, CDistributedAppCommandLineClient>(_pCommandLineSpecification)
 		, mp_pInternal(fg_Construct())
@@ -396,12 +403,19 @@ namespace NMib::NConcurrency
 		auto &Internal = *mp_pInternal;
 		Internal.m_Settings = _Settings;
 		Internal.m_TranslateHostnames = fg_Move(_TranslateHostnames);
+		Internal.m_pRunLoop = _pRunLoop;
 	}
 
 	CDistributedAppCommandLineClient::~CDistributedAppCommandLineClient()
 	{
-		if (mp_pInternal && mp_pInternal->m_TrustManager)
-			mp_pInternal->m_TrustManager->f_BlockDestroy();
+		if (mp_pInternal)
+		{
+			auto &Internal = *mp_pInternal;
+			if (Internal.m_CommandLineSubscription)
+				Internal.m_CommandLineSubscription->f_BlockDestroy(Internal.m_pRunLoop->f_ActorDestroyLoop());
+			if (Internal.m_TrustManager)
+				Internal.m_TrustManager->f_BlockDestroy(Internal.m_pRunLoop->f_ActorDestroyLoop());
+		}
 	}
 
 	void CDistributedAppCommandLineClient::fp_Init(NEncoding::CEJsonSorted const &_Params)
@@ -447,7 +461,8 @@ namespace NMib::NConcurrency
 				)
 			;
 
-			Internal.m_DistributionManager = Internal.m_TrustManager(&CDistributedActorTrustManager::f_GetDistributionManager).f_CallSync();
+			Internal.m_TrustManager(&CDistributedActorTrustManager::f_Initialize).f_CallSync(Internal.m_pRunLoop, 60.0);
+			Internal.m_DistributionManager = Internal.m_TrustManager(&CDistributedActorTrustManager::f_GetDistributionManager).f_CallSync(Internal.m_pRunLoop);
 			Internal.m_CommandLineSubscription = fg_ConstructActor<TCDistributedActorSingleSubscription<ICCommandLine>>
 				(
 					TCDistributedActorSingleSubscription<ICCommandLine>::CFilter
@@ -462,11 +477,11 @@ namespace NMib::NConcurrency
 		}
 	}
 
-	TCFuture<CDistributedAppCommandLineClient> CDistributedAppActor::f_GetCommandLineClient()
+	TCFuture<CDistributedAppCommandLineClient> CDistributedAppActor::f_GetCommandLineClient(NStorage::TCSharedPointer<CRunLoop> _pRunLoop)
 	{
 		auto &Internal = *mp_pInternal;
 
-		co_return CDistributedAppCommandLineClient(mp_Settings, Internal.m_pCommandLineSpec, fp_GetTranslateHostnames());
+		co_return CDistributedAppCommandLineClient(mp_Settings, Internal.m_pCommandLineSpec, fp_GetTranslateHostnames(), _pRunLoop);
 	}
 
 	CDistributedAppCommandLineClient::CDistributedAppCommandLineClient(CDistributedAppCommandLineClient &&_Other) = default;

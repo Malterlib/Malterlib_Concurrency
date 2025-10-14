@@ -56,8 +56,22 @@ namespace NMib::NConcurrency
 	}
 
 	template <typename t_CActor>
+	TCFuture<void> TCDistributedActorSingleSubscription<t_CActor>::fp_Destroy()
+	{
+		auto pError = DMibErrorInstance("Shutting down").f_ExceptionPointer();
+		for (auto &Promise : mp_GetActorPromises)
+			Promise.f_SetException(pError);
+
+		mp_GetActorPromises.f_Clear();
+
+		co_return {};
+	}
+
+	template <typename t_CActor>
 	TCFuture<TCDistributedActor<t_CActor>> TCDistributedActorSingleSubscription<t_CActor>::f_GetActor()
 	{
+		auto CheckDestroy = co_await this->f_CheckDestroyedOnResume();
+
 		if (mp_DistributedActor.f_IsSet())
 			co_return mp_DistributedActor;
 

@@ -120,7 +120,7 @@ namespace NMib::NConcurrency
 		void f_SetAppType(EDistributedAppType _AppType);
 		void f_LogApplicationInfo();
 
-		TCFuture<CDistributedAppCommandLineClient> f_GetCommandLineClient();
+		TCFuture<CDistributedAppCommandLineClient> f_GetCommandLineClient(NStorage::TCSharedPointer<CRunLoop> _pRunLoop);
 
 		TCFuture<uint32> f_RunCommandLine
 			(

@@ -1,4 +1,4 @@
-// Copyright © 2015 Hansoft AB 
+// Copyright © 2015 Hansoft AB
 // Distributed under the MIT license, see license text in LICENSE.Malterlib
 
 #define DMibRuntimeTypeRegistry
@@ -46,7 +46,7 @@ namespace
 		void fp_BuildCommandLine(CDistributedAppCommandLineSpecification &o_CommandLine) override
 		{
 			auto Section = o_CommandLine.f_AddSection("Test1", "Testing test 2");
-			
+
 			Section.f_RegisterCommand
 				(
 					{
@@ -69,18 +69,18 @@ namespace
 				)
 			;
 		}
-		
+
 		TCFuture<void> fp_StartApp(NEncoding::CEJsonSorted const _Params) override
 		{
 			co_return {};
 		}
 
-		TCFuture<void> fp_StopApp() override 
+		TCFuture<void> fp_StopApp() override
 		{
 			co_return {};
 		}
 	};
-	
+
 	class CDistributedApp_Tests : public NMib::NTest::CTest
 	{
 		bool mp_bFirstRun = true;
@@ -106,15 +106,17 @@ namespace
 					}
 				}
 			}
+			CActorRunLoopTestHelper RunLoopHelper;
+
 			auto AppActor = fg_ConstructActor<CTestDistributedApp>(_Name);
-			AppActor(&CDistributedAppActor::f_StartApp, NEncoding::CEJsonSorted{}, TCActor<CDistiributedAppLogActor>{}, EDistributedAppType_InProcess).f_CallSync();
-			CDistributedAppCommandLineClient CommandLineClient = AppActor(&CDistributedAppActor::f_GetCommandLineClient).f_CallSync();
-			
+			AppActor(&CDistributedAppActor::f_StartApp, NEncoding::CEJsonSorted{}, TCActor<CDistiributedAppLogActor>{}, EDistributedAppType_InProcess).f_CallSync(RunLoopHelper.m_pRunLoop);
+			CDistributedAppCommandLineClient CommandLineClient = AppActor(&CDistributedAppActor::f_GetCommandLineClient, RunLoopHelper.m_pRunLoop).f_CallSync(RunLoopHelper.m_pRunLoop);
+
 			_fTests(CommandLineClient);
 
-			AppActor->f_BlockDestroy();
+			AppActor->f_BlockDestroy(RunLoopHelper.m_pRunLoop->f_ActorDestroyLoop());
 		}
-		
+
 		void f_DoTests()
 		{
 			DMibTestCategory("Command line")
@@ -126,7 +128,7 @@ namespace
 							[](CDistributedAppCommandLineClient &_Client)
 							{
 								CEJsonSorted RunParams;
-								
+
 								DMibTestPath("General");
 								aint Ret = _Client.f_RunCommandLine(fg_CreateVector<CStr>("App", "--test-actor", "--integer", "66"));
 								DMibExpect(Ret, ==, 66);

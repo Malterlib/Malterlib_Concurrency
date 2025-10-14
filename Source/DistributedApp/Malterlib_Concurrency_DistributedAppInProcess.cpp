@@ -77,7 +77,7 @@ namespace NMib::NConcurrency
 		NEncoding::CEJsonSorted AppParams;
 		{
 			using namespace NStr;
-			CDistributedAppCommandLineClient CommandLineClient = co_await mp_DistributedApp(&CDistributedAppActor::f_GetCommandLineClient);
+			CDistributedAppCommandLineClient CommandLineClient = co_await mp_DistributedApp(&CDistributedAppActor::f_GetCommandLineClient, nullptr);
 			CommandLineClient.f_MutateCommandLineSpecification
 				(
 					[&](CDistributedAppCommandLineSpecification &_Spec, CDistributedAppActor_Settings const &_Settings)

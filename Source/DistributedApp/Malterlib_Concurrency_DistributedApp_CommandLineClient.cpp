@@ -3,6 +3,7 @@
 
 #include "Malterlib_Concurrency_DistributedApp.h"
 #include "Malterlib_Concurrency_DistributedApp_Internal.h"
+#include "../DistributedTrust/Malterlib_Concurrency_DistributedTrust_AuthActor_U2F.h"
 
 #include <Mib/Concurrency/ConcurrencyManager>
 #include <Mib/Concurrency/DistributedActorTrustManagerDatabases/JsonDirectory>
@@ -167,8 +168,52 @@ namespace NMib::NConcurrency
 				co_return bDestroyApp;
 			}
 
-		private:
+			NConcurrency::TCFuture<CU2FRegister::CResult> f_U2F_Register(CU2FRegister _Register) override
+			{
+				auto Result = co_await CU2FHelpers::fs_Register
+					(
+							CU2FHelpers::CU2FRegister
+							{
+								.m_ChallengeDigest = fg_Move(_Register.m_ChallengeDigest)
+								, .m_AppDigest = fg_Move(_Register.m_AppDigest)
+								, .m_Prompt = fg_Move(_Register.m_Prompt)
+							}
+					)
+				;
 
+				co_return
+					{
+						.m_PublicKey = fg_Move(Result.m_PublicKey)
+						, .m_KeyHandle = fg_Move(Result.m_KeyHandle)
+						, .m_AttestationCertificate = fg_Move(Result.m_AttestationCertificate)
+						, .m_Signature = fg_Move(Result.m_Signature)
+					}
+				;
+			}
+
+			NConcurrency::TCFuture<CU2FAuthenticate::CResult> f_U2F_Authenticate(CU2FAuthenticate _Authenticate) override
+			{
+				CU2FHelpers::CU2FAuthenticate Authenticate{.m_Prompt = _Authenticate.m_Prompt};
+
+				for (auto &Attempt : _Authenticate.m_Attempts)
+				{
+					Authenticate.m_Attempts.f_Insert
+						(
+							{
+								.m_ChallengeDigest = fg_Move(Attempt.m_ChallengeDigest)
+								, .m_AppDigest = fg_Move(Attempt.m_AppDigest)
+								, .m_KeyHandle = fg_Move(Attempt.m_KeyHandle)
+							}
+						)
+					;
+				}
+
+				auto Result = co_await CU2FHelpers::fs_Authenticate(fg_Move(Authenticate));
+
+				co_return {.m_AppDigest = Result.m_AppDigest, .m_Signature = fg_Move(Result.m_Signature)};
+			}
+
+		private:
 			struct CCancellationSubscription
 			{
 				FOnCancel m_fOnCancel;

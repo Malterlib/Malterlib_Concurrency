@@ -30,6 +30,8 @@ namespace NMib::NConcurrency
 		DMibPublishActorFunction(ICCommandLineControl::f_StdOut);
 		DMibPublishActorFunction(ICCommandLineControl::f_StdOutBinary);
 		DMibPublishActorFunction(ICCommandLineControl::f_StdErr);
+		DMibPublishActorFunction(ICCommandLineControl::f_U2F_Register);
+		DMibPublishActorFunction(ICCommandLineControl::f_U2F_Authenticate);
 	}
 
 	ICCommandLineControl::~ICCommandLineControl() = default;
@@ -197,6 +199,20 @@ namespace NMib::NConcurrency
 		if (!m_ControlActor)
 			return DMibErrorInstance("No control actor");
 		return m_ControlActor.f_CallActor(&ICCommandLineControl::f_ReadPrompt)(_Params);
+	}
+
+	NConcurrency::TCFuture<ICCommandLineControl::CU2FRegister::CResult> CCommandLineControl::f_U2F_Register(ICCommandLineControl::CU2FRegister &&_Register)
+	{
+		if (!m_ControlActor)
+			return DMibErrorInstance("No control actor");
+		return m_ControlActor.f_CallActor(&ICCommandLineControl::f_U2F_Register)(fg_Move(_Register));
+	}
+
+	NConcurrency::TCFuture<ICCommandLineControl::CU2FAuthenticate::CResult> CCommandLineControl::f_U2F_Authenticate(ICCommandLineControl::CU2FAuthenticate &&_Authenticate)
+	{
+		if (!m_ControlActor)
+			return DMibErrorInstance("No control actor");
+		return m_ControlActor.f_CallActor(&ICCommandLineControl::f_U2F_Authenticate)(fg_Move(_Authenticate));
 	}
 
 	TCFuture<void> CCommandLineControl::f_AbortReads() const

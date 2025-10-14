@@ -1,4 +1,4 @@
-// Copyright © 2015 Hansoft AB 
+// Copyright © 2015 Hansoft AB
 // Distributed under the MIT license, see license text in LICENSE.Malterlib
 
 #include <Mib/CommandLine/AnsiEncoding>
@@ -15,6 +15,7 @@
 #include "Malterlib_Concurrency_DistributedTrust.h"
 #include "Malterlib_Concurrency_DistributedTrust_AuthActor.h"
 #include "Malterlib_Concurrency_DistributedTrust_AuthActor_U2F_HID.h"
+#include "Malterlib_Concurrency_DistributedTrust_AuthActor_U2F.h"
 
 extern "C"
 {
@@ -656,9 +657,17 @@ namespace NMib::NConcurrency::NPrivate
 		struct CRegistrationResult
 		{
 			CSecureByteVector m_KeyHandle;
-			NContainer::CSecureByteVector m_PublicKey;
+			CSecureByteVector m_PublicKey;
 			CStr m_AttestationCertificatePEM;
 			CStr m_AppID;
+		};
+
+		struct CRegistrationResultRaw
+		{
+			CSecureByteVector m_KeyHandle;
+			CSecureByteVector m_PublicKey;
+			CSecureByteVector m_AttestationCertificate;
+			CSecureByteVector m_Signature;
 		};
 
 		struct CAuthenticationResponse
@@ -681,34 +690,11 @@ namespace NMib::NConcurrency::NPrivate
 			uint32 m_Index;
 		};
 
-		CU2FContext()
+		struct CVerifyResponseDependencies
 		{
-			m_AppID = NCryptography::fg_RandomID();
-			NCryptography::fg_GenerateRandomData(m_SignatureBytes.f_GetArray(32), 32);
-		}
-
-		CU2FContext(CAuthenticationData const &_AuthenticationData, CSecureByteVector const &_SignatureBytes, CStr const &_ID)
-			: m_SignatureBytes(_SignatureBytes)
-			, m_FactorID(_ID)
-			, m_FactorName(_AuthenticationData.m_Name)
-		{
-
-			if (auto *pValue = _AuthenticationData.m_PrivateData.f_FindEqual("KeyHandle"))
-			{
-				if (pValue->f_IsBinary())
-					m_KeyHandle = pValue->f_Binary().f_ToSecure();
-			}
-			if (auto *pValue = _AuthenticationData.m_PublicData.f_FindEqual("AppID"))
-			{
-				if (pValue->f_IsString())
-					m_AppID = pValue->f_String();
-			}
-			if (auto *pValue = _AuthenticationData.m_PublicData.f_FindEqual("PublicKey"))
-			{
-				if (pValue->f_IsBinary())
-					m_PublicKey = pValue->f_Binary().f_ToSecure();
-			}
-		}
+			CStr m_AppID;
+			CSecureByteVector m_PublicKey;
+		};
 
 		static TCFuture<CSendAPDUResult> DMibWorkaroundUBSanSectionErrorsDisable fs_SendAPDUs(uint32 _Command, TCVector<CSecureByteVector> _Data, TCFunction<void ()> _fPrompt)
 		{
@@ -807,17 +793,9 @@ namespace NMib::NConcurrency::NPrivate
 			}
 		}
 
-		TCFuture<CRegistrationResult> f_VerifyRegistrationResponse
-			(
-				CSecureByteVector _RegistrationData
-				, CHashDigest_SHA256 _ChallengeDigest
-				, CHashDigest_SHA256 _AppDigest
-				, CStr _AppID
-			) const
+		static TCFuture<CRegistrationResultRaw> fs_ExtractRegistrationResponse(CSecureByteVector _RegistrationData)
 		{
 			auto CaptureScope = co_await g_CaptureExceptions;
-			// Verify that the registration data is genuine
-
 			/*
 				Layout of data
 				+-------------------------------------------------------------------+
@@ -876,6 +854,37 @@ namespace NMib::NConcurrency::NPrivate
 				Stream.f_ConsumeBytes(AttestationCertData.f_GetArray(AttestationCertificateLen), AttestationCertificateLen);
 			}
 
+			CSecureByteVector SignatureBuffer;
+			{
+				size_t SignatureLen = Stream.f_GetLength() - Stream.f_GetPosition();
+				Stream.f_ConsumeBytes(SignatureBuffer.f_GetArray(SignatureLen), SignatureLen);
+			}
+
+			co_return CRegistrationResultRaw
+				{
+					.m_KeyHandle = fg_Move(KeyHandle)
+					, .m_PublicKey = fg_Move(PublicKey)
+					, .m_AttestationCertificate = fg_Move(AttestationCertData)
+					, .m_Signature = fg_Move(SignatureBuffer)
+				}
+			;
+		}
+
+		static TCFuture<CRegistrationResult> fs_VerifyRegistrationResponseRaw
+			(
+				CRegistrationResultRaw _Response
+				, CHashDigest_SHA256 _ChallengeDigest
+				, CHashDigest_SHA256 _AppDigest
+				, CStr _AppID
+			)
+		{
+			auto CaptureScope = co_await g_CaptureExceptions;
+
+			CSecureByteVector &PublicKey = _Response.m_PublicKey;
+			CSecureByteVector &KeyHandle = _Response.m_KeyHandle;
+			CSecureByteVector &AttestationCertData = _Response.m_AttestationCertificate;
+			CSecureByteVector &SignatureBuffer = _Response.m_Signature;
+
 			CSSLPointer<X509 *, X509_free> pCertificate{nullptr};
 			{
 				uint8 const *pTempData = AttestationCertData.f_GetArray();
@@ -887,10 +896,6 @@ namespace NMib::NConcurrency::NPrivate
 
 			CSSLPointer<ECDSA_SIG *, ECDSA_SIG_free> pSig{nullptr};
 			{
-				size_t SignatureLen = Stream.f_GetLength() - Stream.f_GetPosition();
-				CSecureByteVector SignatureBuffer;
-				Stream.f_ConsumeBytes(SignatureBuffer.f_GetArray(SignatureLen), SignatureLen);
-
 				uint8 const *pTempData = SignatureBuffer.f_GetArray();
 				ERR_clear_error();
 				pSig = d2i_ECDSA_SIG(nullptr, &pTempData, SignatureBuffer.f_GetLen());
@@ -932,65 +937,23 @@ namespace NMib::NConcurrency::NPrivate
 			}
 
 			CSSLPointer<EC_KEY *, EC_KEY_free> pUserPublicKey = fg_DecodeUserKey(PublicKey);
-			co_return CRegistrationResult{KeyHandle, fg_DumpUserKey(pUserPublicKey), fg_DumpX509Cert(pCertificate), _AppID};
+
+			co_return CRegistrationResult
+				{
+					.m_KeyHandle = fg_Move(KeyHandle)
+					, .m_PublicKey = fg_DumpUserKey(pUserPublicKey)
+					, .m_AttestationCertificatePEM = fg_DumpX509Cert(pCertificate)
+					, .m_AppID = _AppID
+				}
+			;
 		}
 
-		TCFuture<CRegistrationResult> f_Register(TCFunction<void ()> _fPrompt)
-		{
-			CSecureByteVector Data;
-
-			auto ChallengeDigest = CHash_SHA256::fs_DigestFromData(m_SignatureBytes);
-			Data.f_Insert(ChallengeDigest.f_GetData(), ChallengeDigest.mc_Size);
-
-			auto AppDigest = CHash_SHA256::fs_DigestFromData(m_AppID.f_GetStr(), m_AppID.f_GetLen());
-			Data.f_Insert(AppDigest.f_GetData(), AppDigest.mc_Size);
-
-			auto RegistrationData = co_await fs_SendAPDUs(U2F_REGISTER, {Data}, _fPrompt);
-			DMibRequire(RegistrationData.m_Index == 0);
-
-			co_return co_await f_VerifyRegistrationResponse(RegistrationData.m_Data, ChallengeDigest, AppDigest, m_AppID);
-		}
-
-		static TCFuture<CAuthenticationResponse> DMibWorkaroundUBSanSectionErrorsDisable fs_Authenticate(TCVector<CU2FContext> _U2FContexts, TCFunction<void ()> _fPrompt)
-		{
-			struct CFactorValues
-			{
-				CStr m_AppID;
-				CStr m_FactorID;
-				CStr m_FactorName;
-			};
-
-			TCVector<CFactorValues> FactorValues;
-			// Build the packets to send to the key
-			TCVector<CSecureByteVector> DataUnits;
-			for (auto const &Context : _U2FContexts)
-			{
-				CSecureByteVector Data;
-				FactorValues.f_InsertLast({Context.m_AppID, Context.m_FactorID, Context.m_FactorName});
-
-				auto Digest = CHash_SHA256::fs_DigestFromData(Context.m_SignatureBytes);
-				Data.f_Insert(Digest.f_GetData(), Digest.mc_Size);
-
-				Digest = CHash_SHA256::fs_DigestFromData(Context.m_AppID.f_GetStr(), Context.m_AppID.f_GetLen());
-				Data.f_Insert(Digest.f_GetData(), Digest.mc_Size);
-
-				Data.f_Insert(Context.m_KeyHandle.f_GetLen());
-				Data.f_Insert(Context.m_KeyHandle);
-
-				DataUnits.f_InsertLast(fg_Move(Data));
-			}
-
-			auto AuthenticationData = co_await fs_SendAPDUs(U2F_AUTHENTICATE, DataUnits, _fPrompt);
-
-			if (!FactorValues.f_IsPosValid(AuthenticationData.m_Index))
-				co_return DMibErrorInstance("Invalid index in U2F authentication USB device communication (fs_SendAPDUs)");
-
-			auto const &Values = FactorValues[AuthenticationData.m_Index];
-
-			co_return {fg_Move(AuthenticationData.m_Data), Values.m_FactorID, Values.m_FactorName};
-		}
-
-		TCUnsafeFuture<CAuthenticationResult> f_VerifyAuthenticationResponse(CAuthenticationResponse const &_Response) const
+		static TCFuture<CAuthenticationResult> fs_VerifyAuthenticationResponse
+			(
+				CAuthenticationResponse _Response
+				, CVerifyResponseDependencies _Dependencies
+				, CSecureByteVector _SignatureBytes
+			)
 		{
 			CAuthenticationResult Result;
 
@@ -1020,8 +983,8 @@ namespace NMib::NConcurrency::NPrivate
 				co_return DMibErrorInstance(NCryptography::NBoringSSL::fg_GetExceptionStr("Failed to verify authentication response (d2i_ECDSA_SIG)"));
 
 			CHash_SHA256 Hash;
-			auto AppDigest = CHash_SHA256::fs_DigestFromData(m_AppID.f_GetStr(), m_AppID.f_GetLen());
-			auto ClientDigest = CHash_SHA256::fs_DigestFromData(m_SignatureBytes);
+			auto AppDigest = CHash_SHA256::fs_DigestFromData(_Dependencies.m_AppID.f_GetStr(), _Dependencies.m_AppID.f_GetLen());
+			auto ClientDigest = CHash_SHA256::fs_DigestFromData(_SignatureBytes);
 
 			Hash.f_AddData(AppDigest.f_GetData(), AppDigest.mc_Size);
 			Hash.f_AddData((uint8 *)&Result.m_UserPresence, 1);
@@ -1029,7 +992,7 @@ namespace NMib::NConcurrency::NPrivate
 			Hash.f_AddData(ClientDigest.f_GetData(), ClientDigest.mc_Size);
 			auto Digest = Hash.f_GetDigest();
 
-			CSSLPointer<EC_KEY *, EC_KEY_free> Key = fg_DecodeUserKey(m_PublicKey);
+			CSSLPointer<EC_KEY *, EC_KEY_free> Key = fg_DecodeUserKey(_Dependencies.m_PublicKey);
 			ERR_clear_error();
 			auto Verified = ECDSA_do_verify(Digest.f_GetData(), Digest.mc_Size, pSignature, Key);
 			if (Verified != 1)
@@ -1045,13 +1008,6 @@ namespace NMib::NConcurrency::NPrivate
 
 			co_return fg_Move(Result);
 		}
-
-		CSecureByteVector m_SignatureBytes;
-		CSecureByteVector m_KeyHandle;
-		CSecureByteVector m_PublicKey;
-		CStr m_AppID;
-		CStr m_FactorID;
-		CStr m_FactorName;
 	};
 }
 
@@ -1112,37 +1068,45 @@ namespace NMib::NConcurrency
 		)
 	{
 		auto Subscription = co_await mp_ProcessingSequencer.f_Sequence();
-		auto BlockingActorCheckout = fg_BlockingActor();
 
-		co_return co_await
-			(
-				g_Dispatch(BlockingActorCheckout) / [=]() -> TCFuture<CAuthenticationData>
-				{
-					NPrivate::CU2FContext U2FContext;
-					auto Result = co_await U2FContext.f_Register
-						(
-							[=]
-							{
-								auto AnsiEncoding = _pCommandLine->f_AnsiEncoding();
+		auto AnsiEncoding = _pCommandLine->f_AnsiEncoding();
+		CStr AppID = NCryptography::fg_RandomID();
+		CSecureByteVector SignatureBytes;
+		NCryptography::fg_GenerateRandomData(SignatureBytes.f_GetArray(32), 32);
+		auto ChallengeDigest = NCryptography::CHash_SHA256::fs_DigestFromData(SignatureBytes);
+		auto AppDigest = NCryptography::CHash_SHA256::fs_DigestFromData(AppID.f_GetStr(), AppID.f_GetLen());
 
-								*_pCommandLine %= "Adding U2F factor to user. {}Please press the button on your U2F device.{}\n"_f
-									<< AnsiEncoding.f_Prompt()
-									<< AnsiEncoding.f_Default()
-								;
-							}
-						)
-					;
-					CAuthenticationData AuthenticationData;
-					AuthenticationData.m_Category = EAuthenticationFactorCategory_Possession;
-					AuthenticationData.m_Name = "U2F";
-					AuthenticationData.m_PublicData["AttestationCertificate"] = Result.m_AttestationCertificatePEM;
-					AuthenticationData.m_PublicData["PublicKey"] = Result.m_PublicKey.f_ToInsecure();
-					AuthenticationData.m_PublicData["AppID"] = Result.m_AppID;
-					AuthenticationData.m_PrivateData["KeyHandle"] = Result.m_KeyHandle.f_ToInsecure();
-					co_return fg_Move(AuthenticationData);
-				}
-			)
+		ICCommandLineControl::CU2FRegister Register
+			{
+				.m_ChallengeDigest = ChallengeDigest
+				, .m_AppDigest = AppDigest
+				, .m_Prompt = "Adding U2F factor to user. {}Please press the button on your U2F device.{}\n"_f
+				<< AnsiEncoding.f_Prompt()
+				<< AnsiEncoding.f_Default()
+			}
 		;
+
+		auto RegisterResult = co_await _pCommandLine->f_U2F_Register(fg_Move(Register));
+
+		NPrivate::CU2FContext::CRegistrationResultRaw ResultRaw
+			{
+				.m_KeyHandle = fg_Move(RegisterResult.m_KeyHandle)
+				, .m_PublicKey = fg_Move(RegisterResult.m_PublicKey)
+				, .m_AttestationCertificate = fg_Move(RegisterResult.m_AttestationCertificate)
+				, .m_Signature = fg_Move(RegisterResult.m_Signature)
+			}
+		;
+
+		auto Result = co_await NPrivate::CU2FContext::fs_VerifyRegistrationResponseRaw(fg_Move(ResultRaw), ChallengeDigest, AppDigest, AppID);
+
+		CAuthenticationData AuthenticationData;
+		AuthenticationData.m_Category = EAuthenticationFactorCategory_Possession;
+		AuthenticationData.m_Name = "U2F";
+		AuthenticationData.m_PublicData["AttestationCertificate"] = Result.m_AttestationCertificatePEM;
+		AuthenticationData.m_PublicData["PublicKey"] = Result.m_PublicKey.f_ToInsecure();
+		AuthenticationData.m_PublicData["AppID"] = Result.m_AppID;
+		AuthenticationData.m_PrivateData["KeyHandle"] = Result.m_KeyHandle.f_ToInsecure();
+		co_return fg_Move(AuthenticationData);
 	}
 
 	TCFuture<ICDistributedActorAuthenticationHandler::CResponse> CDistributedActorTrustManagerAuthenticationActorU2F::f_SignAuthenticationRequest
@@ -1154,52 +1118,68 @@ namespace NMib::NConcurrency
 		)
 	{
 		auto Subscription = co_await mp_ProcessingSequencer.f_Sequence();
-		auto BlockingActorCheckout = fg_BlockingActor();
 
-		co_return co_await
-			(
-				g_Dispatch(BlockingActorCheckout) / [=]() -> TCFuture<ICDistributedActorAuthenticationHandler::CResponse>
-				{
-					auto SignatureBytes = _SignedProperties.f_GetSignatureBytes();
+		auto AnsiEncoding = _pCommandLine->f_AnsiEncoding();
 
-					// This is handled much more smoothly for the password factor. There we ask for a password and can check all registered factors in parallel and see if the password
-					// can decrypt the private key.
-					//
-					// If there are multiple keys plugged in to the computer they will all be tested "in parallel", SendAPDU will query all available keys at the same time, but we will
-					// only get a valid reply from the key matching the keyhandle in the factor. If we have multiple registered factors we will have to test them one at a time, if we
-					// don't start with the correct one we will have to wait until the SendAPDU query times out :(
-					TCVector<NPrivate::CU2FContext> U2FContexts;
-
-					for (auto const &Factor : _Factors)
-						U2FContexts.f_Insert(NPrivate::CU2FContext(Factor, SignatureBytes, _Factors.fs_GetKey(Factor)));
-
-					auto Response = co_await NPrivate::CU2FContext::fs_Authenticate
-						(
-							U2FContexts
-							, [=]
-							{
-								auto AnsiEncoding = _pCommandLine->f_AnsiEncoding();
-
-								*_pCommandLine %= "{}Please press the button on your U2F device.{}\n"_f
-									<< AnsiEncoding.f_Prompt()
-									<< AnsiEncoding.f_Default()
-								;
-							}
-						)
-					;
-
-					ICDistributedActorAuthenticationHandler::CResponse Result;
-
-					Result.m_FactorID = Response.m_FactorID;
-					Result.m_FactorName = Response.m_FactorName;
-
-					Result.m_SignedProperties = _SignedProperties;
-					Result.m_Signature = Response.m_Signature;
-
-					co_return fg_Move(Result);
-				}
-			)
+		ICCommandLineControl::CU2FAuthenticate Authenticate
+			{
+				.m_Prompt = "{}Please press the button on your U2F device.{}\n"_f
+				<< AnsiEncoding.f_Prompt()
+				<< AnsiEncoding.f_Default()
+			}
 		;
+
+		auto SignatureBytes = _SignedProperties.f_GetSignatureBytes();
+		auto ChallengeDigest = NCryptography::CHash_SHA256::fs_DigestFromData(SignatureBytes);
+
+		TCMap<NCryptography::CHashDigest_SHA256, CAuthenticationData const *> AppDigestToFactor;
+
+		for (auto &FactorEntry : fg_Const(_Factors).f_Entries())
+		{
+			auto &Factor = FactorEntry.f_Value();
+
+			CSecureByteVector KeyHandle;
+			if (auto *pValue = Factor.m_PrivateData.f_FindEqual("KeyHandle"); pValue && pValue->f_IsBinary())
+				KeyHandle = pValue->f_Binary().f_ToSecure();
+
+			CStr AppID;
+			if (auto *pValue = Factor.m_PublicData.f_FindEqual("AppID"); pValue && pValue->f_IsString())
+				AppID = pValue->f_String();
+
+			if (KeyHandle.f_IsEmpty() || AppID.f_IsEmpty())
+				continue;
+
+			auto AppDigest = NCryptography::CHash_SHA256::fs_DigestFromData(AppID.f_GetStr(), AppID.f_GetLen());
+
+			if (!AppDigestToFactor(AppDigest, &Factor).f_WasCreated())
+				continue;
+
+			auto &Attempt = Authenticate.m_Attempts.f_Insert();
+			Attempt.m_ChallengeDigest = ChallengeDigest;
+			Attempt.m_AppDigest = AppDigest;
+			Attempt.m_KeyHandle = KeyHandle;
+			DMibConOut2("Attempt: chall {} app {} key {}\n", ChallengeDigest, AppDigest, NCryptography::CHash_SHA256::fs_DigestFromData(KeyHandle));
+		}
+
+		if (Authenticate.m_Attempts.f_IsEmpty())
+			co_return DMibErrorInstance("No valid U2F factors found");
+
+		auto AuthenticateResult = co_await _pCommandLine->f_U2F_Authenticate(fg_Move(Authenticate));
+
+		auto pSuccessfulFactor = AppDigestToFactor.f_FindEqual(AuthenticateResult.m_AppDigest);
+		if (!pSuccessfulFactor)
+			co_return DMibErrorInstance("Invalid U2F app digest returned from authenticate");
+
+		auto &SuccessfulFactor = **pSuccessfulFactor;
+
+		ICDistributedActorAuthenticationHandler::CResponse Result;
+
+		Result.m_FactorID = _Factors.fs_GetKey(*pSuccessfulFactor);
+		Result.m_FactorName = SuccessfulFactor.m_Name;
+		Result.m_SignedProperties = _SignedProperties;
+		Result.m_Signature = AuthenticateResult.m_Signature;
+
+		co_return fg_Move(Result);
 	};
 
 	auto CDistributedActorTrustManagerAuthenticationActorU2F::f_VerifyAuthenticationResponse
@@ -1217,18 +1197,24 @@ namespace NMib::NConcurrency
 			(
 				g_Dispatch(BlockingActorCheckout) / [=]() -> TCFuture<CVerifyAuthenticationReturn>
 				{
-					auto *pValue = _AuthenticationData.m_PublicData.f_FindEqual("PublicKey");
-					if (!pValue || !pValue->f_IsBinary())
+					NPrivate::CU2FContext::CVerifyResponseDependencies VerifyDependencies;
+
+					if (auto *pValue = _AuthenticationData.m_PublicData.f_FindEqual("AppID"); pValue && pValue->f_IsString())
+						VerifyDependencies.m_AppID = pValue->f_String();
+					else
+						co_return CVerifyAuthenticationReturn{};
+
+					if (auto *pValue = _AuthenticationData.m_PublicData.f_FindEqual("PublicKey"); pValue && pValue->f_IsBinary())
+						VerifyDependencies.m_PublicKey = pValue->f_Binary().f_ToSecure();
+					else
 						co_return CVerifyAuthenticationReturn{};
 
 					NPrivate::CU2FContext::CAuthenticationResponse AuthenticationResponse;
 					AuthenticationResponse.m_Signature = _Response.m_Signature;
 					auto SignatureBytes = _Response.m_SignedProperties.f_GetSignatureBytes();
 
-					NPrivate::CU2FContext U2FContext(_AuthenticationData, SignatureBytes, "");
-					auto Result = co_await U2FContext.f_VerifyAuthenticationResponse(AuthenticationResponse);
+					auto Result = co_await NPrivate::CU2FContext::fs_VerifyAuthenticationResponse(AuthenticationResponse, fg_Move(VerifyDependencies), SignatureBytes);
 
-					// Should we care about the counter?
 					CVerifyAuthenticationReturn Return;
 					Return.m_bVerified = Result.m_bVerified;
 
@@ -1253,7 +1239,7 @@ namespace NMib::NConcurrency
 		CAuthenticationActorInfo operator () (TCActor<CDistributedActorTrustManager> const &_TrustManager) override;
 		static mint ms_MakeActive;
 	};
-	
+
 	mint CDistributedActorTrustManagerAuthenticationActorFactoryU2F::ms_MakeActive;
 
 	CAuthenticationActorInfo CDistributedActorTrustManagerAuthenticationActorFactoryU2F::operator ()(TCActor<CDistributedActorTrustManager> const &_TrustManager)
@@ -1271,5 +1257,96 @@ namespace NMib::NConcurrency
 	void fg_Malterlib_CDistributedActorTrustManagerAuthenticationActorU2F_MakeActive()
 	{
 		DMibRuntimeClassMakeActive(CDistributedActorTrustManagerAuthenticationActorFactoryU2F);
+	}
+
+	TCFuture<CU2FHelpers::CU2FRegister::CResult> CU2FHelpers::fs_Register(CU2FHelpers::CU2FRegister _Params)
+	{
+		auto BlockingActorCheckout = fg_BlockingActor();
+
+		co_return co_await
+			(
+				g_Dispatch(BlockingActorCheckout) / [=]() -> TCFuture<CU2FHelpers::CU2FRegister::CResult>
+				{
+					CSecureByteVector Data;
+
+					Data.f_Insert(_Params.m_ChallengeDigest.f_GetData(), _Params.m_ChallengeDigest.mc_Size);
+					Data.f_Insert(_Params.m_AppDigest.f_GetData(), _Params.m_AppDigest.mc_Size);
+
+					auto RegistrationData = co_await NPrivate::CU2FContext::fs_SendAPDUs
+						(
+							U2F_REGISTER
+							, {Data}
+							, [Prompt = _Params.m_Prompt]
+							{
+								DMibConOutRaw(Prompt);
+							}
+						)
+					;
+					DMibRequire(RegistrationData.m_Index == 0);
+
+					auto Result = co_await NPrivate::CU2FContext::fs_ExtractRegistrationResponse(RegistrationData.m_Data);
+
+					co_return
+						{
+							.m_PublicKey = Result.m_PublicKey
+							, .m_KeyHandle = Result.m_KeyHandle
+							, .m_AttestationCertificate = Result.m_AttestationCertificate
+							, .m_Signature = Result.m_Signature
+						}
+					;
+				}
+			)
+		;
+	}
+
+	TCFuture<CU2FHelpers::CU2FAuthenticate::CResult> CU2FHelpers::fs_Authenticate(CU2FHelpers::CU2FAuthenticate _Params)
+	{
+		auto BlockingActorCheckout = fg_BlockingActor();
+
+		co_return co_await
+			(
+				g_Dispatch(BlockingActorCheckout) / [=]() -> TCFuture<CU2FHelpers::CU2FAuthenticate::CResult>
+				{
+					// Build the packets to send to the key
+					TCVector<CSecureByteVector> DataUnits;
+					for (auto const &Attempt : _Params.m_Attempts)
+					{
+						auto &Data = DataUnits.f_InsertLast();
+
+						Data.f_Insert(Attempt.m_ChallengeDigest.f_GetData(), Attempt.m_ChallengeDigest.mc_Size);
+						Data.f_Insert(Attempt.m_AppDigest.f_GetData(), Attempt.m_AppDigest.mc_Size);
+
+						Data.f_Insert(Attempt.m_KeyHandle.f_GetLen());
+						Data.f_Insert(Attempt.m_KeyHandle);
+					}
+
+					auto AuthenticationData = co_await NPrivate::CU2FContext::fs_SendAPDUs
+						(
+							U2F_AUTHENTICATE
+							, DataUnits
+							, [Prompt = _Params.m_Prompt]
+							{
+								DMibConOutRaw(Prompt);
+							}
+						)
+					;
+
+					if (!_Params.m_Attempts.f_IsPosValid(AuthenticationData.m_Index))
+						co_return DMibErrorInstance("Invalid index in U2F authentication USB device communication (fs_SendAPDUs)");
+
+					auto const &SuccessfulAttempt = _Params.m_Attempts[AuthenticationData.m_Index];
+
+					NCryptography::CHashDigest_SHA256 m_AppDigest;
+					NContainer::CSecureByteVector m_Signature;
+
+					co_return
+						{
+							.m_AppDigest = SuccessfulAttempt.m_AppDigest
+							, .m_Signature = fg_Move(AuthenticationData.m_Data)
+						}
+					;
+				}
+			)
+		;
 	}
 }

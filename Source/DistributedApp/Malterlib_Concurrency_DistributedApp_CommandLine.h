@@ -21,8 +21,57 @@ namespace NMib::NConcurrency
 	{
 		enum : uint32
 		{
-			EProtocolVersion_Min = 0x106
-			, EProtocolVersion_Current = 0x106
+			EProtocolVersion_Min = 0x107
+			, EProtocolVersion_Current = 0x107
+		};
+
+		struct CU2FAuthenticate
+		{
+			struct CResult
+			{
+				template <typename tf_CStream>
+				void f_Stream(tf_CStream &_Stream);
+
+				NCryptography::CHashDigest_SHA256 m_AppDigest;
+				NContainer::CSecureByteVector m_Signature;
+			};
+
+			struct CAuthenticationAttempt
+			{
+				template <typename tf_CStream>
+				void f_Stream(tf_CStream &_Stream);
+
+				NCryptography::CHashDigest_SHA256 m_ChallengeDigest;
+				NCryptography::CHashDigest_SHA256 m_AppDigest;
+				NContainer::CSecureByteVector m_KeyHandle;
+			};
+
+			template <typename tf_CStream>
+			void f_Stream(tf_CStream &_Stream);
+
+			NContainer::TCVector<CAuthenticationAttempt> m_Attempts; // Tries all of them and returns the first successful one
+			NStr::CStr m_Prompt;
+		};
+
+		struct CU2FRegister
+		{
+			struct CResult
+			{
+				template <typename tf_CStream>
+				void f_Stream(tf_CStream &_Stream);
+
+				NContainer::CSecureByteVector m_PublicKey;
+				NContainer::CSecureByteVector m_KeyHandle;
+				NContainer::CSecureByteVector m_AttestationCertificate;
+				NContainer::CSecureByteVector m_Signature;
+			};
+
+			template <typename tf_CStream>
+			void f_Stream(tf_CStream &_Stream);
+
+			NCryptography::CHashDigest_SHA256 m_ChallengeDigest;
+			NCryptography::CHashDigest_SHA256 m_AppDigest;
+			NStr::CStr m_Prompt;
 		};
 
 		ICCommandLineControl();
@@ -48,6 +97,9 @@ namespace NMib::NConcurrency
 		virtual NConcurrency::TCFuture<void> f_StdOutBinary(NContainer::CIOByteVector _Output) = 0;
 		virtual NConcurrency::TCFuture<void> f_StdOut(NStr::CStrIO _Output) = 0;
 		virtual NConcurrency::TCFuture<void> f_StdErr(NStr::CStrIO _Output) = 0;
+
+		virtual NConcurrency::TCFuture<CU2FRegister::CResult> f_U2F_Register(CU2FRegister _Register) = 0;
+		virtual NConcurrency::TCFuture<CU2FAuthenticate::CResult> f_U2F_Authenticate(CU2FAuthenticate _Authenticate) = 0;
 	};
 
 	struct CCommandLineControl
@@ -58,6 +110,9 @@ namespace NMib::NConcurrency
 		NConcurrency::TCFuture<void> f_StdErr(NStr::CStrIO const &_Output) const;
 		NCommandLine::CTableRenderHelper f_TableRenderer() const;
 		NCommandLine::CAnsiEncoding f_AnsiEncoding() const;
+
+		NConcurrency::TCFuture<ICCommandLineControl::CU2FRegister::CResult> f_U2F_Register(ICCommandLineControl::CU2FRegister &&_Register);
+		NConcurrency::TCFuture<ICCommandLineControl::CU2FAuthenticate::CResult> f_U2F_Authenticate(ICCommandLineControl::CU2FAuthenticate &&_Authenticate);
 
 		void operator += (ch8 const *_pStdOut) const;
 		void operator %= (ch8 const *_pStdErr) const;
@@ -132,7 +187,7 @@ namespace NMib::NConcurrency
 	struct CCommandLineSpecificationDistributedAppCustomization
 	{
 		using CCommandLineClient = CDistributedAppCommandLineClient;
-		
+
 		template <typename t_CCommandLineSpecification>
 		struct TCSection
 		{

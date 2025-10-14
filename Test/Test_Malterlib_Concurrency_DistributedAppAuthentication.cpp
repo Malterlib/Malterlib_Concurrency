@@ -955,6 +955,16 @@ namespace NTestAuthentication
 			m_StdOut.f_Clear();
 		}
 
+		TCFuture<CU2FRegister::CResult> f_U2F_Register(CU2FRegister _Register) override
+		{
+			co_return {};
+		}
+
+		TCFuture<CU2FAuthenticate::CResult> f_U2F_Authenticate(CU2FAuthenticate _Authenticate) override
+		{
+			co_return {};
+		}
+
 	private:
 		TCFuture<void> fp_Destroy() override
 		{

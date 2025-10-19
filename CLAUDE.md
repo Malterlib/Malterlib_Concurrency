@@ -460,11 +460,68 @@ auto Functor = g_ActorFunctor
 ;
 ```
 
+### Resource Cleanup Helpers
+
+```cpp
+// Ensure an actor is destroyed even if the coroutine exits early
+TCActor<CFileTransferSend> Upload = fg_ConstructActor<CFileTransferSend>(_Path);
+co_await fg_AsyncDestroy(Upload); // Schedule destruction when co-routine goes out of scope
+
+// Destroy by value (functor/lambda) after use
+co_await fg_AsyncDestroy
+	(
+		[&AsyncResult]() -> TCFuture<void>
+		{
+			co_await fg_Move(AsyncResult).f_Destroy();
+			co_return {};
+		}
+	)
+;
+
+// Re-validate pointers after suspension
+TCFuture<void> f_Process(CStr _Key)
+{
+	CValue *pValue = nullptr;
+
+	co_await fg_OnResume
+		(
+			[&]() -> CExceptionPointer
+			{
+				pValue = mp_Items.f_FindEqual(_Key);
+				if (!pValue)
+					return DMibErrorInstance("Value disappeared");
+
+				return {};
+			}
+		)
+	;
+
+	co_await pValue->f_DoWork();
+	co_return {};
+}
+```
+
+- Use the `fg_AsyncDestroy` helper instead of manual `g_OnScopeExit` plumbing when an actor/functor needs structured teardown.
+- Schedule the helper before the first suspension and capture by reference — the functor runs while the coroutine frame is still alive, so moving the resource into the co-routine frame. After the first suspension of the cleanup function the references will be invalid.
+- These helpers schedule destruction on the owning actor.
+- Pair `fg_OnResume` with any pointer captures when the coroutine is going to suspend before dereferencing actor-owned data. While the coroutine is cancelled if the actor dies, other actor calls can mutate or erase those structures during the suspension, so re-validation on resume avoids stale references.
+
 ## Safety Considerations
 
 ### Coroutine Safety
 
 ```cpp
+// INVALID: TCFuture coroutines cannot take reference parameters (compile error)
+TCFuture<void> f_Invalid(CStr const &_Str);
+
+// SAFE: Pass by value (preferred for all TCFuture coroutines)
+TCFuture<void> f_Safe(CStr _Str)
+{
+	co_await fg_Delay(1.0);
+	DConOut("{}\n", _Str); // Safe
+	co_return {};
+}
+
 // UNSAFE: Reference parameters after suspension
 TCUnsafeFuture<void> f_Unsafe(CStr const &_Str)
 {
@@ -473,15 +530,7 @@ TCUnsafeFuture<void> f_Unsafe(CStr const &_Str)
 	co_return {};
 }
 
-// SAFE: Copy before suspension
-TCFuture<void> f_Safe(CStr _Str) // Pass by value
-{
-	co_await fg_Delay(1.0);
-	DConOut("{}\n", _Str); // Safe
-	co_return {};
-}
-
-// SAFE: Store before first suspension
+// SAFE (for TCUnsafeFuture): copy before the first suspension
 TCUnsafeFuture<void> f_SafeStore(CStr const &_Str)
 {
 	CStr Copy = _Str; // Store before suspension
@@ -609,13 +658,14 @@ MalterlibConcurrency_DebugSubscriptions true    // Subscription logging
 1. **Blocking in Actors**: Never block in actor code - use `fg_BlockingActor()` for I/O
 2. **Dangling References**: Use value semantics or ensure lifetime with subscriptions
 3. **Unobserved Results**: Always observe async results to catch exceptions
-4. **Coroutine References**: Avoid reference parameters in coroutines
-5. **Cross-Actor Access**: Never access actor internals directly
-6. **Forgotten co_return**: Always end coroutines with `co_return {};` for void
-7. **Race Conditions**: Don't share mutable state between actors without synchronization
-8. **Deadlocks**: Avoid circular actor dependencies
-9. **co_await in catch blocks**: Cannot use `co_await` in catch handlers - use `g_CaptureExceptions` instead
-10. **Exception message operator precedence**: When using `% "message"` with `co_await`, parenthesize properly: `co_await ((...) % "message")`
+4. **TCFuture References**: Reference parameters are rejected by the compiler
+5. **TCFutureUnsace References**: Always pass by value or move data before the first `co_await`
+6. **Cross-Actor Access**: Never access actor internals directly
+7. **Forgotten co_return**: Always end coroutines with `co_return {};` for void
+8. **Race Conditions**: Don't share mutable state between actors without synchronization
+9. **Deadlocks**: Avoid circular actor dependencies
+10. **co_await in catch blocks**: Cannot use `co_await` in catch handlers - use `g_CaptureExceptions` instead
+11. **Exception message operator precedence**: When using `% "message"` with `co_await`, parenthesize properly: `co_await ((...) % "message")`
 
 ## Advanced Features
 

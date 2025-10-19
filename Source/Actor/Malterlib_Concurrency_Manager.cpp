@@ -49,7 +49,7 @@ namespace NMib
 
 		fp_PushAllocationSlowPath(_pAllocation);
 	}
-	
+
 	inline_always_lto void *CPromiseThreadLocal::f_PopAllocation()
 	{
 		if (m_PreviousCoroutinePromiseAllocations.f_IsEmpty()) [[likely]]
@@ -235,7 +235,7 @@ namespace NMib::NConcurrency
 	{
 		[[maybe_unused]] auto &Local = *NPrivate::g_SubSystem_Concurrency->m_ThreadLocal;
 	}
-	
+
 	mark_nodebug inline_always_lto CConcurrencyThreadLocal &fg_ConcurrencyThreadLocal()
 	{
 #ifdef DMibConfig_ManualForeignThreadInitialization
@@ -828,16 +828,16 @@ namespace NMib::NConcurrency
 		NTime::CClock TimerClock{true};
 
 		static constexpr mint c_nDirectDeleteActors
-			= sizeof(m_DirectCallActor) / sizeof(m_DirectCallActor)
-			+ sizeof(m_ThisConcurrentActor) / sizeof(m_ThisConcurrentActor)
-			+ sizeof(m_ThisConcurrentActorLowPrio) / sizeof(m_ThisConcurrentActorLowPrio)
-			+ sizeof(m_ThisConcurrentActorHighCPU) / sizeof(m_ThisConcurrentActorHighCPU)
-			+ sizeof(m_OtherConcurrentActor) / sizeof(m_OtherConcurrentActor)
-			+ sizeof(m_OtherConcurrentActorLowPrio) / sizeof(m_OtherConcurrentActorLowPrio)
-			+ sizeof(m_OtherConcurrentActorHighCPU) / sizeof(m_OtherConcurrentActorHighCPU)
-			+ sizeof(m_DynamicConcurrentActor) / sizeof(m_DynamicConcurrentActor)
-			+ sizeof(m_DynamicConcurrentActorLowPrio) / sizeof(m_DynamicConcurrentActorLowPrio)
-			+ sizeof(m_DynamicConcurrentActorHighCPU) / sizeof(m_DynamicConcurrentActorHighCPU)
+			= sizeof(m_DirectCallActor) / sizeof(m_DirectCallActor) // NOLINT
+			+ sizeof(m_ThisConcurrentActor) / sizeof(m_ThisConcurrentActor) // NOLINT
+			+ sizeof(m_ThisConcurrentActorLowPrio) / sizeof(m_ThisConcurrentActorLowPrio) // NOLINT
+			+ sizeof(m_ThisConcurrentActorHighCPU) / sizeof(m_ThisConcurrentActorHighCPU) // NOLINT
+			+ sizeof(m_OtherConcurrentActor) / sizeof(m_OtherConcurrentActor) // NOLINT
+			+ sizeof(m_OtherConcurrentActorLowPrio) / sizeof(m_OtherConcurrentActorLowPrio) // NOLINT
+			+ sizeof(m_OtherConcurrentActorHighCPU) / sizeof(m_OtherConcurrentActorHighCPU) // NOLINT
+			+ sizeof(m_DynamicConcurrentActor) / sizeof(m_DynamicConcurrentActor) // NOLINT
+			+ sizeof(m_DynamicConcurrentActorLowPrio) / sizeof(m_DynamicConcurrentActorLowPrio) // NOLINT
+			+ sizeof(m_DynamicConcurrentActorHighCPU) / sizeof(m_DynamicConcurrentActorHighCPU) // NOLINT
 		;
 
 #if DMibConfig_Concurrency_DebugBlockDestroy

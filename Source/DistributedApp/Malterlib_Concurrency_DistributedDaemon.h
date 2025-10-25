@@ -5,6 +5,7 @@
 
 #include <Mib/Core/Core>
 #include <Mib/Daemon/Daemon>
+#include <Mib/Container/Vector>
 
 #include "Malterlib_Concurrency_DistributedApp.h"
 
@@ -33,6 +34,7 @@ namespace NMib::NConcurrency
 		bool m_bAlwaysRunStatusApp = false;
 		NStorage::TCSharedPointer<CRunLoop> m_pRunLoop;
 		EExecutionPriority m_ExecutionPriority = EExecutionPriority_Normal;
+		NContainer::TCVector<NStr::CStr> m_DaemonDependencies;
 
 	private:
 		void fp_AddDaemonCommands(CDistributedAppCommandLineSpecification &o_CommandLine, CDistributedAppActor_Settings const &_Settings);

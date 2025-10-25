@@ -93,6 +93,10 @@ namespace NMib::NConcurrency
 		, m_DaemonDisplayName(_DaemonDisplayName)
 		, m_DaemonDescription(_DaemonDescription)
 	{
+#ifdef DPlatformFamily_Windows
+		m_DaemonDependencies.f_InsertLast("Tcpip");
+		m_DaemonDependencies.f_InsertLast("Dnscache");
+#endif
 	}
 
 	CDistributedDaemon::~CDistributedDaemon()
@@ -193,6 +197,7 @@ namespace NMib::NConcurrency
 			DaemonParams.f_SetCanPause(false);
 			DaemonParams.f_SetAction(_Action);
 			DaemonParams.f_SetExecutionPriority(_DistributedDaemon.m_ExecutionPriority);
+			DaemonParams.f_SetDaemonDependencies(_DistributedDaemon.m_DaemonDependencies);
 			NStr::CStr DaemonName = _Params["Daemon_Name"].f_String();
 			DaemonParams.f_SetDaemonName(DaemonName, DaemonName != _DistributedDaemon.m_DaemonName);
 			fg_SetDaemonOptions(DaemonParams, _Params);

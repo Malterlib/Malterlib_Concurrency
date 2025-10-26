@@ -1023,6 +1023,7 @@ namespace NMib::NConcurrency
 			if (pParam->f_Boolean())
 			{
 				LogActor = fg_Construct(fg_Construct(), "Log Dispatcher");
+				LogActor->f_ConcurrencyManager().f_EnableShutdownLogging(true);
 				bInstalledLogDispatcher = true;
 				fg_GetSys()->f_GetLogger().f_SetDispatcher
 					(
@@ -1044,7 +1045,10 @@ namespace NMib::NConcurrency
 		if (_DistributedLoggingApp)
 		{
 			if (!LogActor)
+			{
 				LogActor = fg_Construct(fg_Construct(), "Log Actor");
+				LogActor->f_ConcurrencyManager().f_EnableShutdownLogging(true);
+			}
 
 			auto DestinationID = fg_GetSys()->f_GetLogger().f_PushGlobalDestination(CDistributedAppLogDestination(_DistributedLoggingApp, LogActor), false);
 

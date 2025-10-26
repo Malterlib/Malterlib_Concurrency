@@ -1,4 +1,4 @@
-// Copyright © 2015 Hansoft AB 
+// Copyright © 2015 Hansoft AB
 // Distributed under the MIT license, see license text in LICENSE.Malterlib
 
 #pragma once
@@ -25,7 +25,7 @@ namespace NMib::NConcurrency
 {
 	struct CConcurrencyThreadLocal;
 	CConcurrencyThreadLocal &fg_ConcurrencyThreadLocal();
-	
+
 	struct CFutureCoroutineContext;
 
 	struct CBlockingActorStorage
@@ -33,7 +33,7 @@ namespace NMib::NConcurrency
 		TCActor<CBlockingActor> m_Actor;
 		DMibListLinkDS_Link(CBlockingActorStorage, m_Link);
 	};
-	
+
 	/// \brief Manages scheduling of running actors in a thread pool
 	class CConcurrencyManager
 	{
@@ -42,6 +42,7 @@ namespace NMib::NConcurrency
 		~CConcurrencyManager();
 		void f_Init();
 		void f_Stop();
+		void f_EnableShutdownLogging(bool _bEnabled);
 
 		template <typename tf_CType, typename... tfp_CParams, typename... tfp_CHolderParams>
 		TCActor<tf_CType> f_ConstructActor(TCConstruct<tf_CType, tfp_CParams...> &&_ConstructParams, tfp_CHolderParams&&... p_Params);
@@ -118,7 +119,7 @@ namespace NMib::NConcurrency
 		friend struct NPrivate::CPromiseDataBase;
 #endif
 		friend struct CBlockingActorCheckout;
-		
+
 		struct CQueue
 		{
 			align_cacheline CConcurrentRunQueueNonVirtualNoAlloc m_JobQueue;
@@ -174,6 +175,7 @@ namespace NMib::NConcurrency
 		bool m_bDestroyed = false;
 		bool m_bFinishedDestroying = false;
 		bool m_bStopped = false;
+		bool m_bShutdownLogging = false;
 
 		align_cacheline NAtomic::TCAtomic<mint> m_nConcurrentActors;
 		NThread::CLowLevelLock m_pConcurrentActorLock;
@@ -181,7 +183,7 @@ namespace NMib::NConcurrency
 		NContainer::TCVector<TCActor<CConcurrentActorImpl>> m_ConcurrentActors[EPriority_Max];
 		NContainer::TCVector<TCActor<CConcurrentActor>> m_ConcurrentActorsRef[EPriority_Max];
 
-		NThread::CLowLevelLock m_BlockingActorsLock;		
+		NThread::CLowLevelLock m_BlockingActorsLock;
 		NContainer::TCVector<NStorage::TCSharedPointer<CBlockingActorStorage>> m_BlockingActors;
 		DMibListLinkDS_List(CBlockingActorStorage, m_Link) m_FreeBlockingActors;
 		mint m_nBlockingActors = 0;

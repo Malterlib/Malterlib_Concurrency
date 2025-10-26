@@ -815,6 +815,11 @@ namespace NMib::NConcurrency
 		return nActorsSum;
 	}
 
+	void CConcurrencyManager::f_EnableShutdownLogging(bool _bEnabled)
+	{
+		m_bShutdownLogging = _bEnabled;
+	}
+
 	void CConcurrencyManager::f_BlockOnDestroy()
 	{
 		if (m_bDestroyed)
@@ -840,6 +845,9 @@ namespace NMib::NConcurrency
 			+ sizeof(m_DynamicConcurrentActorHighCPU) / sizeof(m_DynamicConcurrentActorHighCPU) // NOLINT
 		;
 
+		if (m_bShutdownLogging)
+			DMibLog(Info, "Shutting down concurrency manager: Waiting for actors to dissapear");
+
 #if DMibConfig_Concurrency_DebugBlockDestroy
 		bool bAborted = false;
 #endif
@@ -864,12 +872,21 @@ namespace NMib::NConcurrency
 #endif
 			TimerActor(&CTimerActor::f_FireAtExit).f_CallSync();
 
+			bool bLoggedLongTimeShutdown = false;
+
 			while (fHasUserActors())
 			{
 				if (TimerClock.f_GetTime() > 0.010)
 				{
 					if (Clock.f_GetTime() > 10.0)
+					{
 						TimerActor(&CTimerActor::f_FireAllTimeouts).f_CallSync();
+						if (m_bShutdownLogging && !bLoggedLongTimeShutdown)
+						{
+							bLoggedLongTimeShutdown = true;
+							DMibLog(Info, "Shutting down concurrency manager: Shutdown is taking a long time, firing all timeouts", bLoggedLongTimeShutdown);
+						}
+					}
 					else
 					{
 						TimerActor(&CTimerActor::f_FireAtExit).f_CallSync();
@@ -1047,6 +1064,8 @@ namespace NMib::NConcurrency
 			}
 		;
 
+		if (m_bShutdownLogging)
+			DMibLog(Info, "Shutting down concurrency manager: Waiting for built in actors to exit");
 		fWaitForAllDone();
 
 		// Delete the timer actor
@@ -1068,8 +1087,9 @@ namespace NMib::NConcurrency
 			}
 		}
 
-		// Sync up to make sure nothing is still waiting to process on actors
-		fWaitForAllDone();
+		if (m_bShutdownLogging)
+			DMibLog(Info, "Shutting down concurrency manager: Waiting for blocking actors to exit");
+		fWaitForAllDone(); // Sync up to make sure nothing is still waiting to process on actors
 
 		m_bFinishedDestroying = true;
 
@@ -1136,8 +1156,14 @@ namespace NMib::NConcurrency
 			m_DirectCallActor.f_Clear();
 		}
 
+		if (m_bShutdownLogging)
+			DMibLog(Info, "Shutting down concurrency manager: Waiting for low level actors to disappear");
+
 		while (fp_NumActors() > 0)
 			NSys::fg_Thread_SmallestSleep();
+
+		if (m_bShutdownLogging)
+			DMibLog(Info, "Shutting down concurrency manager: Done");
 	}
 
 	bool CConcurrencyManager::f_DestroyingAlwaysAliveActors() const

@@ -544,7 +544,7 @@ namespace NMib::NConcurrency
 						DMibLogWithCategory
 							(
 								Mib/Concurrency/Actors
-								, Error
+								, Info
 								, "Websocket rejected connection: {} - {} {}"
 								, _ConnectionInfo.m_PeerAddress.f_GetString(NNetwork::ENetAddressStringFlag_IncludePort)
 								, _ConnectionInfo.m_ErrorStatus

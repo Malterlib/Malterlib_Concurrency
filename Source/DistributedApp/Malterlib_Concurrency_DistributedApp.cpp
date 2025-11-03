@@ -1023,7 +1023,6 @@ namespace NMib::NConcurrency
 			if (pParam->f_Boolean())
 			{
 				LogActor = fg_Construct(fg_Construct(), "Log Dispatcher");
-				LogActor->f_ConcurrencyManager().f_EnableShutdownLogging(true);
 				bInstalledLogDispatcher = true;
 				fg_GetSys()->f_GetLogger().f_SetDispatcher
 					(
@@ -1047,7 +1046,6 @@ namespace NMib::NConcurrency
 			if (!LogActor)
 			{
 				LogActor = fg_Construct(fg_Construct(), "Log Actor");
-				LogActor->f_ConcurrencyManager().f_EnableShutdownLogging(true);
 			}
 
 			auto DestinationID = fg_GetSys()->f_GetLogger().f_PushGlobalDestination(CDistributedAppLogDestination(_DistributedLoggingApp, LogActor), false);
@@ -1060,6 +1058,9 @@ namespace NMib::NConcurrency
 				}
 			;
 		}
+
+		if (auto *pParam = _Params.f_GetMember("ShutdownLogging", EJsonType_Boolean); pParam && pParam->f_Boolean() && LogActor)
+			LogActor->f_ConcurrencyManager().f_EnableShutdownLogging(true);
 
 		if (bInstalledLogDispatcher && !Results.m_CleanupLogging)
 		{

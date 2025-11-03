@@ -1465,6 +1465,7 @@ public:
 			{
 				"Command"_= "--test-actor"
 				, "ConcurrentLogging"_= true
+				, "ShutdownLogging"_= false
 				, "StdErrLogger"_= false
 				, "TraceLogger"_= true
 				, "Color"_= false
@@ -1588,6 +1589,7 @@ public:
 					{
 						"Command"_= _Command
 						, "ConcurrentLogging"_= true
+						, "ShutdownLogging"_= false
 						, "StdErrLogger"_= false
 						, "TraceLogger"_= true
 						, "Color"_= false
@@ -2372,6 +2374,7 @@ public:
 			{
 				"Command"_= "--test-actor"
 				, "ConcurrentLogging"_= true
+				, "ShutdownLogging"_= false
 				, "StdErrLogger"_= false
 				, "TraceLogger"_= true
 				, "Color"_= false
@@ -2444,6 +2447,7 @@ public:
 					{
 						"Command"_= _Command
 						, "ConcurrentLogging"_= true
+						, "ShutdownLogging"_= false
 						, "StdErrLogger"_= false
 						, "TraceLogger"_= true
 						, "Color"_= false

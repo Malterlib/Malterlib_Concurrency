@@ -42,6 +42,13 @@ namespace NMib::NConcurrency
 						"."
 #endif
 					}
+					, "ShutdownLogging?"_o=
+					{
+						"Names"_o= _o["--log-concurrency-shutdown"]
+						, "Default"_o= false
+						, "Description"_o= "Log concurrency shutdown sequence."
+					}
+
 				}
 			)
 		;

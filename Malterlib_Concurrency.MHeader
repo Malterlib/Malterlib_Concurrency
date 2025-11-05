@@ -78,7 +78,6 @@ Import "Apps/*/*.MHeader"
 	&
 	{
 		MalterlibEnableThirdPartyComparisonTests true
-		!PlatformFamily "Windows"
 	}
 
 	Repository
@@ -94,7 +93,6 @@ Import "Apps/*/*.MHeader"
 	&
 	{
 		MalterlibEnableThirdPartyComparisonTests true
-		!PlatformFamily "Windows"
 	}
 
 	Compile
@@ -236,11 +234,7 @@ Property
 		!!CompileDialect "C"
 		SearchPath += "../../External/cppcoro/include"->MakeAbsolute()
 		{
-			&
-			{
-				MalterlibEnableThirdPartyComparisonTests true
-				!PlatformFamily "Windows"
-			}
+			!!MalterlibEnableThirdPartyComparisonTests true
 		}
 	}
 	%Dependency "Lib_Malterlib_Network"
@@ -248,11 +242,7 @@ Property
 	%Dependency "Lib_Malterlib_Web"
 	%Dependency "Lib_cppcoro_cppcoro"
 	{
-		&
-		{
-			MalterlibEnableThirdPartyComparisonTests true
-			!PlatformFamily "Windows"
-		}
+		!!MalterlibEnableThirdPartyComparisonTests true
 	}
 }
 

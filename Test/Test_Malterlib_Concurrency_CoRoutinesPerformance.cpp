@@ -1,4 +1,4 @@
-// Copyright © 2015 Hansoft AB 
+// Copyright © 2015 Hansoft AB
 // Distributed under the MIT license, see license text in LICENSE.Malterlib
 
 #include <Mib/Concurrency/ConcurrencyManager>
@@ -6,7 +6,7 @@
 #include <Mib/Test/Performance>
 #include <Mib/Test/Memory>
 
-#if defined(DMalterlibEnableThirdPartyComparisonTests) && !defined(DPlatformFamily_Windows)
+#if defined(DMalterlibEnableThirdPartyComparisonTests)
 	#include <cppcoro/task.hpp>
 	#include <cppcoro/sync_wait.hpp>
 #endif
@@ -67,12 +67,12 @@ namespace NMib::NConcurrency::NTest
 			co_return Return;
 		}
 
-#if defined(DMalterlibEnableThirdPartyComparisonTests) && !defined(DPlatformFamily_Windows)
+#if defined(DMalterlibEnableThirdPartyComparisonTests)
 		static inline_always cppcoro::task<uint32> fs_TestRecursiveCppCoro(uint32 _Value)
 		{
 			co_return _Value * 2;
 		}
-		
+
 		static inline_never cppcoro::task<uint32> fs_TestFunctionCppCoro(uint32 _Value)
 		{
 			uint32 Return = 0;
@@ -399,8 +399,8 @@ namespace NMib::NConcurrency::NTest
 								auto Return = ReturnNormal;
 								for (mint i = 0; i < mc_nLoops; ++i)
 								{
-									Return += NMib::NSys::fg_Thread_GetCurrentUID() 
-										+ (mint)NMib::NSys::fg_Thread_GetLocal(ThreadLocalCopy0) 
+									Return += NMib::NSys::fg_Thread_GetCurrentUID()
+										+ (mint)NMib::NSys::fg_Thread_GetLocal(ThreadLocalCopy0)
 										+ (mint)NMib::NSys::fg_Thread_GetLocal(ThreadLocalCopy1)
 									;
 								}
@@ -464,7 +464,7 @@ namespace NMib::NConcurrency::NTest
 				}
 
 				DDoSleep;
-#if defined(DMalterlibEnableThirdPartyComparisonTests) && !defined(DPlatformFamily_Windows)
+#if defined(DMalterlibEnableThirdPartyComparisonTests)
 				uint32 ReturnCppCoro;
 				{
 					for(mint j = 0; j < nTests; ++j)

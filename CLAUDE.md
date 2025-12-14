@@ -305,12 +305,12 @@ TCFuture<void> f_UseRemoteService()
 TCFuture<void> f_ParallelWork()
 {
 	// Get blocking actor for I/O operations
-	auto BlockingActor = fg_BlockingActor();
+	auto BlockingActorCheckout = fg_BlockingActor();
 
 	// Dispatch blocking operation
 	CStr FileContent = co_await
 		(
-			g_Dispatch(BlockingActor) / []() -> CStr
+			g_Dispatch(BlockingActorCheckout) / []() -> CStr
 			{
 				// This runs on thread pool, safe for blocking
 				return CFile::fs_ReadStringFromFile("/path/to/file");
@@ -551,9 +551,10 @@ TCActor<CMyActor> Actor;
 co_await Actor(&CMyActor::f_SetValue, 5);
 
 // UNSAFE: Capturing 'this' in blocking dispatch
+auto BlockingActorCheckout = fg_BlockingActor();
 co_await
 	(
-		g_Dispatch(fg_BlockingActor()) / [this]()
+		g_Dispatch(BlockingActorCheckout) / [this]()
 		{
 			m_Value++; // Race condition!
 		}
@@ -562,9 +563,10 @@ co_await
 
 // SAFE: No shared state in blocking dispatch
 int32 LocalCopy = m_Value;
+auto BlockingActorCheckout = fg_BlockingActor();
 int32 Result = co_await
 	(
-		g_Dispatch(fg_BlockingActor()) / [LocalCopy]()
+		g_Dispatch(BlockingActorCheckout) / [LocalCopy]()
 		{
 			return LocalCopy + 1; // Safe
 		}
@@ -594,9 +596,10 @@ catch (NException::CException const &_Exception)
 }
 
 // INCORRECT: Wrong operator precedence with % and co_await
+auto BlockingActorCheckout = fg_BlockingActor();
 CStr Result = co_await
 	(
-		g_Dispatch(fg_BlockingActor()) / [Path]() -> CStr
+		g_Dispatch(BlockingActorCheckout) / [Path]() -> CStr
 		{
 			return CFile::fs_ReadStringFromFile(Path);
 		}
@@ -604,9 +607,10 @@ CStr Result = co_await
 ;
 
 // CORRECT: Parenthesize the % operator
+auto BlockingActorCheckout = fg_BlockingActor();
 CStr Result = co_await
 	(
-		g_Dispatch(fg_BlockingActor()) / [Path]() -> CStr
+		g_Dispatch(BlockingActorCheckout) / [Path]() -> CStr
 		{
 			return CFile::fs_ReadStringFromFile(Path);
 		}

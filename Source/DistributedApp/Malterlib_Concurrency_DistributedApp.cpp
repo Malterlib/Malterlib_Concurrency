@@ -292,6 +292,7 @@ namespace NMib::NConcurrency
 					, CurrentCallingHostInfo.f_GetClaimedUserID()
 					, CurrentCallingHostInfo.f_GetClaimedUserName()
 					, CurrentCallingHostInfo.f_GetHost()
+					, CurrentCallingHostInfo.f_GetCallPriority()
 				}
 			}
 		;

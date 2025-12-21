@@ -406,17 +406,35 @@ namespace NMib::NConcurrency
 		{
 			CHostInfo HostInfo{Host.m_UniqueHostID, Host.m_FriendlyName};
 
-			auto fFormatQueue = [&](auto &_Length, auto &_Bytes, auto &_IDs) -> CStr
+			auto fFormatQueue = [&](auto &&_Length, auto &&_Bytes, auto &&_IDs, auto &&_fFormatID) -> CStr
 				{
-					return "Length: {0}{2}{1}\n"
-						"Bytes: {0}{3}{1}\n"
-						"IDs: {4}"_f
-						<< AnsiEncoding.f_SyntaxColor(NCommandLine::CAnsiEncoding::ESyntaxColor_Number)
-						<< AnsiEncoding.f_Default()
-						<< _Length
-						<< _Bytes
-						<< fFormatAsJson(_IDs)
-					;
+					CStr Return;
+
+					for (auto &QueuesEntry : Host.m_PriorityQueues.f_Entries())
+					{
+						auto Priority = QueuesEntry.f_Key();
+						auto &Queues = QueuesEntry.f_Value();
+
+						fg_AddStrSep
+							(
+								Return
+								, "Prio: {0}{2}{1}\n{3}"
+								"Length: {0}{4}{1}\n"
+								"Bytes: {0}{5}{1}\n"
+								"IDs: {6}"_f
+								<< AnsiEncoding.f_SyntaxColor(NCommandLine::CAnsiEncoding::ESyntaxColor_Number)
+								<< AnsiEncoding.f_Default()
+								<< Priority
+								<< _fFormatID(Queues)
+								<< (Queues.*_Length)
+								<< (Queues.*_Bytes)
+								<< fFormatAsJson((Queues.*_IDs))
+								, "\n\n"
+							)
+						;
+					}
+
+					return Return;
 				}
 			;
 
@@ -427,17 +445,44 @@ namespace NMib::NConcurrency
 					<< fFormatAsJson(Host.m_HostID)
 					<< fFormatAsJson(Host.m_ExecutionID)
 					<< fFormatAsJson(Host.m_LastExecutionID)
-					, "{}\n\nNext PacketID: {}{}{}"_f
-					<< fFormatQueue(Host.m_Incoming_PacketsQueueLength, Host.m_Incoming_PacketsQueueBytes, Host.m_Incoming_PacketsQueueIDs)
-					<< AnsiEncoding.f_SyntaxColor(NCommandLine::CAnsiEncoding::ESyntaxColor_Number)
-					<< Host.m_Incoming_NextPacketID
-					<< AnsiEncoding.f_Default()
-					, "{}\n\nCurrent PacketID: {}{}{}"_f
-					<< fFormatQueue(Host.m_Outgoing_PacketsQueueLength, Host.m_Outgoing_PacketsQueueBytes, Host.m_Outgoing_PacketsQueueIDs)
-					<< AnsiEncoding.f_SyntaxColor(NCommandLine::CAnsiEncoding::ESyntaxColor_Number)
-					<< Host.m_Outgoing_CurrentPacketID
-					<< AnsiEncoding.f_Default()
-					, fFormatQueue(Host.m_Outgoing_SentPacketsQueueLength, Host.m_Outgoing_SentPacketsQueueBytes, Host.m_Outgoing_SentPacketsQueueIDs)
+					, fFormatQueue
+					(
+						&CActorDistributionManager::CDebugHostStats_PriorityQueue::m_Incoming_PacketsQueueLength
+						, &CActorDistributionManager::CDebugHostStats_PriorityQueue::m_Incoming_PacketsQueueBytes
+						, &CActorDistributionManager::CDebugHostStats_PriorityQueue::m_Incoming_PacketsQueueIDs
+						, [&](auto &_Queues) -> CStr
+						{
+							return "Next PacketID: {}{}{}\n"_f
+								<< AnsiEncoding.f_SyntaxColor(NCommandLine::CAnsiEncoding::ESyntaxColor_Number)
+								<< _Queues.m_Incoming_NextPacketID
+								<< AnsiEncoding.f_Default()
+							;
+						}
+					)
+					, fFormatQueue
+					(
+						&CActorDistributionManager::CDebugHostStats_PriorityQueue::m_Outgoing_PacketsQueueLength
+						, &CActorDistributionManager::CDebugHostStats_PriorityQueue::m_Outgoing_PacketsQueueBytes
+						, &CActorDistributionManager::CDebugHostStats_PriorityQueue::m_Outgoing_PacketsQueueIDs
+						, [&](auto &_Queues) -> CStr
+						{
+							return "Current PacketID: {}{}{}\n"_f
+								<< AnsiEncoding.f_SyntaxColor(NCommandLine::CAnsiEncoding::ESyntaxColor_Number)
+								<< _Queues.m_Outgoing_CurrentPacketID
+								<< AnsiEncoding.f_Default()
+							;
+						}
+					)
+					, fFormatQueue
+					(
+						&CActorDistributionManager::CDebugHostStats_PriorityQueue::m_Outgoing_SentPacketsQueueLength
+						, &CActorDistributionManager::CDebugHostStats_PriorityQueue::m_Outgoing_SentPacketsQueueBytes
+						, &CActorDistributionManager::CDebugHostStats_PriorityQueue::m_Outgoing_SentPacketsQueueIDs
+						, [](auto &_Queues) -> CStr
+						{
+							return {};
+						}
+					)
 					, "Sent     : {0}{2,nt32,l6}{1} ({0}{3,nt32,l9}{1} b)\n"
 					"Received : {0}{4,nt32,l6}{1} ({0}{5,nt32,l9}{1} b)\n"
 					"Discarded: {0}{6,nt32,l6}{1} ({0}{7,nt32,l9}{1} b)"_f

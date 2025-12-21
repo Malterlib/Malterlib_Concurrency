@@ -65,8 +65,14 @@ namespace NMib::NConcurrency
 		void CHost::f_DeletePackets()
 		{
 			DMibFastCheck(m_RemoteActors.f_IsEmpty());
-			m_Incoming_ReceivedPackets.f_DeleteAllDefiniteType();
-			m_Outgoing_QueuedPackets.f_DeleteAllDefiniteType();
+
+			for (auto &PriorityQueues : m_PriorityQueues)
+			{
+				PriorityQueues.m_IncomingPackets.f_DeleteAllDefiniteType();
+				PriorityQueues.m_OutgoingPackets.f_DeleteAllDefiniteType();
+			}
+
+			m_PriorityQueues.f_Clear();
 			m_Outgoing_SentPackets.f_DeleteAllDefiniteType();
 		}
 	}
@@ -203,9 +209,14 @@ namespace NMib::NConcurrency
 		Host.m_bIncoming = bIncoming;
 		Host.m_bOutgoing = bOutgoing;
 
-		Host.m_Incoming_NextPacketID = 1;
+		for (auto &PriorityQueues : Host.m_PriorityQueues)
+		{
+			PriorityQueues.m_IncomingPackets.f_DeleteAllDefiniteType();
+			PriorityQueues.m_OutgoingPackets.f_DeleteAllDefiniteType();
+		}
+		Host.m_PriorityQueues.f_Clear();
 
-		Host.m_Outgoing_CurrentPacketID = 0;
+		Host.m_Outgoing_SentPackets.f_DeleteAllDefiniteType();
 
 		Host.m_LastNotifyConnectionLostSequenceReceived = 0;
 		Host.m_LastNotifyConnectionLostSequenceSent = 0;

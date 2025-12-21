@@ -1,4 +1,4 @@
-// Copyright © 2015 Hansoft AB 
+// Copyright © 2015 Hansoft AB
 // Distributed under the MIT license, see license text in LICENSE.Malterlib
 
 #define DMibRuntimeTypeRegistry
@@ -9,11 +9,13 @@
 
 namespace NMib::NConcurrency
 {
+	using namespace NActorDistributionManagerInternal;
+
 	namespace
 	{
 		struct CPendingWait
 		{
-			NStorage::TCSharedPointerSupportWeak<NActorDistributionManagerInternal::CHost> m_pHost;
+			NStorage::TCSharedPointerSupportWeak<CHost> m_pHost;
 			uint32 m_WaitID;
 		};
 	}
@@ -941,7 +943,7 @@ namespace NMib::NConcurrency
 			}
 		;
 
-		auto fReportExistingNamespace = [&](NActorDistributionManagerInternal::CRemoteNamespace const &_RemoteNamespace)
+		auto fReportExistingNamespace = [&](CRemoteNamespace const &_RemoteNamespace)
 			{
 				for (auto &RemoteActor : _RemoteNamespace.m_RemoteActors)
 				{

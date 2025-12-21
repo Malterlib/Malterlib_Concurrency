@@ -1,4 +1,4 @@
-// Copyright © 2015 Hansoft AB 
+// Copyright © 2015 Hansoft AB
 // Distributed under the MIT license, see license text in LICENSE.Malterlib
 
 #define DMibRuntimeTypeRegistry
@@ -29,22 +29,22 @@ namespace NMib::NConcurrency
 			CActorDistributionManagerInitSettings m_DistributionManagerSettings;
 			TCActor<CActorDistributionManager> m_DistributionManager;
 		};
-		
+
 		CSubSystem_Concurrency_DistributedActorDefaultManager::CSubSystem_Concurrency_DistributedActorDefaultManager()
 			: m_DistributionManagerSettings{{}, {}}
 		{
 			DMibError("You need to call fg_InitDistributionManager before using distributed actors");
 		}
-		
+
 		CSubSystem_Concurrency_DistributedActorDefaultManager::CSubSystem_Concurrency_DistributedActorDefaultManager(CActorDistributionManagerInitSettings const &_Settings)
 			: m_DistributionManagerSettings(_Settings)
 		{
 			fg_ConcurrencyManager(); // Add dependency to subsystem
 			fg_RuntimeTypeRegistry();
-			
+
 			m_DistributionManager = fg_ConstructActor<CActorDistributionManager>(_Settings);
 		}
-		
+
 		CSubSystem_Concurrency_DistributedActorDefaultManager::~CSubSystem_Concurrency_DistributedActorDefaultManager()
 		{
 			if (m_DistributionManager)
@@ -53,7 +53,7 @@ namespace NMib::NConcurrency
 				m_DistributionManager.f_Clear();
 			}
 		}
-		
+
 		void CSubSystem_Concurrency_DistributedActorDefaultManager::f_PreDestroyThreadSpecific()
 		{
 			if (m_DistributionManager)
@@ -62,11 +62,11 @@ namespace NMib::NConcurrency
 				m_DistributionManager.f_Clear();
 			}
 		}
-		
+
 		CSubSystem_Concurrency_DistributedActor::CSubSystem_Concurrency_DistributedActor()
 		{
 			fg_ConcurrencyManager(); // Add dependency to subsystem
-			
+
 			NCryptography::CCertificate::fs_RegisterExtension
 				(
 					"1.3.6.1.4.1.47722.1.1"
@@ -75,22 +75,22 @@ namespace NMib::NConcurrency
 				)
 			;
 		}
-		
+
 		CSubSystem_Concurrency_DistributedActor::~CSubSystem_Concurrency_DistributedActor()
 		{
 		}
-		
+
 		constinit TCSubSystem<CSubSystem_Concurrency_DistributedActorDefaultManager, ESubSystemDestruction_BeforeMemoryManager>
 			g_MalterlibSubSystem_Concurrency_DistributedActorDefaultManager = {DAggregateInit}
 		;
-		
+
 		constinit TCSubSystem<CSubSystem_Concurrency_DistributedActor, ESubSystemDestruction_BeforeMemoryManager> g_MalterlibSubSystem_Concurrency_DistributedActor = {DAggregateInit};
-		
+
 		CSubSystem_Concurrency_DistributedActor &fg_DistributedActorSubSystem()
 		{
 			return *g_MalterlibSubSystem_Concurrency_DistributedActor;
 		}
-		
+
 		TCFuture<CDistributedActorPublication> fg_PublishActor
 			(
 				TCDistributedActor<CActor> &&_Actor
@@ -101,7 +101,7 @@ namespace NMib::NConcurrency
 		{
 			NPrivate::CDistributedActorData *pDistributedData = (NPrivate::CDistributedActorData *)_Actor->f_GetDistributedActorData().f_Get();
 			TCActor<CActorDistributionManager> DistributionManager;
-			
+
 			if (!pDistributedData)
 				return DMibErrorInstance("Not a distributed actor");
 			else if (pDistributedData->m_bRemote)
@@ -112,7 +112,7 @@ namespace NMib::NConcurrency
 				if (!DistributionManager)
 					return DMibErrorInstance("Distribution manager has been deleted");
 			}
-			
+
 			return DistributionManager
 				(
 					&CActorDistributionManager::fp_PublishActor
@@ -124,7 +124,7 @@ namespace NMib::NConcurrency
 			;
 		}
 	}
-	
+
 	CActorDistributionManagerHolder::CActorDistributionManagerHolder
 		(
 			CConcurrencyManager *_pConcurrencyManager
@@ -140,17 +140,17 @@ namespace NMib::NConcurrency
 	{
 		return NCryptography::CPublicKeySettings_EC_secp521r1{};
 	}
-	
+
 	void fg_InitDistributedActorSystem()
 	{
 		NPrivate::fg_DistributedActorSubSystem();
 	}
-	
+
 	CCallingHostInfo const &CActorDistributionManager::fs_GetCallingHostInfo()
 	{
 		return NPrivate::fg_DistributedActorSubSystem().m_ThreadLocal->m_CallingHostInfo;
 	}
-	
+
 	CCallingHostInfoScope::CCallingHostInfoScope(CCallingHostInfo &&_NewInfo, bool _bAddToCoroutine)
 		: CCrossActorCallStateScope(_bAddToCoroutine)
 		, mp_NewInfo(_NewInfo)
@@ -332,11 +332,96 @@ namespace NMib::NConcurrency
 		return NPrivate::fg_DistributedActorSubSystem().m_ThreadLocal->m_CurrentAuthenticationHandlerID;
 	}
 
+	CPriorityScope::CPriorityScope(uint8 _Priority, bool _bAddToCoroutine)
+		: CCrossActorCallStateScope(_bAddToCoroutine)
+		, mp_Priority(_Priority)
+	{
+		auto &ThreadLocal = *NPrivate::fg_DistributedActorSubSystem().m_ThreadLocal;
+		mp_PrevPriority = ThreadLocal.m_CurrentPriority;
+		mp_pPrevScope = ThreadLocal.m_pCurrentPriorityScope;
+		ThreadLocal.m_CurrentPriority = _Priority;
+		ThreadLocal.m_pCurrentPriorityScope = this;
+	}
+
+	CPriorityScope::~CPriorityScope()
+	{
+		auto &ThreadLocal = *NPrivate::fg_DistributedActorSubSystem().m_ThreadLocal;
+		ThreadLocal.m_CurrentPriority = mp_PrevPriority;
+		ThreadLocal.m_pCurrentPriorityScope = mp_pPrevScope;
+	}
+
+	void CPriorityScope::f_Suspend() noexcept
+	{
+		auto &ThreadLocal = *NPrivate::fg_DistributedActorSubSystem().m_ThreadLocal;
+		ThreadLocal.m_CurrentPriority = mp_PrevPriority;
+		ThreadLocal.m_pCurrentPriorityScope = mp_pPrevScope;
+		CCrossActorCallStateScope::f_Suspend();
+	}
+
+	void CPriorityScope::f_ResumeNoExcept() noexcept
+	{
+		CCrossActorCallStateScope::f_ResumeNoExcept();
+		auto &ThreadLocal = *NPrivate::fg_DistributedActorSubSystem().m_ThreadLocal;
+		mp_PrevPriority = ThreadLocal.m_CurrentPriority;
+		mp_pPrevScope = ThreadLocal.m_pCurrentPriorityScope;
+		ThreadLocal.m_CurrentPriority = mp_Priority;
+		ThreadLocal.m_pCurrentPriorityScope = this;
+	}
+
+	void CPriorityScope::f_InitialSuspend()
+	{
+	}
+
+	NFunction::TCFunctionMovable<void () noexcept> CPriorityScope::f_StoreState(bool _bFromSuspend)
+	{
+		auto &ThreadLocal = *NPrivate::fg_DistributedActorSubSystem().m_ThreadLocal;
+		if (ThreadLocal.m_pCurrentPriorityScope != this)
+			return nullptr;
+
+		struct CState
+		{
+			CState(uint8 _Priority)
+				: m_Priority(_Priority)
+			{
+			}
+			uint8 m_Priority;
+			NStorage::TCUniquePointer<CPriorityScope> m_Scope;
+#if DMibEnableSafeCheck > 0
+			mint m_StoredThreadID;
+#endif
+		};
+
+		NStorage::TCSharedPointer<CState> pState = fg_Construct(mp_Priority);
+
+		return
+			[pState]() noexcept
+			{
+				auto &State = *pState;
+				if (State.m_Scope)
+				{
+					DMibFastCheck(State.m_StoredThreadID == NSys::fg_Thread_GetCurrentUID());
+					State.m_Scope.f_Clear();
+					return;
+				}
+				DMibFastCheck(!State.m_Scope);
+#if DMibEnableSafeCheck > 0
+				State.m_StoredThreadID = NSys::fg_Thread_GetCurrentUID();
+#endif
+				State.m_Scope = fg_Construct(State.m_Priority, false);
+			}
+		;
+	}
+
+	uint8 CPriorityScope::fs_GetCurrentPriority()
+	{
+		return NPrivate::fg_DistributedActorSubSystem().m_ThreadLocal->m_CurrentPriority;
+	}
+
 	CCallingHostInfo const &fg_GetCallingHostInfo()
 	{
 		return CActorDistributionManager::fs_GetCallingHostInfo();
 	}
-	
+
 	NStr::CStr const &fg_GetCallingHostID()
 	{
 		return CActorDistributionManager::fs_GetCallingHostInfo().f_GetRealHostID();
@@ -361,34 +446,34 @@ namespace NMib::NConcurrency
 	{
 		return NPrivate::g_MalterlibSubSystem_Concurrency_DistributedActorDefaultManager->m_DistributionManager;
 	}
-	
+
 	CActorDistributionCryptographySettings::CActorDistributionCryptographySettings(NStr::CStr const &_HostID)
 		: m_HostID(_HostID)
 	{
 	}
-	
+
 	CActorDistributionCryptographySettings::~CActorDistributionCryptographySettings()
 	{
-	}		
-	
+	}
+
 	void CActorDistributionCryptographySettings::f_GenerateNewCert(NContainer::TCVector<NStr::CStr> const &_HostNames, NCryptography::CPublicKeySetting _KeySetting)
 	{
 		NPrivate::fg_DistributedActorSubSystem(); // Register extension if needed
 
 		m_Subject = fg_Format("Malterlib Distributed Actors - {}", NCryptography::fg_RandomID());
-		
+
 		NCryptography::CCertificateOptions Options;
 		Options.m_KeySetting = _KeySetting;
 		Options.m_Hostnames = _HostNames;
 		Options.m_CommonName = m_Subject;
 		auto &Extension = Options.m_Extensions["MalterlibHostID"].f_Insert();
-		Extension.m_bCritical = false; 
+		Extension.m_bCritical = false;
 		Extension.m_Value = m_HostID;
-		
+
 		NCryptography::CCertificateSignOptions SignOptions;
 		SignOptions.m_Serial = 1;
 		SignOptions.m_Days = 10*365;
-		
+
 		NCryptography::CCertificate::fs_GenerateSelfSignedCertAndKey
 			(
 				Options
@@ -397,25 +482,25 @@ namespace NMib::NConcurrency
 				, SignOptions
 			)
 		;
-		
-		// These are now all invalid 
+
+		// These are now all invalid
 		m_RemoteClientCertificates.f_Clear();
 		m_SignedClientCertificates.f_Clear();
 	}
-	
+
 	NContainer::CByteVector CActorDistributionCryptographySettings::f_GenerateRequest() const
 	{
 		NPrivate::fg_DistributedActorSubSystem(); // Register extension if needed
-		
+
 		NContainer::CByteVector Return;
 		NContainer::CSecureByteVector KeyData = m_PrivateKey;
-		
+
 		NCryptography::CCertificateOptions Options;
-		Options.m_CommonName = m_Subject; 
+		Options.m_CommonName = m_Subject;
 		auto &Extension = Options.m_Extensions["MalterlibHostID"].f_Insert();
-		Extension.m_bCritical = false; 
-		Extension.m_Value = m_HostID; 
-		
+		Extension.m_bCritical = false;
+		Extension.m_Value = m_HostID;
+
 		NCryptography::CCertificate::fs_GenerateClientCertificateRequest
 			(
 				Options
@@ -425,13 +510,13 @@ namespace NMib::NConcurrency
 		;
 		return Return;
 	}
-	
+
 	NContainer::CByteVector CActorDistributionCryptographySettings::f_SignRequest(NContainer::CByteVector const &_Request)
 	{
 		NCryptography::CCertificateSignOptions SignOptions;
 		SignOptions.m_Serial = ++m_Serial;
 		SignOptions.m_Days = 10*365;
-		
+
 		NContainer::CByteVector Return;
 		NCryptography::CCertificate::fs_SignClientCertificate
 			(
@@ -444,7 +529,7 @@ namespace NMib::NConcurrency
 		;
 		return Return;
 	}
-	
+
 	void CActorDistributionCryptographySettings::f_AddRemoteServer
 		(
 			NWeb::NHTTP::CURL const &_URL
@@ -456,16 +541,16 @@ namespace NMib::NConcurrency
 		NewRemote.m_PublicServerCertificate = _ServerCert;
 		NewRemote.m_PublicClientCertificate = _ClientCert;
 	}
-	
+
 	NStr::CStr CActorDistributionCryptographySettings::f_GetHostID() const
 	{
 		return NCryptography::CCertificate::fs_GetCertificateFingerprint(m_PublicCertificate);
-	}		
-	
+	}
+
 	CActorDistributionConnectionSettings::CActorDistributionConnectionSettings()
 	{
 	}
-	
+
 	CActorDistributionConnectionSettings::~CActorDistributionConnectionSettings()
 	{
 	}
@@ -480,7 +565,7 @@ namespace NMib::NConcurrency
 			m_PublicServerCertificate = pRemote->m_PublicServerCertificate;
 		}
 	}
-	
+
 	CActorDistributionListenSettings::CActorDistributionListenSettings(uint16 _Port, NNetwork::ENetAddressType _AddressType)
 	{
 		if (_AddressType == NNetwork::ENetAddressType_None || _AddressType == NNetwork::ENetAddressType_TCPv4)
@@ -498,19 +583,19 @@ namespace NMib::NConcurrency
 	CActorDistributionListenSettings::~CActorDistributionListenSettings()
 	{
 	}
-	
+
 	CActorDistributionListenSettings::CActorDistributionListenSettings(NContainer::TCVector<NWeb::NHTTP::CURL> const &_Addresses)
 		: m_ListenAddresses(_Addresses)
 	{
 	}
-	
+
 	void CActorDistributionListenSettings::f_SetCryptography(CActorDistributionCryptographySettings const &_Settings)
 	{
 		m_PublicCertificate = _Settings.m_PublicCertificate;
 		m_CACertificate = _Settings.m_PublicCertificate;
 		m_PrivateKey = _Settings.m_PrivateKey;
-	}		
-	
+	}
+
 	CCallingHostInfo::CCallingHostInfo()
 	{
 	}
@@ -526,6 +611,7 @@ namespace NMib::NConcurrency
 			, NStr::CStr const &_ClaimedUserID
 			, NStr::CStr const &_ClaimedUserName
 			, NStorage::TCSharedPointerSupportWeak<NPrivate::ICHost> const &_pHost
+			, uint8 _CallPriority
 		)
 		: mp_DistributionManager(_DistributionManager)
 		, mp_AuthenticationHandler(_AuthenticationHandler)
@@ -536,6 +622,7 @@ namespace NMib::NConcurrency
 		, mp_ClaimedUserID(_ClaimedUserID)
 		, mp_ClaimedUserName(_ClaimedUserName)
 		, mp_pHost(_pHost)
+		, mp_CallPriority(_CallPriority)
 	{
 	}
 
@@ -543,12 +630,12 @@ namespace NMib::NConcurrency
 	{
 		return mp_ProtocolVersion;
 	}
-	
+
 	NStr::CStr const &CCallingHostInfo::f_GetRealHostID() const
 	{
 		return mp_HostInfo.m_HostID;
 	}
-	
+
 	NStr::CStr const &CCallingHostInfo::f_GetUniqueHostID() const
 	{
 		return mp_UniqueHostID;
@@ -563,7 +650,7 @@ namespace NMib::NConcurrency
 	{
 		return mp_LastExecutionID;
 	}
-	
+
 	NStr::CStr const &CCallingHostInfo::f_GetClaimedUserID() const
 	{
 		return mp_ClaimedUserID;
@@ -578,21 +665,21 @@ namespace NMib::NConcurrency
 	{
 		return NStorage::fg_TupleReferences(mp_UniqueHostID, mp_HostInfo.m_HostID, mp_LastExecutionID)
 			== NStorage::fg_TupleReferences(_Right.mp_UniqueHostID, _Right.mp_HostInfo.m_HostID, _Right.mp_LastExecutionID)
-		; 
-	}		
+		;
+	}
 
 	COrdering_Strong CCallingHostInfo::operator <=> (CCallingHostInfo const &_Right) const
 	{
 		return NStorage::fg_TupleReferences(mp_UniqueHostID, mp_HostInfo.m_HostID, mp_LastExecutionID)
 			<=> NStorage::fg_TupleReferences(_Right.mp_UniqueHostID, _Right.mp_HostInfo.m_HostID, _Right.mp_LastExecutionID)
-		; 
-	}		
-	
+		;
+	}
+
 	TCActor<CActorDistributionManager> CCallingHostInfo::f_GetDistributionManager() const
 	{
 		return mp_DistributionManager.f_Lock();
 	}
-	
+
 	TCDistributedActor<ICDistributedActorAuthenticationHandler> CCallingHostInfo::f_GetAuthenticationHandler() const
 	{
 		return mp_AuthenticationHandler.f_Lock();
@@ -601,6 +688,11 @@ namespace NMib::NConcurrency
 	NStorage::TCSharedPointerSupportWeak<NPrivate::ICHost> CCallingHostInfo::f_GetHost() const
 	{
 		return mp_pHost.f_Lock();
+	}
+
+	uint8 CCallingHostInfo::f_GetCallPriority() const
+	{
+		return mp_CallPriority;
 	}
 
 	TCFuture<CActorSubscription> CCallingHostInfo::f_OnDisconnect(TCActorFunctorWeak<TCFuture<void> ()> _fOnDisconnect) const
@@ -615,24 +707,24 @@ namespace NMib::NConcurrency
 	CHostInfo::CHostInfo()
 	{
 	}
-	
+
 	CHostInfo::~CHostInfo()
 	{
 	}
-	
+
 	CHostInfo::CHostInfo(NStr::CStr const &_HostID, NStr::CStr const &_FriendlyName)
 		: m_HostID(_HostID)
 		, m_FriendlyName(_FriendlyName)
 	{
 	}
-	
+
 	void CHostInfo::f_Feed(CDistributedActorWriteStream &_Stream) const
 	{
 		// Warning: This is used in actor interfaces, if changed you need to handle this
 		_Stream << m_HostID;
 		_Stream << m_FriendlyName;
 	}
-	
+
 	void CHostInfo::f_Consume(CDistributedActorReadStream &_Stream)
 	{
 		// Warning: This is used in actor interfaces, if changed you need to handle this
@@ -657,7 +749,7 @@ namespace NMib::NConcurrency
 	NStr::CStr CHostInfo::fs_FormatFriendlyNameForTable(NStr::CStr const &_FriendlyName, NCommandLine::CAnsiEncoding const &_AnsiEncoding)
 	{
 		using namespace NStr;
-		
+
 		CStr UserName;
 		CStr HostName;
 		CStr Application;
@@ -736,8 +828,8 @@ namespace NMib::NConcurrency
 	{
 		uint32 Version = fg_Min(m_MaxSupported, _Other.m_MaxSupported);
 		bool bSuccess =
-			Version >= m_MinSupported 
-			&& Version <= m_MaxSupported 
+			Version >= m_MinSupported
+			&& Version <= m_MaxSupported
 			&& Version >= _Other.m_MinSupported
 			&& Version <= _Other.m_MaxSupported
 		;
@@ -745,23 +837,23 @@ namespace NMib::NConcurrency
 			o_Version = Version;
 		return bSuccess;
 	}
-	
+
 	bool CDistributedActorProtocolVersions::f_ValidVersion(uint32 _Version)
 	{
 		return _Version >= m_MinSupported && _Version <= m_MaxSupported;
 	}
-	
+
 	CDistributedActorIdentifier::CDistributedActorIdentifier()
 	{
-		
+
 	}
-	
+
 	CDistributedActorIdentifier::CDistributedActorIdentifier(NStorage::TCWeakPointer<NPrivate::ICHost> const &_pHost, NStr::CStr const &_ActorID)
 		: mp_pHost(_pHost)
 		, mp_ActorID(_ActorID)
 	{
 	}
-	
+
 	bool CDistributedActorIdentifier::operator == (TCActor<> const &_Right) const
 	{
 		if (!_Right)
@@ -803,12 +895,12 @@ namespace NMib::NConcurrency
 	{
 		return NNetwork::fg_IsValidHostname(_String, "/");
 	}
-	
+
 	bool CActorDistributionManager::fs_IsValidHostID(NStr::CStr const &_String)
 	{
 		return NNetwork::fg_IsValidHostname(_String);
 	}
-	
+
 	bool CActorDistributionManager::fs_IsValidUserID(NStr::CStr const &_String)
 	{
 		return NNetwork::fg_IsValidHostname(_String);
@@ -817,11 +909,11 @@ namespace NMib::NConcurrency
 	CDistributedActorInterfaceShare::CDistributedActorInterfaceShare()
 	{
 	}
-	
+
 	CDistributedActorInterfaceShare::~CDistributedActorInterfaceShare()
 	{
 	}
-	
+
 	CDistributedActorInterfaceShare::CDistributedActorInterfaceShare
 		(
 			NContainer::TCVector<uint32> const &_Hierarchy
@@ -833,7 +925,7 @@ namespace NMib::NConcurrency
 		, m_Actor(fg_Move(_Actor))
 	{
 	}
-	
+
 #ifndef DCompiler_MSVC_Workaround
 	template TCDistributedActor<CActor> fg_ConstructRemoteDistributedActor<CActor>
 		(

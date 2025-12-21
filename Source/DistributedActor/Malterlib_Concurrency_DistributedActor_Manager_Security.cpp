@@ -1,4 +1,4 @@
-// Copyright © 2015 Hansoft AB 
+// Copyright © 2015 Hansoft AB
 // Distributed under the MIT license, see license text in LICENSE.Malterlib
 
 #define DMibRuntimeTypeRegistry
@@ -8,6 +8,8 @@
 
 namespace NMib::NConcurrency
 {
+	using namespace NActorDistributionManagerInternal;
+
 	void CActorDistributionManager::f_SetSecurity(CDistributedActorSecurity const &_Security)
 	{
 		auto &Internal = *mp_pInternal;
@@ -67,7 +69,7 @@ namespace NMib::NConcurrency
 			, uint32 _HandlerID
 		)
 	{
-		auto &Host = *(static_cast<NActorDistributionManagerInternal::CHost *>(_pHost.f_Get()));
+		auto &Host = *(static_cast<CHost *>(_pHost.f_Get()));
 		if (Host.m_bDeleted.f_Load(NAtomic::EMemoryOrder_Relaxed) || Host.m_LastExecutionID != _LastExecutionID)
 			co_return {};
 
@@ -86,7 +88,7 @@ namespace NMib::NConcurrency
 			, uint32 _HandlerID
 		)
 	{
-		auto &Host = *(static_cast<NActorDistributionManagerInternal::CHost *>(_pHost.f_Get()));
+		auto &Host = *(static_cast<CHost *>(_pHost.f_Get()));
 		if (Host.m_bDeleted.f_Load(NAtomic::EMemoryOrder_Relaxed) || Host.m_LastExecutionID != _LastExecutionID)
 			co_return {};
 

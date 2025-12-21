@@ -66,7 +66,7 @@ namespace NMib::NConcurrency
 
 		co_return {};
 	}
-	
+
 	TCFuture<void> CDistributedActorTrustManager::f_RemoveUser(NStr::CStr _UserID)
 	{
 		if (!CActorDistributionManager::fs_IsValidUserID(_UserID))
@@ -166,7 +166,7 @@ namespace NMib::NConcurrency
 
 		co_return {};
 	}
-	
+
 	TCFuture<NStr::CStr> CDistributedActorTrustManager::f_GetDefaultUser()
 	{
 		auto &Internal = *mp_pInternal;
@@ -212,7 +212,7 @@ namespace NMib::NConcurrency
 			auto CaptureScope = co_await g_CaptureExceptions;
 
 			NStream::CBinaryStreamMemory<> Stream;
-			uint32 Version = CDistributedActorTrustManagerInterface::EProtocolVersion_Current;
+			uint32 Version = CDistributedActorTrustManagerInterface::EProtocolVersion_SupportPrimaryListen;
 			DMibBinaryStreamVersion(Stream, Version);
 			Stream << Version;
 			Stream << _UserID;

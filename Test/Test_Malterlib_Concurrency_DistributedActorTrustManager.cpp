@@ -199,6 +199,7 @@ namespace NTestTrustManager
 			{
 				DMibPublishActorFunction(CTestActor::f_Test);
 				DMibPublishActorFunction(CTestActor::f_TestVoid);
+				DMibPublishActorFunction(CTestActor::f_TestPriority);
 			}
 
 			void f_TestVoid()
@@ -208,6 +209,12 @@ namespace NTestTrustManager
 			uint32 f_Test()
 			{
 				return 5;
+			}
+
+			// Returns the priority of the current incoming call
+			uint8 f_TestPriority()
+			{
+				return fg_GetCallingHostInfo().f_GetCallPriority();
 			}
 		};
 		struct CTestActor2 : public CActor
@@ -328,7 +335,7 @@ namespace NTestTrustManager
 				, m_ClientTrustManager{f_CreateClientTrustManager(_State)}
 				, m_ServerHelper{f_InitServerTrustManager(), _State.m_pRunLoop}
 				, m_ClientHelper{f_InitClientTrustManager(), _State.m_pRunLoop}
-				, m_ServerHostInfo({}, {}, "", CHostInfo{m_ServerHostID, m_ServerHostID}, "", 0, "TBD", "Test", nullptr)
+				, m_ServerHostInfo({}, {}, "", CHostInfo{m_ServerHostID, m_ServerHostID}, "", 0, "TBD", "Test", nullptr, 128)
 				, m_pRunLoop(_State.m_pRunLoop)
 			{
 				m_ExpectedPermissions[CPermissionIdentifiers::fs_GetKeyFromFileNameOld(m_ServerHostID)]["com.malterlib/Test"];
@@ -541,6 +548,25 @@ namespace NTestTrustManager
 
 			uint32 Result = Actor.f_CallActor(&CTestActor::f_Test)().f_CallSync(_pRunLoop, g_Timeout);
 			DMibExpect(Result, ==, 5);
+
+			// Interleave priority calls with normal calls
+			{
+				CPriorityScope HighPriority(CPriorityScope::mc_PriorityHigh);
+				uint8 Priority = Actor.f_CallActor(&CTestActor::f_TestPriority)().f_CallSync(_pRunLoop, g_Timeout);
+				DMibExpect(Priority, ==, 64);
+			}
+
+			{
+				CPriorityScope LowPriority(CPriorityScope::mc_PriorityLow);
+				uint8 Priority = Actor.f_CallActor(&CTestActor::f_TestPriority)().f_CallSync(_pRunLoop, g_Timeout);
+				DMibExpect(Priority, ==, 192);
+			}
+
+			// Default priority call
+			{
+				uint8 Priority = Actor.f_CallActor(&CTestActor::f_TestPriority)().f_CallSync(_pRunLoop, g_Timeout);
+				DMibExpect(Priority, ==, 128);
+			}
 		}
 
 		bool fp_WaitForCondition(TCFunction<bool ()> const &_fPredicate)
@@ -781,6 +807,8 @@ namespace NTestTrustManager
 
 				CStr DispatchError;
 				TCAtomic<mint> nCalls = 0;
+				TCAtomic<mint> nPriorityCalls = 0;
+				TCAtomic<bool> bPriorityError = false;
 				TCAtomic<bool> bAbort = false;
 				auto Cleanup = g_OnScopeExit / [&]
 					{
@@ -796,8 +824,27 @@ namespace NTestTrustManager
 							{
 								try
 								{
+									// Interleave normal calls with priority calls
 									Actor.f_CallActor(&CTestActor::f_Test)().f_CallSync(g_Timeout / 2);
 									++nCalls;
+
+									// High priority call
+									{
+										CPriorityScope HighPriority(CPriorityScope::mc_PriorityHigh);
+										uint8 Priority = Actor.f_CallActor(&CTestActor::f_TestPriority)().f_CallSync(g_Timeout / 2);
+										if (Priority != 64)
+											bPriorityError = true;
+										++nPriorityCalls;
+									}
+
+									// Low priority call
+									{
+										CPriorityScope LowPriority(CPriorityScope::mc_PriorityLow);
+										uint8 Priority = Actor.f_CallActor(&CTestActor::f_TestPriority)().f_CallSync(g_Timeout / 2);
+										if (Priority != 192)
+											bPriorityError = true;
+										++nPriorityCalls;
+									}
 								}
 								catch (NException::CException const &_Exception)
 								{
@@ -853,6 +900,8 @@ namespace NTestTrustManager
 
 				DMibExpect(DispatchError, ==, "");
 				DMibExpect(nCalls, >, 1u);
+				DMibExpect(nPriorityCalls, >, 1u);
+				DMibExpectFalse(bPriorityError.f_Load());
 				DMibExpectFalse(bTimedOut);
 
 				ServerTrustManager->f_BlockDestroy(RunLoopHelper.m_pRunLoop->f_ActorDestroyLoop());
@@ -898,6 +947,8 @@ namespace NTestTrustManager
 
 				CStr DispatchError;
 				TCAtomic<mint> nCalls = 0;
+				TCAtomic<mint> nPriorityCalls = 0;
+				TCAtomic<bool> bPriorityError = false;
 				TCAtomic<bool> bAbort = false;
 				auto Cleanup = g_OnScopeExit / [&]
 					{
@@ -913,8 +964,27 @@ namespace NTestTrustManager
 							{
 								try
 								{
+									// Interleave normal calls with priority calls
 									Actor.f_CallActor(&CTestActor::f_Test)().f_CallSync(g_Timeout / 2);
 									++nCalls;
+
+									// High priority call
+									{
+										CPriorityScope HighPriority(CPriorityScope::mc_PriorityHigh);
+										uint8 Priority = Actor.f_CallActor(&CTestActor::f_TestPriority)().f_CallSync(g_Timeout / 2);
+										if (Priority != 64)
+											bPriorityError = true;
+										++nPriorityCalls;
+									}
+
+									// Low priority call
+									{
+										CPriorityScope LowPriority(CPriorityScope::mc_PriorityLow);
+										uint8 Priority = Actor.f_CallActor(&CTestActor::f_TestPriority)().f_CallSync(g_Timeout / 2);
+										if (Priority != 192)
+											bPriorityError = true;
+										++nPriorityCalls;
+									}
 								}
 								catch (NException::CException const &_Exception)
 								{
@@ -963,6 +1033,8 @@ namespace NTestTrustManager
 
 				DMibExpect(DispatchError, ==, "");
 				DMibExpect(nCalls, >, 1u);
+				DMibExpect(nPriorityCalls, >, 1u);
+				DMibExpectFalse(bPriorityError.f_Load());
 				DMibExpectFalse(bTimedOut);
 
 				ServerTrustManager->f_BlockDestroy(RunLoopHelper.m_pRunLoop->f_ActorDestroyLoop());
@@ -1015,6 +1087,8 @@ namespace NTestTrustManager
 
 					CStr DispatchError;
 					TCAtomic<mint> nCalls = 0;
+					TCAtomic<mint> nPriorityCalls = 0;
+					TCAtomic<bool> bPriorityError = false;
 					TCAtomic<bool> bAbort = false;
 					TCAtomic<bool> bHasError = false;
 					auto Cleanup = g_OnScopeExit / [&]
@@ -1031,8 +1105,27 @@ namespace NTestTrustManager
 								{
 									try
 									{
+										// Interleave normal calls with priority calls
 										Actor.f_CallActor(&CTestActor::f_Test)().f_CallSync(g_Timeout / 6);
 										++nCalls;
+
+										// High priority call
+										{
+											CPriorityScope HighPriority(CPriorityScope::mc_PriorityHigh);
+											uint8 Priority = Actor.f_CallActor(&CTestActor::f_TestPriority)().f_CallSync(g_Timeout / 6);
+											if (Priority != 64)
+												bPriorityError = true;
+											++nPriorityCalls;
+										}
+
+										// Low priority call
+										{
+											CPriorityScope LowPriority(CPriorityScope::mc_PriorityLow);
+											uint8 Priority = Actor.f_CallActor(&CTestActor::f_TestPriority)().f_CallSync(g_Timeout / 6);
+											if (Priority != 192)
+												bPriorityError = true;
+											++nPriorityCalls;
+										}
 									}
 									catch (NException::CException const &_Exception)
 									{
@@ -1113,6 +1206,8 @@ namespace NTestTrustManager
 						)
 					;
 					DMibExpect(nCalls, >, 1u);
+					DMibExpect(nPriorityCalls, >, 1u);
+					DMibExpectFalse(bPriorityError.f_Load());
 					DMibExpectFalse(bTimedOut);
 					DMibExpectFalse(bTimedOut2);
 
@@ -2797,6 +2892,7 @@ namespace NTestTrustManager
 									, _UserID
 									, "Test"
 									, Info.f_GetHost()
+									, Info.f_GetCallPriority()
 								)
 							;
 						}

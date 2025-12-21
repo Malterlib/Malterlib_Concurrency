@@ -60,12 +60,25 @@ namespace NMib::NConcurrency
 				uint32 HostActorProtocolVersion = pHost->m_ActorProtocolVersion.f_Load(NAtomic::EMemoryOrder_Relaxed);
 				uint32 AuthHandlerID = CAuthenticationHandlerIDScope::fs_GetCurrentHandlerID();
 				bool bUseAuthHandler = AuthHandlerID != 0 && HostActorProtocolVersion >= EDistributedActorProtocolVersion_MultipleAuthenticationHandlers;
+				uint8 Priority = CPriorityScope::fs_GetCurrentPriority();
+				bool bUsePriority = Priority != 128 && HostActorProtocolVersion >= EDistributedActorProtocolVersion_PrioritySupport;
 
 				CDistributedActorWriteStream Stream;
-				if (bUseAuthHandler)
-					Stream << uint8(14); // EDistributedActorCommand_RemoteCallWithAuthHandler
+				if (bUsePriority)
+				{
+					if (bUseAuthHandler)
+						Stream << uint8(16); // EDistributedActorCommand_RemoteCallWithPriorityAndAuthHandler
+					else
+						Stream << uint8(15); // EDistributedActorCommand_RemoteCallWithPriority
+					Stream << Priority;
+				}
 				else
-					Stream << uint8(2); // EDistributedActorCommand_RemoteCall
+				{
+					if (bUseAuthHandler)
+						Stream << uint8(14); // EDistributedActorCommand_RemoteCallWithAuthHandler
+					else
+						Stream << uint8(2); // EDistributedActorCommand_RemoteCall
+				}
 				Stream << uint64(0); // Dummy packet ID
 				Stream << pActorDataRaw->m_ActorID;
 				if (bUseAuthHandler)

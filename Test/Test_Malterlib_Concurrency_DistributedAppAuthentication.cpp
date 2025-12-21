@@ -154,7 +154,7 @@ namespace NTestAuthentication
 				TCFuture<bool> f_CheckPermissions1LifeTime(TCVector<CStr> _Permissions, int64 _AuthenticationLifetime) override
 				{
 					auto const &Info = fg_GetCallingHostInfo();
-					auto CallingHostInfo =  CCallingHostInfo
+					auto CallingHostInfo = CCallingHostInfo
 						(
 							Info.f_GetDistributionManager()
 							, Info.f_GetAuthenticationHandler()
@@ -165,6 +165,7 @@ namespace NTestAuthentication
 							, Info.f_GetClaimedUserID()
 							, Info.f_GetClaimedUserName()
 							, Info.f_GetHost()
+							, Info.f_GetCallPriority()
 						)
 					;
 
@@ -1495,6 +1496,7 @@ public:
 						, _UserID
 						, "Test"
 						, Info.f_GetHost()
+						, Info.f_GetCallPriority()
 					)
 				;
 			}
@@ -2404,6 +2406,7 @@ public:
 						, _UserID
 						, "(Test)"
 						, Info.f_GetHost()
+						, Info.f_GetCallPriority()
 					)
 				;
 			}

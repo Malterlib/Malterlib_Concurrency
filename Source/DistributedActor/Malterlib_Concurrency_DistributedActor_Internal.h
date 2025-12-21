@@ -103,25 +103,44 @@ namespace NMib::NConcurrency::NActorDistributionManagerInternal
 		NStr::CStr m_ListenID;
 	};
 
+	// Pack priority (8 bits) and packetID (56 bits) into a single uint64 for efficient lookup
+	// Format: [priority:8][packetID:56] - priority in high bits for correct sort order
+	inline_always uint64 fg_MakePriorityPacketKey(uint8 _Priority, uint64 _PacketID)
+	{
+		return (uint64(_Priority) << 56) | (_PacketID & 0x00FFFFFFFFFFFFFF);
+	}
+
+	// Validate that a packet ID from the network fits in 56 bits
+	// Returns false if the ID has upper bits set (potential malicious client)
+	inline_always bool fg_IsValidPacketID(uint64 _PacketID)
+	{
+		return (_PacketID & 0xFF00000000000000) == 0;
+	}
+
 	struct CPacket final
 	{
-		CPacket(NStorage::TCSharedPointer<NContainer::CIOByteVector> const &_pData)
-			: m_pData(_pData)
-		{
-		}
-		NStorage::TCSharedPointer<NContainer::CIOByteVector> m_pData; // Shared pointer because we need to keep this around and possibly resend it
-		uint64 f_GetPacketID() const;
-
-		NIntrusive::TCAVLLink<> m_TreeLink;
-		DMibListLinkDS_Link(CPacket, m_Link);
-
-		struct CSortPacketID
+		// Sort by (priority, packetID) packed into uint64 for efficient lookup during resend
+		struct CSortPriorityPacketID
 		{
 			inline_always_debug uint64 operator ()(CPacket const &_Entry)
 			{
-				return _Entry.f_GetPacketID();
+				return fg_MakePriorityPacketKey(_Entry.m_Priority, _Entry.f_GetPacketID());
 			}
 		};
+
+		CPacket(NStorage::TCSharedPointer<NContainer::CIOByteVector> const &_pData, uint8 _Priority)
+			: m_pData(_pData)
+			, m_Priority(_Priority)
+		{
+		}
+
+		uint64 f_GetPacketID() const;
+
+		NStorage::TCSharedPointer<NContainer::CIOByteVector> m_pData; // Shared pointer because we need to keep this around and possibly resend it
+		NIntrusive::TCAVLLink<> m_TreeLink;
+		DMibListLinkDS_Link(CPacket, m_Link);
+
+		uint8 m_Priority = 128; // Packet priority (0 = highest, 255 = lowest, 128 = default)
 	};
 
 	struct CRemoteActor
@@ -186,9 +205,24 @@ namespace NMib::NConcurrency::NActorDistributionManagerInternal
 		NStorage::TCSharedPointer<NPrivate::CDistributedActorStreamContextState> m_pState;
 	};
 
+	// Composite key for outstanding calls: encodes priority in upper 8 bits, packet ID in lower 56 bits
+	inline_always uint64 fg_MakeOutstandingCallKey(uint8 _Priority, uint64 _PacketID)
+	{
+		return (uint64(_Priority) << 56) | (_PacketID & 0x00FFFFFFFFFFFFFFull);
+	}
+
 	struct CWaitingForPublication
 	{
 		TCPromise<void> m_Promise;
+	};
+
+	// Per-priority packet queue for priority-aware packet handling
+	struct CPriorityQueues
+	{
+		DMibListLinkDS_List(CPacket, m_Link) m_IncomingPackets;
+		DMibListLinkDS_List(CPacket, m_Link) m_OutgoingPackets;
+		uint64 m_IncomingNextPacketID = 1; // Receiver: next expected packet ID
+		uint64 m_OutgoingCurrentPacketID = 0; // Sender: last assigned packet ID
 	};
 
 	struct CHost : public NPrivate::ICHost
@@ -227,19 +261,16 @@ namespace NMib::NConcurrency::NActorDistributionManagerInternal
 		DMibListLinkDS_List(CConnection, m_Link) m_ActiveConnections;
 		CConnection *m_pLastSendConnection = nullptr;
 
-		DMibListLinkDS_List(CPacket, m_Link) m_Incoming_ReceivedPackets;
-		uint64 m_Incoming_NextPacketID = 1;
-
-		DMibListLinkDS_List(CPacket, m_Link) m_Outgoing_QueuedPackets;
-		NIntrusive::TCAVLTree<&CPacket::m_TreeLink, CPacket::CSortPacketID> m_Outgoing_SentPackets;
-		uint64 m_Outgoing_CurrentPacketID = 0;
+		// Per-priority packet queues for packet handling
+		NContainer::TCMap<uint8, CPriorityQueues> m_PriorityQueues;
+		NIntrusive::TCAVLTree<&CPacket::m_TreeLink, CPacket::CSortPriorityPacketID> m_Outgoing_SentPackets;
 
 		DMibListLinkDS_Link(CHost, m_RealHostsLink);
 
 		NTime::CClock m_InactiveClock;
 		DMibListLinkDS_Link(CHost, m_InactiveHostsLink);
 
-		NContainer::TCMap<uint32, COutstandingCall> m_OutstandingCalls;
+		NContainer::TCMap<uint64, COutstandingCall> m_OutstandingCalls; // Key is fg_MakeOutstandingCallKey(priority, packetID)
 
 		NContainer::TCMap<NStr::CStr, TCWeakActor<CActor>> m_ImplicitlyPublishedActors;
 		NContainer::TCMap<NStr::CStr, CImplicitlyPublishedInterface> m_ImplicitlyPublishedInterfaces;
@@ -393,6 +424,7 @@ namespace NMib::NConcurrency
 		using CListen = NActorDistributionManagerInternal::CListen;
 		using CDecodedClientConnectionSetting = NActorDistributionManagerInternal::CDecodedClientConnectionSetting;
 		using CWebsocketHandler = NActorDistributionManagerInternal::CWebsocketHandler;
+		using CPriorityQueues = NActorDistributionManagerInternal::CPriorityQueues;
 
 		friend struct NActorDistributionManagerInternal::CHost;
 
@@ -499,8 +531,10 @@ namespace NMib::NConcurrency
 		TCFuture<CDistributedActorListenReference> fp_Listen(NStr::CStr _ListenID, CActorDistributionListenSettings _Settings);
 		uint64 fp_QueuePacket(NStorage::TCSharedPointerSupportWeak<CHost> const &_pHost, NContainer::CIOByteVector &&_Data);
 		void fp_SendPacketQueue(NStorage::TCSharedPointerSupportWeak<CHost> const &_pHost);
-		void fp_ProcessPacketQueue(CConnection *_pConnection);
-		void fp_SendPacket(CConnection *_pConnection, NStorage::TCSharedPointer<NContainer::CIOByteVector> &&_pMessage);
+		bool fp_QueueIncomingPacket(CConnection *_pConnection, NStorage::TCSharedPointer<NContainer::CIOByteVector> const &_pMessage, NStream::CBinaryStreamMemoryPtr<> &_Stream, uint8 _Priority);
+		void fp_ProcessPacketQueue(CConnection *_pConnection, CPriorityQueues &_PrioroityQueues, uint8 _Priority);
+		void fp_RemoveAcknowledgedPackets(CHost &_Host, uint8 _Priority, uint64 _LastInOrderPacketID);
+		void fp_SendPacket(CConnection *_pConnection, NStorage::TCSharedPointer<NContainer::CIOByteVector> &&_pMessage, uint8 _Priority);
 		void fp_OnInvalidConnection
 			(
 				CConnection *_pConnection
@@ -551,8 +585,8 @@ namespace NMib::NConcurrency
 				, CResultSubscriptionData const *_pSubscriptionData
 			)
 		;
-		bool fp_ApplyRemoteCall(CConnection *_pConnection, NStream::CBinaryStreamMemoryPtr<> &_Stream, bool _bHasAuthHandlerID);
-		bool fp_ApplyRemoteCallResult(CConnection *_pConnection, NStream::CBinaryStreamMemoryPtr<> &_Stream);
+		bool fp_ApplyRemoteCall(CConnection *_pConnection, NStream::CBinaryStreamMemoryPtr<> &_Stream, bool _bHasAuthHandlerID, uint8 _Priority);
+		bool fp_ApplyRemoteCallResult(CConnection *_pConnection, NStream::CBinaryStreamMemoryPtr<> &_Stream, uint8 _Priority);
 		bool fp_HandlePublishPacket(CConnection *_pConnection, NStream::CBinaryStreamMemoryPtr<> &_Stream);
 		bool fp_HandlePublishFinishedPacket(CConnection *_pConnection, NStream::CBinaryStreamMemoryPtr<> &_Stream);
 		bool fp_HandleUnpublishPacket(CConnection *_pConnection, NStream::CBinaryStreamMemoryPtr<> &_Stream);
@@ -560,9 +594,9 @@ namespace NMib::NConcurrency
 		bool fp_HandleDestroySubscription(CConnection *_pConnection, NStream::CBinaryStreamMemoryPtr<> &_Stream);
 		bool fp_HandleSubscriptionDestroyed(CConnection *_pConnection, NStream::CBinaryStreamMemoryPtr<> &_Stream);
 		bool fp_NamespaceAllowedForAnonymous(NStr::CStr const &_Namespace) const;
-		NException::CExceptionPointer fp_RegisterActorFunctorsForCall(NPrivate::CDistributedActorStreamContextState &_State, NActorDistributionManagerInternal::CHost &_Host);
+		NException::CExceptionPointer fp_RegisterActorFunctorsForCall(NPrivate::CDistributedActorStreamContextState &_State, CHost &_Host);
 		void fp_RegisterLocalSubscriptions(NPrivate::CDistributedActorStreamContextState &_State);
-		void fp_DestroyLocalSubscription(NActorDistributionManagerInternal::CHost &_Host, NStr::CStr const &_SubscriptionID);
-		void fp_DestroyRemoteSubscriptionReset(NActorDistributionManagerInternal::CHost &_Host, NStr::CStr const &_SubscriptionID);
+		void fp_DestroyLocalSubscription(CHost &_Host, NStr::CStr const &_SubscriptionID);
+		void fp_DestroyRemoteSubscriptionReset(CHost &_Host, NStr::CStr const &_SubscriptionID);
 	};
 }

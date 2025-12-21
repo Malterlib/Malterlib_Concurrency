@@ -1,4 +1,4 @@
-// Copyright © 2015 Hansoft AB 
+// Copyright © 2015 Hansoft AB
 // Distributed under the MIT license, see license text in LICENSE.Malterlib
 
 #define DMibRuntimeTypeRegistry
@@ -9,9 +9,11 @@
 
 namespace NMib::NConcurrency
 {
+	using namespace NActorDistributionManagerInternal;
+
 	namespace
 	{
-		[[maybe_unused]] NContainer::TCVector<uint64> fg_GetSentPacketIDs(NActorDistributionManagerInternal::CHost &_Host)
+		[[maybe_unused]] NContainer::TCVector<uint64> fg_GetSentPacketIDs(CHost &_Host)
 		{
 			NContainer::TCVector<uint64> Packets;
 
@@ -19,6 +21,94 @@ namespace NMib::NConcurrency
 				Packets.f_Insert(Packet.f_GetPacketID());
 
 			return Packets;
+		}
+	}
+
+	bool CActorDistributionManagerInternal::fp_QueueIncomingPacket
+		(
+			CConnection *_pConnection
+			, NStorage::TCSharedPointer<NContainer::CIOByteVector> const &_pMessage
+			, NStream::CBinaryStreamMemoryPtr<> &_Stream
+			, uint8 _Priority
+		)
+	{
+		if (!_pConnection->m_bIdentified)
+		{
+			DMibLog(DebugVerbose2, " ---- {} {} Not identified", _pConnection->m_pHost->m_bIncoming, _pConnection->f_GetConnectionID());
+			DMibCheck(false);
+			return false;
+		}
+
+		auto &pHost = _pConnection->m_pHost;
+		auto &PriorityQueues = pHost->m_PriorityQueues[_Priority];
+
+		uint64 PacketID;
+		_Stream >> PacketID;
+
+		// Validate packet ID from network (must fit in 56 bits)
+		if (!fg_IsValidPacketID(PacketID))
+			return false; // Malicious client
+
+		if (PacketID < PriorityQueues.m_IncomingNextPacketID)
+		{
+			DMibLog(DebugVerbose2, " ---- {} {} IGNORING PACKET {} (priority {})", pHost->m_bIncoming, _pConnection->f_GetConnectionID(), PacketID, _Priority);
+			return true; // Already received
+		}
+
+		auto iPacket = PriorityQueues.m_IncomingPackets.f_GetIterator();
+		iPacket.f_Reverse(PriorityQueues.m_IncomingPackets);
+		for (; iPacket; --iPacket)
+		{
+			if (iPacket->f_GetPacketID() == PacketID)
+			{
+				DMibLog(DebugVerbose2, " ---- {} {} ALREADY RECEIVED PACKET {} (priority {})", pHost->m_bIncoming, _pConnection->f_GetConnectionID(), PacketID, _Priority);
+				return true; // Already received
+			}
+			else if (iPacket->f_GetPacketID() < PacketID)
+			{
+				DMibLog(DebugVerbose2, " ---- {} {} Receive packet {} (priority {})", pHost->m_bIncoming, _pConnection->f_GetConnectionID(), PacketID, _Priority);
+				NStorage::TCUniquePointer<CPacket> pPacket = fg_Construct(_pMessage, _Priority);
+				PriorityQueues.m_IncomingPackets.f_InsertAfter(pPacket.f_Detach(), &*iPacket);
+				break;
+			}
+		}
+
+		if (!iPacket)
+		{
+			NStorage::TCUniquePointer<CPacket> pPacket = fg_Construct(_pMessage, _Priority);
+			DMibLog(DebugVerbose2, " ---- {} {} Receive2 packet {} (priority {})", pHost->m_bIncoming, _pConnection->f_GetConnectionID(), PacketID, _Priority);
+			PriorityQueues.m_IncomingPackets.f_InsertFirst(pPacket.f_Detach());
+		}
+
+		if (_pConnection->m_Link.f_IsInList()) // Only active connections
+			fp_ProcessPacketQueue(_pConnection, PriorityQueues, _Priority);
+		else
+			DMibLog(DebugVerbose2, " ---- {} {} NOT ACTIVE {} (priority {})", pHost->m_bIncoming, _pConnection->f_GetConnectionID(), PacketID, _Priority);
+
+		return true;
+	}
+
+	void CActorDistributionManagerInternal::fp_RemoveAcknowledgedPackets(CHost &_Host, uint8 _Priority, uint64 _LastInOrderPacketID)
+	{
+		// Remove all acknowledged packets with the specified priority
+		// Tree is sorted by packed key (priority:8, packetID:56), so packets for each priority are contiguous
+		// Note: With 56-bit packet IDs, wrap-around is theoretically possible but would require
+		// 72 quadrillion packets - at 1M packets/sec that's billions of years
+		uint64 EndKey = fg_MakePriorityPacketKey(_Priority, _LastInOrderPacketID);
+
+		for (;;)
+		{
+			// Find first packet in this priority's range (start at 0 to handle wrap-around case)
+			auto *pPacket = _Host.m_Outgoing_SentPackets.f_FindSmallestGreaterThanEqual(fg_MakePriorityPacketKey(_Priority, 0));
+			if (!pPacket)
+				break;
+
+			// Check if still within the acknowledged range and correct priority
+			if (fg_MakePriorityPacketKey(pPacket->m_Priority, pPacket->f_GetPacketID()) > EndKey)
+				break;
+
+			_Host.m_Outgoing_SentPackets.f_Remove(pPacket);
+			fg_DeleteObjectDefiniteType(NMemory::CDefaultAllocator(), pPacket);
 		}
 	}
 
@@ -59,10 +149,23 @@ namespace NMib::NConcurrency
 
 					if (Identify.m_ProtocolVersion < EDistributedActorProtocolVersion_Min)
 					{
-						DMibLog(DebugVerbose2, " ---- {} {} Invalid protocol", _pConnection->m_pHost->m_bIncoming, _pConnection->f_GetConnectionID());
+						DMibLog(DebugVerbose2, " ---- {} {} Invalid protocol: 0x{nfh}", _pConnection->m_pHost->m_bIncoming, _pConnection->f_GetConnectionID(), Identify.m_ProtocolVersion);
 						if (!_pConnection->m_IdentifyPromise.f_IsSet())
 							_pConnection->m_IdentifyPromise.f_SetException(DMibErrorInstance("Invalid protocol version"));
 						return false;
+					}
+
+					// Validate packet IDs from network (must fit in 56 bits)
+					for (auto &PriorityState : Identify.m_PriorityQueueStates)
+					{
+						if (!fg_IsValidPacketID(PriorityState.m_AckedPacketID) || !fg_IsValidPacketID(PriorityState.m_HighestSeenPacketID))
+							return false; // Malicious client
+
+						for (auto &MissingPacketID : PriorityState.m_MissingPacketIDs)
+						{
+							if (!fg_IsValidPacketID(MissingPacketID))
+								return false; // Malicious client
+						}
 					}
 
 					auto &pHost = _pConnection->m_pHost;
@@ -70,14 +173,19 @@ namespace NMib::NConcurrency
 
 					auto &Host = *pHost;
 
-					// Remove packets that remote already knows about
-					while (auto *pPacket = Host.m_Outgoing_SentPackets.f_FindSmallest())
-					{
-						if (pPacket->f_GetPacketID() > Identify.m_AckedPacketID)
-							break;
+#if (DMibSysLogSeverities) & DMibLogSeverity_DebugVerbose2
+					uint64 DefaultAckedPacketID = 0;
+#endif
 
-						Host.m_Outgoing_SentPackets.f_Remove(pPacket);
-						fg_DeleteObjectDefiniteType(NMemory::CDefaultAllocator(), pPacket);
+					for (auto &PriorityStateEntry : Identify.m_PriorityQueueStates.f_Entries())
+					{
+						auto Priority = PriorityStateEntry.f_Key();
+						auto &PriorityState = PriorityStateEntry.f_Value();
+#if (DMibSysLogSeverities) & DMibLogSeverity_DebugVerbose2
+						if (Priority == 128)
+							DefaultAckedPacketID = PriorityState.m_AckedPacketID;
+#endif
+						fp_RemoveAcknowledgedPackets(Host, Priority, PriorityState.m_AckedPacketID);
 					}
 
 					DMibLog
@@ -86,7 +194,7 @@ namespace NMib::NConcurrency
 							, " ---- {} {} Acked until (Identify) {} Left {vs}"
 							, _pConnection->m_pHost->m_bIncoming
 							, _pConnection->f_GetConnectionID()
-							, Identify.m_AckedPacketID
+							, DefaultAckedPacketID
 							, fg_GetSentPacketIDs(*pHost)
 						)
 					;
@@ -139,7 +247,7 @@ namespace NMib::NConcurrency
 						DMibLog
 							(
 								DebugVerbose1
-								, " ---- {} {} Reset actor protocol version {} -> {}"
+								, " ---- {} {} Reset actor protocol version 0x{nfh} -> 0x{nfh}"
 								, _pConnection->m_pHost->m_bIncoming
 								, _pConnection->f_GetConnectionID()
 								, HostActorProtocolVersion
@@ -160,23 +268,53 @@ namespace NMib::NConcurrency
 							OnHostInfoChanged.m_fOnHostInfoChanged.f_CallDiscard(HostInfo);
 					}
 
-					// Resend packets that remote thinks are missing
-					for (auto &MissingPacketID : Identify.m_MissingPacketIDs)
+					for (auto &PriorityState : Identify.m_PriorityQueueStates)
 					{
-						auto pPacket = Host.m_Outgoing_SentPackets.f_FindEqual(MissingPacketID);
-						if (pPacket)
-							fp_SendPacket(_pConnection, fg_TempCopy(pPacket->m_pData));
-					}
+						uint8 Priority = Identify.m_PriorityQueueStates.fs_GetKey(PriorityState);
 
-					{
+						for (auto &MissingPacketID : PriorityState.m_MissingPacketIDs)
+						{
+							auto pPacket = Host.m_Outgoing_SentPackets.f_FindEqual(fg_MakePriorityPacketKey(Priority, MissingPacketID));
+							if (pPacket)
+								fp_SendPacket(_pConnection, fg_TempCopy(pPacket->m_pData), pPacket->m_Priority);
+						}
+
 						decltype(Host.m_Outgoing_SentPackets)::CIteratorConst iSentPackets;
 						iSentPackets.f_InitForSearch(Host.m_Outgoing_SentPackets);
-						iSentPackets.f_FindSmallestGreaterThanEqualForward(Identify.m_HighestSeenPacketID);
+						iSentPackets.f_FindSmallestGreaterThanEqualForward(fg_MakePriorityPacketKey(Priority, PriorityState.m_HighestSeenPacketID));
 
-						while (iSentPackets)
+						while (iSentPackets && iSentPackets->m_Priority == Priority)
 						{
-							fp_SendPacket(_pConnection, fg_TempCopy(iSentPackets->m_pData));
+							fp_SendPacket(_pConnection, fg_TempCopy(iSentPackets->m_pData), iSentPackets->m_Priority);
 							++iSentPackets;
+						}
+					}
+
+					// Resend packets at priorities the client has never seen
+					{
+						decltype(Host.m_Outgoing_SentPackets)::CIteratorConst iPackets;
+						iPackets.f_InitForSearch(Host.m_Outgoing_SentPackets);
+						iPackets.f_FindSmallestGreaterThanEqualForward(uint64(0u));
+
+						while (iPackets)
+						{
+							uint8 Priority = iPackets->m_Priority;
+
+							if (Identify.m_PriorityQueueStates.f_FindEqual(Priority) != nullptr)
+							{
+								if (Priority == 255)
+									break; // No higher priorities possible
+
+								iPackets.f_InitForSearch(Host.m_Outgoing_SentPackets);
+								iPackets.f_FindSmallestGreaterThanEqualForward(fg_MakePriorityPacketKey(Priority + 1, 0));
+								continue;
+							}
+
+							while (iPackets && iPackets->m_Priority == Priority)
+							{
+								fp_SendPacket(_pConnection, fg_TempCopy(iPackets->m_pData), iPackets->m_Priority);
+								++iPackets;
+							}
 						}
 					}
 
@@ -196,7 +334,8 @@ namespace NMib::NConcurrency
 					_pConnection->m_bFirstConnection = _pConnection->m_Link.f_IsAloneInList();
 					fp_CleanupMarkActive(Host);
 					fp_SendPacketQueue(pHost);
-					fp_ProcessPacketQueue(_pConnection);
+					for (auto &PriorityQueuesEntry : pHost->m_PriorityQueues.f_Entries())
+						fp_ProcessPacketQueue(_pConnection, PriorityQueuesEntry.f_Value(), PriorityQueuesEntry.f_Key());
 
 					if (Host.f_CanSendPublish())
 					{
@@ -288,7 +427,8 @@ namespace NMib::NConcurrency
 						NStream::CBinaryStreamMemory<NStream::CBinaryStreamDefault, NContainer::CIOByteVector> Stream;
 						Stream << Identify;
 						NStorage::TCSharedPointer<NContainer::CIOByteVector> pPacketData = fg_Construct(Stream.f_MoveVector());
-						fp_SendPacket(_pConnection, fg_Move(pPacketData));
+						// InitialPublishFinished must stay ordered with Publish packets - use priority 128
+						fp_SendPacket(_pConnection, fg_Move(pPacketData), 128);
 					}
 					else
 					{
@@ -342,7 +482,8 @@ namespace NMib::NConcurrency
 								NStream::CBinaryStreamMemory<NStream::CBinaryStreamDefault, NContainer::CIOByteVector> Stream;
 								Stream << Packet;
 								NStorage::TCSharedPointer<NContainer::CIOByteVector> pPacketData = fg_Construct(Stream.f_MoveVector());
-								fp_SendPacket(pConnection.f_Get(), fg_Move(pPacketData));
+								// InitialPublishFinishedProcessing must stay ordered with data flow - use priority 128
+								fp_SendPacket(pConnection.f_Get(), fg_Move(pPacketData), 128);
 							}
 							else
 							{
@@ -385,25 +526,59 @@ namespace NMib::NConcurrency
 					CDistributedActorCommand_Acknowledge Acknowledge;
 					Stream >> Acknowledge;
 
+					if (!fg_IsValidPacketID(Acknowledge.m_LastInOrderPacketID))
+						return false; // Malicious client
+
 					auto &pHost = _pConnection->m_pHost;
 
-					// Remove packets that remote already knows about
-					while (auto *pPacket = pHost->m_Outgoing_SentPackets.f_FindSmallest())
-					{
-						if (pPacket->f_GetPacketID() > Acknowledge.m_LastInOrderPacketID)
-							break;
-
-						pHost->m_Outgoing_SentPackets.f_Remove(pPacket);
-						fg_DeleteObjectDefiniteType(NMemory::CDefaultAllocator(), pPacket);
-					}
+					fp_RemoveAcknowledgedPackets(*pHost, 128, Acknowledge.m_LastInOrderPacketID);
 
 					DMibLog
 						(
 							DebugVerbose2
-							, " ---- {} {} Acked until {} Left {vs}"
+							, " ---- {} {} Acked until {} (priority 128) Left {vs}"
 							, _pConnection->m_pHost->m_bIncoming
 							, _pConnection->f_GetConnectionID()
 							, Acknowledge.m_LastInOrderPacketID
+							, fg_GetSentPacketIDs(*pHost)
+						)
+					;
+				}
+				break;
+			case EDistributedActorCommand_AcknowledgeWithPriority:
+				{
+					if (!_pConnection->m_Link.f_IsInList()) // Not an active connection
+					{
+						DMibLog(DebugVerbose2, " ---- {} {} Not active ack with priority", _pConnection->m_pHost->m_bIncoming, _pConnection->f_GetConnectionID());
+						return false;
+					}
+					if (!_pConnection->m_bIdentified)
+					{
+						DMibLog(DebugVerbose2, " ---- {} {} Not identified", _pConnection->m_pHost->m_bIncoming, _pConnection->f_GetConnectionID());
+						DMibCheck(false);
+						return false;
+					}
+
+					uint8 Priority;
+					Stream >> Priority;
+					uint64 LastInOrderPacketID;
+					Stream >> LastInOrderPacketID;
+
+					if (!fg_IsValidPacketID(LastInOrderPacketID))
+						return false; // Malicious client
+
+					auto &pHost = _pConnection->m_pHost;
+
+					fp_RemoveAcknowledgedPackets(*pHost, Priority, LastInOrderPacketID);
+
+					DMibLog
+						(
+							DebugVerbose2
+							, " ---- {} {} Acked until {} (priority {}) Left {vs}"
+							, _pConnection->m_pHost->m_bIncoming
+							, _pConnection->f_GetConnectionID()
+							, LastInOrderPacketID
+							, Priority
 							, fg_GetSentPacketIDs(*pHost)
 						)
 					;
@@ -426,25 +601,38 @@ namespace NMib::NConcurrency
 
 					CDistributedActorCommand_RequestMissingPackets RequestPackets;
 
-					RequestPackets.m_HighestSeenPacketID = Host.m_Incoming_NextPacketID - 1;
-					uint64 NextExpectedPacketID = Host.m_Incoming_NextPacketID;
-					for (auto &ReceivedPacket : Host.m_Incoming_ReceivedPackets)
+					for (auto &PriorityQueuesEntry : Host.m_PriorityQueues.f_Entries())
 					{
-						uint64 PacketID = ReceivedPacket.f_GetPacketID();
-						while (NextExpectedPacketID < PacketID)
+						uint8 Priority = PriorityQueuesEntry.f_Key();
+						auto &PriorityQueues = PriorityQueuesEntry.f_Value();
+						uint64 HighestSeenPacketID = PriorityQueues.m_IncomingNextPacketID - 1;
+						uint64 NextExpectedPacketID = PriorityQueues.m_IncomingNextPacketID;
+
+						CPriorityMissingInfo &PriorityState = RequestPackets.m_PriorityQueueStates[Priority];
+
+						for (auto &ReceivedPacket : PriorityQueues.m_IncomingPackets)
 						{
-							RequestPackets.m_MissingPacketIDs.f_Insert(NextExpectedPacketID);
+							uint64 PacketID = ReceivedPacket.f_GetPacketID();
+							while (NextExpectedPacketID < PacketID)
+							{
+								PriorityState.m_MissingPacketIDs.f_Insert(NextExpectedPacketID);
+								++NextExpectedPacketID;
+							}
+							HighestSeenPacketID = fg_Max(HighestSeenPacketID, PacketID);
 							++NextExpectedPacketID;
 						}
-						RequestPackets.m_HighestSeenPacketID = fg_Max(RequestPackets.m_HighestSeenPacketID, PacketID);
+
+						PriorityState.m_HighestSeenPacketID = HighestSeenPacketID;
 					}
 
 					NStream::CBinaryStreamMemory<NStream::CBinaryStreamDefault, NContainer::CIOByteVector> Stream;
+					auto VersionScope = Host.f_StreamVersion(Stream);
 					Stream << RequestPackets;
 
 					NStorage::TCSharedPointer<NContainer::CIOByteVector> pPacketData = fg_Construct(Stream.f_MoveVector());
 
-					fp_SendPacket(_pConnection, fg_Move(pPacketData));
+					// RequestMissingPackets is a recovery control packet - use priority 0 (highest)
+					fp_SendPacket(_pConnection, fg_Move(pPacketData), 0);
 				}
 				break;
 			case EDistributedActorCommand_RequestMissingPackets:
@@ -455,28 +643,42 @@ namespace NMib::NConcurrency
 						return false;
 
 					CDistributedActorCommand_RequestMissingPackets RequestPackets;
+					auto VersionScope = Host.f_StreamVersion(Stream);
 					Stream >> RequestPackets;
 
-					// Resend packets that remote thinks are missing
-					for (auto &MissingPacketID : RequestPackets.m_MissingPacketIDs)
+					for (auto &PriorityState : RequestPackets.m_PriorityQueueStates)
 					{
-						auto pPacket = Host.m_Outgoing_SentPackets.f_FindEqual(MissingPacketID);
-						if (pPacket)
-							fp_SendPacket(_pConnection, fg_TempCopy(pPacket->m_pData));
+						if (!fg_IsValidPacketID(PriorityState.m_HighestSeenPacketID))
+							return false; // Malicious client
+
+						for (auto &MissingPacketID : PriorityState.m_MissingPacketIDs)
+						{
+							if (!fg_IsValidPacketID(MissingPacketID))
+								return false; // Malicious client
+						}
 					}
 
+					for (auto &PriorityState : RequestPackets.m_PriorityQueueStates)
 					{
+						uint8 Priority = RequestPackets.m_PriorityQueueStates.fs_GetKey(PriorityState);
+
+						for (auto &MissingPacketID : PriorityState.m_MissingPacketIDs)
+						{
+							auto pPacket = Host.m_Outgoing_SentPackets.f_FindEqual(fg_MakePriorityPacketKey(Priority, MissingPacketID));
+							if (pPacket)
+								fp_SendPacket(_pConnection, fg_TempCopy(pPacket->m_pData), pPacket->m_Priority);
+						}
+
 						decltype(Host.m_Outgoing_SentPackets)::CIteratorConst iSentPackets;
 						iSentPackets.f_InitForSearch(Host.m_Outgoing_SentPackets);
-						iSentPackets.f_FindSmallestGreaterThanEqualForward(RequestPackets.m_HighestSeenPacketID);
+						iSentPackets.f_FindSmallestGreaterThanEqualForward(fg_MakePriorityPacketKey(Priority, PriorityState.m_HighestSeenPacketID));
 
-						while (iSentPackets)
+						while (iSentPackets && iSentPackets->m_Priority == Priority)
 						{
-							fp_SendPacket(_pConnection, fg_TempCopy(iSentPackets->m_pData));
+							fp_SendPacket(_pConnection, fg_TempCopy(iSentPackets->m_pData), iSentPackets->m_Priority);
 							++iSentPackets;
 						}
 					}
-					
 				}
 				break;
 			case EDistributedActorCommand_RemoteCall:
@@ -489,51 +691,20 @@ namespace NMib::NConcurrency
 			case EDistributedActorCommand_DestroySubscription:
 			case EDistributedActorCommand_SubscriptionDestroyed:
 				{
-					if (!_pConnection->m_bIdentified)
-					{
-						DMibLog(DebugVerbose2, " ---- {} {} Not identified", _pConnection->m_pHost->m_bIncoming, _pConnection->f_GetConnectionID());
-						DMibCheck(false);
+					// Legacy commands use default priority 128
+					if (!fp_QueueIncomingPacket(_pConnection, _pMessage, Stream, 128))
 						return false;
-					}
-					auto &pHost = _pConnection->m_pHost;
-
-					uint64 PacketID;
-					Stream >> PacketID;
-
-					if (PacketID < pHost->m_Incoming_NextPacketID)
-					{
-						DMibLog(DebugVerbose2, " ---- {} {} IGNORING PACKET {}", pHost->m_bIncoming, _pConnection->f_GetConnectionID(), PacketID);
-						return true; // Already received
-					}
-
-					auto iPacket = pHost->m_Incoming_ReceivedPackets.f_GetIterator();
-					iPacket.f_Reverse(pHost->m_Incoming_ReceivedPackets);
-					for (; iPacket; --iPacket)
-					{
-						if (iPacket->f_GetPacketID() == PacketID)
-						{
-							DMibLog(DebugVerbose2, " ---- {} {} ALREADY RECEIVED PACKET {}", pHost->m_bIncoming, _pConnection->f_GetConnectionID(), PacketID);
-							return true; // Already received
-						}
-						else if (iPacket->f_GetPacketID() < PacketID)
-						{
-							DMibLog(DebugVerbose2, " ---- {} {} Receive packet {}", pHost->m_bIncoming, _pConnection->f_GetConnectionID(), PacketID);
-							NStorage::TCUniquePointer<CPacket> pPacket = fg_Construct(_pMessage);
-							pHost->m_Incoming_ReceivedPackets.f_InsertAfter(pPacket.f_Detach(), &*iPacket);
-							break;
-						}
-					}
-					if (!iPacket)
-					{
-						NStorage::TCUniquePointer<CPacket> pPacket = fg_Construct(_pMessage);
-						DMibLog(DebugVerbose2, " ---- {} {} Receive2 packet {}", pHost->m_bIncoming, _pConnection->f_GetConnectionID(), PacketID);
-						pHost->m_Incoming_ReceivedPackets.f_InsertFirst(pPacket.f_Detach());
-					}
-					if (_pConnection->m_Link.f_IsInList()) // Only active connections
-						fp_ProcessPacketQueue(_pConnection);
-					else
-						DMibLog(DebugVerbose2, " ---- {} {} NOT ACTIVE {}", pHost->m_bIncoming, _pConnection->f_GetConnectionID(), PacketID);
-
+				}
+				break;
+			case EDistributedActorCommand_RemoteCallWithPriority:
+			case EDistributedActorCommand_RemoteCallWithPriorityAndAuthHandler:
+			case EDistributedActorCommand_RemoteCallResultWithPriority:
+				{
+					// Priority commands have format: [cmd:1][priority:1][packetID:8]...
+					uint8 Priority;
+					Stream >> Priority;
+					if (!fp_QueueIncomingPacket(_pConnection, _pMessage, Stream, Priority))
+						return false;
 				}
 				break;
 			default:
@@ -568,18 +739,33 @@ namespace NMib::NConcurrency
 		Identify.m_FriendlyName = m_FriendlyName;
 		Identify.m_ExecutionID = pHost->m_ExecutionID;
 		Identify.m_LastSeenExecutionID = pHost->m_LastExecutionID;
-		Identify.m_AckedPacketID = pHost->m_Incoming_NextPacketID - 1;
-		Identify.m_HighestSeenPacketID = Identify.m_AckedPacketID;
-		uint64 NextExpectedPacketID = pHost->m_Incoming_NextPacketID;
-		for (auto &ReceivedPacket : pHost->m_Incoming_ReceivedPackets)
+
+		// Build acked packet info for all priority queues
+		for (auto &PriorityQueuesEntry : pHost->m_PriorityQueues.f_Entries())
 		{
-			uint64 PacketID = ReceivedPacket.f_GetPacketID();
-			while (NextExpectedPacketID < PacketID)
+			uint8 Priority = PriorityQueuesEntry.f_Key();
+			auto &PriorityQueues = PriorityQueuesEntry.f_Value();
+			uint64 AckedPacketID = PriorityQueues.m_IncomingNextPacketID - 1;
+			uint64 HighestSeenPacketID = AckedPacketID;
+			uint64 NextExpectedPacketID = PriorityQueues.m_IncomingNextPacketID;
+
+			// Get or create the priority state entry for non-128 priorities
+			CPriorityQueueState &PriorityState = Identify.m_PriorityQueueStates[Priority];
+
+			for (auto &ReceivedPacket : PriorityQueues.m_IncomingPackets)
 			{
-				Identify.m_MissingPacketIDs.f_Insert(NextExpectedPacketID);
+				uint64 PacketID = ReceivedPacket.f_GetPacketID();
+				while (NextExpectedPacketID < PacketID)
+				{
+					PriorityState.m_MissingPacketIDs.f_Insert(NextExpectedPacketID);
+					++NextExpectedPacketID;
+				}
+				HighestSeenPacketID = fg_Max(HighestSeenPacketID, PacketID);
 				++NextExpectedPacketID;
 			}
-			Identify.m_HighestSeenPacketID = fg_Max(Identify.m_HighestSeenPacketID, PacketID);
+
+			PriorityState.m_AckedPacketID = AckedPacketID;
+			PriorityState.m_HighestSeenPacketID = HighestSeenPacketID;
 		}
 
 		bool bAllowAllNamespaces = false;
@@ -608,7 +794,8 @@ namespace NMib::NConcurrency
 
 		NStorage::TCSharedPointer<NContainer::CIOByteVector> pPacketData = fg_Construct(Stream.f_MoveVector());
 
-		fp_SendPacket(_pConnection, fg_Move(pPacketData));
+		// Identify is the first packet on a connection - use priority 0 (highest)
+		fp_SendPacket(_pConnection, fg_Move(pPacketData), 0);
 	}
 
 	void CActorDistributionManagerInternal::fp_NotifyDisconnect(CHost &_Host)
@@ -634,7 +821,8 @@ namespace NMib::NConcurrency
 		for (auto &Connection : _Host.m_ActiveConnections)
 		{
 			DMibLog(DebugVerbose2, " ---- {} {} Sending notify disconnect packet {}", _Host.m_bIncoming, Connection.f_GetConnectionID(), Notification.m_NotifyLostSequence);
-			fp_SendPacket(&Connection, fg_TempCopy(pPacketData));
+			// NotifyConnectionLost is a control notification with its own sequence number - use priority 0 (highest)
+			fp_SendPacket(&Connection, fg_TempCopy(pPacketData), 0);
 		}
 	}
 }

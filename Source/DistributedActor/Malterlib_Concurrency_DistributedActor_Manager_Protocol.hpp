@@ -1,4 +1,4 @@
-// Copyright © 2015 Hansoft AB 
+// Copyright © 2015 Hansoft AB
 // Distributed under the MIT license, see license text in LICENSE.Malterlib
 
 #define DMibRuntimeTypeRegistry
@@ -16,12 +16,43 @@ namespace NMib::NConcurrency
 		_Stream << m_ProtocolVersion;
 		_Stream << m_ExecutionID;
 		_Stream << m_LastSeenExecutionID;
-		_Stream << m_MissingPacketIDs;
-		_Stream << m_AckedPacketID;
-		_Stream << m_HighestSeenPacketID;
+
+		auto *pDefaultState = m_PriorityQueueStates.f_FindEqual(128);
+		if (pDefaultState)
+		{
+			_Stream << pDefaultState->m_MissingPacketIDs;
+			_Stream << pDefaultState->m_AckedPacketID;
+			_Stream << pDefaultState->m_HighestSeenPacketID;
+		}
+		else
+		{
+			_Stream << NContainer::TCVector<uint64>();
+			_Stream << uint64(0);
+			_Stream << uint64(0);
+		}
+
 		_Stream << m_AllowedNamespaces;
 		_Stream << m_bAllowAllNamespaces;
 		_Stream << m_FriendlyName;
+
+		if (m_ProtocolVersion >= EDistributedActorProtocolVersion_PrioritySupport)
+		{
+			if (pDefaultState)
+			{
+				auto nStates = m_PriorityQueueStates.f_GetLen() - 1;
+				NStream::fg_FeedLenToStream(_Stream, nStates);
+				for (auto &Entry : m_PriorityQueueStates.f_Entries())
+				{
+					if (Entry.f_Key() == 128)
+						continue;
+
+					_Stream << Entry.f_Key();
+					_Stream << Entry.f_Value();
+				}
+			}
+			else
+				_Stream << m_PriorityQueueStates;
+		}
 	}
 
 	template <typename tf_CStream>
@@ -32,12 +63,29 @@ namespace NMib::NConcurrency
 			return;
 		_Stream >> m_ExecutionID;
 		_Stream >> m_LastSeenExecutionID;
-		_Stream >> m_MissingPacketIDs;
-		_Stream >> m_AckedPacketID;
-		_Stream >> m_HighestSeenPacketID;
+
+		auto &State = m_PriorityQueueStates[128];
+		_Stream >> State.m_MissingPacketIDs;
+		_Stream >> State.m_AckedPacketID;
+		_Stream >> State.m_HighestSeenPacketID;
+
 		_Stream >> m_AllowedNamespaces;
 		_Stream >> m_bAllowAllNamespaces;
 		_Stream >> m_FriendlyName;
+
+		if (m_ProtocolVersion >= EDistributedActorProtocolVersion_PrioritySupport)
+		{
+			uint64 nStates;
+			NStream::fg_ConsumeLenFromStream(_Stream, nStates);
+			fg_CheckLengthLimit(_Stream, nStates);
+			while (nStates)
+			{
+				uint8 Priority;
+				_Stream >> Priority;
+				_Stream >> m_PriorityQueueStates[Priority];
+				--nStates;
+			}
+		}
 	}
 
 	template <typename tf_CStream>
@@ -86,6 +134,57 @@ namespace NMib::NConcurrency
 	}
 
 	template <typename tf_CStream>
+	void CPriorityQueueState::f_Stream(tf_CStream &_Stream)
+	{
+		_Stream % m_MissingPacketIDs;
+		_Stream % m_AckedPacketID;
+		_Stream % m_HighestSeenPacketID;
+	}
+
+	template <typename tf_CStream>
+	void CPriorityMissingInfo::f_Stream(tf_CStream &_Stream)
+	{
+		_Stream % m_MissingPacketIDs;
+		_Stream % m_HighestSeenPacketID;
+	}
+
+	template <typename tf_CStream>
+	void CDistributedActorCommand_RemoteCallWithPriority::f_Feed(tf_CStream &_Stream) const
+	{
+		_Stream << uint8(EDistributedActorCommand_RemoteCallWithPriority);
+		_Stream << m_Priority;
+		_Stream << m_PacketID;
+		_Stream << m_ActorID;
+	}
+
+	template <typename tf_CStream>
+	void CDistributedActorCommand_RemoteCallWithPriority::f_Consume(tf_CStream &_Stream)
+	{
+		_Stream >> m_Priority;
+		_Stream >> m_PacketID;
+		_Stream >> m_ActorID;
+	}
+
+	template <typename tf_CStream>
+	void CDistributedActorCommand_RemoteCallWithPriorityAndAuthHandler::f_Feed(tf_CStream &_Stream) const
+	{
+		_Stream << uint8(EDistributedActorCommand_RemoteCallWithPriorityAndAuthHandler);
+		_Stream << m_Priority;
+		_Stream << m_PacketID;
+		_Stream << m_ActorID;
+		_Stream << m_AuthenticationHandlerID;
+	}
+
+	template <typename tf_CStream>
+	void CDistributedActorCommand_RemoteCallWithPriorityAndAuthHandler::f_Consume(tf_CStream &_Stream)
+	{
+		_Stream >> m_Priority;
+		_Stream >> m_PacketID;
+		_Stream >> m_ActorID;
+		_Stream >> m_AuthenticationHandlerID;
+	}
+
+	template <typename tf_CStream>
 	void CResultSubscriptionData::f_Feed(tf_CStream &_Stream) const
 	{
 		if (m_ClaimedSubscriptionIDs.f_IsEmpty())
@@ -124,6 +223,25 @@ namespace NMib::NConcurrency
 		_Stream >> m_ReplyToPacketID;
 		if (_Stream.f_GetVersion() >= EDistributedActorProtocolVersion_ClaimedSubscriptionsSupported)
 			_Stream >> m_SubscriptionData;
+	}
+
+	template <typename tf_CStream>
+	void CDistributedActorCommand_RemoteCallResultWithPriority::f_Feed(tf_CStream &_Stream) const
+	{
+		_Stream << uint8(EDistributedActorCommand_RemoteCallResultWithPriority);
+		_Stream << m_Priority;
+		_Stream << m_PacketID;
+		_Stream << m_ReplyToPacketID;
+		_Stream << m_SubscriptionData;
+	}
+
+	template <typename tf_CStream>
+	void CDistributedActorCommand_RemoteCallResultWithPriority::f_Consume(tf_CStream &_Stream)
+	{
+		_Stream >> m_Priority;
+		_Stream >> m_PacketID;
+		_Stream >> m_ReplyToPacketID;
+		_Stream >> m_SubscriptionData;
 	}
 
 	template <typename tf_CStream>
@@ -279,14 +397,28 @@ namespace NMib::NConcurrency
 	void CDistributedActorCommand_RequestMissingPackets::f_Feed(tf_CStream &_Stream) const
 	{
 		_Stream << uint8(EDistributedActorCommand_RequestMissingPackets);
-		_Stream << m_MissingPacketIDs;
-		_Stream << m_HighestSeenPacketID;
+
+		if (_Stream.f_GetVersion() >= EDistributedActorProtocolVersion_PrioritySupport)
+			_Stream << m_PriorityQueueStates;
+		else
+		{
+			auto *pDefaultStates = m_PriorityQueueStates.f_FindEqual(128);
+			if (pDefaultStates)
+				_Stream << *pDefaultStates;
+			else
+			{
+				_Stream << NContainer::TCVector<uint64>();
+				_Stream << uint64(0);
+			}
+		}
 	}
 
 	template <typename tf_CStream>
 	void CDistributedActorCommand_RequestMissingPackets::f_Consume(tf_CStream &_Stream)
 	{
-		_Stream >> m_MissingPacketIDs;
-		_Stream >> m_HighestSeenPacketID;
+		if (_Stream.f_GetVersion() >= EDistributedActorProtocolVersion_PrioritySupport)
+			_Stream >> m_PriorityQueueStates;
+		else
+			_Stream >> m_PriorityQueueStates[128];
 	}
 }

@@ -1,4 +1,4 @@
-// Copyright © 2015 Hansoft AB 
+// Copyright © 2015 Hansoft AB
 // Distributed under the MIT license, see license text in LICENSE.Malterlib
 
 #pragma once
@@ -19,22 +19,28 @@ namespace NMib::NConcurrency
 		enum : uint32
 		{
 			EProtocolVersion_Min = 0x102
+			, EProtocolVersion_SupportOrderingFlags = 0x103
+			, EProtocolVersion_SupportOnCertificateSigned = 0x104
+			, EProtocolVersion_SupportUserAuthentication = 0x105
+			, EProtocolVersion_SupportClaimedUserName = 0x106
+			, EProtocolVersion_SupportDebugStatsAndPreserveHost = 0x107
 			, EProtocolVersion_SupportPrimaryListen = 0x108
-			, EProtocolVersion_Current = 0x108
+			, EProtocolVersion_PriorityDebugStats = 0x109
+			, EProtocolVersion_Current = 0x109
 		};
-	  
+
 		struct CTrustTicket
 		{
 			enum
 			{
 				EVersion = 0x101
 			};
-			
+
 			template <typename tf_CStream>
 			void f_Feed(tf_CStream &_Stream) const;
 			template <typename tf_CStream>
 			void f_Consume(tf_CStream &_Stream);
-			
+
 			NStr::CStrSecure f_ToStringTicket() const;
 			static CTrustTicket fs_FromStringTicket(NStr::CStrSecure const &_StringTicket);
 
@@ -42,7 +48,7 @@ namespace NMib::NConcurrency
 			NContainer::CByteVector m_ServerPublicCert;
 			NStr::CStrSecure m_Token;
 		};
-		
+
 		struct CNamespacePermissions
 		{
 			inline NStr::CStr const &f_GetName() const;
@@ -53,7 +59,7 @@ namespace NMib::NConcurrency
 
 			void f_Feed(CDistributedActorWriteStream &_Stream) const;
 			void f_Consume(CDistributedActorReadStream &_Stream);
-			
+
 			NContainer::TCMap<NStr::CStr, CHostInfo> m_AllowedHosts;
 			NContainer::TCMap<NStr::CStr, CHostInfo> m_DisallowedHosts;
 		};
@@ -62,20 +68,20 @@ namespace NMib::NConcurrency
 		{
 			void f_Feed(CDistributedActorWriteStream &_Stream) &&;
 			void f_Consume(CDistributedActorReadStream &_Stream);
-			
+
 			CTrustTicket m_Ticket;
 			TCActorSubscriptionWithID<0> m_NotificationsSubscription;
 		};
-		
+
 		struct CClientConnectionInfo
 		{
 			template <typename tf_CStream>
 			void f_Stream(tf_CStream &_Stream);
 			template <typename tf_CString>
 			void f_Format(tf_CString &o_String) const;
-			
+
 			auto operator <=> (CClientConnectionInfo const &_Right) const = default;
-			
+
 			CHostInfo m_HostInfo;
 			int32 m_ConnectionConcurrency = -1;
 		};

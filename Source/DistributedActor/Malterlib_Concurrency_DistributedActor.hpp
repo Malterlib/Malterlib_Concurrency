@@ -687,16 +687,59 @@ namespace NMib::NConcurrency
 	}
 
 	template <typename tf_CStream>
+	void CActorDistributionManager::CDebugHostStats_PriorityQueue::f_Stream(tf_CStream &_Stream)
+	{
+		_Stream % m_Incoming_NextPacketID;
+		_Stream % m_Incoming_PacketsQueueLength;
+		_Stream % m_Incoming_PacketsQueueBytes;
+		_Stream % m_Incoming_PacketsQueueIDs;
+
+		_Stream % m_Outgoing_CurrentPacketID;
+		_Stream % m_Outgoing_PacketsQueueLength;
+		_Stream % m_Outgoing_PacketsQueueBytes;
+		_Stream % m_Outgoing_PacketsQueueIDs;
+
+		_Stream % m_Outgoing_SentPacketsQueueLength;
+		_Stream % m_Outgoing_SentPacketsQueueBytes;
+		_Stream % m_Outgoing_SentPacketsQueueIDs;
+	}
+
+	template <typename tf_CStream>
 	void CActorDistributionManager::CDebugHostStats::f_Stream(tf_CStream &_Stream)
 	{
 		_Stream % m_HostID;
 		_Stream % m_UniqueHostID;
 		_Stream % m_Connections;
-		_Stream % m_Incoming_PacketsQueueLength;
-		_Stream % m_Incoming_NextPacketID;
-		_Stream % m_Outgoing_PacketsQueueLength;
-		_Stream % m_Outgoing_SentPacketsQueueLength;
-		_Stream % m_Outgoing_CurrentPacketID;
+
+		if (_Stream.f_SupportsVersion(CConnectionsDebugStats::EVersion::mc_AddPrioritization))
+			_Stream % m_PriorityQueues;
+		else
+		{
+			if constexpr (tf_CStream::mc_bConsume)
+			{
+				auto &DefaultQueue = m_PriorityQueues[128u];
+				_Stream >> DefaultQueue.m_Incoming_PacketsQueueLength;
+				_Stream >> DefaultQueue.m_Incoming_NextPacketID;
+				_Stream >> DefaultQueue.m_Outgoing_PacketsQueueLength;
+				_Stream >> DefaultQueue.m_Outgoing_SentPacketsQueueLength;
+				_Stream >> DefaultQueue.m_Outgoing_CurrentPacketID;
+			}
+			else
+			{
+				CDebugHostStats_PriorityQueue DefaultStats;
+				auto *pQueue = m_PriorityQueues.f_FindEqual(128u);
+				if (!pQueue)
+					pQueue = &DefaultStats;
+
+				auto &DefaultQueue = *pQueue;
+
+				_Stream << DefaultQueue.m_Incoming_PacketsQueueLength;
+				_Stream << DefaultQueue.m_Incoming_NextPacketID;
+				_Stream << DefaultQueue.m_Outgoing_PacketsQueueLength;
+				_Stream << DefaultQueue.m_Outgoing_SentPacketsQueueLength;
+				_Stream << DefaultQueue.m_Outgoing_CurrentPacketID;
+			}
+		}
 
 		_Stream % m_nSentPackets;
 		_Stream % m_nSentBytes;

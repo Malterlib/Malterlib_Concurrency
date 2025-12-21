@@ -85,6 +85,7 @@ namespace NMib::NConcurrency::NPrivate
 
 		uint32 m_CurrentAutomaticNotRequiredSubscriptionID = gc_SubscriptionNotRequired + 128;
 		uint32 m_ActorProtocolVersion;
+		uint8 m_Priority = 128; // Priority of the call (0 = highest, 255 = lowest, 128 = default)
 		bool m_bCallInitiator;
 	};
 }

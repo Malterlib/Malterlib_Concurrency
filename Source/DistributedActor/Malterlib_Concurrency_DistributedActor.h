@@ -494,6 +494,7 @@ namespace NMib::NConcurrency
 				, NStr::CStr const &_ClaimedUserID
 				, NStr::CStr const &_ClaimedUserName
 				, NStorage::TCSharedPointerSupportWeak<NPrivate::ICHost> const &_pHost
+				, uint8 _CallPriority
 			)
 		;
 
@@ -508,6 +509,7 @@ namespace NMib::NConcurrency
 		NStr::CStr const &f_GetClaimedUserID() const;
 		NStr::CStr const &f_GetClaimedUserName() const;
 		NStorage::TCSharedPointerSupportWeak<NPrivate::ICHost> f_GetHost() const;
+		uint8 f_GetCallPriority() const;
 
 		bool operator == (CCallingHostInfo const &_Right) const;
 		COrdering_Strong operator <=> (CCallingHostInfo const &_Right) const;
@@ -522,6 +524,7 @@ namespace NMib::NConcurrency
 		NStr::CStr mp_ClaimedUserID;
 		NStr::CStr mp_ClaimedUserName;
 		uint32 mp_ProtocolVersion;
+		uint8 mp_CallPriority = 128;
 	};
 
 	struct CActorDistributionManagerInternal;
@@ -603,6 +606,29 @@ namespace NMib::NConcurrency
 		CAuthenticationHandlerIDScope *mp_pPrevScope = nullptr;
 	};
 
+	struct CPriorityScope final : public CCrossActorCallStateScope
+	{
+		CPriorityScope(uint8 _Priority, bool _bAddToCoroutine = true);
+		CPriorityScope(CPriorityScope &&_Other) = delete;
+		~CPriorityScope();
+		void f_Suspend() noexcept override;
+		void f_ResumeNoExcept() noexcept override;
+		NFunction::TCFunctionMovable<void () noexcept> f_StoreState(bool _bFromSuspend) override;
+		void f_InitialSuspend() override;
+
+		static uint8 fs_GetCurrentPriority();
+
+		// Named priority levels for convenience
+		static constexpr uint8 mc_PriorityHigh = 64;
+		static constexpr uint8 mc_PriorityNormal = 128;
+		static constexpr uint8 mc_PriorityLow = 192;
+
+	private:
+		uint8 mp_Priority;
+		uint8 mp_PrevPriority = 128;
+		CPriorityScope *mp_pPrevScope = nullptr;
+	};
+
 	struct CActorDistributionManager : public CActor
 	{
 		using CActorHolder = CActorDistributionManagerHolder;
@@ -652,15 +678,10 @@ namespace NMib::NConcurrency
 			bool m_bIdentified = false;
 		};
 
-		struct CDebugHostStats
+		struct CDebugHostStats_PriorityQueue
 		{
 			template <typename tf_CStream>
 			void f_Stream(tf_CStream &_Stream);
-
-			NStr::CStr m_HostID;
-			NStr::CStr m_UniqueHostID;
-
-			NContainer::TCVector<CConnectionDebugStats> m_Connections;
 
 			uint64 m_Incoming_NextPacketID = 0;
 			uint64 m_Incoming_PacketsQueueLength = 0;
@@ -675,6 +696,19 @@ namespace NMib::NConcurrency
 			uint64 m_Outgoing_SentPacketsQueueLength = 0;
 			uint64 m_Outgoing_SentPacketsQueueBytes = 0;
 			NContainer::TCVector<uint64> m_Outgoing_SentPacketsQueueIDs;
+		};
+
+		struct CDebugHostStats
+		{
+			template <typename tf_CStream>
+			void f_Stream(tf_CStream &_Stream);
+
+			NStr::CStr m_HostID;
+			NStr::CStr m_UniqueHostID;
+
+			NContainer::TCVector<CConnectionDebugStats> m_Connections;
+
+			NContainer::TCMap<uint8, CDebugHostStats_PriorityQueue> m_PriorityQueues;
 
 			uint64 m_nSentPackets = 0;
 			uint64 m_nSentBytes = 0;
@@ -692,10 +726,15 @@ namespace NMib::NConcurrency
 			NTime::CTime m_LastErrorTime;
 		};
 
-
 		struct CConnectionsDebugStats
 		{
-			static constexpr uint32 mc_Version = 0x101;
+			enum class EVersion : uint32
+			{
+				mc_Initial = 0x101
+				, mc_AddPrioritization = 0x102
+			};
+
+			static constexpr EVersion mc_Version = EVersion::mc_AddPrioritization;
 
 			template <typename tf_CStream>
 			void f_Stream(tf_CStream &_Stream);

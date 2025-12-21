@@ -1,4 +1,4 @@
-// Copyright © 2015 Hansoft AB 
+// Copyright © 2015 Hansoft AB
 // Distributed under the MIT license, see license text in LICENSE.Malterlib
 
 #define DMibRuntimeTypeRegistry
@@ -12,6 +12,8 @@
 
 namespace NMib::NConcurrency
 {
+	using namespace NActorDistributionManagerInternal;
+
 	CActorDistributionManagerInitSettings::CActorDistributionManagerInitSettings(NStr::CStr const &_HostID, NStr::CStr const &_Enclave, NStr::CStr const &_FriendlyName)
 		: m_HostID(_HostID)
 		, m_Enclave(_Enclave)
@@ -176,7 +178,7 @@ namespace NMib::NConcurrency
 
 				if (!Result)
 					co_return Result.f_GetException();
-				
+
 				co_return {};
 			}
 		;
@@ -280,12 +282,12 @@ namespace NMib::NConcurrency
 		}
 	}
 
-	NActorDistributionManagerInternal::CServerConnection::CServerConnection(mint _ConnectionID)
+	CServerConnection::CServerConnection(mint _ConnectionID)
 		: m_ConnectionID(_ConnectionID)
 	{
 	}
 
-	NStr::CStr NActorDistributionManagerInternal::CServerConnection::f_GetConnectionID() const
+	NStr::CStr CServerConnection::f_GetConnectionID() const
 	{
 		return NStr::fg_Format("{}", m_ConnectionID);
 	}

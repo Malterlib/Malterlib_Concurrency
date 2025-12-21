@@ -10,6 +10,8 @@
 
 namespace NMib::NConcurrency
 {
+	using namespace NActorDistributionManagerInternal;
+
 	auto CActorDistributionManager::f_GetConnectionsDebugStats() -> TCFuture<CConnectionsDebugStats>
 	{
 		CConnectionsDebugStats Stats;
@@ -45,17 +47,29 @@ namespace NMib::NConcurrency
 			OutHost.m_HostID = Host.m_HostInfo.m_RealHostID;
 			OutHost.m_UniqueHostID = Host.m_HostInfo.m_UniqueHostID;
 
-			OutHost.m_Incoming_NextPacketID = Host.m_Incoming_NextPacketID;
-			OutHost.m_Outgoing_CurrentPacketID = Host.m_Outgoing_CurrentPacketID;
+			for (auto &PriorityQueuesEntry : Host.m_PriorityQueues.f_Entries())
+			{
+				auto Priority = PriorityQueuesEntry.f_Key();
+				auto &PriorityQueues = PriorityQueuesEntry.f_Value();
+				auto &OutQueues = OutHost.m_PriorityQueues[Priority];
+				OutQueues.m_Incoming_NextPacketID = PriorityQueues.m_IncomingNextPacketID;
+				OutQueues.m_Outgoing_CurrentPacketID = PriorityQueues.m_OutgoingCurrentPacketID;
 
-			OutHost.m_Incoming_PacketsQueueLength = Host.m_Incoming_ReceivedPackets.f_GetLen();
-			fAddQueue(OutHost.m_Incoming_PacketsQueueBytes, OutHost.m_Incoming_PacketsQueueIDs, Host.m_Incoming_ReceivedPackets);
+				OutQueues.m_Incoming_PacketsQueueLength += PriorityQueues.m_IncomingPackets.f_GetLen();
+				fAddQueue(OutQueues.m_Incoming_PacketsQueueBytes, OutQueues.m_Incoming_PacketsQueueIDs, PriorityQueues.m_IncomingPackets);
 
-			OutHost.m_Outgoing_PacketsQueueLength = Host.m_Outgoing_QueuedPackets.f_GetLen();
-			fAddQueue(OutHost.m_Outgoing_PacketsQueueBytes, OutHost.m_Outgoing_PacketsQueueIDs, Host.m_Outgoing_QueuedPackets);
+				OutQueues.m_Outgoing_PacketsQueueLength += PriorityQueues.m_OutgoingPackets.f_GetLen();
+				fAddQueue(OutQueues.m_Outgoing_PacketsQueueBytes, OutQueues.m_Outgoing_PacketsQueueIDs, PriorityQueues.m_OutgoingPackets);
+			}
 
-			OutHost.m_Outgoing_SentPacketsQueueLength = Host.m_Outgoing_SentPackets.f_GetLen();
-			fAddQueue(OutHost.m_Outgoing_SentPacketsQueueBytes, OutHost.m_Outgoing_SentPacketsQueueIDs, Host.m_Outgoing_SentPackets);
+			for (auto &Packet : Host.m_Outgoing_SentPackets)
+			{
+				auto Priority = Packet.m_Priority;
+				auto &OutQueues = OutHost.m_PriorityQueues[Priority];
+				++OutQueues.m_Outgoing_SentPacketsQueueLength;
+				OutQueues.m_Outgoing_SentPacketsQueueBytes += Packet.m_pData->f_GetLen();
+				OutQueues.m_Outgoing_SentPacketsQueueIDs.f_Insert(Packet.f_GetPacketID());
+			}
 
 			OutHost.m_nSentPackets = Host.m_nSentPackets;
 			OutHost.m_nSentBytes = Host.m_nSentBytes;
@@ -74,7 +88,7 @@ namespace NMib::NConcurrency
 
 			TCFutureMap<mint, NWeb::CWebSocketActor::CDebugStats> WebsocketDebugStats;
 
-			auto fAddConnection = [&](NActorDistributionManagerInternal::CConnection const &_Connection) -> CActorDistributionManager::CConnectionDebugStats &
+			auto fAddConnection = [&](CConnection const &_Connection) -> CActorDistributionManager::CConnectionDebugStats &
 				{
 					mint iConnection = OutHost.m_Connections.f_GetLen();
 					auto &OutConnection = OutHost.m_Connections.f_Insert();

@@ -25,6 +25,21 @@ namespace NMib::NConcurrency
 		, EDistributedActorCommand_PublishFinished = 12
 		, EDistributedActorCommand_UnpublishFinished = 13
 		, EDistributedActorCommand_RemoteCallWithAuthHandler = 14
+		, EDistributedActorCommand_RemoteCallWithPriority = 15
+		, EDistributedActorCommand_RemoteCallWithPriorityAndAuthHandler = 16
+		, EDistributedActorCommand_RemoteCallResultWithPriority = 17
+		, EDistributedActorCommand_AcknowledgeWithPriority = 18
+	};
+
+	// Per-priority queue state for protocol messages
+	struct CPriorityQueueState
+	{
+		template <typename tf_CStream>
+		void f_Stream(tf_CStream &_Stream);
+
+		NContainer::TCVector<uint64> m_MissingPacketIDs;
+		uint64 m_AckedPacketID = 0;
+		uint64 m_HighestSeenPacketID = 0;
 	};
 
 	struct CDistributedActorCommand_Identify
@@ -35,14 +50,12 @@ namespace NMib::NConcurrency
 		void f_Consume(tf_CStream &_Stream);
 
 		uint32 m_ProtocolVersion = EDistributedActorProtocolVersion_Current;
+		uint8 m_bAllowAllNamespaces;
 		NStr::CStr m_ExecutionID;
 		NStr::CStr m_LastSeenExecutionID;
-		NContainer::TCVector<uint64> m_MissingPacketIDs;
-		uint64 m_AckedPacketID = 0;
-		uint64 m_HighestSeenPacketID = 0;
 		NContainer::TCSet<NStr::CStr> m_AllowedNamespaces;
-		uint8 m_bAllowAllNamespaces;
 		NStr::CStr m_FriendlyName;
+		NContainer::TCMap<uint8, CPriorityQueueState> m_PriorityQueueStates;
 	};
 
 	struct CDistributedActorCommand_Acknowledge
@@ -79,6 +92,26 @@ namespace NMib::NConcurrency
 		uint32 m_AuthenticationHandlerID = 0;
 	};
 
+	struct CDistributedActorCommand_RemoteCallWithPriority : public CDistributedActorCommand_RemoteCall
+	{
+		template <typename tf_CStream>
+		void f_Feed(tf_CStream &_Stream) const;
+		template <typename tf_CStream>
+		void f_Consume(tf_CStream &_Stream);
+
+		uint8 m_Priority = 128;
+	};
+
+	struct CDistributedActorCommand_RemoteCallWithPriorityAndAuthHandler : public CDistributedActorCommand_RemoteCallWithAuthHandler
+	{
+		template <typename tf_CStream>
+		void f_Feed(tf_CStream &_Stream) const;
+		template <typename tf_CStream>
+		void f_Consume(tf_CStream &_Stream);
+
+		uint8 m_Priority = 128;
+	};
+
 	struct CResultSubscriptionData
 	{
 		template <typename tf_CStream>
@@ -100,6 +133,16 @@ namespace NMib::NConcurrency
 		uint64 m_ReplyToPacketID;
 		CResultSubscriptionData m_SubscriptionData;
 		// Result data
+	};
+
+	struct CDistributedActorCommand_RemoteCallResultWithPriority : public CDistributedActorCommand_RemoteCallResult
+	{
+		template <typename tf_CStream>
+		void f_Feed(tf_CStream &_Stream) const;
+		template <typename tf_CStream>
+		void f_Consume(tf_CStream &_Stream);
+
+		uint8 m_Priority = 128;
 	};
 
 	struct CDistributedActorCommand_Publish
@@ -201,6 +244,16 @@ namespace NMib::NConcurrency
 		uint64 m_NotifyLostSequence = 0;
 	};
 
+	// Per-priority missing packet info (no AckedPacketID needed for RequestMissingPackets)
+	struct CPriorityMissingInfo
+	{
+		template <typename tf_CStream>
+		void f_Stream(tf_CStream &_Stream);
+
+		NContainer::TCVector<uint64> m_MissingPacketIDs;
+		uint64 m_HighestSeenPacketID = 0;
+	};
+
 	struct CDistributedActorCommand_RequestMissingPackets
 	{
 		template <typename tf_CStream>
@@ -208,8 +261,7 @@ namespace NMib::NConcurrency
 		template <typename tf_CStream>
 		void f_Consume(tf_CStream &_Stream);
 
-		NContainer::TCVector<uint64> m_MissingPacketIDs;
-		uint64 m_HighestSeenPacketID = 0;
+		NContainer::TCMap<uint8, CPriorityMissingInfo> m_PriorityQueueStates;
 	};
 }
 

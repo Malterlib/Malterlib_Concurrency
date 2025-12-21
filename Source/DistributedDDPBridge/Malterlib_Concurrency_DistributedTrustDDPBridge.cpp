@@ -267,13 +267,14 @@ namespace NMib::NConcurrency
 						{
 							m_DistributionManager
 							, nullptr // TODO: Implement authentication
-							, pConnection->m_RealHostID 
+							, pConnection->m_RealHostID
 							, pConnection->m_HostInfo
 							, pConnection->m_LastExecutionID
 							, 0
 							, ""
 							, ""
 							, nullptr
+							, 128 // Default priority for DDP bridge calls
 						}
 					;
 					

@@ -83,7 +83,7 @@ namespace NMib::NConcurrency
 	{
 		_Stream % m_Namespace;
 		_Stream % m_Hosts;
-		if (_Stream.f_GetVersion() >= 0x103)
+		if (_Stream.f_GetVersion() >= EProtocolVersion_SupportOrderingFlags)
 			_Stream % m_OrderingFlags;
 	};
 	DMibDistributedStreamImplement(CDistributedActorTrustManagerInterface::CChangeNamespaceHosts);
@@ -91,7 +91,7 @@ namespace NMib::NConcurrency
 	template <typename tf_CStream>
 	void CDistributedActorTrustManagerInterface::CAddPermissions::f_Stream(tf_CStream &_Stream)
 	{
-		if (_Stream.f_GetVersion() < 0x105)
+		if (_Stream.f_GetVersion() < EProtocolVersion_SupportUserAuthentication)
 		{
 			if constexpr (tf_CStream::mc_Direction == NStream::EStreamDirection_Consume)
 			{
@@ -139,7 +139,7 @@ namespace NMib::NConcurrency
 	template <typename tf_CStream>
 	void CDistributedActorTrustManagerInterface::CRemovePermissions::f_Stream(tf_CStream &_Stream)
 	{
-		if (_Stream.f_GetVersion() < 0x105)
+		if (_Stream.f_GetVersion() < EProtocolVersion_SupportUserAuthentication)
 		{
 			if constexpr (tf_CStream::mc_Direction == NStream::EStreamDirection_Consume)
 			{
@@ -174,7 +174,7 @@ namespace NMib::NConcurrency
 	{
 		_Stream % m_Address;
 		_Stream % fg_Move(m_fOnUseTicket);
-		if (_Stream.f_GetVersion() >= 0x104)
+		if (_Stream.f_GetVersion() >= EProtocolVersion_SupportOnCertificateSigned)
 			_Stream % fg_Move(m_fOnCertificateSigned);
 	}
 	DMibDistributedStreamImplement(CDistributedActorTrustManagerInterface::CGenerateConnectionTicket);
@@ -196,9 +196,9 @@ namespace NMib::NConcurrency
 		_Stream % mp_HostInfo;
 		_Stream % mp_LastExecutionID;
 		_Stream % mp_ProtocolVersion;
-		if (_Stream.f_GetVersion() >= 0x105)
+		if (_Stream.f_GetVersion() >= EProtocolVersion_SupportUserAuthentication)
 			_Stream % mp_ClaimedUserID;
-		if (_Stream.f_GetVersion() >= 0x106)
+		if (_Stream.f_GetVersion() >= EProtocolVersion_SupportClaimedUserName)
 			_Stream % mp_ClaimedUserName;
 		if constexpr (tf_CStream::mc_bConsume)
 			mp_DistributionManager = _Stream.f_GetState().m_DistributionManager;
@@ -355,7 +355,7 @@ namespace NMib::NConcurrency
 	void CDistributedActorTrustManagerInterface::CRemoveClientConnection::f_Stream(tf_CStream &_Stream)
 	{
 		_Stream % m_Address;
-		if (_Stream.f_GetVersion() >= 0x107)
+		if (_Stream.f_GetVersion() >= EProtocolVersion_SupportDebugStatsAndPreserveHost)
 			_Stream % m_bPreserveHost;
 	}
 	DMibDistributedStreamImplement(CDistributedActorTrustManagerInterface::CRemoveClientConnection);
@@ -363,11 +363,13 @@ namespace NMib::NConcurrency
 	template <typename tf_CStream>
 	void CDistributedActorTrustManagerInterface::CConnectionsDebugStats::f_Stream(tf_CStream &_Stream)
 	{
-		static_assert(CActorDistributionManager::CConnectionsDebugStats::mc_Version == 0x101); // Implement mapping
+		static_assert(CActorDistributionManager::CConnectionsDebugStats::mc_Version == CActorDistributionManager::CConnectionsDebugStats::EVersion::mc_AddPrioritization); // Implement mapping
 
 		uint32 DebugStatsVersion = 0;
-		if (_Stream.f_GetVersion() >= 0x107)
-			DebugStatsVersion = 0x101;
+		if (_Stream.f_GetVersion() >= EProtocolVersion_PriorityDebugStats)
+			DebugStatsVersion = (uint32)CActorDistributionManager::CConnectionsDebugStats::EVersion::mc_AddPrioritization;
+		else if (_Stream.f_GetVersion() >= EProtocolVersion_SupportDebugStatsAndPreserveHost)
+			DebugStatsVersion = (uint32)CActorDistributionManager::CConnectionsDebugStats::EVersion::mc_Initial;
 
 		DMibBinaryStreamVersion(_Stream, DebugStatsVersion);
 		_Stream % m_DebugStats;

@@ -60,6 +60,7 @@ namespace NMib::NConcurrency
 		return DistributionManager(&CActorDistributionManager::fp_GetConnectionStatus, mp_ConnectionID);
 	}
 
+#if DMibConfig_Tests_Enable
 	TCFuture<void> CDistributedActorConnectionReference::f_Debug_Break(fp64 _Timeout, NNetwork::ESocketDebugFlag _DebugFlags)
 	{
 		if (mp_DistributionManager.f_IsEmpty())
@@ -72,6 +73,7 @@ namespace NMib::NConcurrency
 
 		return DistributionManager(&CActorDistributionManager::fp_Debug_BreakConnection, mp_ConnectionID, _Timeout, _DebugFlags);
 	}
+#endif
 
 	TCFuture<void> CDistributedActorConnectionReference::f_Reconnect()
 	{
@@ -704,6 +706,7 @@ namespace NMib::NConcurrency
 		co_return fg_Move(Return);
 	}
 
+#if DMibConfig_Tests_Enable
 	TCFuture<void> CActorDistributionManager::fp_Debug_BreakConnection(NStr::CStr _ConnectionID, fp64 _Timeout, NNetwork::ESocketDebugFlag _DebugFlags)
 	{
 		auto &Internal = *mp_pInternal;
@@ -718,6 +721,7 @@ namespace NMib::NConcurrency
 
 		co_return {};
 	}
+#endif
 
 	TCFuture<void> CActorDistributionManager::fp_RemoveConnection(NStr::CStr _ConnectionID, bool _bPreserveHost)
 	{

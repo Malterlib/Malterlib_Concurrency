@@ -1,4 +1,4 @@
-// Copyright © 2015 Hansoft AB 
+// Copyright © 2015 Hansoft AB
 // Distributed under the MIT license, see license text in LICENSE.Malterlib
 
 #include "Malterlib_Concurrency_DistributedTrust.h"
@@ -661,6 +661,7 @@ namespace NMib::NConcurrency
 		}
 	}
 
+#if DMibConfig_Tests_Enable
 	TCFuture<void> CDistributedActorTrustManager::f_Debug_BreakClientConnection(CDistributedActorTrustManager_Address _Address, fp64 _Timeout, NNetwork::ESocketDebugFlag _DebugFlags)
 	{
 		using namespace NMib::NStr;
@@ -721,6 +722,7 @@ namespace NMib::NConcurrency
 
 		co_return {};
 	}
+#endif
 
 	TCFuture<void> CDistributedActorTrustManager::f_RemoveClientConnection(CDistributedActorTrustManager_Address _Address, bool _bPreserveHost)
 	{
@@ -886,7 +888,7 @@ namespace NMib::NConcurrency
 	TCFuture<NStr::CStr> CDistributedActorTrustManager::f_GetHostFriendlyName(NStr::CStr _HostID)
 	{
 		auto CheckDestroy = co_await f_CheckDestroyedOnResume();
-		
+
 		auto &Internal = *mp_pInternal;
 		co_await Internal.f_WaitForInit();
 
@@ -900,7 +902,7 @@ namespace NMib::NConcurrency
 
 		if (auto *pHost = Internal.m_Hosts.f_FindEqual(_HostID))
 			co_return pHost->m_FriendlyName;
-		
+
 		co_return co_await Internal.m_Database(&ICDistributedActorTrustManagerDatabase::f_GetClientLastFriendlyName, _HostID);
 	}
 }

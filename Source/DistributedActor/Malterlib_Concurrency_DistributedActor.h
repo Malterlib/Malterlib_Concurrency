@@ -421,8 +421,10 @@ namespace NMib::NConcurrency
 
 		void f_Clear();
 		TCFuture<void> f_Stop();
+#if DMibConfig_Tests_Enable
 		TCFuture<void> f_Debug_BreakAllConnections(fp64 _Timeout, NNetwork::ESocketDebugFlag _DebugFlags);
 		TCFuture<void> f_Debug_SetServerBroken(bool _bBroken);
+#endif
 
 	private:
 		CDistributedActorListenReference(TCWeakActor<CActorDistributionManager> const &_DistributionManager, NStr::CStr const &_ListenID);
@@ -456,7 +458,9 @@ namespace NMib::NConcurrency
 		void f_Clear();
 		TCFuture<void> f_Disconnect(bool _bPreserveHost = false);
 		TCFuture<void> f_Reconnect();
+#if DMibConfig_Tests_Enable
 		TCFuture<void> f_Debug_Break(fp64 _Timeout, NNetwork::ESocketDebugFlag _DebugFlags);
+#endif
 		TCFuture<CDistributedActorConnectionStatus> f_GetStatus();
 		TCFuture<void> f_UpdateConnectionSettings(CActorDistributionConnectionSettings const &_Settings);
 		bool f_IsValid() const;
@@ -852,11 +856,12 @@ namespace NMib::NConcurrency
 		;
 		void fp_CleanupRemoteContext(NFunction::TCFunction<void (CActorDistributionManagerInternal &_Internal)> const &_fCleanup);
 		TCFuture<void> fp_RemoveListen(NStr::CStr _ListenID);
+#if DMibConfig_Tests_Enable
 		TCFuture<void> fp_Debug_BreakAllListenConnections(NStr::CStr _ListenID, fp64 _Timeout, NNetwork::ESocketDebugFlag _DebugFlags);
 		TCFuture<void> fp_Debug_SetListenServerBroken(NStr::CStr _ListenID, bool _bBroken);
-
-		TCFuture<void> fp_RemoveConnection(NStr::CStr _ConnectionID, bool _bPreserveHost);
 		TCFuture<void> fp_Debug_BreakConnection(NStr::CStr _ConnectionID, fp64 _Timeout, NNetwork::ESocketDebugFlag _DebugFlags);
+#endif
+		TCFuture<void> fp_RemoveConnection(NStr::CStr _ConnectionID, bool _bPreserveHost);
 		TCFuture<void> fp_UpdateConnectionSettings(NStr::CStr _ConnectionID, CActorDistributionConnectionSettings _Settings);
 		TCFuture<void> fp_RemoveActorPublication(NStr::CStr _NamespaceID, NStr::CStr _ActorID, fp32 _WaitForPublicationsTimeout);
 		void fp_RepublishActorPublication(NStr::CStr _NamespaceID, NStr::CStr _ActorID, NStr::CStr _HostID);

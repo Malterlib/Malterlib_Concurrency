@@ -1,4 +1,4 @@
-// Copyright © 2015 Hansoft AB 
+// Copyright © 2015 Hansoft AB
 // Distributed under the MIT license, see license text in LICENSE.Malterlib
 
 #pragma once
@@ -20,7 +20,7 @@ namespace NMib::NConcurrency
 	class CDistributedActorTrustManager;
 	struct CAuthenticationActorInfo;
 	struct CDistributedActorTrustManagerAuthenticationCache;
-	
+
 	struct CTrustedActorInfo
 	{
 		CHostInfo m_HostInfo;
@@ -58,9 +58,9 @@ namespace NMib::NConcurrency
 		TCTrustedActorSubscription &operator =(TCTrustedActorSubscription &&);
 		TCTrustedActorSubscription() = default;
 		~TCTrustedActorSubscription();
-		
+
 		TCTrustedActor<t_CActor> const *f_GetOneActor(NStr::CStr const &_HostID, NStr::CStr &o_Error) const;
-		
+
 		TCUnsafeFuture<void> f_Destroy();
 		bool f_IsEmpty() const;
 		bool f_HasActors() const;
@@ -78,7 +78,7 @@ namespace NMib::NConcurrency
 
 	public:
 		friend class CDistributedActorTrustManager;
-		
+
 		struct CState : public NPrivate::CTrustedActorSubscriptionState
 		{
 			FUnitVoidFutureFunction f_AddDistributedActors(NContainer::TCMap<CDistributedActorIdentifier, TCTrustedActor<CActor>> &&_Actors) override;
@@ -168,7 +168,7 @@ namespace NMib::NConcurrency
 		;
 
 		NContainer::TCMap<CPermissionIdentifiers, NContainer::TCMap<NStr::CStr, CPermissionRequirements>> const &f_GetPermissions() const;
-		
+
 		void f_Clear();
 
 		void f_OnPermissionsAdded
@@ -185,8 +185,8 @@ namespace NMib::NConcurrency
 				NFunction::TCFunctionMovable<void (CPermissionIdentifiers const &_Identity, NContainer::TCSet<NStr::CStr> const &_PermissionsRemoved)> &&_fOnPermissionsRemoved
 			)
 		;
-		
-		
+
+
 	private:
 		TCUnsafeFuture<bool> fp_AuthenticatePermissions
 			(
@@ -221,12 +221,12 @@ namespace NMib::NConcurrency
 		;
 		friend class CDistributedActorTrustManager;
 		friend struct NPrivate::CTrustedPermissionSubscriptionState;
-		
+
 		NStorage::TCSharedPointer<NPrivate::CTrustedPermissionSubscriptionState> mp_pState;
 		NContainer::TCMap<CPermissionIdentifiers, NContainer::TCMap<NStr::CStr, CPermissionRequirements>> mp_Permissions;
 		mutable CDistributedActorTrustManagerAuthenticationCache mp_AuthenticationCache;
 	};
-	
+
 	struct CDistributedActorTrustManagerHolder : public CDefaultActorHolder
 	{
 		CDistributedActorTrustManagerHolder
@@ -257,7 +257,7 @@ namespace NMib::NConcurrency
 			NTime::CTime m_ErrorTime;
 			bool m_bConnected = false;
 		};
-		
+
 		struct CAddressConnectionState
 		{
 			inline CDistributedActorTrustManager_Address const &f_GetAddress() const;
@@ -265,26 +265,26 @@ namespace NMib::NConcurrency
 			NContainer::TCVector<CConcurrentConnectionState> m_States;
 			CHostInfo m_HostInfo;
 		};
-		
+
 		struct CHostConnectionState
 		{
 			inline NStr::CStr const &f_GetHostID() const;
-			
+
 			NContainer::TCMap<CDistributedActorTrustManager_Address, CAddressConnectionState> m_Addresses;
 		};
-		
+
 		struct CConnectionState
 		{
 			NContainer::TCMap<NStr::CStr, CHostConnectionState> m_Hosts;
 		};
-		
+
 		struct COptions
 		{
 			NFunction::TCFunctionMovable
 			<
 				NConcurrency::TCActor<NConcurrency::CActorDistributionManager> (CActorDistributionManagerInitSettings const &_Settings)
 			> m_fConstructManager = nullptr;
-			
+
 			NCryptography::CPublicKeySetting m_KeySetting = CActorDistributionCryptographySettings::fs_DefaultKeySetting();
 			NNetwork::ENetFlag m_ListenFlags = NNetwork::ENetFlag_None;
 			NStr::CStr m_FriendlyName;
@@ -309,19 +309,21 @@ namespace NMib::NConcurrency
 		;
 
 		~CDistributedActorTrustManager();
-		
-		
+
+
 		TCFuture<NStr::CStr> f_Initialize();
 		TCFuture<void> f_WaitForInitialConnection();
-		
+
 		TCFuture<NContainer::TCSet<CDistributedActorTrustManager_Address>> f_EnumListens();
 		TCFuture<void> f_AddListen(CDistributedActorTrustManager_Address _Address);
 		TCFuture<void> f_RemoveListen(CDistributedActorTrustManager_Address _Address);
 		TCFuture<bool> f_HasListen(CDistributedActorTrustManager_Address _Address);
 		TCFuture<void> f_SetPrimaryListen(NStorage::TCOptional<CDistributedActorTrustManager_Address> _Address);
 		TCFuture<NStorage::TCOptional<CDistributedActorTrustManager_Address>> f_GetPrimaryListen();
+#if DMibConfig_Tests_Enable
 		TCFuture<void> f_Debug_BreakListenConnections(CDistributedActorTrustManager_Address _Address, fp64 _Timeout, NNetwork::ESocketDebugFlag _DebugFlags);
 		TCFuture<void> f_Debug_SetListenServerBroken(CDistributedActorTrustManager_Address _Address, bool _bBroken);
+#endif
 
 		TCFuture<NContainer::TCMap<NStr::CStr, CHostInfo>> f_EnumClients();
 		TCFuture<CTrustGenerateConnectionTicketResult> f_GenerateConnectionTicket
@@ -335,27 +337,28 @@ namespace NMib::NConcurrency
 						, CCallingHostInfo _HostInfo
 						, NContainer::CByteVector _CertificateRequest
 					)
-				> 
+				>
 				_fOnUseTicket
 				, TCActorFunctor<TCFuture<void> (NStr::CStr _HostID, CCallingHostInfo _HostInfo)> _fOnCertificateSigned
 			)
 		;
 		TCFuture<void> f_RemoveClient(NStr::CStr _HostID);
 		TCFuture<bool> f_HasClient(NStr::CStr _HostID);
-		
+
 		TCFuture<NContainer::TCMap<CDistributedActorTrustManager_Address, CClientConnectionInfo>> f_EnumClientConnections();
 		TCFuture<CHostInfo> f_AddClientConnection(CTrustTicket _TrustTicket, fp64 _Timeout, int32 _ConnectionConcurrency = -1);
 		TCFuture<CHostInfo> f_AddAdditionalClientConnection(CDistributedActorTrustManager_Address _Address, int32 _ConnectionConcurrency = -1);
 		TCFuture<void> f_SetClientConnectionConcurrency(CDistributedActorTrustManager_Address _Address, int32 _ConnectionConcurrency = -1);
 		TCFuture<void> f_RemoveClientConnection(CDistributedActorTrustManager_Address _Address, bool _bPreserveHost = false);
 		TCFuture<bool> f_HasClientConnection(CDistributedActorTrustManager_Address _Address);
+#if DMibConfig_Tests_Enable
 		TCFuture<void> f_Debug_BreakClientConnection(CDistributedActorTrustManager_Address _Address, fp64 _Timeout, NNetwork::ESocketDebugFlag _DebugFlags);
-
+#endif
 		TCFuture<CConnectionState> f_GetConnectionState();
-		
+
 		TCFuture<NStr::CStr> f_GetHostID() const;
 		TCFuture<NConcurrency::TCActor<NConcurrency::CActorDistributionManager>> f_GetDistributionManager() const;
-		
+
 		TCFuture<NContainer::TCMap<NStr::CStr, CNamespacePermissions>> f_EnumNamespacePermissions(bool _bIncludeHostInfo);
 		TCFuture<void> f_AllowHostsForNamespace(NStr::CStr _Namespace, NContainer::TCSet<NStr::CStr> _Hosts, EDistributedActorTrustManagerOrderingFlag _OrderingFlags);
 		TCFuture<void> f_DisallowHostsForNamespace(NStr::CStr _Namespace, NContainer::TCSet<NStr::CStr> _Hosts, EDistributedActorTrustManagerOrderingFlag _OrderingFlags);
@@ -425,9 +428,9 @@ namespace NMib::NConcurrency
 		;
 
 		TCFuture<CTrustedPermissionSubscription> f_SubscribeToPermissions(NContainer::TCVector<NStr::CStr> _Wildcards, TCActor<CActor> _Actor);
-		
+
 		TCFuture<CActorDistributionListenSettings> f_GetCertificateData(CDistributedActorTrustManager_Address _Address) const;
-		
+
 		TCFuture<TCActor<ICActorDistributionManagerAccessHandler>> f_GetAccessHandler() const;
 		TCActor<ICDistributedActorAuthenticationHandler> f_GetAuthenticationHandler() const;
 		static ICDistributedActorAuthenticationHandler::CChallenge fs_GenerateAuthenticationChallenge(NStr::CStr const &_UserID);
@@ -465,9 +468,9 @@ namespace NMib::NConcurrency
 		TCFuture<void> fp_Destroy() override;
 
 		void fp_Init();
-		
+
 		TCFuture<CHostInfo> fp_GetHostInfo(NStr::CStr _HostID);
-		
+
 		auto fp_SubscribeTrustedActors(NStorage::TCSharedPointer<NPrivate::CTrustedActorSubscriptionState> _pState)
 			-> TCFuture<CTrustedActorSubscription>
 		;
@@ -482,9 +485,9 @@ namespace NMib::NConcurrency
 			)
 		;
 		void fp_UnsubscribeToPermissions(NStorage::TCSharedPointer<NPrivate::CTrustedPermissionSubscriptionState> const &_pState);
-		
+
 		struct CInternal;
-		NStorage::TCUniquePointer<CInternal> mp_pInternal;			
+		NStorage::TCUniquePointer<CInternal> mp_pInternal;
 	};
 
 	class CDistributedActorTrustManagerProxy;

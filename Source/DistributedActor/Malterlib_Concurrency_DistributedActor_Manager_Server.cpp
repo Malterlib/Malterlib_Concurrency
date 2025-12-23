@@ -54,6 +54,7 @@ namespace NMib::NConcurrency
 		return DistributionManager(&CActorDistributionManager::fp_RemoveListen, mp_ListenID);
 	}
 
+#if DMibConfig_Tests_Enable
 	TCFuture<void> CDistributedActorListenReference::f_Debug_BreakAllConnections(fp64 _Timeout, NNetwork::ESocketDebugFlag _DebugFlags)
 	{
 		if (mp_DistributionManager.f_IsEmpty())
@@ -79,6 +80,7 @@ namespace NMib::NConcurrency
 
 		return DistributionManager(&CActorDistributionManager::fp_Debug_SetListenServerBroken, mp_ListenID, _bBroken);
 	}
+#endif
 
 	void CActorDistributionManagerInternal::fp_DestroyServerConnection(CServerConnection &_Connection, bool _bSaveHost, NStr::CStr const &_Error, bool _bLastActiveNormalClosure)
 	{
@@ -577,7 +579,7 @@ namespace NMib::NConcurrency
 	TCFuture<CDistributedActorListenReference> CActorDistributionManagerInternal::fp_Listen(NStr::CStr _ListenID, CActorDistributionListenSettings _Settings)
 	{
 		auto CheckDestory = co_await m_pThis->f_CheckDestroyedOnResume();
-		
+
 		auto ListenResult = co_await fp_ListenTry(_ListenID, _Settings).f_Wrap();
 
 		if (!ListenResult)
@@ -657,6 +659,7 @@ namespace NMib::NConcurrency
 		co_return {};
 	}
 
+#if DMibConfig_Tests_Enable
 	TCFuture<void> CActorDistributionManager::fp_Debug_BreakAllListenConnections(NStr::CStr _ListenID, fp64 _Timeout, NNetwork::ESocketDebugFlag _DebugFlags)
 	{
 		auto &Internal = *mp_pInternal;
@@ -687,4 +690,5 @@ namespace NMib::NConcurrency
 
 		co_return {};
 	}
+#endif
 }

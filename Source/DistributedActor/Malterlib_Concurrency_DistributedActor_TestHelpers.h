@@ -1,4 +1,4 @@
-// Copyright © 2015 Hansoft AB 
+// Copyright © 2015 Hansoft AB
 // Distributed under the MIT license, see license text in LICENSE.Malterlib
 
 #pragma once
@@ -10,9 +10,9 @@
 namespace NMib::NConcurrency
 {
 	class CDistributedActorTrustManager;
-	
+
 	using CDistributedActorTestKeySettings = NCryptography::CPublicKeySettings_EC_secp256r1;
-		
+
 	struct CDistributedActorTestHelper
 	{
 		CDistributedActorTestHelper(NStr::CStr const &_HostID, TCActor<CActorDistributionManager> const &_Manager, NStorage::TCSharedPointer<CRunLoop> const &_pRunLoop);
@@ -24,7 +24,7 @@ namespace NMib::NConcurrency
 			)
 		;
 		~CDistributedActorTestHelper();
-		
+
 		template <typename ...tfp_CDistributedActors, typename tf_CActor>
 		NStr::CStr f_Publish(TCDistributedActor<tf_CActor> const &_Actor, NStr::CStr const &_Namespace);
 		void f_Unpublish(NStr::CStr const &_Publication);
@@ -35,13 +35,13 @@ namespace NMib::NConcurrency
 
 		template <typename tf_CActor>
 		TCDistributedActor<tf_CActor> f_GetRemoteActor(NStr::CStr const &_Subscription);
-		
+
 		TCActor<CActorDistributionManager> const &f_GetManager() const;
-		
+
 		void f_SetSecurity(CDistributedActorSecurity const &_Security);
 
 		void f_Destroy();
-		
+
 	private:
 		struct CPublication
 		{
@@ -58,22 +58,22 @@ namespace NMib::NConcurrency
 			CActorSubscription m_Subscription;
 			NContainer::TCVector<CAbstractDistributedActor> m_RemoteActors;
 		};
-		
+
 		NStr::CStr fp_Subscribe(NStr::CStr const &_Namespace, bool _bExpectFailure, mint _nExpected);
-		
+
 		NStorage::TCSharedPointer<NAtomic::TCAtomic<bool>> mp_pDeleted = fg_Construct(false);
 		NStorage::TCSharedPointer<CRunLoop> mp_pRunLoop;
 		NStr::CStr mp_HostID;
 		TCActor<CActorDistributionManager> mp_Manager;
 		NStorage::TCSharedPointer<NThread::CMutual> mp_pRemoteLock;
 		NThread::CEventAutoReset mp_RemoteEvent;
-		
+
 		NContainer::TCMap<NStr::CStr, CSubscription> mp_Subscriptions;
 		NContainer::TCMap<NStr::CStr, CPublication> mp_Publications;
 
 		TCActor<CActor> mp_ProcessingActor = fg_Construct();
 	};
-	
+
 	struct CDistributedActorTestHelperCombined
 	{
 		CDistributedActorTestHelperCombined(NStr::CStr const &_ListenDirectory, NStorage::TCSharedPointer<CRunLoop> const &_pRunLoop);
@@ -90,28 +90,30 @@ namespace NMib::NConcurrency
 		NStr::CStr f_Publish(TCDistributedActor<tf_CActor> const &_Actor, NStr::CStr const &_Namespace);
 		void f_Unpublish(NStr::CStr const &_Publication);
 		NStr::CStr f_GetListenSocketPath() const;
-		
+
 		NStr::CStr const &f_GetServerHostID() const;
 		NStr::CStr const &f_GetClientHostID() const;
-		
+
 		CActorDistributionCryptographySettings const &f_GetClientCryptograhySettings() const;
 		CActorDistributionCryptographySettings const &f_GetServerCryptograhySettings() const;
 
+#if DMibConfig_Tests_Enable
 		void f_BreakClientConnection(fp64 _Timeout, NNetwork::ESocketDebugFlag _Flags);
 		void f_BreakServerConnections(fp64 _Timeout, NNetwork::ESocketDebugFlag _Flags);
+#endif
 
 		template <typename tf_CActor>
 		TCDistributedActor<tf_CActor> f_GetRemoteActor(NStr::CStr const &_SubscriptionID);
-		
+
 		CDistributedActorTestHelper &f_GetServer();
 		CDistributedActorTestHelper &f_GetClient();
-		
+
 	private:
 		NStorage::TCSharedPointer<CRunLoop> mp_pRunLoop;
 
 		NStorage::TCUniquePointer<CDistributedActorTestHelper> mp_pServer;
 		NStorage::TCUniquePointer<CDistributedActorTestHelper> mp_pClient;
-		
+
 		CActorDistributionCryptographySettings mp_ServerCryptography;
 		CActorDistributionListenSettings mp_ListenSettings;
 		CDistributedActorListenReference mp_ListenReference;

@@ -1,4 +1,4 @@
-// Copyright © 2015 Hansoft AB 
+// Copyright © 2015 Hansoft AB
 // Distributed under the MIT license, see license text in LICENSE.Malterlib
 
 #include <Mib/Network/Sockets/SSL>
@@ -22,7 +22,7 @@ namespace NMib::NConcurrency
 
 		m_pRunLoop.f_Clear();
 	}
-	
+
 	CDistributedActorTestHelperCombined::CDistributedActorTestHelperCombined(NStr::CStr const &_ListenDirectory, NStorage::TCSharedPointer<CRunLoop> const &_pRunLoop)
 		: mp_pRunLoop(_pRunLoop)
 		, mp_ListenSettings({(NStr::CStr::CFormat("wss://[UNIX(666):{}]/") << NNetwork::fg_GetSafeUnixSocketPath(_ListenDirectory / "tests.sock")).f_GetStr()})
@@ -46,22 +46,23 @@ namespace NMib::NConcurrency
 	{
 		return mp_ClientCryptography;
 	}
-	
+
 	CActorDistributionCryptographySettings const &CDistributedActorTestHelperCombined::f_GetServerCryptograhySettings() const
 	{
 		return mp_ServerCryptography;
-	}		
-	
+	}
+
 	NStr::CStr const &CDistributedActorTestHelperCombined::f_GetServerHostID() const
 	{
-		return mp_pServer->f_GetHostID(); 
+		return mp_pServer->f_GetHostID();
 	}
 
 	NStr::CStr const &CDistributedActorTestHelperCombined::f_GetClientHostID() const
 	{
-		return mp_pClient->f_GetHostID(); 
+		return mp_pClient->f_GetHostID();
 	}
 
+#if DMibConfig_Tests_Enable
 	void CDistributedActorTestHelperCombined::f_BreakClientConnection(fp64 _Timeout, NNetwork::ESocketDebugFlag _Flags)
 	{
 		mp_ClientConnectionReference.f_Debug_Break(_Timeout, _Flags).f_CallSync(mp_pRunLoop, 60.0);
@@ -71,6 +72,7 @@ namespace NMib::NConcurrency
 	{
 		mp_ListenReference.f_Debug_BreakAllConnections(_Timeout, _Flags).f_CallSync(mp_pRunLoop, 60.0);
 	}
+#endif
 
 	void CDistributedActorTestHelperCombined::f_SeparateServerManager()
 	{
@@ -104,11 +106,11 @@ namespace NMib::NConcurrency
 			mp_ServerCryptography.m_HostID = fg_InitDistributionManager(Settings).m_HostID;
 			mp_pServer = fg_Construct(mp_ServerCryptography.m_HostID, fg_GetDistributionManager(), mp_pRunLoop);
 		}
-		
+
 		TCActor<CActorDistributionManager> const &ServerManager = mp_pServer->f_GetManager();
-		
+
 		mp_ServerCryptography.f_GenerateNewCert(NContainer::fg_CreateVector<NStr::CStr>("localhost"), CDistributedActorTestKeySettings{});
-		
+
 		mp_ListenSettings.f_SetCryptography(mp_ServerCryptography);
 		mp_ListenSettings.m_bRetryOnListenFailure = false;
 		mp_ListenSettings.m_ListenFlags = NNetwork::ENetFlag_None;
@@ -158,10 +160,10 @@ namespace NMib::NConcurrency
 		ConnectionSettings.m_bRetryConnectOnFirstFailure = false;
 		ConnectionSettings.m_bRetryConnectOnFailure = _bReconnect;
 
-		TCActor<CActorDistributionManager> const &ClientManager = mp_pClient->f_GetManager(); 
+		TCActor<CActorDistributionManager> const &ClientManager = mp_pClient->f_GetManager();
 		mp_ClientConnectionReference = ClientManager(&CActorDistributionManager::f_Connect, ConnectionSettings, 60.0).f_CallSync(mp_pRunLoop, 60.0).m_ConnectionReference;
 	}
-	
+
 	void CDistributedActorTestHelperCombined::f_InitAnonymousClient(CDistributedActorTestHelperCombined &_Server)
 	{
 		{
@@ -177,9 +179,9 @@ namespace NMib::NConcurrency
 				)
 			;
 		}
-		
-		TCActor<CActorDistributionManager> const &ClientManager = mp_pClient->f_GetManager(); 
-		
+
+		TCActor<CActorDistributionManager> const &ClientManager = mp_pClient->f_GetManager();
+
 		CActorDistributionConnectionSettings ConnectionSettings;
 		ConnectionSettings.m_ServerURL = _Server.mp_ListenSettings.m_ListenAddresses[0];
 		ConnectionSettings.m_PublicServerCertificate = _Server.mp_ListenSettings.m_CACertificate;
@@ -188,25 +190,25 @@ namespace NMib::NConcurrency
 
 		mp_ClientConnectionReference = ClientManager(&CActorDistributionManager::f_Connect, ConnectionSettings, 60.0).f_CallSync(mp_pRunLoop, 60.0).m_ConnectionReference;
 	}
-	
+
 	NStr::CStr CDistributedActorTestHelperCombined::f_Subscribe(NStr::CStr const &_Namespace)
 	{
 		return mp_pClient->f_Subscribe(_Namespace);
 	}
-	
+
 	void CDistributedActorTestHelperCombined::f_Unsubscribe(NStr::CStr const &_Namespace)
 	{
 		mp_pClient->f_Unsubscribe(_Namespace);
-	}			
-	
+	}
+
 	void CDistributedActorTestHelperCombined::f_Unpublish(NStr::CStr const &_Publication)
 	{
 		mp_pServer->f_Unpublish(_Publication);
 	}
-	
+
 	TCActor<CActorDistributionManager> const &CDistributedActorTestHelper::f_GetManager() const
 	{
-		return mp_Manager;			
+		return mp_Manager;
 	}
 
 	CDistributedActorTestHelper::CDistributedActorTestHelper
@@ -221,7 +223,7 @@ namespace NMib::NConcurrency
 		, mp_pRemoteLock(fg_Construct())
 	{
 	}
-	
+
 	CDistributedActorTestHelper::CDistributedActorTestHelper
 		(
 			TCActor<CDistributedActorTrustManager> const &_TrustManager
@@ -246,11 +248,11 @@ namespace NMib::NConcurrency
 						if (!State.m_bConnected)
 							DMibError(fg_Format("Found unconnected address: {} - {}", Address, State.m_Error));
 					}
-				}			
+				}
 			}
 		}
 	}
-	
+
 	CDistributedActorTestHelper::~CDistributedActorTestHelper()
 	{
 		DMibLock(*mp_pRemoteLock);
@@ -260,22 +262,22 @@ namespace NMib::NConcurrency
 	NStr::CStr CDistributedActorTestHelper::fp_Subscribe(NStr::CStr const &_Namespace, bool _bExpectFailure, mint _nExpected)
 	{
 		TCActor<CActorDistributionManager> &ClientManager = mp_Manager;
-		
+
 		NStr::CStr SubscriptionID = NCryptography::fg_RandomID(mp_Subscriptions);
-		
+
 		auto &Subscription = mp_Subscriptions[SubscriptionID];
-		
+
 		auto Cleanup = g_OnScopeExit / [&]
 			{
 				mp_Subscriptions.f_Remove(SubscriptionID);
 			}
 		;
-		
+
 		Subscription.m_Subscription = ClientManager
 			(
 				&CActorDistributionManager::f_SubscribeActors
 				, _Namespace
-				, mp_ProcessingActor 
+				, mp_ProcessingActor
 				,
 				[
 					this
@@ -297,7 +299,7 @@ namespace NMib::NConcurrency
 
 					co_return {};
 				}
-				, 
+				,
 				[
 					this
 					, pRemoteLock = mp_pRemoteLock
@@ -315,7 +317,7 @@ namespace NMib::NConcurrency
 					mint nActors = pSubscription->m_RemoteActors.f_GetLen();
 					for (mint iActor = 0; iActor < nActors; )
 					{
-						auto &RemoteActor = pSubscription->m_RemoteActors[iActor]; 
+						auto &RemoteActor = pSubscription->m_RemoteActors[iActor];
 						if (RemoteActor.f_GetIdentifier() == _RemovedActor)
 						{
 							pSubscription->m_RemoteActors.f_Remove(iActor);
@@ -330,11 +332,11 @@ namespace NMib::NConcurrency
 				}
 			).f_CallSync(mp_pRunLoop, 60.0)
 		;
-		
+
 		fp64 WaitTime = 60.0;
 		if (_bExpectFailure)
 			WaitTime = 0.5;
-		
+
 		bool bTimedOutWatingForActor = false;
 		while (!bTimedOutWatingForActor)
 		{
@@ -364,12 +366,12 @@ namespace NMib::NConcurrency
 	{
 		return fp_Subscribe(_Namespace, false, _nExpected);
 	}
-	
+
 	void CDistributedActorTestHelper::f_SubscribeExpectFailure(NStr::CStr const &_Namespace)
 	{
 		fp_Subscribe(_Namespace, true, 1);
 	}
-	
+
 	void CDistributedActorTestHelper::f_Unsubscribe(NStr::CStr const &_Subscription)
 	{
 		auto *pSubscription = mp_Subscriptions.f_FindEqual(_Subscription);
@@ -400,22 +402,22 @@ namespace NMib::NConcurrency
 		auto *pPublication = mp_Publications.f_FindEqual(_Publication);
 		pPublication->m_Publication.f_Destroy().f_CallSync(mp_pRunLoop, 60.0);
 	}
-	
+
 	void CDistributedActorTestHelper::f_SetSecurity(CDistributedActorSecurity const &_Security)
 	{
 		mp_Manager(&CActorDistributionManager::f_SetSecurity, _Security).f_CallSync(mp_pRunLoop, 60.0);
 	}
-	
+
 	NStr::CStr const &CDistributedActorTestHelper::f_GetHostID() const
 	{
-		return mp_HostID; 
+		return mp_HostID;
 	}
-	
+
 	CDistributedActorTestHelper &CDistributedActorTestHelperCombined::f_GetServer()
 	{
 		return *mp_pServer;
 	}
-	
+
 	CDistributedActorTestHelper &CDistributedActorTestHelperCombined::f_GetClient()
 	{
 		return *mp_pClient;

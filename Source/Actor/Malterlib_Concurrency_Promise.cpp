@@ -1,4 +1,4 @@
-// Copyright © 2015 Hansoft AB 
+// Copyright © 2015 Hansoft AB
 // Distributed under the MIT license, see license text in LICENSE.Malterlib
 
 #include "Malterlib_Concurrency_Manager.h"
@@ -262,29 +262,52 @@ namespace NMib::NConcurrency
 	}
 #endif
 
-	TCFuture<void> CFutureCoroutineContext::f_AsyncDestroy(CConcurrencyThreadLocal &_ThreadLocal)
+	NContainer::TCVector<TCFuture<void>> CFutureCoroutineContext::fp_AbortAndCaptureAsyncDestructors(CConcurrencyThreadLocal &_ThreadLocal)
 	{
-		DMibFastCheck(_ThreadLocal.m_AsyncDestructors.f_IsEmpty());
-		DMibFastCheck(!_ThreadLocal.m_bCaptureAsyncDestructors);
-		_ThreadLocal.m_AsyncDestructors.f_Clear();
+		if (_ThreadLocal.m_bCaptureAsyncDestructors) [[unlikely]]
 		{
-			auto Cleanup = g_OnScopeExit / [&, bOld = fg_Exchange(_ThreadLocal.m_bCaptureAsyncDestructors, true)]
+			// Nested case: save outer scope's destructors, abort, capture ours, restore outer
+			auto SavedDestructors = fg_Move(_ThreadLocal.m_AsyncDestructors);
+			auto RestoreOnException = g_OnScopeExit / [&]
 				{
-					_ThreadLocal.m_bCaptureAsyncDestructors = bOld;
+					_ThreadLocal.m_AsyncDestructors = fg_Move(SavedDestructors);
 				}
 			;
 
 			f_Abort();
+
+			auto OurDestructors = fg_Move(_ThreadLocal.m_AsyncDestructors);
+
+			return OurDestructors;
 		}
 
-		if (!_ThreadLocal.m_AsyncDestructors.f_IsEmpty())
+		// Normal case
+		DMibFastCheck(_ThreadLocal.m_AsyncDestructors.f_IsEmpty());
+		_ThreadLocal.m_AsyncDestructors.f_Clear();
+		auto Cleanup = g_OnScopeExit / [&, bOld = fg_Exchange(_ThreadLocal.m_bCaptureAsyncDestructors, true)]
+			{
+				_ThreadLocal.m_bCaptureAsyncDestructors = bOld;
+				_ThreadLocal.m_AsyncDestructors.f_Clear();
+			}
+		;
+
+		f_Abort();
+
+		return fg_Move(_ThreadLocal.m_AsyncDestructors);
+	}
+
+	TCFuture<void> CFutureCoroutineContext::f_AsyncDestroy(CConcurrencyThreadLocal &_ThreadLocal)
+	{
+		auto AsyncDestructors = fp_AbortAndCaptureAsyncDestructors(_ThreadLocal);
+
+		if (!AsyncDestructors.f_IsEmpty())
 		{
 			TCFutureVector<void> DestroyResults;
 
-			for (auto &fAsyncDestroy : _ThreadLocal.m_AsyncDestructors)
-				fg_Move(fAsyncDestroy) > DestroyResults;
+			for (auto &Future : AsyncDestructors)
+				fg_Move(Future) > DestroyResults;
 
-			_ThreadLocal.m_AsyncDestructors.f_Clear();
+			AsyncDestructors.f_Clear(); // Important to clear here to keep destruction order correct
 
 			if (!DestroyResults.f_IsEmpty())
 				return fg_AllDone(DestroyResults);
@@ -307,27 +330,16 @@ namespace NMib::NConcurrency
 #endif
 		auto fDeliverExceptionResult = f_PrepareExceptionResult(_fSetException, fg_CurrentActor(_ThreadLocal));
 
-		DMibFastCheck(_ThreadLocal.m_AsyncDestructors.f_IsEmpty());
-		DMibFastCheck(!_ThreadLocal.m_bCaptureAsyncDestructors);
-		_ThreadLocal.m_AsyncDestructors.f_Clear();
-		{
-			auto Cleanup = g_OnScopeExit / [&, bOld = fg_Exchange(_ThreadLocal.m_bCaptureAsyncDestructors, true)]
-				{
-					_ThreadLocal.m_bCaptureAsyncDestructors = bOld;
-				}
-			;
+		auto AsyncDestructors = fp_AbortAndCaptureAsyncDestructors(_ThreadLocal);
 
-			f_Abort();
-		}
-
-		if (!_ThreadLocal.m_AsyncDestructors.f_IsEmpty())
+		if (!AsyncDestructors.f_IsEmpty())
 		{
 			TCFutureVector<void> DestroyResults;
 
-			for (auto &fAsyncDestroy : _ThreadLocal.m_AsyncDestructors)
-				fg_Move(fAsyncDestroy) > DestroyResults;
+			for (auto &Future : AsyncDestructors)
+				fg_Move(Future) > DestroyResults;
 
-			_ThreadLocal.m_AsyncDestructors.f_Clear();
+			AsyncDestructors.f_Clear(); // Important to clear here to keep destruction order correct
 
 			if (!DestroyResults.f_IsEmpty())
 			{

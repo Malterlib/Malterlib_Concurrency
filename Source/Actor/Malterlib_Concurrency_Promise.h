@@ -302,6 +302,7 @@ namespace NMib::NConcurrency
 
 		void f_HandleAwaitedException(CConcurrencyThreadLocal &_ThreadLocal, FKeepaliveSetException *_fSetException, NException::CExceptionPointer &&_pException);
 		TCFuture<void> f_AsyncDestroy(CConcurrencyThreadLocal &_ThreadLocal);
+		NContainer::TCVector<TCFuture<void>> fp_AbortAndCaptureAsyncDestructors(CConcurrencyThreadLocal &_ThreadLocal);
 		FDeliverExceptionResult f_PrepareExceptionResult(FKeepaliveSetException *_fSetException, TCActor<CActor> &&_Actor);
 
 		template <typename t_CAwaitable>

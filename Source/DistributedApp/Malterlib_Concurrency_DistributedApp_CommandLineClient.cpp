@@ -337,6 +337,7 @@ namespace NMib::NConcurrency
 			TCAsyncResult<uint32> Result;
 			while (true)
 			{
+				bool bDoneSomething = false;
 				{
 					DMibLock(pState->m_ResultLock);
 					if (pState->m_Result.f_IsSet())
@@ -351,13 +352,15 @@ namespace NMib::NConcurrency
 						{
 							bStopped = fStopApp();
 							fStopApp.f_Clear();
+							bDoneSomething = true;
 						}
 
 						if (!bStopped)
 							break;
 					}
 				}
-				pState->m_pRunLoop->f_WaitOnce();
+				if (!bDoneSomething)
+					pState->m_pRunLoop->f_WaitOnce();
 			}
 
 			if (!Result.f_IsSet())

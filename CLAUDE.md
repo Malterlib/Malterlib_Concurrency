@@ -99,7 +99,7 @@ public:
 	TCFuture<void> f_DoAsyncWork()
 	{
 		// Simulate async operation
-		co_await fg_Delay(0.1);
+		co_await fg_Timeout(0.1);
 		co_return {};
 	}
 
@@ -517,7 +517,7 @@ TCFuture<void> f_Invalid(CStr const &_Str);
 // SAFE: Pass by value (preferred for all TCFuture coroutines)
 TCFuture<void> f_Safe(CStr _Str)
 {
-	co_await fg_Delay(1.0);
+	co_await fg_Timeout(1.0);
 	DConOut("{}\n", _Str); // Safe
 	co_return {};
 }
@@ -525,7 +525,7 @@ TCFuture<void> f_Safe(CStr _Str)
 // UNSAFE: Reference parameters after suspension
 TCUnsafeFuture<void> f_Unsafe(CStr const &_Str)
 {
-	co_await fg_Delay(1.0);
+	co_await fg_Timeout(1.0);
 	DConOut("{}\n", _Str); // _Str may be invalid!
 	co_return {};
 }
@@ -534,7 +534,7 @@ TCUnsafeFuture<void> f_Unsafe(CStr const &_Str)
 TCUnsafeFuture<void> f_SafeStore(CStr const &_Str)
 {
 	CStr Copy = _Str; // Store before suspension
-	co_await fg_Delay(1.0);
+	co_await fg_Timeout(1.0);
 	DConOut("{}\n", Copy); // Safe
 	co_return {};
 }
@@ -687,7 +687,7 @@ TCAsyncGenerator<int32> f_GenerateNumbers()
 	for (int32 i = 0; i < 10; ++i)
 	{
 		co_yield i;
-		co_await fg_Delay(0.1);
+		co_await fg_Timeout(0.1);
 	}
 }
 

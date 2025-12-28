@@ -103,12 +103,12 @@ namespace NMib::NConcurrency
 		}
 		else
 		{
-			bool bHandled = NException::fg_VisitException<CExceptionActorDeleted, NException::CException>
+			bool bHandled = NException::fg_VisitException<CExceptionActorDeleted, CExceptionActorAlreadyDestroyed, NException::CException>
 				(
 					_Result.f_GetException()
 					, [&]<typename tf_CException>(tf_CException const &_Exception)
 					{
-						if constexpr (NTraits::cIsSame<tf_CException, CExceptionActorDeleted>)
+						if constexpr (NTraits::cIsSame<tf_CException, CExceptionActorDeleted> || NTraits::cIsSame<tf_CException, CExceptionActorAlreadyDestroyed>)
 						{
 							// Ignore already deleted close
 						}

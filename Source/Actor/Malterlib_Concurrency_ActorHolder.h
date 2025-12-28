@@ -241,6 +241,7 @@ namespace NMib::NConcurrency
 		CConcurrentRunQueue::CLocalQueueData mp_ConcurrentRunQueueLocal;
 
 		mutable NAtomic::TCAtomic<uint8> mp_Destroyed;
+		mutable NAtomic::TCAtomic<uint8> mp_DestroyInitiated{0};
 
 		bool mp_bYield = false;
 

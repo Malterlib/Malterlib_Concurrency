@@ -1258,6 +1258,9 @@ namespace NMib::NConcurrency
 			if (m_AppActor)
 				m_AppActor->f_BlockDestroy(m_pRunLoop->f_ActorDestroyLoop());
 		}
+		catch (CExceptionActorAlreadyDestroyed const &)
+		{
+		}
 		catch (CExceptionActorDeleted const &)
 		{
 		}

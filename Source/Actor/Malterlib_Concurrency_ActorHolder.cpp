@@ -405,6 +405,10 @@ namespace NMib::NConcurrency
 		if (!pActorInternal)
 			return g_Void;
 
+		// Atomically check and set destroy initiated flag
+		if (pActorInternal->mp_DestroyInitiated.f_Exchange(1) != 0)
+			return TCPromise<void>() <<= CAsyncResult::fs_ActorAlreadyDestroyedException();
+
 		TCPromiseFuturePair<void> Promise;
 		if (pActorInternal->fp_GetActorRelaxed())
 			(static_cast<TCActor<> &&>(*this)).f_Bind<&CActor::fp_DestroyInternal>() > g_DirectResult / CActorHolder::fsp_DestroyHandler(fg_Move(pActorInternal), fg_Move(Promise.m_Promise));
@@ -414,6 +418,22 @@ namespace NMib::NConcurrency
 			Result.f_SetException(CAsyncResult::fs_ActorCalledDeletedException());
 			CActorHolder::fsp_DestroyHandler(fg_Move(pActorInternal), fg_Move(Promise.m_Promise))(fg_Move(Result));
 		}
+
+		return fg_Move(Promise.m_Future);
+	}
+
+	TCFuture<void> CActorCommon::f_ForceDestroy() &&
+	{
+		auto pActorInternal = (static_cast<TCActor<> &>(*this)).m_pInternalActor;
+		if (!pActorInternal)
+			return g_Void;
+
+		// No mp_DestroyInitiated check - always proceed
+		// Always use immediate destruction path (like the "else" case in f_Destroy)
+		TCPromiseFuturePair<void> Promise;
+		TCAsyncResult<void> Result;
+		Result.f_SetException(CAsyncResult::fs_ActorCalledDeletedException());
+		CActorHolder::fsp_DestroyHandler(fg_Move(pActorInternal), fg_Move(Promise.m_Promise))(fg_Move(Result));
 
 		return fg_Move(Promise.m_Future);
 	}
@@ -515,6 +535,11 @@ namespace NMib::NConcurrency
 			DIfRefCountDebugging(_pActorHolder->m_RefCount.f_Remove(TempRef));
 
 			pSelfReference = fg_Attach(_pActorHolder);
+
+			// Set destroy initiated flag before async destruction
+			// (user's fp_Destroy() could create new TCActor references that call f_Destroy())
+			[[maybe_unused]] mint OldValue = _pActorHolder->mp_DestroyInitiated.f_Exchange(1);
+			DMibFastCheck(OldValue == 0);
 
 			mint Destroyed = _pActorHolder->mp_Destroyed.f_Exchange(0);
 			if (Destroyed != 1)
@@ -1151,7 +1176,7 @@ namespace NMib::NConcurrency
 							if (!pThis)
 								return;
 							pThisHolder->mp_pOnTerminateEntry = nullptr;
-							fg_Move(pThis).f_Destroy().f_DiscardResult();
+							fg_Move(pThis).f_ForceDestroy().f_DiscardResult();
 						}
 					;
 					pThis->mp_pOnTerminateEntry = &pDelegateTo->mp_OnTerminate[fg_Move(OnTerminate)];

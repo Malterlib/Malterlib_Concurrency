@@ -328,10 +328,11 @@ namespace NMib::NConcurrency
 	struct CActorCommon
 	{
 		TCFuture<void> f_Destroy() &&;
-		
+		TCFuture<void> f_ForceDestroy() &&;
+
 	private:
 		friend class CConcurrencyManager;
-		
+
 		TCFuture<void> fp_DestroyUnused() &&;
 	};
 

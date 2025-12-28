@@ -242,6 +242,7 @@ namespace NMib::NConcurrency
 		NException::CExceptionPointer m_pResultWasNotSetException;
 		NException::CExceptionPointer m_pActorDeletedException;
 		NException::CExceptionPointer m_pActorCalledDeletedException;
+		NException::CExceptionPointer m_pActorAlreadyDestroyedException;
 
 		NContainer::TCVector<CCaptureExceptionSettings> m_PendingCaptureExceptions;
 		NContainer::TCVector<TCFuture<void>> m_AsyncDestructors;

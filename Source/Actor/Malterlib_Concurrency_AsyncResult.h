@@ -61,6 +61,7 @@ namespace NMib::NConcurrency
 
 		static NException::CExceptionPointer const &fs_ResultWasNotSetException();
 		static NException::CExceptionPointer const &fs_ActorCalledDeletedException();
+		static NException::CExceptionPointer const &fs_ActorAlreadyDestroyedException();
 
 		void f_Access() const; ///< Try to access the contained value. Useful to throw the contained exception in case you want to catch and handle it.
 		NStr::CStr f_GetExceptionStr() const noexcept; ///< Returns a string for the contained exception.

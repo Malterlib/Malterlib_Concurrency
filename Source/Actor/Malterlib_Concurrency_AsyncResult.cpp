@@ -132,6 +132,14 @@ namespace NMib::NConcurrency
 		return ThreadLocal.m_pActorCalledDeletedException;
 	}
 
+	NException::CExceptionPointer const &CAsyncResult::fs_ActorAlreadyDestroyedException()
+	{
+		CConcurrencyThreadLocal &ThreadLocal = fg_ConcurrencyThreadLocal();
+		if (!ThreadLocal.m_pActorAlreadyDestroyedException)
+			ThreadLocal.m_pActorAlreadyDestroyedException = fg_MakeException(DMibImpExceptionInstance(CExceptionActorAlreadyDestroyed, "Actor destruction already in progress", false));
+		return ThreadLocal.m_pActorAlreadyDestroyedException;
+	}
+
 	NException::CExceptionPointer CAsyncResult::f_GetException() const & noexcept
 	{
 		if (mp_Data.f_DataType() == EDataType_Exception)

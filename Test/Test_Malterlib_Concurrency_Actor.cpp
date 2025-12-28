@@ -476,10 +476,99 @@ namespace
 				DMibExpectException
 					(
 						fDoubleDestroy()
-						, DMibImpExceptionInstance(CExceptionActorAlreadyDestroyed, "Actor has already been destroyed")
-						, DMibImpExceptionInstance(CExceptionActorDeleted, "Actor called has been deleted")
+						, DMibImpExceptionInstance(CExceptionActorAlreadyDestroyed, "Actor destruction already in progress")
 					)
 				;
+			};
+			DMibTestSuite("DestructSuspending") -> TCFuture<void>
+			{
+				// Test double f_Destroy() with an actor that suspends during fp_Destroy()
+				struct CSuspendingDestroyActor : public CActor
+				{
+				private:
+					TCFuture<void> fp_Destroy() override
+					{
+						co_await fg_Timeout(0.1);
+						co_return {};
+					}
+				};
+
+				TCActor<CSuspendingDestroyActor> Actor1 = fg_Construct<CSuspendingDestroyActor>();
+				TCActor<CSuspendingDestroyActor> Actor2 = Actor1; // Copy reference
+
+				// First destroy starts async destruction (will suspend in fp_Destroy)
+				auto Future1 = fg_Move(Actor1).f_Destroy();
+
+				// Give it a moment to start
+				co_await fg_Timeout(0.01);
+
+				// Second destroy should get "already in progress" exception
+				auto Result2 = co_await fg_Move(Actor2).f_Destroy().f_Wrap();
+				DMibExpectException
+					(
+						Result2.f_Access()
+						, DMibImpExceptionInstance(CExceptionActorAlreadyDestroyed, "Actor destruction already in progress")
+					)
+				;
+
+				// First destroy should complete normally
+				co_await fg_Move(Future1);
+
+				co_return {};
+			};
+			DMibTestSuite("DestructAutoWithNewRef") -> TCFuture<void>
+			{
+				// Test f_Destroy() called from a new reference created during automatic destruction's fp_Destroy()
+				TCPromise<void> DestroyStarted;
+				TCPromise<TCActor<CActor>> NewRefPromise;
+
+				struct CCreateRefOnDestroy : public CActor
+				{
+					CCreateRefOnDestroy(TCPromise<void> _DestroyStarted, TCPromise<TCActor<CActor>> _NewRefPromise)
+						: m_DestroyStarted(_DestroyStarted)
+						, m_NewRefPromise(_NewRefPromise)
+					{
+					}
+
+					TCPromise<void> m_DestroyStarted;
+					TCPromise<TCActor<CActor>> m_NewRefPromise;
+
+				private:
+					TCFuture<void> fp_Destroy() override
+					{
+						// Signal that destruction has started
+						m_DestroyStarted.f_SetResult();
+
+						// Create new reference and send it out
+						m_NewRefPromise.f_SetResult(self);
+
+						// Suspend to allow the new reference to try f_Destroy()
+						co_await fg_Timeout(0.2);
+						co_return {};
+					}
+				};
+
+				{
+					TCActor<CCreateRefOnDestroy> Actor{fg_Construct(DestroyStarted, NewRefPromise)};
+				}
+				// Actor goes out of scope, automatic destruction starts via fsp_ScheduleActorDestroy
+
+				// Wait for destruction to start
+				co_await DestroyStarted.f_Future();
+
+				// Get the new reference created during fp_Destroy
+				TCActor<CActor> NewRef = co_await NewRefPromise.f_Future();
+
+				// Try to destroy using the new reference - should fail
+				auto DestroyAttemptResult = co_await fg_Move(NewRef).f_Destroy().f_Wrap();
+				DMibExpectException
+					(
+						DestroyAttemptResult.f_Access()
+						, DMibImpExceptionInstance(CExceptionActorAlreadyDestroyed, "Actor destruction already in progress")
+					)
+				;
+
+				co_return {};
 			};
 			DMibTestSuite("DestructRefCount") -> TCFuture<void>
 			{

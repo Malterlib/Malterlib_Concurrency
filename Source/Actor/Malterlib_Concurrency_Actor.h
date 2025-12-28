@@ -1,4 +1,4 @@
-// Copyright © 2015 Hansoft AB 
+// Copyright © 2015 Hansoft AB
 // Distributed under the MIT license, see license text in LICENSE.Malterlib
 
 #pragma once
@@ -9,7 +9,7 @@ namespace NMib::NConcurrency
 {
 	struct CActor;
 	namespace NPrivate
-	{ 
+	{
 		struct CThisActor
 		{
 			template <typename tf_FFunction>
@@ -30,7 +30,7 @@ namespace NMib::NConcurrency
 			CThisActor &operator = (CThisActor &&) = default;
 			CThisActor &operator = (CThisActor const &) = default;
 		};
-		
+
 		template <typename t_CType>
 		struct TCIsFuture;
 
@@ -108,7 +108,7 @@ namespace NMib::NConcurrency
 		inline_always CConcurrencyManager &f_ConcurrencyManager() const;
 
 		bool f_SuspendCoroutine(CFutureCoroutineContext &_CoroutineContext);
-		CFutureCoroutineContext::COnResumeScopeAwaiter f_CheckDestroyedOnResume() const;
+		CFutureCoroutineContextOnResumeScopeAwaiter f_CheckDestroyedOnResume() const;
 
 	protected:
 		template <typename tf_CReturnType, typename tf_CFunction, typename ...tfp_CParams>

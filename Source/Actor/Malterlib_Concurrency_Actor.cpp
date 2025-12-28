@@ -88,7 +88,7 @@ namespace NMib::NConcurrency
 		return nullptr;
 	}
 
-	CFutureCoroutineContext::COnResumeScopeAwaiter CActor::f_CheckDestroyedOnResume() const
+	CFutureCoroutineContextOnResumeScopeAwaiter CActor::f_CheckDestroyedOnResume() const
 	{
 		return fg_OnResume
 			(

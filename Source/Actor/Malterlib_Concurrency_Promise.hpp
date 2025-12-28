@@ -906,7 +906,7 @@ namespace NMib::NConcurrency
 		return mp_pData.f_Get();
 	}
 #endif
-	
+
 	template <typename t_CReturnValue>
 	TCFuture<t_CReturnValue> &&TCFuture<t_CReturnValue>::f_Move()
 	{
@@ -960,9 +960,9 @@ namespace NMib::NConcurrency
 			}
 		;
 	}
-	
+
 	template <typename tf_CCoroutineContext>
-	bool CFutureCoroutineContext::COnResumeScopeAwaiter::await_suspend(TCCoroutineHandle<tf_CCoroutineContext> &&_Handle)
+	bool CFutureCoroutineContextOnResumeScopeAwaiter::await_suspend(TCCoroutineHandle<tf_CCoroutineContext> &&_Handle)
 	{
 		DMibFastCheck(fg_CurrentActor());
 

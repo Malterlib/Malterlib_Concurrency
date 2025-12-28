@@ -99,7 +99,7 @@ namespace NMib::NConcurrency
 	}
 #endif
 
-	CFutureCoroutineContext::COnResumeScopeAwaiter CDistributedAppActor::fp_CheckStoppedOrDestroyedOnResume() const
+	CFutureCoroutineContextOnResumeScopeAwaiter CDistributedAppActor::fp_CheckStoppedOrDestroyedOnResume() const
 	{
 		return fg_OnResume
 			(

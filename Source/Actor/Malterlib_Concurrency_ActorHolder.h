@@ -78,6 +78,8 @@ namespace NMib::NConcurrency
 		template <typename t_CImplementation>
 		friend struct TCDistributedActorInstance;
 
+		friend CFutureCoroutineContextOnResumeScopeAwaiter fg_CurrentActorCheckDestroyedOnResume(CConcurrencyThreadLocal &_ThreadLocal);
+
 		struct CDestroyHandler;
 
 		using FDestroyHolderOnDestroyed = NFunction::TCFunction
@@ -152,7 +154,7 @@ namespace NMib::NConcurrency
 		NStorage::TCSharedPointer<ICDistributedActorData> &f_GetDistributedActorData();
 		NStorage::TCSharedPointer<ICDistributedActorData> const &f_GetDistributedActorData() const;
 		CDistributedActorHostInfo f_GetHostInfo();
-		
+
 		static bool fs_ScheduleActorHolderDestroy(CActorHolder *_pActorHolder, bool &o_bImmediateDelete);
 
 #if DMibConfig_Tests_Enable

@@ -152,12 +152,12 @@ namespace NMib::NConcurrency
 		return CCaptureExceptionWithTransformerScope(m_pThis, fg_Move(m_fTransformer));
 	}
 
-	CCoroutineOnResumeScope CFutureCoroutineContext::COnResumeScopeAwaiter::await_resume() noexcept
+	CCoroutineOnResumeScope CFutureCoroutineContextOnResumeScopeAwaiter::await_resume() noexcept
 	{
 		return CCoroutineOnResumeScope(fg_Move(mp_fOnResume));
 	}
 
-	CFutureCoroutineContext::COnResumeScopeAwaiter &&CFutureCoroutineContext::await_transform(COnResumeScopeAwaiter &&_Awaiter)
+	CFutureCoroutineContextOnResumeScopeAwaiter &&CFutureCoroutineContext::await_transform(CFutureCoroutineContextOnResumeScopeAwaiter &&_Awaiter)
 	{
 		_Awaiter.mp_pThis = this;
 #if DMibEnableSafeCheck > 0
@@ -166,7 +166,7 @@ namespace NMib::NConcurrency
 		return fg_Move(_Awaiter);
 	}
 
-	CFutureCoroutineContext::COnResumeScopeAwaiter::~COnResumeScopeAwaiter()
+	CFutureCoroutineContextOnResumeScopeAwaiter::~CFutureCoroutineContextOnResumeScopeAwaiter()
 #if DMibEnableSafeCheck > 0
 		noexcept(false)
 #endif
@@ -187,14 +187,14 @@ namespace NMib::NConcurrency
 		*/
 	}
 
-	CFutureCoroutineContext::COnResumeScopeAwaiter::COnResumeScopeAwaiter(NFunction::TCFunctionMovable<NException::CExceptionPointer ()> &&_fOnResume)
+	CFutureCoroutineContextOnResumeScopeAwaiter::CFutureCoroutineContextOnResumeScopeAwaiter(NFunction::TCFunctionMovable<NException::CExceptionPointer ()> &&_fOnResume)
 		: mp_fOnResume(fg_Move(_fOnResume))
 	{
 	}
 
-	CFutureCoroutineContext::COnResumeScopeAwaiter fg_OnResume(NFunction::TCFunctionMovable<NException::CExceptionPointer ()> &&_fOnResume)
+	CFutureCoroutineContextOnResumeScopeAwaiter fg_OnResume(NFunction::TCFunctionMovable<NException::CExceptionPointer ()> &&_fOnResume)
 	{
-		return CFutureCoroutineContext::COnResumeScopeAwaiter(fg_Move(_fOnResume));
+		return CFutureCoroutineContextOnResumeScopeAwaiter(fg_Move(_fOnResume));
 	}
 
 	CFutureCoroutineContext::CCaptureExceptionScopeAwaiter CFutureCoroutineContext::await_transform(CCaptureExceptionsHelper)

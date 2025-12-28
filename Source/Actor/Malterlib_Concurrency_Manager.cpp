@@ -1491,6 +1491,18 @@ namespace NMib::NConcurrency
 		return m_pTimerActor;
 	}
 
+	CFutureCoroutineContextOnResumeScopeAwaiter fg_CurrentActorCheckDestroyedOnResume()
+	{
+		return fg_CurrentActorCheckDestroyedOnResume(fg_ConcurrencyThreadLocal());
+	}
+
+	CFutureCoroutineContextOnResumeScopeAwaiter fg_CurrentActorCheckDestroyedOnResume(CConcurrencyThreadLocal &_ThreadLocal)
+	{
+		DMibFastCheck(_ThreadLocal.m_pCurrentlyProcessingActorHolder);
+
+		return _ThreadLocal.m_pCurrentlyProcessingActorHolder->fp_GetActorRelaxed()->f_CheckDestroyedOnResume();
+	}
+
 	mark_nodebug TCActor<CActor> fg_CurrentActor(CConcurrencyThreadLocal &_ThreadLocal)
 	{
 		if (!_ThreadLocal.m_pCurrentlyProcessingActorHolder)

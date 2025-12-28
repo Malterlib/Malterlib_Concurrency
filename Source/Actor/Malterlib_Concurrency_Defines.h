@@ -701,7 +701,7 @@ namespace NMib::NConcurrency
 		~CBlockingActorCheckout();
 
 		CBlockingActorCheckout &operator = (CBlockingActorCheckout &&_Other);
-		
+
 		void f_Clear();
 		bool f_IsValid() const;
 
@@ -738,6 +738,9 @@ namespace NMib::NConcurrency
 	mark_nodebug TCActor<CActor> fg_CurrentActor(CConcurrencyThreadLocal &_ThreadLocal);
 	mark_nodebug TCWeakActor<CActor> fg_CurrentActorWeak();
 	mark_nodebug TCWeakActor<CActor> fg_CurrentActorWeak(CConcurrencyThreadLocal &_ThreadLocal);
+	struct CFutureCoroutineContextOnResumeScopeAwaiter;
+	CFutureCoroutineContextOnResumeScopeAwaiter fg_CurrentActorCheckDestroyedOnResume();
+	CFutureCoroutineContextOnResumeScopeAwaiter fg_CurrentActorCheckDestroyedOnResume(CConcurrencyThreadLocal &_ThreadLocal);
 
 	TCActor<CTimerActor> fg_TimerActor();
 }

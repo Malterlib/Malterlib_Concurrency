@@ -67,6 +67,7 @@ namespace NMib::NConcurrency
 
 		virtual TCFuture<void> f_SaveStateDatabase();
 		virtual TCFuture<void> f_SaveConfigDatabase();
+		virtual TCFuture<CDistributedAppSensorReporter::CSensorReporter> f_OpenSensorReporter(CDistributedAppSensorReporter::CSensorInfo _SensorInfo);
 
 		CDistributedAppState() = delete;
 		~CDistributedAppState();
@@ -557,6 +558,7 @@ namespace NMib::NConcurrency
 
 			TCFuture<void> f_SaveStateDatabase() override;
 			TCFuture<void> f_SaveConfigDatabase() override;
+			TCFuture<CDistributedAppSensorReporter::CSensorReporter> f_OpenSensorReporter(CDistributedAppSensorReporter::CSensorInfo _SensorInfo) override;
 
 		private:
 			CDistributedAppActor &mp_AppActor;

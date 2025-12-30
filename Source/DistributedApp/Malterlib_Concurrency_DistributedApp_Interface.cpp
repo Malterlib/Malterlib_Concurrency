@@ -101,12 +101,28 @@ namespace NMib::NConcurrency
 
 	TCFuture<void> CDistributedAppActor::CLocalAppState::f_SaveStateDatabase()
 	{
+		CCurrentActorScope CurrentActor(fg_ConcurrencyThreadLocal(), fg_ThisActor(&mp_AppActor));
+
 		return mp_AppActor.fp_SaveStateDatabase();
 	}
 
 	TCFuture<void> CDistributedAppActor::CLocalAppState::f_SaveConfigDatabase()
 	{
+		CCurrentActorScope CurrentActor(fg_ConcurrencyThreadLocal(), fg_ThisActor(&mp_AppActor));
+
 		return mp_AppActor.fp_SaveConfigDatabase();
+	}
+
+	TCFuture<CDistributedAppSensorReporter::CSensorReporter> CDistributedAppState::f_OpenSensorReporter(CDistributedAppSensorReporter::CSensorInfo _SensorInfo)
+	{
+		co_return DMibErrorInstance("Copied app state does not support this");
+	}
+
+	TCFuture<CDistributedAppSensorReporter::CSensorReporter> CDistributedAppActor::CLocalAppState::f_OpenSensorReporter(CDistributedAppSensorReporter::CSensorInfo _SensorInfo)
+	{
+		CCurrentActorScope CurrentActor(fg_ConcurrencyThreadLocal(), fg_ThisActor(&mp_AppActor));
+
+		return mp_AppActor.fp_OpenSensorReporter(fg_Move(_SensorInfo));
 	}
 
 	TCFuture<void> CDistributedAppActor::fp_SaveStateDatabase()

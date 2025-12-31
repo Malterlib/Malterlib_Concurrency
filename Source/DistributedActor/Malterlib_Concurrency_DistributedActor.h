@@ -367,7 +367,7 @@ namespace NMib::NConcurrency
 
 		bool f_IsValid() const;
 		TCFuture<void> f_Destroy(fp32 _WaitForPublicationsTimeout = 10.0);
-		void f_Republish(NStr::CStr const &_HostID) const;
+		TCFuture<void> f_Republish(NStr::CStr _HostID, fp32 _WaitForPublicationsTimeout = 10.0) const;
 
 	private:
 		CDistributedActorPublication(TCWeakActor<CActorDistributionManager> const &_DistributionManager, NStr::CStr const &_Namespace, NStr::CStr const &_ActorID);
@@ -864,7 +864,7 @@ namespace NMib::NConcurrency
 		TCFuture<void> fp_RemoveConnection(NStr::CStr _ConnectionID, bool _bPreserveHost);
 		TCFuture<void> fp_UpdateConnectionSettings(NStr::CStr _ConnectionID, CActorDistributionConnectionSettings _Settings);
 		TCFuture<void> fp_RemoveActorPublication(NStr::CStr _NamespaceID, NStr::CStr _ActorID, fp32 _WaitForPublicationsTimeout);
-		void fp_RepublishActorPublication(NStr::CStr _NamespaceID, NStr::CStr _ActorID, NStr::CStr _HostID);
+		TCFuture<void> fp_RepublishActorPublication(NStr::CStr _NamespaceID, NStr::CStr _ActorID, NStr::CStr _HostID, fp32 _WaitForPublicationsTimeout);
 		TCFuture<CDistributedActorConnectionStatus> fp_GetConnectionStatus(NStr::CStr _ConnectionID);
 		TCFuture<void> fp_Reconnect(NStr::CStr _ConnectionID);
 		CActorSubscription fp_OnRemoteDisconnect

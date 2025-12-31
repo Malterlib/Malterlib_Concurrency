@@ -1,4 +1,4 @@
-// Copyright © 2015 Hansoft AB 
+// Copyright © 2015 Hansoft AB
 // Distributed under the MIT license, see license text in LICENSE.Malterlib
 
 #include "Malterlib_Concurrency_DistributedTrust.h"
@@ -10,7 +10,7 @@ namespace NMib::NConcurrency
 	{
 		auto &Internal = *mp_pInternal;
 		co_await Internal.f_WaitForInit();
-		
+
 		CDistributedActorTrustManagerInterface::CEnumPermissionsResult Return;
 		NContainer::TCSet<NStr::CStr> HostIDs;
 		NContainer::TCSet<NStr::CStr> UserIDs;
@@ -32,7 +32,7 @@ namespace NMib::NConcurrency
 		UserIDs.f_Remove("");
 		for (auto &Permission : Internal.m_RegisteredPermissions)
 			Return.m_Permissions[Permission];
-		
+
 		if (!_bIncludeHostInfo)
 			co_return fg_Move(Return);
 
@@ -82,7 +82,7 @@ namespace NMib::NConcurrency
 
 		co_return fg_Move(Return);
 	}
-	
+
 	TCFuture<void> CDistributedActorTrustManager::f_AddPermissions
 		(
 			CPermissionIdentifiers _Identity
@@ -150,7 +150,7 @@ namespace NMib::NConcurrency
 				Subscription.m_PermissionsPerIdentity[_Identity][Permission] = Requirements;
 				FilteredPermissions[Permission] = Requirements;
 			}
-			
+
 			if (FilteredPermissions.f_IsEmpty())
 				continue;
 
@@ -178,7 +178,7 @@ namespace NMib::NConcurrency
 
 		co_return co_await fg_Move(SaveDatabaseFuture);
 	}
-	
+
 	TCFuture<void> CDistributedActorTrustManager::f_RemovePermissions
 		(
 			CPermissionIdentifiers _Identity
@@ -202,7 +202,7 @@ namespace NMib::NConcurrency
 		if (!pPermissions)
 			co_return {};
 		auto &Permissions = *pPermissions;
-		
+
 		NContainer::TCSet<NStr::CStr> PermissionsRemoved;
 		for (auto &Permission : _Permissions)
 		{
@@ -227,14 +227,14 @@ namespace NMib::NConcurrency
 					continue;
 				FilteredPermissions[Permission];
 			}
-			
+
 			if (FilteredPermissions.f_IsEmpty())
 				continue;
 
 			for (auto &pSubscription : Subscription.m_Subscriptions)
 				pSubscription->f_RemovePermissions(_Identity, FilteredPermissions) > SubscriptionResults;
 		}
-		
+
 		if (Permissions.m_Permissions.m_Permissions.f_IsEmpty())
 		{
 			if (Permissions.m_bExistsInDatabase)
@@ -262,16 +262,16 @@ namespace NMib::NConcurrency
 
 		co_return {};
 	}
-	
+
 	TCFuture<void> CDistributedActorTrustManager::f_RegisterPermissions(NContainer::TCSet<NStr::CStr> _Permissions)
 	{
 		auto &Internal = *mp_pInternal;
 		co_await Internal.f_WaitForInit();
-		
+
 		Internal.m_RegisteredPermissions += _Permissions;
 		co_return {};
 	}
-	
+
 	TCFuture<void> CDistributedActorTrustManager::f_UnregisterPermissions(NContainer::TCSet<NStr::CStr> _Permissions)
 	{
 		auto &Internal = *mp_pInternal;
@@ -290,7 +290,7 @@ namespace NMib::NConcurrency
 		)
 	{
 		using namespace NStr;
-		
+
 		DMibRequire(_CallingHostInfo.f_GetRealHostID());
 		auto const &UserID = _CallingHostInfo.f_GetClaimedUserID();
 		auto const &HostID = _CallingHostInfo.f_GetRealHostID();
@@ -434,7 +434,7 @@ namespace NMib::NConcurrency
 		State.m_DispatchActor = _Actor;
 		State.m_TrustManager = fg_ThisActor(this);
 		State.m_Wildcards = _Wildcards;
-		
+
 		CTrustedPermissionSubscription Result;
 		Result.mp_pState = pState;
 		pState->m_pSubscription = &Result;
@@ -443,7 +443,7 @@ namespace NMib::NConcurrency
 
 		co_return fg_Move(Result);
 	}
-	
+
 	namespace NPrivate
 	{
 		CTrustedPermissionSubscriptionState::CTrustedPermissionSubscriptionState()
@@ -463,10 +463,10 @@ namespace NMib::NConcurrency
 			return fg_Dispatch
 				(
 					m_DispatchActor
-					, [this, _Identity, _PermissionsAdded, pThis = NStorage::TCSharedPointer<NPrivate::CTrustedPermissionSubscriptionState>{fg_Explicit(this)}]
+					, [this, _Identity, _PermissionsAdded, pThis = NStorage::TCSharedPointer<NPrivate::CTrustedPermissionSubscriptionState>{fg_Explicit(this)}] -> TCFuture<void>
 					{
 						if (!m_pSubscription)
-							return;
+							co_return {};
 
 						auto &Subscription = *m_pSubscription;
 						auto &Permissions = Subscription.mp_Permissions[_Identity];
@@ -479,12 +479,14 @@ namespace NMib::NConcurrency
 							Permissions[Permission] = Requirements;
 						}
 						if (!Added.f_IsEmpty() && m_fOnPermissionsAdded)
-							m_fOnPermissionsAdded(_Identity, Added);
+							co_await m_fOnPermissionsAdded(_Identity, Added);
+
+						co_return {};
 					}
 				)
 			;
 		}
-		
+
 		TCFuture<void> CTrustedPermissionSubscriptionState::f_RemovePermissions
 			(
 				CPermissionIdentifiers const &_Identity
@@ -494,17 +496,18 @@ namespace NMib::NConcurrency
 			return fg_Dispatch
 				(
 					m_DispatchActor
-					, [this, _Identity, _PermissionsRemoved, pThis = NStorage::TCSharedPointer<NPrivate::CTrustedPermissionSubscriptionState>{fg_Explicit(this)}]
+					, [this, _Identity, _PermissionsRemoved, pThis = NStorage::TCSharedPointer<NPrivate::CTrustedPermissionSubscriptionState>{fg_Explicit(this)}] -> TCFuture<void>
 					{
 						if (!m_pSubscription)
-							return;
-						
+							co_return {};
+
 						auto &Subscription = *m_pSubscription;
 						auto *pPermissions = Subscription.mp_Permissions.f_FindEqual(_Identity);
 						if (!pPermissions)
-							return;
+							co_return {};
+
 						auto &Permissions = *pPermissions;
-						NContainer::TCSet<NStr::CStr> Removed; 
+						NContainer::TCSet<NStr::CStr> Removed;
 						for (auto &Permission : _PermissionsRemoved)
 						{
 							if (Permissions.f_Remove(Permission))
@@ -514,7 +517,9 @@ namespace NMib::NConcurrency
 						if (Permissions.f_IsEmpty())
 							Subscription.mp_Permissions.f_Remove(_Identity);
 						if (!Removed.f_IsEmpty() && m_fOnPermissionsRemoved)
-							m_fOnPermissionsRemoved(_Identity, Removed);
+							co_await m_fOnPermissionsRemoved(_Identity, Removed);
+
+						co_return {};
 					}
 				)
 			;
@@ -583,10 +588,10 @@ namespace NMib::NConcurrency
 		if (mp_pState)
 			mp_pState->m_pSubscription = this;
 	}
-	
+
 	CTrustedPermissionSubscription &CTrustedPermissionSubscription::operator =(CTrustedPermissionSubscription &&_Other)
 	{
-		mp_pState = fg_Move(_Other.mp_pState); 
+		mp_pState = fg_Move(_Other.mp_pState);
 		mp_Permissions = fg_Move(_Other.mp_Permissions);
 		if (mp_pState)
 			mp_pState->m_pSubscription = this;
@@ -594,12 +599,12 @@ namespace NMib::NConcurrency
 
 		return *this;
 	}
-	
+
 	CTrustedPermissionSubscription::~CTrustedPermissionSubscription()
 	{
 		f_Clear();
 	}
-	
+
 	void CTrustedPermissionSubscription::f_Clear()
 	{
 		if (!mp_pState)
@@ -1256,22 +1261,18 @@ namespace NMib::NConcurrency
 	{
 		return mp_Permissions;
 	}
-	
+
 	void CTrustedPermissionSubscription::f_OnPermissionsAdded
 		(
-			NFunction::TCFunctionMovable
-			<
-				void (CPermissionIdentifiers const &_Identity, NContainer::TCMap<NStr::CStr, CPermissionRequirements> const &_PermissionsAdded)
-			>
-			&&_fOnPermissionsAdded
+			TCActorFunctorWeak<TCFuture<void>(CPermissionIdentifiers _Identity, NContainer::TCMap<NStr::CStr, CPermissionRequirements> _PermissionsAdded)> &&_fOnPermissionsAdded
 		)
 	{
 		mp_pState->m_fOnPermissionsAdded = fg_Move(_fOnPermissionsAdded);
 	}
-	
+
 	void CTrustedPermissionSubscription::f_OnPermissionsRemoved
 		(
-			NFunction::TCFunctionMovable<void (CPermissionIdentifiers const &_Identity, NContainer::TCSet<NStr::CStr> const &_PermissionsRemoved)> &&_fOnPermissionsRemoved
+			TCActorFunctorWeak<TCFuture<void> (CPermissionIdentifiers _Identity, NContainer::TCSet<NStr::CStr> _PermissionsRemoved)> &&_fOnPermissionsRemoved
 		)
 	{
 		mp_pState->m_fOnPermissionsRemoved = fg_Move(_fOnPermissionsRemoved);
@@ -1375,7 +1376,7 @@ namespace NMib::NConcurrency
 		_pState->m_DispatchActor.f_Clear();
 
 		auto &Internal = *mp_pInternal;
-		
+
 		for (auto &Wildcard : _pState->m_Wildcards)
 		{
 			auto pSubscriptionState = Internal.m_PermissionsSubscriptions.f_FindEqual(Wildcard);

@@ -2173,17 +2173,21 @@ namespace NTestTrustManager
 					NAtomic::TCAtomic<mint> nPermissions{0};
 					TrustedSubscription.f_OnPermissionsAdded
 						(
-							[&](CPermissionIdentifiers const &, TCSet<CStr> const &_Permissions)
+							g_ActorFunctorWeak / [&](CPermissionIdentifiers, TCMap<CStr, CPermissionRequirements> _PermissionsAdded) -> TCFuture<void>
 							{
-								nPermissions.f_FetchAdd(_Permissions.f_GetLen());
+								nPermissions.f_FetchAdd(_PermissionsAdded.f_GetLen());
+
+								co_return {};
 							}
 						)
 					;
 					TrustedSubscription.f_OnPermissionsRemoved
 						(
-							[&](CPermissionIdentifiers const &, TCSet<CStr> const &_Permissions)
+							g_ActorFunctorWeak / [&](CPermissionIdentifiers, TCSet<CStr> _Permissions) -> TCFuture<void>
 							{
 								nPermissions.f_FetchSub(_Permissions.f_GetLen());
+
+								co_return {};
 							}
 						)
 					;

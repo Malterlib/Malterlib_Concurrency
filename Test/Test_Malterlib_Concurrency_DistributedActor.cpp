@@ -2069,7 +2069,7 @@ class CDistributedActor_Tests : public NMib::NTest::CTest
 	void fp_OnDisconnectedTests()
 	{
 		CActorRunLoopTestHelper RunLoopHelper;
-		
+
 		CStr SocketPath = NFile::CFile::fs_GetProgramDirectory() / "Sockets/DistributedActorDisconnect";
 
 		CDistributedActorTestHelperCombined TestState(SocketPath, RunLoopHelper.m_pRunLoop);
@@ -2247,6 +2247,220 @@ class CDistributedActor_Tests : public NMib::NTest::CTest
 		}
 	}
 
+	void fp_RepublishTests()
+	{
+		CActorRunLoopTestHelper RunLoopHelper;
+
+		CStr SocketPath = NFile::CFile::fs_GetProgramDirectory() / "Sockets/DistributedActorRepublish";
+
+		CDistributedActorTestHelperCombined TestState(SocketPath, RunLoopHelper.m_pRunLoop);
+		TestState.f_SeparateServerManager();
+		TestState.f_Init(false);
+
+		auto LocalActor = TestState.f_GetServer().f_GetManager()->f_ConstructActor<CDistributedActor>();
+		CStr PublicationID = TestState.f_Publish<CDistributedActor, CDistributedActorBase>(LocalActor, "Test");
+
+		CStr SubscriptionID = TestState.f_Subscribe("Test");
+		auto RemoteActor = TestState.f_GetRemoteActor<CDistributedActor>(SubscriptionID);
+
+		DMibAssertTrue(RemoteActor);
+
+		// Call the actor to verify it works
+		RemoteActor.f_CallActor(&CDistributedActorBase::f_AddIntVirtual)(5).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
+		uint32 Result = RemoteActor.f_CallActor(&CDistributedActorBase::f_GetResultVirtual)().f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
+		DMibExpect(Result, ==, 5);
+
+		// Track republish events - use shared pointer for thread safety in case of timeout
+		struct CState
+		{
+			NThread::CMutual m_Lock;
+			mint m_nRemoteEvents = 0;
+			bool m_bRemoved = false;
+			bool m_bAdded = false;
+		};
+		TCSharedPointer<CState> pState = fg_Construct();
+
+		auto &ConcurrentActor = fg_ConcurrentActor();
+
+		// Subscribe to actor changes to detect republish
+		auto ChangeSubscription = TestState.f_GetClient().f_GetManager()
+			(
+				&CActorDistributionManager::f_SubscribeActors
+				, "Test"
+				, ConcurrentActor
+				, [pState](CAbstractDistributedActor _NewActor) -> TCFuture<void>
+				{
+					DMibLock(pState->m_Lock);
+					pState->m_bAdded = true;
+					++pState->m_nRemoteEvents;
+					co_return {};
+				}
+				, [pState](CDistributedActorIdentifier _RemovedActor) -> TCFuture<void>
+				{
+					DMibLock(pState->m_Lock);
+					pState->m_bRemoved = true;
+					++pState->m_nRemoteEvents;
+					co_return {};
+				}
+			)
+			.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
+		;
+
+		{
+			DMibTestPath("Before");
+			DMibLock(pState->m_Lock);
+			DMibExpectFalse(pState->m_bRemoved);
+			DMibExpectTrue(pState->m_bAdded);
+		}
+
+		// Reset tracking
+		{
+			DMibLock(pState->m_Lock);
+			pState->m_bRemoved = false;
+			pState->m_bAdded = false;
+			pState->m_nRemoteEvents = 0;
+		}
+
+		// Call republish with timeout - this should wait for both unpublish and publish to complete
+		CStr ClientHostID = TestState.f_GetClientHostID();
+		TestState.f_Republish(PublicationID, ClientHostID, g_Timeout);
+
+		{
+			DMibTestPath("After");
+			DMibLock(pState->m_Lock);
+			DMibExpectTrue(pState->m_bRemoved);
+			DMibExpectTrue(pState->m_bAdded);
+		}
+
+		// Verify actor still works after republish
+		RemoteActor.f_CallActor(&CDistributedActorBase::f_AddIntVirtual)(10).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
+		Result = RemoteActor.f_CallActor(&CDistributedActorBase::f_GetResultVirtual)().f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
+		DMibExpect(Result, ==, 10);
+	}
+
+	void fp_RepublishNonWaitingTests()
+	{
+		CActorRunLoopTestHelper RunLoopHelper;
+
+		CStr SocketPath = NFile::CFile::fs_GetProgramDirectory() / "Sockets/DistributedActorRepublishNonWaiting";
+
+		CDistributedActorTestHelperCombined TestState(SocketPath, RunLoopHelper.m_pRunLoop);
+		TestState.f_SeparateServerManager();
+		TestState.f_Init(false);
+
+		auto LocalActor = TestState.f_GetServer().f_GetManager()->f_ConstructActor<CDistributedActor>();
+		CStr PublicationID = TestState.f_Publish<CDistributedActor, CDistributedActorBase>(LocalActor, "Test");
+
+		CStr SubscriptionID = TestState.f_Subscribe("Test");
+		auto RemoteActor = TestState.f_GetRemoteActor<CDistributedActor>(SubscriptionID);
+
+		DMibAssertTrue(RemoteActor);
+
+		// Track republish events - use shared pointer for thread safety in case of timeout
+		struct CState
+		{
+			NThread::CMutual m_Lock;
+			NThread::CEventAutoReset m_RemoteEvent;
+			NThread::CEvent m_AllowCallbacksEvent;
+			mint m_nRemoteEvents = 0;
+			bool m_bRemoved = false;
+			bool m_bAdded = false;
+		};
+		TCSharedPointer<CState> pState = fg_Construct();
+
+		// Signal initially so the first subscription callback can complete
+		pState->m_AllowCallbacksEvent.f_SetSignaled();
+
+		// Ensure event is signaled on scope exit to prevent deadlock if test fails
+		auto SignalOnExit = g_OnScopeExit / [&]
+			{
+				pState->m_AllowCallbacksEvent.f_SetSignaled();
+			}
+		;
+
+		auto &ConcurrentActor = fg_ConcurrentActor();
+
+		// Subscribe to actor changes to detect republish
+		// Callbacks wait on m_AllowCallbacksEvent before completing to verify f_Republish(timeout=0) doesn't wait
+		auto ChangeSubscription = TestState.f_GetClient().f_GetManager()
+			(
+				&CActorDistributionManager::f_SubscribeActors
+				, "Test"
+				, ConcurrentActor
+				, [pState](CAbstractDistributedActor _NewActor) -> TCFuture<void>
+				{
+					pState->m_AllowCallbacksEvent.f_Wait();
+					DMibLock(pState->m_Lock);
+					pState->m_bAdded = true;
+					++pState->m_nRemoteEvents;
+					pState->m_RemoteEvent.f_Signal();
+					co_return {};
+				}
+				, [pState](CDistributedActorIdentifier _RemovedActor) -> TCFuture<void>
+				{
+					pState->m_AllowCallbacksEvent.f_Wait();
+					DMibLock(pState->m_Lock);
+					pState->m_bRemoved = true;
+					++pState->m_nRemoteEvents;
+					pState->m_RemoteEvent.f_Signal();
+					co_return {};
+				}
+			)
+			.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
+		;
+
+		// Reset tracking (initial subscription triggers m_bAdded)
+		{
+			DMibLock(pState->m_Lock);
+			pState->m_bRemoved = false;
+			pState->m_bAdded = false;
+			pState->m_nRemoteEvents = 0;
+		}
+
+		// Reset event so callbacks will block
+		pState->m_AllowCallbacksEvent.f_ResetSignaled();
+
+		// Call republish with timeout 0 - this should NOT wait for processing
+		CStr ClientHostID = TestState.f_GetClientHostID();
+		TestState.f_Republish(PublicationID, ClientHostID, 0.0);
+
+		// Verify that we did NOT wait - callbacks are blocked so events should not have been processed
+		{
+			DMibTestPath("Immediately after non-waiting republish");
+			DMibLock(pState->m_Lock);
+			DMibExpectFalse(pState->m_bRemoved);
+			DMibExpectFalse(pState->m_bAdded);
+		}
+
+		// Signal event to allow callbacks to complete
+		pState->m_AllowCallbacksEvent.f_SetSignaled();
+
+		// Wait manually for both events to occur
+		bool bTimedOut = false;
+		while (!bTimedOut)
+		{
+			{
+				DMibLock(pState->m_Lock);
+				if (pState->m_nRemoteEvents >= 2)
+					break;
+			}
+			bTimedOut = pState->m_RemoteEvent.f_WaitTimeout(g_Timeout);
+		}
+
+		{
+			DMibTestPath("After manual wait");
+			DMibLock(pState->m_Lock);
+			DMibAssertFalse(bTimedOut);
+			DMibExpectTrue(pState->m_bRemoved);
+			DMibExpectTrue(pState->m_bAdded);
+		}
+
+		// Verify actor still works after republish
+		RemoteActor.f_CallActor(&CDistributedActorBase::f_AddIntVirtual)(10).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
+		uint32 Result = RemoteActor.f_CallActor(&CDistributedActorBase::f_GetResultVirtual)().f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
+		DMibExpect(Result, ==, 10);
+	}
+
 public:
 	void f_FunctionalTests()
 	{
@@ -2304,6 +2518,14 @@ public:
 			DMibTestSuite("Invalid state")
 			{
 				fp_InvalidStateTests();
+			};
+			DMibTestSuite("Republish")
+			{
+				fp_RepublishTests();
+			};
+			DMibTestSuite("Republish non-waiting")
+			{
+				fp_RepublishNonWaitingTests();
 			};
 
 			DMibTestSuite("Remote")

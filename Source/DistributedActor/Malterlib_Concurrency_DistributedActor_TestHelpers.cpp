@@ -206,6 +206,11 @@ namespace NMib::NConcurrency
 		mp_pServer->f_Unpublish(_Publication);
 	}
 
+	void CDistributedActorTestHelperCombined::f_Republish(NStr::CStr const &_Publication, NStr::CStr const &_HostID, fp32 _Timeout)
+	{
+		mp_pServer->f_Republish(_Publication, _HostID, _Timeout);
+	}
+
 	TCActor<CActorDistributionManager> const &CDistributedActorTestHelper::f_GetManager() const
 	{
 		return mp_Manager;
@@ -401,6 +406,12 @@ namespace NMib::NConcurrency
 	{
 		auto *pPublication = mp_Publications.f_FindEqual(_Publication);
 		pPublication->m_Publication.f_Destroy().f_CallSync(mp_pRunLoop, 60.0);
+	}
+
+	void CDistributedActorTestHelper::f_Republish(NStr::CStr const &_Publication, NStr::CStr const &_HostID, fp32 _Timeout)
+	{
+		auto *pPublication = mp_Publications.f_FindEqual(_Publication);
+		pPublication->m_Publication.f_Republish(_HostID, _Timeout).f_CallSync(mp_pRunLoop, 60.0);
 	}
 
 	void CDistributedActorTestHelper::f_SetSecurity(CDistributedActorSecurity const &_Security)

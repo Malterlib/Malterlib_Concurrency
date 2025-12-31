@@ -28,6 +28,7 @@ namespace NMib::NConcurrency
 		template <typename ...tfp_CDistributedActors, typename tf_CActor>
 		NStr::CStr f_Publish(TCDistributedActor<tf_CActor> const &_Actor, NStr::CStr const &_Namespace);
 		void f_Unpublish(NStr::CStr const &_Publication);
+		void f_Republish(NStr::CStr const &_Publication, NStr::CStr const &_HostID, fp32 _Timeout = 10.0);
 		NStr::CStr f_Subscribe(NStr::CStr const &_Namespace, mint _nExpected = 1);
 		void f_SubscribeExpectFailure(NStr::CStr const &_Namespace);
 		void f_Unsubscribe(NStr::CStr const &_Subscription);
@@ -89,6 +90,7 @@ namespace NMib::NConcurrency
 		template <typename ...tfp_CDistributedActors, typename tf_CActor>
 		NStr::CStr f_Publish(TCDistributedActor<tf_CActor> const &_Actor, NStr::CStr const &_Namespace);
 		void f_Unpublish(NStr::CStr const &_Publication);
+		void f_Republish(NStr::CStr const &_Publication, NStr::CStr const &_HostID, fp32 _Timeout);
 		NStr::CStr f_GetListenSocketPath() const;
 
 		NStr::CStr const &f_GetServerHostID() const;

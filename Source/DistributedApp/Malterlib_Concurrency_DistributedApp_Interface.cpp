@@ -192,7 +192,6 @@ namespace NMib::NConcurrency
 		co_return g_ActorSubscription / [this, SubscriptionID]
 			{
 				auto &Internal = *mp_pInternal;
-
 				Internal.m_AppInterfaceServerChangeSubscriptions.f_Remove(SubscriptionID);
 			}
 		;

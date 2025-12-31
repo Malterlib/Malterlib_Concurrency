@@ -62,13 +62,19 @@ namespace NMib::NConcurrency
 			return g_Void;
 	}
 
-	void CDistributedActorPublication::f_Republish(NStr::CStr const &_HostID) const
+	TCFuture<void> CDistributedActorPublication::f_Republish(NStr::CStr _HostID, fp32 _WaitForPublicationsTimeout) const
 	{
-		if (mp_DistributionManager)
-		{
-			if (auto DistributionManager = mp_DistributionManager.f_Lock())
-				DistributionManager.f_Bind<&CActorDistributionManager::fp_RepublishActorPublication>(mp_Namespace, mp_ActorID, _HostID).f_DiscardResult();
-		}
+		if (!mp_DistributionManager)
+			return g_Void;
+
+		TCFuture<void> RepublishFuture;
+		if (auto DistributionManager = mp_DistributionManager.f_Lock())
+			RepublishFuture = DistributionManager.f_Bind<&CActorDistributionManager::fp_RepublishActorPublication>(mp_Namespace, mp_ActorID, _HostID, _WaitForPublicationsTimeout).f_Call();
+
+		if (RepublishFuture.f_IsValid())
+			return RepublishFuture;
+		else
+			return g_Void;
 	}
 
 	bool CActorDistributionManagerInternal::fp_NamespaceAllowedForAnonymous(NStr::CStr const &_Namespace) const
@@ -215,20 +221,23 @@ namespace NMib::NConcurrency
 		co_return CDistributedActorPublication(fg_ThisActor(this), _Namespace, pDistributedActorData->m_ActorID);
 	}
 
-	void CActorDistributionManager::fp_RepublishActorPublication(NStr::CStr _NamespaceID, NStr::CStr _ActorID, NStr::CStr _HostID)
+	TCFuture<void> CActorDistributionManager::fp_RepublishActorPublication(NStr::CStr _NamespaceID, NStr::CStr _ActorID, NStr::CStr _HostID, fp32 _WaitForPublicationsTimeout)
 	{
 		auto &Internal = *mp_pInternal;
 		auto *pLocalNamespace = Internal.m_LocalNamespaces.f_FindEqual(_NamespaceID);
 		if (!pLocalNamespace)
-			return;
+			co_return {};
 		auto &LocalNamespace = *pLocalNamespace;
 		auto *pPublishedActor = LocalNamespace.m_Actors.f_FindEqual(_ActorID);
 		if (!pPublishedActor)
-			return;
+			co_return {};
 
 		auto *pHosts = Internal.m_HostsByRealHostID.f_FindEqual(_HostID);
 		if (!pHosts)
-			return;
+			co_return {};
+
+		TCFutureVector<void> WaitResults;
+		NContainer::TCVector<CPendingWait> PendingWaits;
 
 		for (auto &Host : *pHosts)
 		{
@@ -250,7 +259,7 @@ namespace NMib::NConcurrency
 						, Host.m_HostInfo.m_bAnonymous
 					)
 				;
-				return;
+				continue;
 			}
 
 			if (!Host.m_bAllowAllNamespaces && !Host.m_AllowedNamespaces.f_FindEqual(_NamespaceID))
@@ -269,7 +278,7 @@ namespace NMib::NConcurrency
 						, Host.m_AllowedNamespaces
 					)
 				;
-				return;
+				continue;
 			}
 
 			if (Host.m_HostInfo.m_bAnonymous && !Internal.fp_NamespaceAllowedForAnonymous(_NamespaceID))
@@ -286,9 +295,10 @@ namespace NMib::NConcurrency
 						, Host.m_bOutgoing ? " out" : ""
 					)
 				;
-				return;
+				continue;
 			}
 
+			NStorage::TCSharedPointerSupportWeak<CHost> pHost = fg_Explicit(&Host);
 			auto &PublishedActor = *pPublishedActor;
 
 			CDistributedActorCommand_Unpublish Unpublish;
@@ -304,6 +314,19 @@ namespace NMib::NConcurrency
 			NContainer::CIOByteVector UnpublishData;
 			{
 				NStream::CBinaryStreamMemory<NStream::CBinaryStreamDefault, NContainer::CIOByteVector> Stream;
+				auto VersionScope = Host.f_StreamVersion(Stream);
+
+				if (_WaitForPublicationsTimeout && Stream.f_GetVersion() >= EDistributedActorProtocolVersion_WaitForRemotePublishProcessing)
+				{
+					auto WaitID = Unpublish.m_WaitPublicationID = Host.f_GetUniqueWaitPublicationID();
+
+					Host.m_WaitingPublications[WaitID].m_Promise.f_Future() > WaitResults;
+
+					PendingWaits.f_Insert(CPendingWait{.m_pHost = pHost, .m_WaitID = WaitID});
+				}
+				else
+					Unpublish.m_WaitPublicationID = 0;
+
 				Stream << Unpublish;
 				UnpublishData = Stream.f_MoveVector();
 			}
@@ -313,13 +336,45 @@ namespace NMib::NConcurrency
 				NStream::CBinaryStreamMemory<NStream::CBinaryStreamDefault, NContainer::CIOByteVector> Stream;
 				auto VersionScope = Host.f_StreamVersion(Stream);
 
+				if (_WaitForPublicationsTimeout && Stream.f_GetVersion() >= EDistributedActorProtocolVersion_WaitForRemotePublishProcessing)
+				{
+					auto WaitID = Publish.m_WaitPublicationID = Host.f_GetUniqueWaitPublicationID();
+
+					Host.m_WaitingPublications[WaitID].m_Promise.f_Future() > WaitResults;
+
+					PendingWaits.f_Insert(CPendingWait{.m_pHost = pHost, .m_WaitID = WaitID});
+				}
+				else
+					Publish.m_WaitPublicationID = 0;
+
 				Stream << Publish;
 				PublishData = Stream.f_MoveVector();
 			}
 
-			Internal.fp_QueuePacket(fg_Explicit(&Host), fg_Move(UnpublishData));
-			Internal.fp_QueuePacket(fg_Explicit(&Host), fg_Move(PublishData));
+			Internal.fp_QueuePacket(pHost, fg_Move(UnpublishData));
+			Internal.fp_QueuePacket(pHost, fg_Move(PublishData));
 		}
+
+		if (WaitResults.f_IsEmpty())
+			co_return {};
+
+		auto Results = co_await fg_AllDoneWrapped(WaitResults).f_Timeout(_WaitForPublicationsTimeout, "Timed out waiting for republication results").f_Wrap();
+
+		if (!Results)
+			DMibLogWithCategory(Mib/Concurrency/Actors, Warning, "Failed to wait for republications: {}", Results.f_GetExceptionStr());
+		else
+		{
+			for (auto &Result : *Results)
+			{
+				if (!Result)
+					DMibLogWithCategory(Mib/Concurrency/Actors, Warning, "Failed to wait for republication: {}", Result.f_GetExceptionStr());
+			}
+		}
+
+		for (auto &Wait : PendingWaits)
+			Wait.m_pHost->m_WaitingPublications.f_Remove(Wait.m_WaitID);
+
+		co_return {};
 	}
 
 	TCFuture<void> CActorDistributionManager::fp_RemoveActorPublication(NStr::CStr _Namespace, NStr::CStr _ActorID, fp32 _WaitForPublicationsTimeout)

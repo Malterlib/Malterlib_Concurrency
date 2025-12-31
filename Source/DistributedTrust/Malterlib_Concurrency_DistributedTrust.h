@@ -173,19 +173,14 @@ namespace NMib::NConcurrency
 
 		void f_OnPermissionsAdded
 			(
-				NFunction::TCFunctionMovable<void
-					(
-						CPermissionIdentifiers const &_Identity
-						, NContainer::TCMap<NStr::CStr, CPermissionRequirements> const &_PermissionsAdded
-					)> &&_fOnPermissionsAdded
+				TCActorFunctorWeak<TCFuture<void>(CPermissionIdentifiers _Identity, NContainer::TCMap<NStr::CStr, CPermissionRequirements> _PermissionsAdded)> &&_fOnPermissionsAdded
 			)
 		;
 		void f_OnPermissionsRemoved
 			(
-				NFunction::TCFunctionMovable<void (CPermissionIdentifiers const &_Identity, NContainer::TCSet<NStr::CStr> const &_PermissionsRemoved)> &&_fOnPermissionsRemoved
+				TCActorFunctorWeak<TCFuture<void> (CPermissionIdentifiers _Identity, NContainer::TCSet<NStr::CStr> _PermissionsRemoved)> &&_fOnPermissionsRemoved
 			)
 		;
-
 
 	private:
 		TCUnsafeFuture<bool> fp_AuthenticatePermissions

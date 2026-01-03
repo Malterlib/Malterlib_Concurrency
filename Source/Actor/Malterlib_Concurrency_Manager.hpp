@@ -1,4 +1,4 @@
-// Copyright © 2015 Hansoft AB 
+// Copyright © 2015 Hansoft AB
 // Distributed under the MIT license, see license text in LICENSE.Malterlib
 
 #pragma once
@@ -45,7 +45,7 @@ namespace NMib::NConcurrency
 				[&]
 				{
 					NMemory::TCAllocator_Placement<sizeof(tf_CType)> Allocator(InternalActor.m_ActorMemory);
-					NStorage::TCUniquePointer<tf_CType, NMemory::TCAllocator_Placement<sizeof(tf_CType)>> pActorPlacement{fg_Move(_ConstructParams), Allocator};
+					NStorage::TCUniquePointer<tf_CType, NMemory::TCAllocator_Placement<sizeof(tf_CType)>> pActorPlacement{fg_Move(_ConstructParams), fg_Move(Allocator)};
 
 					// Construction was successful
 					pActorPlacement.f_Detach();

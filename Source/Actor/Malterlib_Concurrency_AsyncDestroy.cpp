@@ -62,7 +62,8 @@ namespace NMib::NConcurrency
 				(
 					[pToDestroy = fg_Move(_pToDestroy)]() mutable -> TCFuture<void>
 					{
-						co_await fg_Exchange(pToDestroy, nullptr)->f_Destroy();
+						if (pToDestroy)
+							co_await fg_Exchange(pToDestroy, nullptr)->f_Destroy();
 
 						co_return {};
 					}

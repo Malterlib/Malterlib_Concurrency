@@ -204,6 +204,13 @@ namespace NMib::NConcurrency::NActorDistributionManagerInternal
 			NStorage::TCSharedPointer<bool> m_pDestroyed = fg_Construct(false);
 		};
 
+		struct CAuthenticationHandlerEntry
+		{
+			TCDistributedActor<ICDistributedActorAuthenticationHandler> m_Handler;
+			NStr::CStr m_ClaimedUserID;
+			NStr::CStr m_ClaimedUserName;
+		};
+
 		void f_DeletePackets();
 		void f_Destroy();
 		bool f_CanReceivePublish() const;
@@ -253,9 +260,7 @@ namespace NMib::NConcurrency::NActorDistributionManagerInternal
 
 		NContainer::TCSet<NStr::CStr> m_AllowedNamespaces;
 
-		TCDistributedActor<ICDistributedActorAuthenticationHandler> m_AuthenticationHandler;
-		NStr::CStr m_ClaimedUserID;
-		NStr::CStr m_ClaimedUserName;
+		NContainer::TCMap<uint32, CAuthenticationHandlerEntry> m_AuthenticationHandlers;
 		NStr::CStr m_ExecutionID = NCryptography::fg_RandomID();
 
 		NStr::CStr m_LastError;
@@ -320,7 +325,7 @@ namespace NMib::NConcurrency::NActorDistributionManagerInternal
 		{
 			return NContainer::TCMap<mint, CActorPublicationSubscriptionInstance>::fs_GetKey(this);
 		}
-		
+
 		TCActor<CActor> m_DispatchActor;
 		NStorage::TCSharedPointer<NFunction::TCFunctionMovable<TCFuture<void> (CAbstractDistributedActor &&_NewActor)>> m_pOnNewActor;
 		NStorage::TCSharedPointer<NFunction::TCFunctionMovable<TCFuture<void> (CDistributedActorIdentifier &&_RemovedActor)>> m_pOnRemovedActor;
@@ -453,7 +458,7 @@ namespace NMib::NConcurrency
 		TCFuture<void> fp_PreShutdownCleanupPerform();
 		void fp_CleanupMarkActive(CHost &_Host);
 		void fp_CleanupMarkInactive(CHost &_Host);
-		
+
 		void fp_NotifyDisconnect(CHost &_Host);
 
 		void fp_ScheduleReconnect
@@ -546,7 +551,7 @@ namespace NMib::NConcurrency
 				, CResultSubscriptionData const *_pSubscriptionData
 			)
 		;
-		bool fp_ApplyRemoteCall(CConnection *_pConnection, NStream::CBinaryStreamMemoryPtr<> &_Stream);
+		bool fp_ApplyRemoteCall(CConnection *_pConnection, NStream::CBinaryStreamMemoryPtr<> &_Stream, bool _bHasAuthHandlerID);
 		bool fp_ApplyRemoteCallResult(CConnection *_pConnection, NStream::CBinaryStreamMemoryPtr<> &_Stream);
 		bool fp_HandlePublishPacket(CConnection *_pConnection, NStream::CBinaryStreamMemoryPtr<> &_Stream);
 		bool fp_HandlePublishFinishedPacket(CConnection *_pConnection, NStream::CBinaryStreamMemoryPtr<> &_Stream);

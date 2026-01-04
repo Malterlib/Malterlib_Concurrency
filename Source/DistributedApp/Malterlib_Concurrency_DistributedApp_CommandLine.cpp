@@ -3,6 +3,7 @@
 
 #include <Mib/Core/Core>
 #include <Mib/CommandLine/CommandLineImplementation>
+#include <Mib/Concurrency/AsyncDestroy>
 
 #include "Malterlib_Concurrency_DistributedApp.h"
 #include "Malterlib_Concurrency_DistributedApp_Internal.h"
@@ -136,9 +137,17 @@ namespace NMib::NConcurrency
 
 		CStr UserID = ValidatedParams.f_GetMemberValue("AuthenticationUser", "").f_String();
 
-		auto AuthenticationSubscription = co_await fp_SetupAuthentication(_pCommandLine, AuthenticationLifetime, UserID);
+		auto AuthenticationSetupResult = co_await fp_SetupAuthentication(_pCommandLine, AuthenticationLifetime, UserID);
 
-		co_await fp_PreRunCommandLine(_Command, ValidatedParams, _pCommandLine);
+		auto Cleanup = co_await fg_AsyncDestroy(fg_Move(AuthenticationSetupResult.m_Subscription));
+
+		if (AuthenticationSetupResult.m_HandlerID)
+		{
+			CAuthenticationHandlerIDScope HandlerScope(AuthenticationSetupResult.m_HandlerID);
+			co_await fp_PreRunCommandLine(_Command, ValidatedParams, _pCommandLine);
+		}
+		else
+			co_await fp_PreRunCommandLine(_Command, ValidatedParams, _pCommandLine);
 
 		pCommand = SpecInternal.m_CommandByName.f_FindEqual(_Command);
 		if (!pCommand)
@@ -151,9 +160,19 @@ namespace NMib::NConcurrency
 		{
 			auto CaptureScope = co_await g_CaptureExceptions;
 
-			uint32 Result = co_await (*Command.m_pActorRunCommand)(ValidatedParams, _pCommandLine);
-			co_await _pCommandLine->f_StdOut(""); // Syncronize with output
-			co_return Result;
+			if (AuthenticationSetupResult.m_HandlerID)
+			{
+				CAuthenticationHandlerIDScope HandlerScope(AuthenticationSetupResult.m_HandlerID);
+				uint32 Result = co_await (*Command.m_pActorRunCommand)(ValidatedParams, _pCommandLine);
+				co_await _pCommandLine->f_StdOut(""); // Syncronize with output
+				co_return Result;
+			}
+			else
+			{
+				uint32 Result = co_await (*Command.m_pActorRunCommand)(ValidatedParams, _pCommandLine);
+				co_await _pCommandLine->f_StdOut(""); // Syncronize with output
+				co_return Result;
+			}
 		}
 	}
 

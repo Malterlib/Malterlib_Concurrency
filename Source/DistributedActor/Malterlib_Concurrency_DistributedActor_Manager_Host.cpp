@@ -245,7 +245,7 @@ namespace NMib::NConcurrency
 			Destroy.f_SetResult();
 		Host.m_PendingRemoteSubscriptionDestroys.f_Clear();
 
-		Host.m_AuthenticationHandler.f_Clear();
+		Host.m_AuthenticationHandlers.f_Clear();
 
 		Host.f_DeletePackets();
 	}

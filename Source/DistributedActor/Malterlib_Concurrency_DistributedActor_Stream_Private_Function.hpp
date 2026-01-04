@@ -128,7 +128,7 @@ namespace NMib::NConcurrency
 							co_return DMibErrorInstance("Remote actor host no longer available");
 
 						CDistributedActorWriteStream Stream;
-						Stream << uint8(0); // Dummy command
+						Stream << uint8(2); // EDistributedActorCommand_RemoteCall, functors does not support authentication handlers
 						Stream << uint64(0); // Dummy packet ID
 						Stream << pActorDataRaw->m_ActorID;
 						Stream << uint32(0);
@@ -189,7 +189,7 @@ namespace NMib::NConcurrency
 							co_return DMibErrorInstance("Remote actor host no longer available");
 
 						CDistributedActorWriteStream Stream;
-						Stream << uint8(0); // Dummy command
+						Stream << uint8(2); // EDistributedActorCommand_RemoteCall, async generators does not support authentication handlers
 						Stream << uint64(0); // Dummy packet ID
 						Stream << pActorDataRaw->m_ActorID;
 						Stream << uint32(0);

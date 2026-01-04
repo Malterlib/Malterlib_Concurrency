@@ -183,7 +183,16 @@ namespace NMib::NConcurrency
 				{
 				case EDistributedActorCommand_RemoteCall:
 					{
-						if (!fp_ApplyRemoteCall(_pConnection, Stream))
+						if (!fp_ApplyRemoteCall(_pConnection, Stream, false))
+						{
+							fp_OnInvalidConnection(_pConnection, DMibErrorInstance("Invalid remote call").f_ExceptionPointer());
+							return;
+						}
+					}
+					break;
+				case EDistributedActorCommand_RemoteCallWithAuthHandler:
+					{
+						if (!fp_ApplyRemoteCall(_pConnection, Stream, true))
 						{
 							fp_OnInvalidConnection(_pConnection, DMibErrorInstance("Invalid remote call").f_ExceptionPointer());
 							return;

@@ -1,4 +1,4 @@
-// Copyright © 2015 Hansoft AB 
+// Copyright © 2015 Hansoft AB
 // Distributed under the MIT license, see license text in LICENSE.Malterlib
 
 #include "Malterlib_Concurrency_DistributedTrust.h"
@@ -11,7 +11,7 @@
 namespace NMib::NConcurrency
 {
 	using namespace NContainer;
-	
+
 	CDistributedActorTrustManager::CInternal::CDistributedActorAuthenticationImplementation::CDistributedActorAuthenticationImplementation()
 	{
 		DMibPublishActorFunction(ICDistributedActorAuthentication::f_RegisterAuthenticationHandler);
@@ -20,11 +20,10 @@ namespace NMib::NConcurrency
 
 	TCFuture<TCActorSubscriptionWithID<>> CDistributedActorTrustManager::CInternal::CDistributedActorAuthenticationImplementation::f_RegisterAuthenticationHandler
 		(
-			TCDistributedActorInterfaceWithID<ICDistributedActorAuthenticationHandler> _Handler
-			, NStr::CStr _UserID
+			CRegisterAuthenticationHandlerParams _Params
 		)
 	{
-		if (!_Handler)
+		if (!_Params.m_Handler)
 			co_return DMibErrorInstance("Invalid authentication handler");
 
 		auto CheckDestroy = co_await f_CheckDestroyedOnResume();
@@ -38,29 +37,31 @@ namespace NMib::NConcurrency
 
 		auto pWeakHost = pHost.f_Weak();
 
-		DMibLogWithCategory(Mib/Concurrency/Trust, Info, "Registering authentication handler for host '{}' user '{}'", UniqueHostID, _UserID);
+		DMibLogWithCategory(Mib/Concurrency/Trust, Info, "Registering authentication handler {} for host '{}' user '{}'", _Params.m_HandlerID, UniqueHostID, _Params.m_UserID);
 
 		NStr::CStr UserName = "(Unknown)";
 
-		if (auto pUser = Internal.m_Users.f_FindEqual(_UserID))
+		if (auto pUser = Internal.m_Users.f_FindEqual(_Params.m_UserID))
 			UserName = pUser->m_UserInfo.m_UserName;
 
-		auto pWeakHandler = _Handler.f_Weak();
+		uint32 HandlerID = _Params.m_HandlerID;
+		NStr::CStr LastExecutionID = CallingHostInfo.f_LastExecutionID();
 
 		co_await Internal.m_ActorDistributionManager
 			(
 				&CActorDistributionManager::f_SetAuthenticationHandler
 				, pHost
-				, CallingHostInfo.f_LastExecutionID()
-				, fg_Move(_Handler)
-				, _UserID
+				, LastExecutionID
+				, fg_Move(_Params.m_Handler)
+				, _Params.m_UserID
 				, UserName
+				, HandlerID
 			)
 		;
 
-		co_return g_ActorSubscription / [pThis = m_pThis, UniqueHostID, pWeakHost, pWeakHandler]() -> TCFuture<void>
+		co_return g_ActorSubscription / [pThis = m_pThis, UniqueHostID, pWeakHost, HandlerID, LastExecutionID = fg_Move(LastExecutionID)]() -> TCFuture<void>
 			{
-				DMibLogWithCategory(Mib/Concurrency/Trust, Info, "Deregistering authentication handler for {}", UniqueHostID);
+				DMibLogWithCategory(Mib/Concurrency/Trust, Info, "Deregistering authentication handler {} for {}", HandlerID, UniqueHostID);
 				auto pHost = pWeakHost.f_Lock();
 				if (!pHost)
 					co_return {};
@@ -72,7 +73,8 @@ namespace NMib::NConcurrency
 					(
 						&CActorDistributionManager::f_RemoveAuthenticationHandler
 						, fg_Move(pHost)
-						, pWeakHandler
+						, LastExecutionID
+						, HandlerID
 					)
 				;
 			}

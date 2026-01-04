@@ -239,6 +239,99 @@ namespace NMib::NConcurrency
 		;
 	}
 
+	CAuthenticationHandlerIDScope::CAuthenticationHandlerIDScope(uint32 _HandlerID, bool _bAddToCoroutine)
+		: CCrossActorCallStateScope(_bAddToCoroutine)
+		, mp_HandlerID(_HandlerID)
+	{
+		auto &ThreadLocal = *NPrivate::fg_DistributedActorSubSystem().m_ThreadLocal;
+		mp_PrevHandlerID = ThreadLocal.m_CurrentAuthenticationHandlerID;
+		mp_pPrevScope = ThreadLocal.m_pCurrentAuthenticationHandlerIDScope;
+		ThreadLocal.m_CurrentAuthenticationHandlerID = _HandlerID;
+		ThreadLocal.m_pCurrentAuthenticationHandlerIDScope = this;
+	}
+
+	CAuthenticationHandlerIDScope::~CAuthenticationHandlerIDScope()
+	{
+		auto &ThreadLocal = *NPrivate::fg_DistributedActorSubSystem().m_ThreadLocal;
+		ThreadLocal.m_CurrentAuthenticationHandlerID = mp_PrevHandlerID;
+		ThreadLocal.m_pCurrentAuthenticationHandlerIDScope = mp_pPrevScope;
+	}
+
+	void CAuthenticationHandlerIDScope::f_Suspend() noexcept
+	{
+		auto &ThreadLocal = *NPrivate::fg_DistributedActorSubSystem().m_ThreadLocal;
+		ThreadLocal.m_CurrentAuthenticationHandlerID = mp_PrevHandlerID;
+		ThreadLocal.m_pCurrentAuthenticationHandlerIDScope = mp_pPrevScope;
+		CCrossActorCallStateScope::f_Suspend();
+	}
+
+	void CAuthenticationHandlerIDScope::f_ResumeNoExcept() noexcept
+	{
+		CCrossActorCallStateScope::f_ResumeNoExcept();
+		auto &ThreadLocal = *NPrivate::fg_DistributedActorSubSystem().m_ThreadLocal;
+		mp_PrevHandlerID = ThreadLocal.m_CurrentAuthenticationHandlerID;
+		mp_pPrevScope = ThreadLocal.m_pCurrentAuthenticationHandlerIDScope;
+		ThreadLocal.m_CurrentAuthenticationHandlerID = mp_HandlerID;
+		ThreadLocal.m_pCurrentAuthenticationHandlerIDScope = this;
+	}
+
+	void CAuthenticationHandlerIDScope::f_InitialSuspend()
+	{
+	}
+
+	NFunction::TCFunctionMovable<void () noexcept> CAuthenticationHandlerIDScope::f_StoreState(bool _bFromSuspend)
+	{
+		auto &ThreadLocal = *NPrivate::fg_DistributedActorSubSystem().m_ThreadLocal;
+		if (ThreadLocal.m_pCurrentAuthenticationHandlerIDScope != this)
+			return nullptr;
+
+		struct CState
+		{
+			CState(uint32 _HandlerID)
+				: m_HandlerID(_HandlerID)
+			{
+			}
+
+			CState(CState &&_Other)
+				: m_HandlerID(_Other.m_HandlerID)
+			{
+				DMibFastCheck(!_Other.m_Scope);
+			}
+
+			CState(CState const &) = delete;
+
+			~CState()
+			{
+				if (!m_Scope)
+					return;
+
+				DMibFastCheck(m_StoredThreadID == NSys::fg_Thread_GetCurrentUID());
+				m_Scope.f_Clear();
+			}
+
+			uint32 m_HandlerID;
+			NStorage::TCOptional<CAuthenticationHandlerIDScope> m_Scope;
+#if DMibEnableSafeCheck > 0
+			mint m_StoredThreadID = 0;
+#endif
+		};
+
+		return [State = CState{ThreadLocal.m_CurrentAuthenticationHandlerID}]() mutable noexcept
+			{
+				DMibFastCheck(!State.m_Scope);
+#if DMibEnableSafeCheck > 0
+				State.m_StoredThreadID = NSys::fg_Thread_GetCurrentUID();
+#endif
+				State.m_Scope = fg_Construct(State.m_HandlerID, false);
+			}
+		;
+	}
+
+	uint32 CAuthenticationHandlerIDScope::fs_GetCurrentHandlerID()
+	{
+		return NPrivate::fg_DistributedActorSubSystem().m_ThreadLocal->m_CurrentAuthenticationHandlerID;
+	}
+
 	CCallingHostInfo const &fg_GetCallingHostInfo()
 	{
 		return CActorDistributionManager::fs_GetCallingHostInfo();

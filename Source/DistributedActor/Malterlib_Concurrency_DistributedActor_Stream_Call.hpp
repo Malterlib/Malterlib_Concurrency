@@ -45,10 +45,31 @@ namespace NMib::NConcurrency
 					DispatchActor = fg_DirectCallActor();
 					break;
 				}
+				auto pHost = pActorDataRaw->m_pHost.f_Lock();
+				if (!pHost || pHost->m_bDeleted.f_Load(NAtomic::EMemoryOrder_Relaxed))
+				{
+					ToDispatch = []() -> TCFuture<CReturn>
+						{
+							co_return DMibErrorInstance("Remote actor host no longer available");
+						}
+					;
+					DispatchActor = fg_DirectCallActor();
+					break;
+				}
+
+				uint32 HostActorProtocolVersion = pHost->m_ActorProtocolVersion.f_Load(NAtomic::EMemoryOrder_Relaxed);
+				uint32 AuthHandlerID = CAuthenticationHandlerIDScope::fs_GetCurrentHandlerID();
+				bool bUseAuthHandler = AuthHandlerID != 0 && HostActorProtocolVersion >= EDistributedActorProtocolVersion_MultipleAuthenticationHandlers;
+
 				CDistributedActorWriteStream Stream;
-				Stream << uint8(0); // Dummy command
+				if (bUseAuthHandler)
+					Stream << uint8(14); // EDistributedActorCommand_RemoteCallWithAuthHandler
+				else
+					Stream << uint8(2); // EDistributedActorCommand_RemoteCall
 				Stream << uint64(0); // Dummy packet ID
 				Stream << pActorDataRaw->m_ActorID;
+				if (bUseAuthHandler)
+					Stream << AuthHandlerID;
 				uint32 NameHash = c_NameHash;
 				if constexpr (TCAlternateHashesForMemberFunction<tf_pMemberFunction>::mc_bHasAlternates)
 				{
@@ -62,19 +83,7 @@ namespace NMib::NConcurrency
 				Stream << NameHash;
 				Stream << ProtocolVersion;
 
-				auto pHost = pActorDataRaw->m_pHost.f_Lock();
-				if (!pHost || pHost->m_bDeleted.f_Load(NAtomic::EMemoryOrder_Relaxed))
-				{
-					ToDispatch = []() -> TCFuture<CReturn>
-						{
-							co_return DMibErrorInstance("Remote actor host no longer available");
-						}
-					;
-					DispatchActor = fg_DirectCallActor();
-					break;
-				}
-
-				NPrivate::CDistributedActorStreamContext Context{pHost->m_ActorProtocolVersion.f_Load(), true};
+				NPrivate::CDistributedActorStreamContext Context{HostActorProtocolVersion, true};
 
 				NPrivate::TCStreamArguments<typename CFunctionTraits::CParams>::fs_Stream
 					(

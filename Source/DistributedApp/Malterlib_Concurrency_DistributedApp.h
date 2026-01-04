@@ -372,6 +372,19 @@ namespace NMib::NConcurrency
 			CActorSubscription m_Subscription;
 		};
 
+		struct CAuthenticationSetupResult
+		{
+			CActorSubscription m_Subscription;
+			uint32 m_HandlerID = 0;
+		};
+
+		struct CAuthenticationHandlerState
+		{
+			TCDistributedActor<ICDistributedActorAuthenticationHandler> m_Handler;
+			TCTrustedActorSubscription<ICDistributedActorAuthentication> m_AuthenticationRemotes;
+			NContainer::TCMap<TCWeakDistributedActor<ICDistributedActorAuthentication>, CRegisteredAuthentication> m_RegistrationSubscriptions;
+		};
+
 		virtual TCFuture<void> fp_StartApp(NEncoding::CEJsonSorted const _Params) = 0;
 		virtual TCFuture<void> fp_StopApp() = 0;
 
@@ -494,14 +507,14 @@ namespace NMib::NConcurrency
 		;
 
 		// To enable authentication override fp_SetupAuthentication and call fp_EnableAuthentication
-        virtual TCFuture<CActorSubscription> fp_SetupAuthentication
+        virtual TCFuture<CAuthenticationSetupResult> fp_SetupAuthentication
 			(
 				NStorage::TCSharedPointer<CCommandLineControl> _pCommandLine
 				, int64 _AuthenticationLifetime
 				, NStr::CStr _UserID
 			)
 		;
-        TCFuture<CActorSubscription> fp_EnableAuthentication
+        TCFuture<CAuthenticationSetupResult> fp_EnableAuthentication
 			(
 				NStorage::TCSharedPointer<CCommandLineControl> _pCommandLine
 				, int64 _AuthenticationLifetime
@@ -554,9 +567,8 @@ namespace NMib::NConcurrency
 		NContainer::TCMap<NStr::CStr, NEncoding::CEJsonSorted> mp_SensorMetadata;
 		NContainer::TCMap<NStr::CStr, NEncoding::CEJsonSorted> mp_LogMetadata;
 
-		TCTrustedActorSubscription<ICDistributedActorAuthentication> mp_AuthenticationRemotes;
-		TCDistributedActor<ICDistributedActorAuthenticationHandler> mp_AuthenticationHandlerImplementation;
-		NContainer::TCMap<TCWeakDistributedActor<ICDistributedActorAuthentication>, CRegisteredAuthentication> mp_AuthenticationRegistrationSubscriptions;
+		NContainer::TCMap<uint32, CAuthenticationHandlerState> mp_AuthenticationHandlers;
+		uint32 mp_NextAuthenticationHandlerID = 1;
 
 	private:
 		struct CDistributedAppInterfaceClientImplementation;

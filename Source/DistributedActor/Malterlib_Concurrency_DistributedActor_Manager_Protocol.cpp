@@ -480,6 +480,7 @@ namespace NMib::NConcurrency
 				}
 				break;
 			case EDistributedActorCommand_RemoteCall:
+			case EDistributedActorCommand_RemoteCallWithAuthHandler:
 			case EDistributedActorCommand_RemoteCallResult:
 			case EDistributedActorCommand_Publish:
 			case EDistributedActorCommand_PublishFinished:

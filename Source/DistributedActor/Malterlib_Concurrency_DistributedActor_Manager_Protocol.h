@@ -1,4 +1,4 @@
-// Copyright © 2015 Hansoft AB 
+// Copyright © 2015 Hansoft AB
 // Distributed under the MIT license, see license text in LICENSE.Malterlib
 
 #pragma once
@@ -10,20 +10,21 @@ namespace NMib::NConcurrency
 {
 	enum EDistributedActorCommand : uint8
 	{
-		EDistributedActorCommand_Identify
-		, EDistributedActorCommand_Acknowledge
-		, EDistributedActorCommand_RemoteCall
-		, EDistributedActorCommand_RemoteCallResult
-		, EDistributedActorCommand_Publish
-		, EDistributedActorCommand_Unpublish
-		, EDistributedActorCommand_DestroySubscription
-		, EDistributedActorCommand_InitialPublishFinished
-		, EDistributedActorCommand_SubscriptionDestroyed
-		, EDistributedActorCommand_NotifyConnectionLost
-		, EDistributedActorCommand_RequestMissingPackets
-		, EDistributedActorCommand_InitialPublishFinishedProcessing
-		, EDistributedActorCommand_PublishFinished
-		, EDistributedActorCommand_UnpublishFinished
+		EDistributedActorCommand_Identify = 0
+		, EDistributedActorCommand_Acknowledge = 1
+		, EDistributedActorCommand_RemoteCall = 2
+		, EDistributedActorCommand_RemoteCallResult = 3
+		, EDistributedActorCommand_Publish = 4
+		, EDistributedActorCommand_Unpublish = 5
+		, EDistributedActorCommand_DestroySubscription = 6
+		, EDistributedActorCommand_InitialPublishFinished = 7
+		, EDistributedActorCommand_SubscriptionDestroyed = 8
+		, EDistributedActorCommand_NotifyConnectionLost = 9
+		, EDistributedActorCommand_RequestMissingPackets = 10
+		, EDistributedActorCommand_InitialPublishFinishedProcessing = 11
+		, EDistributedActorCommand_PublishFinished = 12
+		, EDistributedActorCommand_UnpublishFinished = 13
+		, EDistributedActorCommand_RemoteCallWithAuthHandler = 14
 	};
 
 	struct CDistributedActorCommand_Identify
@@ -66,6 +67,16 @@ namespace NMib::NConcurrency
 		uint64 m_PacketID;
 		NStr::CStr m_ActorID;
 		// Packet data
+	};
+
+	struct CDistributedActorCommand_RemoteCallWithAuthHandler : public CDistributedActorCommand_RemoteCall
+	{
+		template <typename tf_CStream>
+		void f_Feed(tf_CStream &_Stream) const;
+		template <typename tf_CStream>
+		void f_Consume(tf_CStream &_Stream);
+
+		uint32 m_AuthenticationHandlerID = 0;
 	};
 
 	struct CResultSubscriptionData
@@ -140,7 +151,7 @@ namespace NMib::NConcurrency
 		uint64 m_PacketID;
 		uint32 m_WaitPublicationID = 0;
 	};
-	
+
 	struct CDistributedActorCommand_DestroySubscription
 	{
 		template <typename tf_CStream>

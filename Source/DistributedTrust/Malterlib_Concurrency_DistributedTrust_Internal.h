@@ -172,7 +172,7 @@ namespace NMib::NConcurrency
 		{
 			CDistributedActorAuthenticationImplementation();
 
-			auto f_RegisterAuthenticationHandler(TCDistributedActorInterfaceWithID<ICDistributedActorAuthenticationHandler> _Handler, NStr::CStr _UserID)
+			auto f_RegisterAuthenticationHandler(CRegisterAuthenticationHandlerParams _Params)
 				-> TCFuture<TCActorSubscriptionWithID<>> override
 			;
 			TCFuture<bool> f_AuthenticatePermissionPattern

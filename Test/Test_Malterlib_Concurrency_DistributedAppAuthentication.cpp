@@ -559,7 +559,7 @@ namespace NTestAuthentication
 		{
 		}
 
-		TCFuture<CActorSubscription> fp_SetupAuthentication
+		TCFuture<CDistributedAppActor::CAuthenticationSetupResult> fp_SetupAuthentication
 			(
 				NStorage::TCSharedPointer<CCommandLineControl> _pCommandLine
 				, int64 _AuthenticationLifetime

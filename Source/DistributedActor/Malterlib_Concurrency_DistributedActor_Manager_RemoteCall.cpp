@@ -245,10 +245,11 @@ namespace NMib::NConcurrency
 		if (auto pException = fg_RegisterActorFunctorsForCall(State, *pHost))
 			co_return fg_Move(pException);
 
+		DMibFastCheck(_CallData.f_GetLen() >= 1);
+		auto pCallDataPointer = _CallData.f_GetArray();
 		{
-			NStream::CBinaryStreamMemoryPtr<> Stream;
-			Stream.f_OpenReadWrite(_CallData.f_GetArray(), _CallData.f_GetLen(), _CallData.f_GetLen());
-			Stream << uint8(EDistributedActorCommand_RemoteCall);
+			uint8 CommandByte = pCallDataPointer[0];
+			DMibCheck(CommandByte == EDistributedActorCommand_RemoteCall || CommandByte == EDistributedActorCommand_RemoteCallWithAuthHandler);
 		}
 
 		TCPromiseFuturePair<NContainer::CIOByteVector> Promise;
@@ -403,11 +404,15 @@ namespace NMib::NConcurrency
 		;
 	}
 	
-	bool CActorDistributionManagerInternal::fp_ApplyRemoteCall(CConnection *_pConnection, NStream::CBinaryStreamMemoryPtr<> &_Stream)
+	bool CActorDistributionManagerInternal::fp_ApplyRemoteCall(CConnection *_pConnection, NStream::CBinaryStreamMemoryPtr<> &_Stream, bool _bHasAuthHandlerID)
 	{
 		CDistributedActorCommand_RemoteCall RemoteCall;
 		_Stream >> RemoteCall;
-		
+
+		uint32 AuthHandlerID = 0;
+		if (_bHasAuthHandlerID)
+			_Stream >> AuthHandlerID;
+
 		uint32 FunctionHash;
 		_Stream >> FunctionHash;
 		uint32 ProtocolVersion;
@@ -415,6 +420,29 @@ namespace NMib::NConcurrency
 
 		auto &pHost = _pConnection->m_pHost;
 		auto &Host = *pHost;
+
+		// Look up authentication handler by ID
+		TCDistributedActor<ICDistributedActorAuthenticationHandler> AuthHandler;
+		NStr::CStr ClaimedUserID;
+		NStr::CStr ClaimedUserName;
+		if (AuthHandlerID != 0)
+		{
+			if (auto *pEntry = Host.m_AuthenticationHandlers.f_FindEqual(AuthHandlerID))
+			{
+				AuthHandler = pEntry->m_Handler;
+				ClaimedUserID = pEntry->m_ClaimedUserID;
+				ClaimedUserName = pEntry->m_ClaimedUserName;
+			}
+		}
+		else if (Host.m_ActorProtocolVersion.f_Load() < EDistributedActorProtocolVersion_MultipleAuthenticationHandlers && !Host.m_AuthenticationHandlers.f_IsEmpty())
+		{
+			DMibFastCheck(Host.m_AuthenticationHandlers.f_HasOneElement());
+			// Backwards compatibility: use first handler if available
+			auto &Entry = *Host.m_AuthenticationHandlers.f_FindAny();
+			AuthHandler = Entry.m_Handler;
+			ClaimedUserID = Entry.m_ClaimedUserID;
+			ClaimedUserName = Entry.m_ClaimedUserName;
+		}
 
 		NPrivate::CDistributedActorStreamContext Context{Host.m_ActorProtocolVersion.f_Load(NAtomic::EMemoryOrder_Relaxed), false};
 		auto &ContextState = *Context.m_pState;
@@ -564,19 +592,19 @@ namespace NMib::NConcurrency
 					, CallingHostInfo = CCallingHostInfo
 						(
 							fg_ThisActor(m_pThis)
-							, Host.m_AuthenticationHandler
+							, fg_Move(AuthHandler)
 							, Host.m_HostInfo.m_UniqueHostID
 							, Host.f_GetHostInfo()
 							, Host.m_LastExecutionID
 							, ProtocolVersion
-							, Host.m_ClaimedUserID
-							, Host.m_ClaimedUserName
+							, fg_Move(ClaimedUserID)
+							, fg_Move(ClaimedUserName)
 							, pHost
 						)
 					, Context
 					, fCall = fg_Move(fCall)
 					, ProtocolVersion
-				] 
+				]
 				() mutable -> TCFuture<NContainer::CIOByteVector>
 				{
 					CCallingHostInfoScope CallingHostInfoScope{fg_Move(CallingHostInfo)};

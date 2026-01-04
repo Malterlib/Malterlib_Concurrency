@@ -193,7 +193,10 @@ namespace NMib::NConcurrency
 
 	TCFuture<uint32> CDistributedAppActor::f_CommandLine_AuthenticatePermissionPattern(TCSharedPointer<CCommandLineControl> _pCommandLine, CEJsonSorted const _Params)
 	{
-		if (!mp_AuthenticationHandlerImplementation)
+		uint32 HandlerID = CAuthenticationHandlerIDScope::fs_GetCurrentHandlerID();
+		CAuthenticationHandlerState *pHandlerState = mp_AuthenticationHandlers.f_FindEqual(HandlerID);
+
+		if (!pHandlerState)
 		{
 			if (!mp_Settings.m_bSupportUserAuthentication)
 				co_return DMibErrorInstance("Authentication is not supported in this application");
@@ -222,9 +225,9 @@ namespace NMib::NConcurrency
 		};
 
 		TCVector<CCollectedAuthenticationActorInfo> AuthenticationActors;
-		for (auto const &RegisteredAuthentication : mp_AuthenticationRegistrationSubscriptions)
+		for (auto const &RegisteredAuthentication : pHandlerState->m_RegistrationSubscriptions)
 		{
-			auto const &WeakActor = mp_AuthenticationRegistrationSubscriptions.fs_GetKey(RegisteredAuthentication);
+			auto const &WeakActor = pHandlerState->m_RegistrationSubscriptions.fs_GetKey(RegisteredAuthentication);
 
 			auto Actor = WeakActor.f_Lock();
 			if (!Actor)
@@ -234,7 +237,7 @@ namespace NMib::NConcurrency
 
 		auto [MultipleRequestData, FactorActors] = co_await
 			(
-				mp_AuthenticationHandlerImplementation(&ICDistributedActorAuthenticationHandler::f_GetMultipleRequestSubscription, AuthenticationActors.f_GetLen())
+				pHandlerState->m_Handler.f_CallActor(&ICDistributedActorAuthenticationHandler::f_GetMultipleRequestSubscription)(AuthenticationActors.f_GetLen())
 				+ mp_State.m_TrustManager(&CDistributedActorTrustManager::f_EnumAuthenticationActors)
 			)
 		;

@@ -587,7 +587,7 @@ namespace NMib::NConcurrency
 #endif
 	}
 
-	TCFuture<CActorSubscription> CDistributedAppActor::fp_SetupAuthentication
+	TCFuture<CDistributedAppActor::CAuthenticationSetupResult> CDistributedAppActor::fp_SetupAuthentication
 		(
 			TCSharedPointer<CCommandLineControl> _pCommandLine
 			, int64 _AuthenticationLifetime
@@ -595,42 +595,53 @@ namespace NMib::NConcurrency
 		)
 	{
 		if (!mp_Settings.m_bSupportUserAuthentication)
-			return CActorSubscription{};
+			return CAuthenticationSetupResult{};
 
 		return fp_EnableAuthentication(_pCommandLine, _AuthenticationLifetime, _UserID);
 	}
 
-	TCFuture<CActorSubscription> CDistributedAppActor::fp_EnableAuthentication
+	TCFuture<CDistributedAppActor::CAuthenticationSetupResult> CDistributedAppActor::fp_EnableAuthentication
 		(
 			TCSharedPointer<CCommandLineControl> _pCommandLine
 			, int64 _AuthenticationLifetime
 			, CStr _UserID
 		)
 	{
-		if (mp_AuthenticationHandlerImplementation)
-			co_return DMibErrorInstance("Authentication already enabled");
+		// Generate handler ID on distributed app side
+		uint32 HandlerID = mp_NextAuthenticationHandlerID++;
 
-		mp_AuthenticationHandlerImplementation
+		// Check if this handler is first (assumes "onlyship" for legacy remote compatibility)
+		bool bAssumeOnlyHandler = mp_AuthenticationHandlers.f_IsEmpty();
+
+		// Create authentication handler state
+		auto &HandlerState = mp_AuthenticationHandlers[HandlerID];
+		HandlerState.m_Handler
 			= mp_State.m_DistributionManager->f_ConstructActor<CDistributedAppAuthenticationHandler>(_pCommandLine, mp_State.m_TrustManager, _AuthenticationLifetime)
 		;
 
 		auto Subscription = g_ActorSubscription / [=, this]() -> TCFuture<void>
 			{
+				auto *pState = mp_AuthenticationHandlers.f_FindEqual(HandlerID);
+				if (!pState)
+					co_return {};
+
+				// Cleanup this handler's state
 				TCFutureVector<void> Destroys;
 
-				mp_AuthenticationRemotes.f_Destroy() > Destroys;
+				pState->m_AuthenticationRemotes.f_Destroy() > Destroys;
 
-				for (auto &Subscription : mp_AuthenticationRegistrationSubscriptions)
+				for (auto &Sub : pState->m_RegistrationSubscriptions)
 				{
-					if (Subscription.m_Subscription)
-						Subscription.m_Subscription->f_Destroy() > Destroys;;
+					if (Sub.m_Subscription)
+						Sub.m_Subscription->f_Destroy() > Destroys;
 				}
-				mp_AuthenticationRegistrationSubscriptions.f_Clear();
 
-				if (mp_AuthenticationHandlerImplementation)
-					fg_Move(mp_AuthenticationHandlerImplementation).f_Destroy() > Destroys;
+				if (pState->m_Handler)
+					fg_Move(pState->m_Handler).f_Destroy() > Destroys;
 
-				co_await fg_AllDone(Destroys).f_Wrap() > fg_LogWarning("Mib/Concurrency/App", "Failed to destroy authentication subscription");
+				mp_AuthenticationHandlers.f_Remove(pState);
+
+				co_await fg_AllDone(Destroys).f_Wrap() > fg_LogWarning("Mib/Concurrency/App", "Failed to destroy authentication handler {}"_f << HandlerID);
 
 				co_return {};
 			}
@@ -642,24 +653,48 @@ namespace NMib::NConcurrency
 		if (UserID.f_IsEmpty())
 			UserID = DefaultUserID;
 
-		if (!UserID)	// No use setting up authentication without a default user
-			co_return {};
+		if (!UserID) // No use setting up authentication without a user
+			co_return CAuthenticationSetupResult{};
 
-		mp_AuthenticationRemotes = co_await mp_State.m_TrustManager->f_SubscribeTrustedActors<ICDistributedActorAuthentication>();
+		auto *pHandlerState = mp_AuthenticationHandlers.f_FindEqual(HandlerID);
+		if (!pHandlerState)
+			co_return CAuthenticationSetupResult{};
 
-		co_await mp_AuthenticationRemotes.f_OnActor
+		pHandlerState->m_AuthenticationRemotes = co_await mp_State.m_TrustManager->f_SubscribeTrustedActors<ICDistributedActorAuthentication>();
+
+		co_await pHandlerState->m_AuthenticationRemotes.f_OnActor
 			(
-				g_ActorFunctor / [this, UserID](TCDistributedActor<ICDistributedActorAuthentication> _NewActor, CTrustedActorInfo _ActorInfo) -> TCFuture<void>
+				g_ActorFunctor / [this, UserID, HandlerID, bAssumeOnlyHandler](TCDistributedActor<ICDistributedActorAuthentication> _NewActor, CTrustedActorInfo _ActorInfo) -> TCFuture<void>
 				{
-					mp_AuthenticationRegistrationSubscriptions[_NewActor].m_ActorInfo = _ActorInfo;
+					auto *pState = mp_AuthenticationHandlers.f_FindEqual(HandlerID);
+					if (!pState)
+						co_return {};
 
-					auto Subscription = co_await _NewActor.f_CallActor(&ICDistributedActorAuthentication::f_RegisterAuthenticationHandler)
-						(
-							mp_AuthenticationHandlerImplementation->f_ShareInterface<ICDistributedActorAuthenticationHandler>()
-							, UserID
-						)
-						.f_Wrap()
-					;
+					pState->m_RegistrationSubscriptions[_NewActor].m_ActorInfo = _ActorInfo;
+
+					uint32 InterfaceVersion = _NewActor->f_InterfaceVersion();
+					if (InterfaceVersion < ICDistributedActorAuthentication::EProtocolVersion_AddHandlerID)
+					{
+						if (!bAssumeOnlyHandler)
+						{
+							DMibLogWithCategory
+								(
+									Mib/Concurrency/App
+									, Warning
+									, "Remote {} doesn't support multiple authentication handlers, ignoring registration"
+									, _ActorInfo.m_HostInfo.f_GetDesc()
+								)
+							;
+							co_return {};
+						}
+					}
+
+					ICDistributedActorAuthentication::CRegisterAuthenticationHandlerParams Params;
+					Params.m_Handler = pState->m_Handler->f_ShareInterface<ICDistributedActorAuthenticationHandler>();
+					Params.m_UserID = UserID;
+					Params.m_HandlerID = HandlerID;
+
+					auto Subscription = co_await _NewActor.f_CallActor(&ICDistributedActorAuthentication::f_RegisterAuthenticationHandler)(fg_Move(Params)).f_Wrap();
 
 					if (!Subscription)
 					{
@@ -667,7 +702,8 @@ namespace NMib::NConcurrency
 							(
 								Mib/Concurrency/App
 								, Error
-								, "Registration of authentication handler interface for server {} failed: {}"
+								, "Registration of authentication handler {} interface for server {} failed: {}"
+								, HandlerID
 								, _ActorInfo.m_HostInfo.f_GetDesc()
 								, Subscription.f_GetExceptionStr()
 							)
@@ -676,23 +712,29 @@ namespace NMib::NConcurrency
 						co_return Subscription.f_GetException();
 					}
 
-					DMibLogWithCategory(Mib/Concurrency/App, Info, "Successfully registered authentication handler for remote {}", _ActorInfo.m_HostInfo.f_GetDesc());
+					DMibLogWithCategory(Mib/Concurrency/App, Info, "Successfully registered authentication handler {} for remote {}", HandlerID, _ActorInfo.m_HostInfo.f_GetDesc());
 
-					if (auto pSubscription = mp_AuthenticationRegistrationSubscriptions.f_FindEqual(_NewActor))
-						pSubscription->m_Subscription = fg_Move(*Subscription);
+					pState = mp_AuthenticationHandlers.f_FindEqual(HandlerID);
+					if (pState)
+					{
+						if (auto pSubState = pState->m_RegistrationSubscriptions.f_FindEqual(_NewActor))
+							pSubState->m_Subscription = fg_Move(*Subscription);
+					}
 
 					co_return {};
 				}
-				, g_ActorFunctor / [this](TCWeakDistributedActor<CActor> _RemovedActor, CTrustedActorInfo _ActorInfo) -> TCFuture<void>
+				, g_ActorFunctor / [this, HandlerID](TCWeakDistributedActor<CActor> _RemovedActor, CTrustedActorInfo _ActorInfo) -> TCFuture<void>
 				{
-					mp_AuthenticationRegistrationSubscriptions.f_Remove(_RemovedActor);
+					auto *pState = mp_AuthenticationHandlers.f_FindEqual(HandlerID);
+					if (pState)
+						pState->m_RegistrationSubscriptions.f_Remove(_RemovedActor);
 
 					co_return {};
 				}
 			)
 		;
 
-		co_return fg_Move(Subscription);
+		co_return CAuthenticationSetupResult{fg_Move(Subscription), HandlerID};
 	}
 }
 

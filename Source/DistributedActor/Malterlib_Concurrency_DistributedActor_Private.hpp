@@ -27,6 +27,8 @@ namespace NMib::NConcurrency::NPrivate
 			CCallingHostInfo m_CallingHostInfo;
 			CDistributedActorData *m_pCurrentRemoteDispatchActorData = nullptr;
 			CCallingHostInfoScope *m_pCurrentCallingHostInfoScope = nullptr;
+			CAuthenticationHandlerIDScope *m_pCurrentAuthenticationHandlerIDScope = nullptr;
+			uint32 m_CurrentAuthenticationHandlerID = 0;
 		};
 		
 		NThread::TCThreadLocal<CThreadLocal> m_ThreadLocal;

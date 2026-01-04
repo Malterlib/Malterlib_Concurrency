@@ -69,6 +69,23 @@ namespace NMib::NConcurrency
 	}
 
 	template <typename tf_CStream>
+	void CDistributedActorCommand_RemoteCallWithAuthHandler::f_Feed(tf_CStream &_Stream) const
+	{
+		_Stream << uint8(EDistributedActorCommand_RemoteCallWithAuthHandler);
+		_Stream << m_PacketID;
+		_Stream << m_ActorID;
+		_Stream << m_AuthenticationHandlerID;
+	}
+
+	template <typename tf_CStream>
+	void CDistributedActorCommand_RemoteCallWithAuthHandler::f_Consume(tf_CStream &_Stream)
+	{
+		_Stream >> m_PacketID;
+		_Stream >> m_ActorID;
+		_Stream >> m_AuthenticationHandlerID;
+	}
+
+	template <typename tf_CStream>
 	void CResultSubscriptionData::f_Feed(tf_CStream &_Stream) const
 	{
 		if (m_ClaimedSubscriptionIDs.f_IsEmpty())

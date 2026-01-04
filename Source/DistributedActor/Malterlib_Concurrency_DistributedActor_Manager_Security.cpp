@@ -64,15 +64,17 @@ namespace NMib::NConcurrency
 			, TCDistributedActor<ICDistributedActorAuthenticationHandler> _AuthenticationHandler
 			, NStr::CStr _UserID
 			, NStr::CStr _UserName
+			, uint32 _HandlerID
 		)
 	{
 		auto &Host = *(static_cast<NActorDistributionManagerInternal::CHost *>(_pHost.f_Get()));
 		if (Host.m_bDeleted.f_Load(NAtomic::EMemoryOrder_Relaxed) || Host.m_LastExecutionID != _LastExecutionID)
 			co_return {};
 
-		Host.m_AuthenticationHandler = _AuthenticationHandler;
-		Host.m_ClaimedUserID = _UserID;
-		Host.m_ClaimedUserName = _UserName;
+		auto &Entry = Host.m_AuthenticationHandlers[_HandlerID];
+		Entry.m_Handler = _AuthenticationHandler;
+		Entry.m_ClaimedUserID = _UserID;
+		Entry.m_ClaimedUserName = _UserName;
 
 		co_return {};
 	}
@@ -80,19 +82,15 @@ namespace NMib::NConcurrency
 	TCFuture<void> CActorDistributionManager::f_RemoveAuthenticationHandler
 		(
 			NStorage::TCSharedPointerSupportWeak<NPrivate::ICHost> _pHost
-			, TCWeakDistributedActor<ICDistributedActorAuthenticationHandler> _AuthenticationHandler
+			, NStr::CStr _LastExecutionID
+			, uint32 _HandlerID
 		)
 	{
 		auto &Host = *(static_cast<NActorDistributionManagerInternal::CHost *>(_pHost.f_Get()));
-		if (Host.m_bDeleted.f_Load(NAtomic::EMemoryOrder_Relaxed))
+		if (Host.m_bDeleted.f_Load(NAtomic::EMemoryOrder_Relaxed) || Host.m_LastExecutionID != _LastExecutionID)
 			co_return {};
 
-		if (Host.m_AuthenticationHandler == _AuthenticationHandler)
-		{
-			Host.m_AuthenticationHandler.f_Clear();
-			Host.m_ClaimedUserID.f_Clear();
-			Host.m_ClaimedUserName.f_Clear();
-		}
+		Host.m_AuthenticationHandlers.f_Remove(_HandlerID);
 
 		co_return {};
 	}

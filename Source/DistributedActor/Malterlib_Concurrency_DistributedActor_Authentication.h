@@ -1,4 +1,4 @@
-// Copyright © 2015 Hansoft AB 
+// Copyright © 2015 Hansoft AB
 // Distributed under the MIT license, see license text in LICENSE.Malterlib
 
 #pragma once
@@ -14,13 +14,23 @@ namespace NMib::NConcurrency
 		enum : uint32
 		{
 			EProtocolVersion_Min = 0x101
-			, EProtocolVersion_Current = 0x101
+			, EProtocolVersion_AddHandlerID = 0x102
+			, EProtocolVersion_Current = EProtocolVersion_AddHandlerID
+		};
+
+		struct CRegisterAuthenticationHandlerParams
+		{
+			template <typename tf_CStream>
+			void f_Stream(tf_CStream &_Stream);
+
+			TCDistributedActorInterfaceWithID<ICDistributedActorAuthenticationHandler> m_Handler;
+			NStr::CStr m_UserID;
+			uint32 m_HandlerID = 0;
 		};
 
 		virtual TCFuture<TCActorSubscriptionWithID<>> f_RegisterAuthenticationHandler
 			(
-				TCDistributedActorInterfaceWithID<ICDistributedActorAuthenticationHandler> _Handler
-				, NStr::CStr _UserID
+				CRegisterAuthenticationHandlerParams _Params
 			) = 0
 		;
 		virtual TCFuture<bool> f_AuthenticatePermissionPattern
@@ -33,3 +43,4 @@ namespace NMib::NConcurrency
 	};
 }
 
+#include "Malterlib_Concurrency_DistributedActor_Authentication.hpp"

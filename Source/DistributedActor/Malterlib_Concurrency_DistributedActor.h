@@ -585,6 +585,24 @@ namespace NMib::NConcurrency
 		CCallingHostInfoScope *mp_pPrevScope = nullptr;
 	};
 
+	struct CAuthenticationHandlerIDScope final : public CCrossActorCallStateScope
+	{
+		CAuthenticationHandlerIDScope(uint32 _HandlerID, bool _bAddToCoroutine = true);
+		CAuthenticationHandlerIDScope(CAuthenticationHandlerIDScope &&_Other) = delete;
+		~CAuthenticationHandlerIDScope();
+		void f_Suspend() noexcept override;
+		void f_ResumeNoExcept() noexcept override;
+		NFunction::TCFunctionMovable<void () noexcept> f_StoreState(bool _bFromSuspend) override;
+		void f_InitialSuspend() override;
+
+		static uint32 fs_GetCurrentHandlerID();
+
+	private:
+		uint32 mp_HandlerID;
+		uint32 mp_PrevHandlerID = 0;
+		CAuthenticationHandlerIDScope *mp_pPrevScope = nullptr;
+	};
+
 	struct CActorDistributionManager : public CActor
 	{
 		using CActorHolder = CActorDistributionManagerHolder;
@@ -699,12 +717,14 @@ namespace NMib::NConcurrency
 				, TCDistributedActor<ICDistributedActorAuthenticationHandler> _AuthenticationHandler
 				, NStr::CStr _UserID
 				, NStr::CStr _UserName
+				, uint32 _HandlerID
 			)
 		;
 		TCFuture<void> f_RemoveAuthenticationHandler
 			(
 				NStorage::TCSharedPointerSupportWeak<NPrivate::ICHost> _pHost
-				, TCWeakDistributedActor<ICDistributedActorAuthenticationHandler> _AuthenticationHandler
+				, NStr::CStr _LastExecutionID
+				, uint32 _HandlerID
 			)
 		;
 

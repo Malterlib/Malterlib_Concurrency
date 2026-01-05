@@ -19,6 +19,16 @@ namespace NMib::NConcurrency
 	}
 
 	template <typename tf_CActor>
+	TCFuture<TCDistributedActor<tf_CActor>> CTrustedSubscriptionTestHelper::f_SubscribeFromHostAsync(NStr::CStr _HostID, NStr::CStr _Namespace)
+	{
+		using namespace NStr;
+		auto Subscriptions = co_await mp_Internal(&CInternal::f_Subscribe<tf_CActor>, 1, _Namespace, _HostID)
+			.f_Timeout(mp_Timeout, "Timed out subscribing to actor {} from host {}"_f << _Namespace << _HostID)
+		;
+		co_return Subscriptions[0];
+	}
+
+	template <typename tf_CActor>
 	TCDistributedActor<tf_CActor> CTrustedSubscriptionTestHelper::f_Subscribe(CActorRunLoopTestHelper &_RunLoopHelper, NStr::CStr const &_Namespace, NStr::CStr const &_HostID)
 	{
 		auto Subscriptions = mp_Internal(&CInternal::f_Subscribe<tf_CActor>, 1, _Namespace, _HostID).f_CallSync(_RunLoopHelper.m_pRunLoop, mp_Timeout);

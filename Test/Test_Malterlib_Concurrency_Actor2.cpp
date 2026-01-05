@@ -387,7 +387,7 @@ namespace NTestActor2
 				;
 
 				{
-					auto pLocalActor = fg_ConstructActor<CLocalActor>(fg_Construct([&](FActorQueueDispatchNoAlloc &&_Functor){_Functor(fg_ConcurrencyThreadLocal());}));
+					auto pLocalActor = fg_DirectCallActor();
 					auto pActor = fg_ConstructActor<CTestActor>();
 					auto pLockActor = fg_ConstructActor<TCLockActor<int, NThread::CMutual>>(fg_Construct("MalterlibTestSeparateActorThread"), Object, Lock);
 
@@ -911,7 +911,6 @@ namespace NTestActor2
 					DMibTest(!DMibExpr(bTimedOutWatingForTimerHandlers));
 
 					pActor->f_BlockDestroy();
-					pLocalActor->f_BlockDestroy();
 					pLockActor->f_BlockDestroy();
 
 					DMibLock(TimersLock);

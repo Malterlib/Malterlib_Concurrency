@@ -73,7 +73,7 @@ namespace NMib::NConcurrency
 				CStr Targets;
 
 				for (auto &PermissionInfo : Permission)
-					fg_AddStrSep(Targets, PermissionInfo.f_GetDescColored(_pCommandLine->m_AnsiFlags), "\n");
+					fg_AddStrSep(Targets, PermissionInfo.f_GetDescColored(_pCommandLine->m_AnsiFlags), "\n\n");
 
 				TableRenderer.f_AddRow(PermissionName, Targets);
 			}

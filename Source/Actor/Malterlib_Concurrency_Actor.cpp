@@ -259,8 +259,11 @@ namespace NMib::NConcurrency
 #	else
 		mint nFramesToRemove = 0; // We don't know what inlining will do
 #	endif
-		NMemory::fg_MemMove(Callstack.m_Callstack, Callstack.m_Callstack + nFramesToRemove, sizeof(Callstack.m_Callstack) - sizeof(Callstack.m_Callstack[0]) * nFramesToRemove);
-		Callstack.m_CallstackLen -= nFramesToRemove;
+		if (Callstack.m_CallstackLen > nFramesToRemove)
+		{
+			Callstack.m_CallstackLen -= nFramesToRemove;
+			NMemory::fg_MemMove(Callstack.m_Callstack, Callstack.m_Callstack + nFramesToRemove, sizeof(Callstack.m_Callstack) - sizeof(Callstack.m_Callstack[0]) * nFramesToRemove);
+		}
 
 		if (m_Callstacks.f_GetLen() > 16)
 			m_Callstacks.f_Remove(m_Callstacks.f_GetLast());

@@ -1,4 +1,4 @@
-// Copyright © 2015 Hansoft AB 
+// Copyright © 2015 Hansoft AB
 // Distributed under the MIT license, see license text in LICENSE.Malterlib
 
 #pragma once
@@ -22,7 +22,7 @@ namespace NMib::NConcurrency
 	TCActorFunctor<t_CFunction>::TCActorFunctor(CNullPtr)
 	{
 	}
-	
+
 	template <typename t_CFunction>
 		requires (!NPrivate::TCAddRValueReferencesToFunctor<t_CFunction>::mc_bAnyReference)
 	TCActorFunctor<t_CFunction>::~TCActorFunctor()
@@ -41,7 +41,7 @@ namespace NMib::NConcurrency
 	{
 		return !mp_pFunctor || mp_pFunctor->f_IsEmpty();
 	}
-	
+
 	template <typename t_CFunction>
 		requires (!NPrivate::TCAddRValueReferencesToFunctor<t_CFunction>::mc_bAnyReference)
 	TCActorFunctor<t_CFunction>::operator bool () const
@@ -222,14 +222,14 @@ namespace NMib::NConcurrency
 		;
 #endif
 	}
-	
+
 	template <typename t_CFunction>
 		requires (!NPrivate::TCAddRValueReferencesToFunctor<t_CFunction>::mc_bAnyReference)
 	TCActor<CActor> const &TCActorFunctor<t_CFunction>::f_GetActor() const
 	{
 		return mp_Actor;
 	}
-	
+
 	template <typename t_CFunction>
 		requires (!NPrivate::TCAddRValueReferencesToFunctor<t_CFunction>::mc_bAnyReference)
 	auto TCActorFunctor<t_CFunction>::f_GetFunctor() const -> CFunction const &
@@ -237,14 +237,14 @@ namespace NMib::NConcurrency
 		DMibFastCheck(mp_pFunctor);
 		return *mp_pFunctor;
 	}
-	
+
 	template <typename t_CFunction>
 		requires (!NPrivate::TCAddRValueReferencesToFunctor<t_CFunction>::mc_bAnyReference)
 	CActorSubscription const &TCActorFunctor<t_CFunction>::f_GetSubscription() const
 	{
 		return mp_Subscription;
 	}
-	
+
 	template <typename t_CFunction>
 		requires (!NPrivate::TCAddRValueReferencesToFunctor<t_CFunction>::mc_bAnyReference)
 	TCActor<CActor> &TCActorFunctor<t_CFunction>::f_GetActor()
@@ -324,7 +324,7 @@ namespace NMib::NConcurrency
 	void TCActorFunctor<t_CFunction>::f_Clear()
 	{
 		mp_Subscription.f_Clear();
-		
+
 		if (mp_Actor && mp_pFunctor)
 		{
 			// Destroy functor on correct actor
@@ -337,36 +337,36 @@ namespace NMib::NConcurrency
 		mp_Actor.f_Clear();
 		mp_pFunctor.f_Clear();
 	}
-	
+
 	inline CActorFunctorHelperWithProperties::CActorFunctorHelperWithProperties(TCActor<> const &_Actor)
 		: mp_Actor(_Actor)
 	{
 	}
-	
+
 	inline CActorFunctorHelperWithProperties::CActorFunctorHelperWithProperties(TCActor<> const &_Actor, CActorSubscription &&_Subscription)
 		: mp_Actor(_Actor)
-		, mp_Subscription(fg_Move(_Subscription))	
+		, mp_Subscription(fg_Move(_Subscription))
 	{
 	}
-		
+
 	template <typename tf_FFunction>
 	inline auto CActorFunctorHelperWithProperties::operator / (tf_FFunction &&_fFunction) &&
 	{
 		return fg_ActorFunctor(fg_Move(mp_Actor), fg_Forward<tf_FFunction>(_fFunction), fg_Move(mp_Subscription));
 	}
-	
+
 	inline CActorFunctorHelperWithProperties &&CActorFunctorHelperWithProperties::operator () (TCActor<> const &_Actor) &&
 	{
 		mp_Actor = _Actor;
 		return fg_Move(*this);
 	}
-	
+
 	inline CActorFunctorHelperWithProperties &&CActorFunctorHelperWithProperties::operator () (CActorSubscription &&_Subscription) &&
 	{
 		mp_Subscription = fg_Move(_Subscription);
 		return fg_Move(*this);
 	}
-	
+
 	template <typename tf_FFunction>
 	inline auto CActorFunctorHelper::operator / (tf_FFunction &&_fFunction) const
 	{
@@ -374,12 +374,12 @@ namespace NMib::NConcurrency
 		DMibFastCheck(CurrentActor);
 		return fg_ActorFunctor(fg_Move(CurrentActor), fg_Forward<tf_FFunction>(_fFunction));
 	}
-	
+
 	inline CActorFunctorHelperWithProperties CActorFunctorHelper::operator () (TCActor<> const &_Actor) const
 	{
 		return CActorFunctorHelperWithProperties(_Actor);
 	}
-	
+
 	inline CActorFunctorHelperWithProperties CActorFunctorHelper::operator () (CActorSubscription &&_Subscription) const
 	{
 		auto CurrentActor = fg_CurrentActor();

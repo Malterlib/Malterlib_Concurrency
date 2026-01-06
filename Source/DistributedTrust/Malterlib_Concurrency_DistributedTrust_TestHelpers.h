@@ -1,4 +1,4 @@
-// Copyright © 2015 Hansoft AB 
+// Copyright © 2015 Hansoft AB
 // Distributed under the MIT license, see license text in LICENSE.Malterlib
 
 #pragma once
@@ -12,7 +12,7 @@ namespace NMib::NConcurrency
 	struct CTrustManagerDatabaseTestHelper : public ICDistributedActorTrustManagerDatabase
 	{
 		static constexpr bool mc_bAllowInternalAccess = true;
-		
+
 		TCFuture<CBasicConfig> f_GetBasicConfig() override;
 		TCFuture<void> f_SetBasicConfig(CBasicConfig _BasicConfig) override;
 		TCFuture<int32> f_GetNewCertificateSerial() override;
@@ -75,22 +75,22 @@ namespace NMib::NConcurrency
 		NContainer::TCMap<NStr::CStr, CUserInfo> m_Users;
 		NContainer::TCMap<NStr::CStr, NContainer::TCMap<NStr::CStr, CUserAuthenticationFactor>> m_UserAuthenticationFactors;
 	};
-	
+
 	struct CTrustManagerTestHelper
 	{
 		TCActor<CDistributedActorTrustManager> f_TrustManager(NStr::CStr const &_FriendlyName, NStr::CStr const &_SessionID = {}, bool _bSupportAuthentication = true) const;
-		
+
 		CTrustManagerTestHelper();
 		~CTrustManagerTestHelper();
-		
+
 		TCActor<CTrustManagerDatabaseTestHelper> m_Database;
 	};
-	
+
 	struct CTrustedSubscriptionTestHelper : CAllowUnsafeThis
 	{
 		CTrustedSubscriptionTestHelper(TCActor<CDistributedActorTrustManager> const &_TrustManager, fp64 _Timeout = 30.0);
 		~CTrustedSubscriptionTestHelper();
-		
+
 		template <typename tf_CActor>
 		TCDistributedActor<tf_CActor> f_SubscribeFromHost(CActorRunLoopTestHelper &_RunLoopHelper, NStr::CStr const &_HostID, NStr::CStr const &_Namespace = tf_CActor::mc_pDefaultNamespace);
 		template <typename tf_CActor>
@@ -121,7 +121,7 @@ namespace NMib::NConcurrency
 	private:
 		struct CSubscription
 		{
-			virtual ~CSubscription() = default; 
+			virtual ~CSubscription() = default;
 		};
 
 		struct CInternal : public CActor
@@ -130,14 +130,14 @@ namespace NMib::NConcurrency
 
 			template <typename tf_CActor>
 			TCFuture<NContainer::TCVector<TCDistributedActor<tf_CActor>>> f_Subscribe(mint _nActors, NStr::CStr _Namespace, NStr::CStr _HostID);
-			
+
 		private:
 			TCActor<CDistributedActorTrustManager> mp_TrustManager;
 			NContainer::TCVector<NStorage::TCUniquePointer<CSubscription>> mp_Subscriptions;
 			NContainer::TCSet<NStr::CStr> mp_SeenActors;
 		};
-		
-		TCActor<CInternal> mp_Internal;		
+
+		TCActor<CInternal> mp_Internal;
 		fp64 mp_Timeout;
 	};
 }

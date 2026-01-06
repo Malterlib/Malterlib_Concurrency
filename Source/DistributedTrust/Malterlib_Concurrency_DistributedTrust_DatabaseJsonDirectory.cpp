@@ -1,4 +1,4 @@
-// Copyright © 2015 Hansoft AB 
+// Copyright © 2015 Hansoft AB
 // Distributed under the MIT license, see license text in LICENSE.Malterlib
 
 #include "Malterlib_Concurrency_DistributedTrust_DatabaseJsonDirectory.h"
@@ -169,7 +169,7 @@ namespace NMib::NConcurrency
 				CStr HostName = f_PercentDecode(FileName);
 				auto &Certificate = Certificates[HostName];
 				Certificate.m_HostName = HostName;
-				
+
 				f_Read(Certificate.m_ServerCertificate, "ServerCertificates", FileName);
 			}
 
@@ -1432,7 +1432,7 @@ namespace NMib::NConcurrency
 		Json["PublicCertificate"] = _Certificate.m_ServerCertificate.m_PublicCertificate;
 		return Json;
 	}
-	
+
 	void CDistributedActorTrustManagerDatabase_JsonDirectory::CInternal::f_FromJson(CInternalServerCertificate &o_ServerCertificate, CEJsonSorted const &_Json, CStr const &_Name) const
 	{
 		o_ServerCertificate.m_HostName = _Json["Host"].f_String();

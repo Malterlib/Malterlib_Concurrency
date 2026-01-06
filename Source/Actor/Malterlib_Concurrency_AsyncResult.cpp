@@ -1,4 +1,4 @@
-// Copyright © 2015 Hansoft AB 
+// Copyright © 2015 Hansoft AB
 // Distributed under the MIT license, see license text in LICENSE.Malterlib
 
 #include <exception>
@@ -58,7 +58,7 @@ namespace NMib::NConcurrency
 			new (&m_pException) CExceptionPointer(fg_Move(_Other.m_pException));
 		else
 			m_DataType = _Other.m_DataType;
-		
+
 		return *this;
 	}
 
@@ -185,7 +185,7 @@ namespace NMib::NConcurrency
 
 		return NStr::gc_Str<"No error (no exception was set)">;
 	}
-	
+
 	NStr::CStr CAsyncResult::f_GetExceptionCallstackStr(mint _Indent) const
 	{
 		if (mp_Data.f_DataType() == EDataType_Exception)
@@ -206,7 +206,7 @@ namespace NMib::NConcurrency
 
 		return {};
 	}
-	
+
 	TCAsyncResult<void>::TCAsyncResult() = default;
 	TCAsyncResult<void>::TCAsyncResult(TCAsyncResult &&_Other) = default;
 	TCAsyncResult<void>::TCAsyncResult(TCAsyncResult const &_Other) = default;
@@ -234,7 +234,7 @@ namespace NMib::NConcurrency
 
 		fp_AccessSlowPath();
 	}
-	
+
 	inline_always_lto CVoidTag TCAsyncResult<void>::f_Get()
 	{
 		if (mp_Data.f_DataType() == EDataType_HasBeenSet) [[likely]]
@@ -242,7 +242,7 @@ namespace NMib::NConcurrency
 
 		fp_AccessSlowPath();
 	}
-	
+
 	inline_always_lto CVoidTag TCAsyncResult<void>::f_Move()
 	{
 		if (mp_Data.f_DataType() == EDataType_HasBeenSet) [[likely]]
@@ -255,7 +255,7 @@ namespace NMib::NConcurrency
 	{
 		return f_Get();
 	}
-	
+
 	mark_nodebug inline_always_lto CVoidTag TCAsyncResult<void>::operator *()
 	{
 		return f_Get();
@@ -279,7 +279,7 @@ namespace NMib::NConcurrency
 	void CAsyncResult::f_SetException(NException::CExceptionPointer const &_pException)
 	{
 		using namespace NException;
-		
+
 		DMibRequire(mp_Data.f_DataType() == EDataType_None || mp_Data.f_DataType() == EDataType_Exception);
 
 		if (mp_Data.f_DataType() == EDataType_Exception)
@@ -291,7 +291,7 @@ namespace NMib::NConcurrency
 	void CAsyncResult::f_SetException(NException::CExceptionPointer &&_pException)
 	{
 		using namespace NException;
-		
+
 		DMibRequire(mp_Data.f_DataType() == EDataType_None || mp_Data.f_DataType() == EDataType_Exception);
 
 		if (mp_Data.f_DataType() == EDataType_Exception)
@@ -341,7 +341,7 @@ namespace NMib::NConcurrency
 		m_Callstacks = _AsyncResult.m_Callstacks;
 #endif
 	}
-	
+
 	void CAsyncResult::f_SetCurrentException()
 	{
 		DMibRequire(mp_Data.f_DataType() == EDataType_None);

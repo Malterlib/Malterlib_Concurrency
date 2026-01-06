@@ -19,7 +19,7 @@ namespace NMib::NConcurrency
 
 		return Key;
 	}
-	
+
 	template <typename tf_CKey, typename tf_CInfoOrKey>
 	tf_CKey CDistributedAppSensorStoreLocal::CInternal::f_GetDatabaseKey(tf_CInfoOrKey const &_SensorInfo) const
 	{

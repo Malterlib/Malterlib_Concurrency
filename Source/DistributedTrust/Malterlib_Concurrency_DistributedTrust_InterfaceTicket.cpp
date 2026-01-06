@@ -1,4 +1,4 @@
-// Copyright © 2015 Hansoft AB 
+// Copyright © 2015 Hansoft AB
 // Distributed under the MIT license, see license text in LICENSE.Malterlib
 
 #include "Malterlib_Concurrency_DistributedTrust_Interface.h"
@@ -12,7 +12,7 @@ namespace NMib::NConcurrency
 		auto Data = NStream::fg_ToSecureByteVector(*this);
 		return NEncoding::fg_Base64Encode(Data);
 	}
-	
+
 	CDistributedActorTrustManagerInterface::CTrustTicket CDistributedActorTrustManagerInterface::CTrustTicket::fs_FromStringTicket(NStr::CStrSecure const &_StringTicket)
 	{
 		NContainer::CSecureByteVector Data;

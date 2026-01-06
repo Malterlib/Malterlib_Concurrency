@@ -178,7 +178,7 @@ namespace NMib::NConcurrency
 		TCMap<CStr, CStatusSubscription> m_StatusSubscriptions;
 
 		uint64 m_RetentionDays = 0;
-		
+
 		bool m_bStarted = false;
 		bool m_bStarting = false;
 		bool m_bOwnDatabase = false;

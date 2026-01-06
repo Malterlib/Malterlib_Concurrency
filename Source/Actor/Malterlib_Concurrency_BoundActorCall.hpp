@@ -564,7 +564,7 @@ namespace NMib::NConcurrency
 					return;
 
 				auto pActor = Actor.f_Get();
-				
+
 				pActor->f_QueueProcess
 					(
 						[

@@ -1,4 +1,4 @@
-// Copyright © 2015 Hansoft AB 
+// Copyright © 2015 Hansoft AB
 // Distributed under the MIT license, see license text in LICENSE.Malterlib
 
 #pragma once
@@ -11,12 +11,12 @@ namespace NMib::NConcurrency
 		, mp_Subscription(fg_Move(_Subscription))
 	{
 	}
-	
+
 	template <typename t_CInterface>
 	TCActorInterface<t_CInterface>::TCActorInterface(CNullPtr)
 	{
 	}
-	
+
 	template <typename t_CInterface>
 	CActorSubscription const &TCActorInterface<t_CInterface>::f_GetSubscription() const
 	{
@@ -28,7 +28,7 @@ namespace NMib::NConcurrency
 	{
 		return mp_Subscription;
 	}
-	
+
 	template <typename t_CInterface>
 	TCFuture<void> TCActorInterface<t_CInterface>::f_Destroy()
 	{
@@ -37,20 +37,20 @@ namespace NMib::NConcurrency
 		else
 			return g_Void;
 	}
-		
+
 	template <typename t_CInterface>
 	void TCActorInterface<t_CInterface>::f_Clear()
 	{
 		mp_Subscription.f_Clear();
 		TCActor<t_CInterface>::f_Clear();
 	}
-	
+
 	template <typename t_CInterface>
 	TCActor<t_CInterface> const &TCActorInterface<t_CInterface>::f_GetActor() const
 	{
 		return *this;
 	}
-	
+
 	template <typename t_CInterface>
 	TCActor<t_CInterface> &TCActorInterface<t_CInterface>::f_GetActor()
 	{

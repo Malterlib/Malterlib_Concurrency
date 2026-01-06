@@ -130,12 +130,12 @@ namespace NMib::NConcurrency
 	{
 		return f_Audit(NLog::ESeverity_Critical, _Message, _Category);
 	}
-	
+
 	CStr CDistributedAppAuditor::f_Critical(NContainer::TCVector<NStr::CStr> const &_Message, NStr::CStr const &_Category) const
 	{
 		return f_Audit(NLog::ESeverity_Critical, _Message, _Category);
 	}
-	
+
 	CStr CDistributedAppAuditor::f_Error(NContainer::TCVector<NStr::CStr> const &_Message, NStr::CStr const &_Category) const
 	{
 		return f_Audit(NLog::ESeverity_Error, _Message, _Category);
@@ -145,37 +145,37 @@ namespace NMib::NConcurrency
 	{
 		return f_Audit(NLog::ESeverity_Error, _Message, _Category);
 	}
-	
+
 	NException::CException CDistributedAppAuditor::f_Exception(NStr::CStr const &_Message, NStr::CStr const &_Category) const
 	{
 		return DMibErrorInstance(f_Audit(NLog::ESeverity_Error, _Message, _Category));
 	}
-	
+
 	NException::CException CDistributedAppAuditor::f_Exception(NContainer::TCVector<NStr::CStr> const &_Message, NStr::CStr const &_Category) const
 	{
 		return DMibErrorInstance(f_Audit(NLog::ESeverity_Error, _Message, _Category));
 	}
-	
+
 	NException::CException CDistributedAppAuditor::f_CriticalException(NStr::CStr const &_Message, NStr::CStr const &_Category) const
 	{
 		return DMibErrorInstance(f_Audit(NLog::ESeverity_Critical, _Message, _Category));
 	}
-	
+
 	NException::CException CDistributedAppAuditor::f_CriticalException(NContainer::TCVector<NStr::CStr> const &_Message, NStr::CStr const &_Category) const
 	{
 		return DMibErrorInstance(f_Audit(NLog::ESeverity_Critical, _Message, _Category));
 	}
-	
+
 	CStr CDistributedAppAuditor::f_Warning(NStr::CStr const &_Message, NStr::CStr const &_Category) const
 	{
 		return f_Audit(NLog::ESeverity_Warning, _Message, _Category);
 	}
-	
+
 	CStr CDistributedAppAuditor::f_Warning(NContainer::TCVector<NStr::CStr> const &_Message, NStr::CStr const &_Category) const
 	{
 		return f_Audit(NLog::ESeverity_Warning, _Message, _Category);
 	}
-	
+
 	CStr CDistributedAppAuditor::f_Info(NStr::CStr const &_Message, NStr::CStr const &_Category) const
 	{
 		return f_Audit(NLog::ESeverity_Info, _Message, _Category);
@@ -185,7 +185,7 @@ namespace NMib::NConcurrency
 	{
 		return f_Audit(NLog::ESeverity_Info, _Message, _Category);
 	}
-	
+
 	CCallingHostInfo const &CDistributedAppAuditor::f_HostInfo() const
 	{
 		return mp_CallingHostInfo;
@@ -195,7 +195,7 @@ namespace NMib::NConcurrency
 	{
 		return {fg_ThisActor(this), _CallingHostInfo, _Category};
 	}
-	
+
 	CDistributedAppAuditor CDistributedAppState::f_Auditor(NStr::CStr const &_Category, CCallingHostInfo const &_CallingHostInfo) const
 	{
 		return {m_AppActor, _CallingHostInfo, _Category};
@@ -236,7 +236,7 @@ namespace NMib::NConcurrency
 			return Permissions;
 		}
 	}
-	
+
 	NException::CException CDistributedAppAuditor::f_AccessDenied(NStr::CStr const &_Message, NContainer::TCVector<NStr::CStr> const &_Permissions, NStr::CStr const &_Category) const
 	{
 		auto Permissions = fg_ConvertPermissions(_Permissions);
@@ -246,7 +246,7 @@ namespace NMib::NConcurrency
 		else
 			return DMibErrorInstance(f_Audit(NLog::ESeverity_Error, {"Access denied", _Message}, _Category, CDistributedAppAuditExtraData_AccessDenied{.m_Permissions = Permissions}));
 	}
-	
+
 	NException::CException CDistributedAppAuditor::f_AccessDenied
 		(
 			NContainer::TCVector<NStr::CStr> const &_Message
@@ -338,7 +338,7 @@ namespace NMib::NConcurrency
 					auto pException = fPreviousTransformer(fg_Move(_pException));
 					if (!pException)
 						return nullptr;
-					
+
 					_Auditor.m_Auditor.f_Error(_Auditor.f_InternalError(NException::fg_ExceptionString(pException)));
 					return NException::fg_MakeException(DMibErrorInstance(_Auditor.m_UserError));
 				}

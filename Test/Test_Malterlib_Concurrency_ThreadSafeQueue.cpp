@@ -1,4 +1,4 @@
-﻿// Copyright © 2015 Hansoft AB 
+﻿// Copyright © 2015 Hansoft AB
 // Distributed under the MIT license, see license text in LICENSE.Malterlib
 
 namespace NMib
@@ -13,7 +13,7 @@ namespace NMib
 				mint m_Next;
 				mint m_Prev;
 			};
-			
+
 			NAtomic::TCAtomic<mint> m_First;
 			NAtomic::TCAtomic<mint> m_Last;
 
@@ -31,16 +31,16 @@ namespace NMib
 }
 namespace
 {
-	
+
 	class CLocklessQueueu_Tests : public NMib::NTest::CTest
 	{
 	public:
 		void f_DoTests()
 		{
 
-		}				
+		}
 	};
-	
+
 	DMibTestRegister(CLocklessQueueu_Tests, Malterlib::Concurrency);
 }
 

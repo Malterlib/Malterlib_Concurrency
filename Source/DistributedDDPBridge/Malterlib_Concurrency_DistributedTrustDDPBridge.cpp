@@ -1,4 +1,4 @@
-// Copyright © 2015 Hansoft AB 
+// Copyright © 2015 Hansoft AB
 // Distributed under the MIT license, see license text in LICENSE.Malterlib
 
 #include "Malterlib_Concurrency_DistributedTrustDDPBridge.h"
@@ -27,17 +27,17 @@ namespace NMib::NConcurrency
 			, m_TrustManager{_TrustManager}
 		{
 		}
-		
+
 		struct CMethodHandlers
 		{
 			CStr const &f_GetMethodName() const
 			{
 				return TCMap<CStr, CMethodHandlers>::fs_GetKey(*this);
 			}
-			
+
 			TCActorFunctor<TCFuture<CEJsonSorted> (NContainer::TCVector<NEncoding::CEJsonSorted> _Params)> m_fHandlerFunction;
 		};
-		
+
 		struct CConnection
 		{
 			TCActor<CDDPServerConnection> m_DDPConnection;
@@ -52,31 +52,31 @@ namespace NMib::NConcurrency
 		void fp_NewValidatedWebsocketConnection(TCSharedPointer<CWebSocketNewServerConnection> const &_pNewServerConnection, CStr const &_HostID);
 		CEJsonSorted fp_MethodError(CStr _Error, CStr _Reason, CStr _Details = "");
 		void fp_StartupFailed(CException const &_Exception);
-		
+
 		CDistributedTrustDDPBridge *m_pThis;
 		TCActor<CActorDistributionManager> m_DistributionManager;
 		TCActor<CDistributedActorTrustManager> m_TrustManager;
 		CActorSubscription m_WebsocketHandlerSubscription;
-		
+
 		TCMap<CStr, CMethodHandlers> m_MethodHandlers;
-		
+
 		mint m_LastConnectionID = 0;
 		bool m_bStartedUp = false;
 		TCUniquePointer<CException> m_pStartupFailedException;
 		TCVector<TCPromise<void>> m_OnStartup;
-		
+
 		TCMap<mint, CConnection> m_Connections;
 	};
-	
+
 	CDistributedTrustDDPBridge::CDistributedTrustDDPBridge(TCActor<CDistributedActorTrustManager> const &_TrustManager)
 		: mp_pInternal{fg_Construct(this, _TrustManager)}
 	{
 	}
-	
+
 	CDistributedTrustDDPBridge::~CDistributedTrustDDPBridge()
 	{
 	}
-	
+
 	void CDistributedTrustDDPBridge::CInternal::fp_StartupFailed(CException const &_Exception)
 	{
 		m_pStartupFailedException = fg_Construct(_Exception);
@@ -84,7 +84,7 @@ namespace NMib::NConcurrency
 			OnStartup.f_SetException(_Exception);
 		m_OnStartup.f_Clear();
 	}
-	
+
 	TCFuture<void> CDistributedTrustDDPBridge::f_Startup()
 	{
 		auto &Internal = *mp_pInternal;
@@ -94,7 +94,7 @@ namespace NMib::NConcurrency
 				co_return Internal.m_pStartupFailedException->f_ExceptionPointer();
 			co_return {};
 		}
-		
+
 		auto Promise = Internal.m_OnStartup.f_Insert();
 		Internal.m_bStartedUp = true;
 		Internal.m_TrustManager(&CDistributedActorTrustManager::f_GetDistributionManager) > [this](TCAsyncResult<TCActor<CActorDistributionManager>> &&_DistributionManager)
@@ -155,7 +155,7 @@ namespace NMib::NConcurrency
 
 		co_return co_await Promise.f_MoveFuture();
 	}
-	
+
 	TCFuture<CActorSubscription> CDistributedTrustDDPBridge::f_RegisterMethods(NContainer::TCVector<CMethod> _Methods)
 	{
 		auto &Internal = *mp_pInternal;
@@ -168,13 +168,13 @@ namespace NMib::NConcurrency
 			if (!MethodNames(Method.m_Name).f_WasCreated())
 				co_return DMibErrorInstance(fg_Format("Duplicate method name: {}", Method.m_Name));
 		}
-		
+
 		for (auto &Method : _Methods)
 		{
 			auto &NewHandler = Internal.m_MethodHandlers[Method.m_Name];
 			NewHandler.m_fHandlerFunction = fg_Move(Method.m_fHandler);
 		}
-		
+
 		auto Subscription = g_ActorSubscription / [this, MethodNames]
 			{
 				auto &Internal = *mp_pInternal;
@@ -182,10 +182,10 @@ namespace NMib::NConcurrency
 					Internal.m_MethodHandlers.f_Remove(MethodName);
 			}
 		;
-		
+
 		co_return fg_Move(Subscription);
 	}
-	
+
 	CEJsonSorted CDistributedTrustDDPBridge::CInternal::fp_MethodError(CStr _Error, CStr _Reason, CStr _Details)
 	{
 		CEJsonSorted Ret;
@@ -209,15 +209,15 @@ namespace NMib::NConcurrency
 		NewConnection.m_UniqueHostID = fg_Format("DDPBridge_{}_{}", _HostID, ConnectionID);
 		NewConnection.m_LastExecutionID = fg_Format("DDPBridge_{}", _HostID, ConnectionID);
 		NewConnection.m_HostInfo.m_HostID = _HostID;
-		
+
 		auto &NewServerConnection = *_pNewServerConnection;
-		
+
 		NewConnection.m_HostInfo.m_FriendlyName = "Unknown";
 		if (NewServerConnection.m_Info.m_pRequest) {
 			if (auto *pValue = NewServerConnection.m_Info.m_pRequest->f_GetEntityFields().f_GetUnknownField("MalterlibDDPBridge_FriendlyName"))
 				NewConnection.m_HostInfo.m_FriendlyName = *pValue;
 		}
-		
+
 		NewConnection.m_AddressDesc = NewServerConnection.m_Info.m_PeerAddress.f_GetString(ENetAddressStringFlag_IncludePort);
 
 		NewConnection.m_DDPConnection = fg_ConstructActor<CDDPServerConnection>(fg_Move(NewServerConnection), CDDPServerConnection::EConnectionType_WebSocket);
@@ -277,7 +277,7 @@ namespace NMib::NConcurrency
 							, 128 // Default priority for DDP bridge calls
 						}
 					;
-					
+
 					pMethodHandler->m_fHandlerFunction.f_CallWrapped
 						(
 							[ThisCallingHostInfo = fg_Move(ThisCallingHostInfo)] mark_no_coroutine_debug (auto &&_fToDispatch) mutable -> TCFuture<CEJsonSorted>
@@ -334,7 +334,7 @@ namespace NMib::NConcurrency
 							, _Message
 						)
 					;
-					
+
 					if (_Reason == EWebSocketStatus_NormalClosure)
 						DMibLogWithCategory(Mib/Concurrency/DistributedActorDDPBridge, Info, "{}", CloseMessage);
 					else

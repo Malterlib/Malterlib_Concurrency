@@ -25,7 +25,7 @@ namespace NMib::NConcurrency::NPrivate
 		TFAsyncGeneratorGetNext<t_CReturnType> m_fGetNext;
 		NStorage::TCOptional<t_CReturnType> m_LastValue;
 	};
-	
+
 	template <typename t_CReturnType>
 	struct TCAsyncGeneratorData : public TCAsyncGeneratorDataShared<t_CReturnType>
 	{

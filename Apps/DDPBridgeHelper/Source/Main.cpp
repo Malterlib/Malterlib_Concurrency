@@ -23,7 +23,7 @@ class CDDPBridgeHelper : public CApplication
 				}
 			)
 		;
-	}	
+	}
 };
 
 DAppImplement(CDDPBridgeHelper);

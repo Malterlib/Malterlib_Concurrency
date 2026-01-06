@@ -1,4 +1,4 @@
-// Copyright © 2015 Hansoft AB 
+// Copyright © 2015 Hansoft AB
 // Distributed under the MIT license, see license text in LICENSE.Malterlib
 
 #pragma once
@@ -10,7 +10,7 @@ namespace NMib::NConcurrency
 	{
 		f_Consume(_Subscription, _Subscription.f_GetID());
 	}
-	
+
 	template <uint32 tf_SubscriptionID>
 	void CDistributedActorWriteStream::f_Feed(TCActorSubscriptionWithID<tf_SubscriptionID> &&_Subscription)
 	{

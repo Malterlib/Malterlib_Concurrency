@@ -1,4 +1,4 @@
-// Copyright © 2015 Hansoft AB 
+// Copyright © 2015 Hansoft AB
 // Distributed under the MIT license, see license text in LICENSE.Malterlib
 
 #include "Malterlib_Concurrency_DistributedTrust.h"
@@ -18,11 +18,11 @@ namespace NMib::NConcurrency
 	{
 		fp_Init();
 	}
-		
+
 	CDistributedActorTrustManager::~CDistributedActorTrustManager()
 	{
 	}
-	
+
 	CDistributedActorTrustManager::CInternal::CInternal
 		(
 			CDistributedActorTrustManager *_pThis
@@ -48,12 +48,12 @@ namespace NMib::NConcurrency
 		, m_bTimeoutForUnixSockets(_Options.m_bTimeoutForUnixSockets)
 	{
 	}
-	
+
 	CDistributedActorTrustManager::CInternal::~CInternal()
 	{
 		*m_pDestroyed = true;
 	}
-	
+
 	TCFuture<void> CDistributedActorTrustManager::fp_Destroy()
 	{
 		auto &Internal = *mp_pInternal;
@@ -68,10 +68,10 @@ namespace NMib::NConcurrency
 			for (auto &ConnectionReference : Connection.m_ConnectionReferences)
 				ConnectionReference.f_Disconnect() > Stops;
 		}
-		
+
 		for (auto &Listen : Internal.m_Listen)
 			Listen.m_ListenReference.f_Stop() > Stops;
-		
+
 		auto StopResults = co_await fg_AllDoneWrapped(Stops);
 
 		for (auto &Result : StopResults)
@@ -96,7 +96,7 @@ namespace NMib::NConcurrency
 
 		co_return {};
 	}
-	
+
 	TCFuture<void> CDistributedActorTrustManager::f_RemoveClient(NStr::CStr _HostID)
 	{
 		auto &Internal = *mp_pInternal;
@@ -126,7 +126,7 @@ namespace NMib::NConcurrency
 
 		co_return fg_Move(Clients);
 	}
-	
+
 	TCFuture<bool> CDistributedActorTrustManager::f_HasClient(NStr::CStr _HostID)
 	{
 		auto &Internal = *mp_pInternal;
@@ -136,7 +136,7 @@ namespace NMib::NConcurrency
 
 		co_return bExists;
 	}
-	
+
 	TCFuture<NConcurrency::TCActor<NConcurrency::CActorDistributionManager>> CDistributedActorTrustManager::f_GetDistributionManager() const
 	{
 		auto &Internal = *mp_pInternal;
@@ -145,7 +145,7 @@ namespace NMib::NConcurrency
 
 		co_return Internal.m_ActorDistributionManager;
 	}
-	
+
 	TCFuture<NStr::CStr> CDistributedActorTrustManager::f_GetHostID() const
 	{
 		auto &Internal = *mp_pInternal;
@@ -153,7 +153,7 @@ namespace NMib::NConcurrency
 
 		co_return Internal.m_BasicConfig.m_HostID;
 	}
-	
+
 	CHostInfo NDistributedActorTrustManagerDatabase::CClientConnection::f_GetHostInfo() const
 	{
 		CHostInfo Info;
@@ -167,7 +167,7 @@ namespace NMib::NConcurrency
 		Info.m_FriendlyName = m_LastFriendlyName;
 		return Info;
 	}
-	
+
 	int32 NDistributedActorTrustManagerDatabase::CClientConnection::f_GetEffectiveConnectionConcurrency(int32 _DefaultConcurrency) const
 	{
 		int32 ConnectionConcurrency = m_ConnectionConcurrency;
@@ -175,7 +175,7 @@ namespace NMib::NConcurrency
 			ConnectionConcurrency = _DefaultConcurrency;
 		return fg_Clamp(ConnectionConcurrency, 1, 128);
 	}
-	
+
 	TCFuture<CHostInfo> CDistributedActorTrustManager::fp_GetHostInfo(NStr::CStr _HostID)
 	{
 		CHostInfo HostInfo;
@@ -205,12 +205,12 @@ namespace NMib::NConcurrency
 
 		co_return fg_Move(HostInfo);
 	}
-	
+
 	TCFuture<TCActor<ICActorDistributionManagerAccessHandler>> CDistributedActorTrustManager::f_GetAccessHandler() const
 	{
 		auto &Internal = *mp_pInternal;
 		co_await Internal.f_WaitForInit();
-		
+
 		co_return Internal.m_AccessHandler;
 	}
 

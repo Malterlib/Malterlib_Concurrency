@@ -19,7 +19,7 @@ namespace NMib::NConcurrency
 			NStorage::TCOptional<NTime::CTime> m_TimeSeen;
 			NStorage::TCOptional<fp32> m_PauseReportingFor;
 		};
-		
+
 		CDistributedAppSensorStoreLocal(TCActor<CActorDistributionManager> const &_DistributionManager, TCActor<CDistributedActorTrustManager> const &_TrustManager);
 		~CDistributedAppSensorStoreLocal();
 

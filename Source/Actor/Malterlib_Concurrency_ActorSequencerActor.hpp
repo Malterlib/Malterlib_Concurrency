@@ -87,7 +87,7 @@ namespace NMib::NConcurrency
 
 		co_return co_await fg_Move(Promise.m_Future);
 	}
-	
+
 	template <typename t_CReturnType>
 	TCActorSequencerActor<t_CReturnType>::~TCActorSequencerActor()
 	{
@@ -97,7 +97,7 @@ namespace NMib::NConcurrency
 			ToSequence.m_Promise.f_SetException(DMibErrorInstance("Actor sequencer '{}' went out of scope"_f << m_Name));
 		m_ToSequence.f_Clear();
 	}
-	
+
 	template <typename t_CReturnType>
 	TCFuture<void> TCActorSequencerActor<t_CReturnType>::fp_Destroy()
 	{
@@ -117,15 +117,15 @@ namespace NMib::NConcurrency
 		else
 			return g_Void;
 	}
-	
+
 	template <typename t_CReturnType>
 	void TCActorSequencerActor<t_CReturnType>::fp_ProcessSequence()
 	{
 		if (m_ToSequence.f_IsEmpty() || m_nRunning >= m_MaxConcurrency)
 			return;
-		
+
 		++m_nRunning;
-		
+
 		auto ToSequence = m_ToSequence.f_Pop();
 		auto Promise = ToSequence.m_Promise;
 		ToSequence.m_fToSequence

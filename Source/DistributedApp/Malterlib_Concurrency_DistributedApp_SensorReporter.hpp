@@ -53,7 +53,7 @@ namespace NMib::NConcurrency
 	void CDistributedAppSensorReporter::CSensorData::f_Stream(tf_CStream &_Stream)
 	{
 		using namespace NStr;
-		
+
 		if (_Stream.f_GetVersion() >= EProtocolVersion_VersionData)
 			_Stream % (CSensorDataVariant &)(*this);
 		else

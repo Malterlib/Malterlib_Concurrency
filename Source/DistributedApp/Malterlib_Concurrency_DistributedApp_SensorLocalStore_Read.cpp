@@ -21,7 +21,7 @@ namespace NMib::NConcurrency
 			co_return DMibErrorInstance("Local store not yet started");
 
 		auto CheckDestroy = co_await f_CheckDestroyedOnResume();
-		
+
 		auto ReadTransactionWapped = co_await Internal.m_Database(&CDatabaseActor::f_OpenTransactionRead).f_Wrap();
 
 		auto Prefix = Internal.m_Prefix;
@@ -308,7 +308,7 @@ namespace NMib::NConcurrency
 			co_return DMibErrorInstance("Local store not yet started");
 
 		auto CheckDestroy = co_await f_CheckDestroyedOnResume();
-		
+
 		NTime::CTime Now;
 		for (auto &Filter : _Params.m_Filters)
 		{
@@ -327,7 +327,7 @@ namespace NMib::NConcurrency
 		auto BlockingActorCheckout = fg_BlockingActor();
 		co_await fg_ContinueRunningOnActor(BlockingActorCheckout);
 		// From here on you can't access Internal
-		
+
 		auto CaptureScope = co_await
 			(
 				g_CaptureExceptions %

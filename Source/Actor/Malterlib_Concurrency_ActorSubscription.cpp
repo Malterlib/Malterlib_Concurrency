@@ -1,4 +1,4 @@
-// Copyright © 2015 Hansoft AB 
+// Copyright © 2015 Hansoft AB
 // Distributed under the MIT license, see license text in LICENSE.Malterlib
 
 #include <Mib/Core/Core>
@@ -21,14 +21,14 @@ namespace NMib::NConcurrency
 		TCActorSubscriptionCleanupFunctor &operator = (TCActorSubscriptionCleanupFunctor &&) = delete;
 		TCActorSubscriptionCleanupFunctor(TCActor<> const &_DispatchActor, NFunction::TCFunctionMovable<t_CReturnValue ()> &&_fCleanup);
 		~TCActorSubscriptionCleanupFunctor();
-		
+
 		TCFuture<void> f_Destroy() override;
 
 	private:
 		TCWeakActor<> mp_DispatchActor;
 		NFunction::TCFunctionMovable<t_CReturnValue ()> mp_fCleanup;
 	};
-	
+
 	template <typename t_CReturnValue>
 	TCActorSubscriptionCleanupFunctor<t_CReturnValue>::TCActorSubscriptionCleanupFunctor
 		(
@@ -39,7 +39,7 @@ namespace NMib::NConcurrency
 		, mp_DispatchActor(_DispatchActor)
 	{
 	}
-	
+
 	template <typename t_CReturnValue>
 	TCActorSubscriptionCleanupFunctor<t_CReturnValue>::~TCActorSubscriptionCleanupFunctor()
 	{

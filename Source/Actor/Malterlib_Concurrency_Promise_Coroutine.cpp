@@ -170,7 +170,7 @@ namespace NMib::NConcurrency
 
 			// This is to synchronize with TCFuture destruction
 			auto pPromiseData = pRoutine->m_pPromiseData;
-			
+
 			DIfRefCountDebugging(NStorage::CRefCountDebugReference DebugRef);
 			pPromiseData->m_RefCount.f_Increase(DIfRefCountDebugging(DebugRef));
 			auto Cleanup = g_OnScopeExit / [&]

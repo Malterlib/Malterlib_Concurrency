@@ -1,4 +1,4 @@
-// Copyright © 2015 Hansoft AB 
+// Copyright © 2015 Hansoft AB
 // Distributed under the MIT license, see license text in LICENSE.Malterlib
 
 #pragma once
@@ -47,7 +47,7 @@ namespace NMib::NConcurrency
 	{
 		inline_always NPrivate::CDistributedActorStreamContextState &f_GetState();
 		inline_always NStorage::TCSharedPointer<NPrivate::CDistributedActorStreamContextState> const &f_GetStatePtr();
-		
+
 		DMibStreamImplementOperators(CDistributedActorWriteStream);
 
 		void f_Feed(CActorSubscription &&_Subscription, uint32 _SubscriptionSequenceID = TCLimitsInt<uint32>::mc_Max);
@@ -66,10 +66,10 @@ namespace NMib::NConcurrency
 				, CDistributedActorProtocolVersions &&_ProtocolVersions
 			)
 		;
-		
+
 		template <typename tf_CActor>
 		void f_Feed(TCActor<tf_CActor> const &_Actor);
-		
+
 		template <typename tf_CActor>
 		void f_Feed(TCActor<tf_CActor> &&_Actor);
 
@@ -100,7 +100,7 @@ namespace NMib::NConcurrency
 		template <typename tf_CType>
 		void f_Feed(TCAsyncResult<tf_CType> &&_AsyncResult);
 	};
-	
+
 	struct CDistributedActorReadStream : public NStream::CBinaryStreamMemoryPtr<>
 	{
 		inline_always NPrivate::CDistributedActorStreamContextState &f_GetState();
@@ -108,10 +108,10 @@ namespace NMib::NConcurrency
 
 		DMibStreamImplementOperators(CDistributedActorReadStream);
 
-		void f_Consume(CActorSubscription &_Subscription, uint32 _SubscriptionSequenceID = TCLimitsInt<uint32>::mc_Max); 
+		void f_Consume(CActorSubscription &_Subscription, uint32 _SubscriptionSequenceID = TCLimitsInt<uint32>::mc_Max);
 		template <uint32 tf_SubscriptionID>
 		void f_Consume(TCActorSubscriptionWithID<tf_SubscriptionID> &_Subscription);
-		
+
 		void f_ConsumeActor(TCActor<> &_Actor, uint32 _SubscriptionSequenceID);
 		TCDistributedActor<> f_ConsumeInterface
 			(
@@ -123,10 +123,10 @@ namespace NMib::NConcurrency
 				, uint32 &o_SubscriptionID
 			)
 		;
-		
+
 		template <typename tf_CActor>
 		void f_Consume(TCActor<tf_CActor> &_Actor);
-		
+
 		template <typename ...tf_CFunctionOptions>
 		void f_Consume(NFunction::TCFunction<tf_CFunctionOptions...> &_Function);
 

@@ -1,4 +1,4 @@
-// Copyright © 2025 Unbroken AB 
+// Copyright © 2025 Unbroken AB
 // Distributed under the MIT license, see license text in LICENSE.Malterlib
 
 #pragma once
@@ -20,7 +20,7 @@ namespace NMib::NConcurrency
 			return mp_QueuedWrites.f_PopFirst();
 
 		++mp_nQueuedWrites;
-		
+
 		return {};
 	}
 

@@ -142,7 +142,7 @@ namespace NMib::NConcurrency
 							;
 						}
 					}
-					
+
 					co_return {};
 				}
 			)

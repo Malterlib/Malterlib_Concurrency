@@ -73,7 +73,7 @@ namespace NMib::NConcurrency
 			co_return DMibErrorInstance("Local store not yet started");
 
 		auto CheckDestroy = co_await f_CheckDestroyedOnResume();
-		
+
 		auto ReadTransactionWrapped = co_await Internal.m_Database(&CDatabaseActor::f_OpenTransactionRead).f_Wrap();
 
 		auto Prefix = Internal.m_Prefix;

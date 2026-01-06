@@ -1,4 +1,4 @@
-// Copyright © 2015 Hansoft AB 
+// Copyright © 2015 Hansoft AB
 // Distributed under the MIT license, see license text in LICENSE.Malterlib
 
 #pragma once
@@ -10,13 +10,13 @@ namespace NMib::NConcurrency
 	{
 		this->f_FeedActor(_Actor);
 	}
-	
+
 	template <typename tf_CActor>
 	void CDistributedActorWriteStream::f_Feed(TCActor<tf_CActor> &&_Actor)
 	{
 		this->f_FeedActor(_Actor);
 	}
-	
+
 	template <typename tf_CActor>
 	void CDistributedActorReadStream::f_Consume(TCActor<tf_CActor> &_Actor)
 	{

@@ -19,7 +19,7 @@ namespace NMib::NConcurrency
 
 		return Key;
 	}
-	
+
 	template <typename tf_CKey, typename tf_CInfoOrKey>
 	tf_CKey CDistributedAppLogStoreLocal::CInternal::f_GetDatabaseKey(tf_CInfoOrKey const &_LogInfo) const
 	{

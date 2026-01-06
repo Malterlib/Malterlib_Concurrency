@@ -1,4 +1,4 @@
-// Copyright © 2015 Hansoft AB 
+// Copyright © 2015 Hansoft AB
 // Distributed under the MIT license, see license text in LICENSE.Malterlib
 
 #pragma once
@@ -36,11 +36,11 @@ namespace NMib::NConcurrency
 		TCActorSubscriptionWithID & operator = (TCActorSubscriptionWithID &&) = default;
 		TCActorSubscriptionWithID(TCActorSubscriptionWithID const &) = delete;
 		TCActorSubscriptionWithID & operator = (TCActorSubscriptionWithID const &) = delete;
-		
+
 		TCActorSubscriptionWithID(CNullPtr);
 		TCActorSubscriptionWithID(uint32 _SubscriptionID = t_SubscriptionID);
 		TCActorSubscriptionWithID(CActorSubscription &&_Subscription, uint32 _SubscriptionID = t_SubscriptionID);
-		
+
 		TCActorSubscriptionWithID &operator = (CActorSubscription &&_Subscription);
 
 		CActorSubscription &&f_GetSubscription() &&;
@@ -49,7 +49,7 @@ namespace NMib::NConcurrency
 
 		uint32 f_GetID() const;
 		void f_SetID(uint32 _SubcriptionID);
-		
+
 	private:
 		uint32 mp_ID = t_SubscriptionID;
 	};
@@ -62,7 +62,7 @@ namespace NMib::NConcurrency
 		TCActorFunctorWithID & operator = (TCActorFunctorWithID &&) = default;
 		TCActorFunctorWithID(TCActorFunctorWithID const &) = delete;
 		TCActorFunctorWithID & operator = (TCActorFunctorWithID const &) = delete;
-		
+
 		TCActorFunctorWithID(CNullPtr);
 		TCActorFunctorWithID(TCActorFunctor<t_CFunction> &&_ActorFunctor);
 		TCActorFunctorWithID
@@ -89,7 +89,7 @@ namespace NMib::NConcurrency
 		TCAsyncGeneratorWithID & operator = (TCAsyncGeneratorWithID &&) = default;
 		TCAsyncGeneratorWithID(TCAsyncGeneratorWithID const &) = delete;
 		TCAsyncGeneratorWithID & operator = (TCAsyncGeneratorWithID const &) = delete;
-		
+
 		TCAsyncGeneratorWithID(CNullPtr);
 		TCAsyncGeneratorWithID(TCAsyncGenerator<t_CReturnType> &&_ActorFunctor, uint32 _SubscriptionID = t_SubscriptionID);
 
@@ -101,7 +101,7 @@ namespace NMib::NConcurrency
 
 		template <typename tf_CStream>
 		void f_Stream(tf_CStream &_Stream);
-		
+
 	protected:
 		uint32 mp_SubscriptionID = t_SubscriptionID;
 	};
@@ -117,7 +117,7 @@ namespace NMib::NConcurrency
 		TCDistributedActorInterfaceWithID & operator = (TCDistributedActorInterfaceWithID &&) = default;
 		TCDistributedActorInterfaceWithID(TCDistributedActorInterfaceWithID const &) = delete;
 		TCDistributedActorInterfaceWithID & operator = (TCDistributedActorInterfaceWithID const &) = delete;
-		
+
 		TCDistributedActorInterfaceWithID(CNullPtr);
 		TCDistributedActorInterfaceWithID
 			(
@@ -129,19 +129,19 @@ namespace NMib::NConcurrency
 
 		uint32 f_GetID() const;
 		void f_SetID(uint32 _SubcriptionID);
-		
+
 		NContainer::TCVector<uint32> const &f_GetHierarchy() const;
 		NContainer::TCVector<uint32> &f_GetHierarchy();
 		CDistributedActorProtocolVersions const &f_GetProtocolVersions() const;
 		CDistributedActorProtocolVersions &f_GetProtocolVersions();
-		
+
 	protected:
 		NContainer::TCVector<uint32> mp_Hierarchy;
 		CDistributedActorProtocolVersions mp_ProtocolVersions;
 		uint32 mp_SubscriptionID = t_SubscriptionID;
 	};
-	
-	template 
+
+	template
 	<
 		auto tf_pMemberFunction
 		DMibIfNotSupportMemberNameFromMemberPointer(, uint32 tf_NameHash)
@@ -156,7 +156,7 @@ namespace NMib::NConcurrency
 		return fg_CallActor<tf_pMemberFunction DMibIfNotSupportMemberNameFromMemberPointer(, tf_NameHash), tf_VirtualCall>(fg_Move(_Actor.f_GetActor()), fg_Forward<tfp_CParams>(p_Params)...);
 	}
 
-	template 
+	template
 	<
 		auto tf_pMemberFunction
 		DMibIfNotSupportMemberNameFromMemberPointer(, uint32 tf_NameHash)
@@ -171,7 +171,7 @@ namespace NMib::NConcurrency
 	{
 		return fg_CallActor<tf_pMemberFunction DMibIfNotSupportMemberNameFromMemberPointer(, tf_NameHash), tf_VirtualCall>(fg_Move(_Actor.f_GetActor()), fg_Forward<tfp_CParams>(p_Params)...);
 	}
-	
+
 #define DMibDistributedStreamDeclare(d_Class) DMibStreamDeclare(d_Class, NConcurrency::CDistributedActorWriteStream, Feed); \
 	DMibStreamDeclare(d_Class, NConcurrency::CDistributedActorReadStream, Consume);
 

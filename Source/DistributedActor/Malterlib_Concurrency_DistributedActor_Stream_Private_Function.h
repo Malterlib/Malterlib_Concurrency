@@ -1,4 +1,4 @@
-// Copyright © 2015 Hansoft AB 
+// Copyright © 2015 Hansoft AB
 // Distributed under the MIT license, see license text in LICENSE.Malterlib
 
 #pragma once
@@ -8,7 +8,7 @@ namespace NMib::NConcurrency::NPrivate
 	struct CStreamingFunction
 	{
 		CStreamingFunction();
-		
+
 		virtual ~CStreamingFunction();
 		virtual NConcurrency::TCFuture<NContainer::CIOByteVector> f_Call(CDistributedActorReadStream &_Stream) = 0;
 		virtual bool f_IsEmpty() const = 0;
@@ -16,13 +16,13 @@ namespace NMib::NConcurrency::NPrivate
 
 		NStorage::CIntrusiveRefCount m_RefCount;
 	};
-	
+
 	template <typename t_FFunction, typename t_FFunctionSignature = typename NFunction::TCFunctionInfo<t_FFunction>::template TCCallType<0>>
 	struct TCStreamingFunction : public CStreamingFunction
 	{
 		TCStreamingFunction(t_FFunction const &_fFunction);
 		TCStreamingFunction(t_FFunction &&_fFunction);
-		
+
 		NConcurrency::TCFuture<NContainer::CIOByteVector> f_Call(CDistributedActorReadStream &_Stream) override;
 		bool f_IsEmpty() const override;
 		void const *f_GetFunctionPointer() const override;

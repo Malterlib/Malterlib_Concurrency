@@ -214,7 +214,7 @@ namespace NMib::NConcurrency
 
 				if (auto pValue = _Params.f_GetMember("IdentifierScope"))
 					Filter.m_IdentifierScope = pValue->f_String();
-					
+
 				if (auto pValue = _Params.f_GetMember("IgnoreRemoved"); pValue && pValue->f_Boolean())
 					Filter.m_Flags |= CDistributedAppSensorReader_SensorFilter::ESensorFlag_IgnoreRemoved;
 

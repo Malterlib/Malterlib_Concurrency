@@ -1,4 +1,4 @@
-// Copyright © 2015 Hansoft AB 
+// Copyright © 2015 Hansoft AB
 // Distributed under the MIT license, see license text in LICENSE.Malterlib
 
 #include <Mib/Encoding/JsonShortcuts>
@@ -9,23 +9,23 @@ namespace NMib::NConcurrency
 {
 	using namespace NDistributedActorTrustManagerDatabase;
 	using namespace NStr;
-	
+
 	TCFuture<CBasicConfig> CTrustManagerDatabaseTestHelper::f_GetBasicConfig()
 	{
 		co_return m_BasicConfig;
 	}
-	
+
 	TCFuture<void> CTrustManagerDatabaseTestHelper::f_SetBasicConfig(CBasicConfig _BasicConfig)
 	{
 		m_BasicConfig = _BasicConfig;
 		co_return {};
 	}
-	
+
 	TCFuture<int32> CTrustManagerDatabaseTestHelper::f_GetNewCertificateSerial()
 	{
 		co_return ++m_CertificateSerial;
 	}
-	
+
 	TCFuture<CDefaultUser> CTrustManagerDatabaseTestHelper::f_GetDefaultUser()
 	{
 		co_return m_DefaultUser;
@@ -44,11 +44,11 @@ namespace NMib::NConcurrency
 		{
 			auto &Certficate = Return[iCertificate.f_GetKey()];
 			if (_bIncludeFullInfo)
-				Certficate = *iCertificate; 
+				Certficate = *iCertificate;
 		}
 		co_return Return;
 	}
-	
+
 	TCFuture<CServerCertificate> CTrustManagerDatabaseTestHelper::f_GetServerCertificate(CStr _HostName)
 	{
 		auto pServerCertificate = m_ServerCertificates.f_FindEqual(_HostName);
@@ -63,7 +63,7 @@ namespace NMib::NConcurrency
 			co_return DMibErrorInstance("Server certificate already exists");
 		co_return {};
 	}
-	
+
 	TCFuture<void> CTrustManagerDatabaseTestHelper::f_SetServerCertificate(CStr _HostName, CServerCertificate _Certificate)
 	{
 		auto pServerCertificate = m_ServerCertificates.f_FindEqual(_HostName);
@@ -72,14 +72,14 @@ namespace NMib::NConcurrency
 		*pServerCertificate = _Certificate;
 		co_return {};
 	}
-	
+
 	TCFuture<void> CTrustManagerDatabaseTestHelper::f_RemoveServerCertificate(CStr _HostName)
 	{
 		if (!m_ServerCertificates.f_Remove(_HostName))
 			co_return DMibErrorInstance("No server certificate for host");
 		co_return {};
 	}
-	
+
 	TCFuture<NContainer::TCSet<CListenConfig>> CTrustManagerDatabaseTestHelper::f_EnumListenConfigs()
 	{
 		NContainer::TCSet<CListenConfig> Return;
@@ -87,22 +87,22 @@ namespace NMib::NConcurrency
 			Return[iListenConfig.f_GetKey()];
 		co_return Return;
 	}
-	
+
 	TCFuture<void> CTrustManagerDatabaseTestHelper::f_AddListenConfig(CListenConfig _Config)
 	{
 		if (!m_ListenConfigs(_Config).f_WasCreated())
 			co_return DMibErrorInstance("Listen config already exists");
 		co_return {};
 	}
-	
+
 	TCFuture<void> CTrustManagerDatabaseTestHelper::f_RemoveListenConfig(CListenConfig _Config)
 	{
 		if (!m_ListenConfigs.f_Remove(_Config))
 			co_return DMibErrorInstance("Listen config does not exist");
-		
+
 		co_return {};
 	}
-	
+
 	TCFuture<NStorage::TCOptional<CDistributedActorTrustManager_Address>> CTrustManagerDatabaseTestHelper::f_GetPrimaryListen()
 	{
 		co_return m_PrimaryListen;
@@ -122,18 +122,18 @@ namespace NMib::NConcurrency
 		{
 			auto &Client = Return[iClient.f_GetKey()];
 			if (_bIncludeFullInfo)
-				Client = *iClient; 
+				Client = *iClient;
 		}
 		co_return Return;
 	}
-	
+
 	TCFuture<void> CTrustManagerDatabaseTestHelper::f_AddClient(CStr _HostID, CClient _Client)
 	{
 		if (!m_Clients(_HostID, _Client).f_WasCreated())
 			co_return DMibErrorInstance("Client already exists");
 		co_return {};
 	}
-	
+
 	TCFuture<CClient> CTrustManagerDatabaseTestHelper::f_GetClient(CStr _HostID)
 	{
 		auto pClient = m_Clients.f_FindEqual(_HostID);
@@ -141,7 +141,7 @@ namespace NMib::NConcurrency
 			co_return DMibErrorInstance("No client for host ID");
 		co_return *pClient;
 	}
-	
+
 	TCFuture<NStorage::TCUniquePointer<CClient>> CTrustManagerDatabaseTestHelper::f_TryGetClient(CStr _HostID)
 	{
 		auto pClient = m_Clients.f_FindEqual(_HostID);
@@ -162,7 +162,7 @@ namespace NMib::NConcurrency
 	{
 		co_return m_Clients.f_FindEqual(_HostID) != nullptr;
 	}
-	
+
 	TCFuture<void> CTrustManagerDatabaseTestHelper::f_SetClient(CStr _HostID, CClient _Client)
 	{
 		auto pClient = m_Clients.f_FindEqual(_HostID);
@@ -171,14 +171,14 @@ namespace NMib::NConcurrency
 		*pClient = _Client;
 		co_return {};
 	}
-	
+
 	TCFuture<void> CTrustManagerDatabaseTestHelper::f_RemoveClient(CStr _HostID)
 	{
 		if (!m_Clients.f_Remove(_HostID))
 			co_return DMibErrorInstance("No client for host ID");
 		co_return {};
 	}
-	
+
 	TCFuture<NContainer::TCMap<CDistributedActorTrustManager_Address, CClientConnection>> CTrustManagerDatabaseTestHelper::f_EnumClientConnections(bool _bIncludeFullInfo)
 	{
 		NContainer::TCMap<CDistributedActorTrustManager_Address, CClientConnection> Return;
@@ -186,11 +186,11 @@ namespace NMib::NConcurrency
 		{
 			auto &Connection = Return[iClientConnection.f_GetKey()];
 			if (_bIncludeFullInfo)
-				Connection = *iClientConnection; 
+				Connection = *iClientConnection;
 		}
 		co_return Return;
 	}
-	
+
 	TCFuture<CClientConnection> CTrustManagerDatabaseTestHelper::f_GetClientConnection(CDistributedActorTrustManager_Address _Address)
 	{
 		auto pClientConnection = m_ClientConnections.f_FindEqual(_Address);
@@ -205,7 +205,7 @@ namespace NMib::NConcurrency
 			co_return DMibErrorInstance("Client connection already exists");
 		co_return {};
 	}
-	
+
 	TCFuture<void> CTrustManagerDatabaseTestHelper::f_SetClientConnection(CDistributedActorTrustManager_Address _Address, CClientConnection _ClientConnection)
 	{
 		auto pClientConnection = m_ClientConnections.f_FindEqual(_Address);
@@ -214,14 +214,14 @@ namespace NMib::NConcurrency
 		*pClientConnection = _ClientConnection;
 		co_return {};
 	}
-	
+
 	TCFuture<void> CTrustManagerDatabaseTestHelper::f_RemoveClientConnection(CDistributedActorTrustManager_Address _Address)
 	{
 		if (!m_ClientConnections.f_Remove(_Address))
 			co_return DMibErrorInstance("No client connection for address");
 		co_return {};
 	}
-	
+
 	TCFuture<NContainer::TCMap<CStr, CNamespace>> CTrustManagerDatabaseTestHelper::f_EnumNamespaces(bool _bIncludeFullInfo)
 	{
 		NContainer::TCMap<CStr, CNamespace> Return;
@@ -229,11 +229,11 @@ namespace NMib::NConcurrency
 		{
 			auto &Namespace = Return[iNamespace.f_GetKey()];
 			if (_bIncludeFullInfo)
-				Namespace = *iNamespace; 
+				Namespace = *iNamespace;
 		}
 		co_return Return;
 	}
-	
+
 	TCFuture<CNamespace> CTrustManagerDatabaseTestHelper::f_GetNamespace(CStr _NamespaceName)
 	{
 		auto pNamespace = m_Namespaces.f_FindEqual(_NamespaceName);
@@ -241,14 +241,14 @@ namespace NMib::NConcurrency
 			co_return DMibErrorInstance("No namespace for name");
 		co_return *pNamespace;
 	}
-	
+
 	TCFuture<void> CTrustManagerDatabaseTestHelper::f_AddNamespace(CStr _NamespaceName, CNamespace _Namespace)
 	{
 		if (!m_Namespaces(_NamespaceName, _Namespace).f_WasCreated())
 			co_return DMibErrorInstance("Namespace already exists");
 		co_return {};
 	}
-	
+
 	TCFuture<void> CTrustManagerDatabaseTestHelper::f_SetNamespace(CStr _NamespaceName, CNamespace _Namespace)
 	{
 		auto pNamespace = m_Namespaces.f_FindEqual(_NamespaceName);
@@ -257,14 +257,14 @@ namespace NMib::NConcurrency
 		*pNamespace = _Namespace;
 		co_return {};
 	}
-	
+
 	TCFuture<void> CTrustManagerDatabaseTestHelper::f_RemoveNamespace(CStr _NamespaceName)
 	{
 		if (!m_Namespaces.f_Remove(_NamespaceName))
 			co_return DMibErrorInstance("No namespace for name");
 		co_return {};
 	}
-	
+
 	TCFuture<NContainer::TCMap<CPermissionIdentifiers, CPermissions>> CTrustManagerDatabaseTestHelper::f_EnumPermissions(bool _bIncludeFullInfo)
 	{
 		NContainer::TCMap<CPermissionIdentifiers, CPermissions> Return;
@@ -432,7 +432,7 @@ namespace NMib::NConcurrency
 	TCActor<CDistributedActorTrustManager> CTrustManagerTestHelper::f_TrustManager(NStr::CStr const &_FriendlyName, CStr const &_SessionID, bool _bSupportAuthentication) const
 	{
 		CDistributedActorTrustManager::COptions Options{.m_ReconnectDelay = 1_ms};
-		
+
 		Options.m_fConstructManager = [](CActorDistributionManagerInitSettings const &_Settings)
 			{
 				return fg_ConstructActor<CActorDistributionManager>(_Settings);
@@ -448,18 +448,18 @@ namespace NMib::NConcurrency
 
 		return fg_ConstructActor<CDistributedActorTrustManager>(m_Database, fg_Move(Options));
 	}
-	
+
 	CTrustManagerTestHelper::CTrustManagerTestHelper()
 	{
 		m_Database = fg_ConstructActor<CTrustManagerDatabaseTestHelper>();
 	}
-	
+
 	CTrustManagerTestHelper::~CTrustManagerTestHelper()
 	{
 		if (m_Database)
 			m_Database->f_BlockDestroy();
 	}
-	
+
 	CTrustedSubscriptionTestHelper::CTrustedSubscriptionTestHelper(TCActor<CDistributedActorTrustManager> const &_TrustManager, fp64 _Timeout)
 		: mp_Internal(fg_ConstructActor<CInternal>(_TrustManager))
 		, mp_Timeout(_Timeout)

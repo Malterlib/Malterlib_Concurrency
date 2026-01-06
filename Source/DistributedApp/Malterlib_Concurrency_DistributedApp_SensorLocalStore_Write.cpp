@@ -58,7 +58,7 @@ namespace NMib::NConcurrency
 
 							}
 						}
-						
+
 						Value.m_bRemoved = false;
 					}
 
@@ -131,7 +131,7 @@ namespace NMib::NConcurrency
 					}
 
 					co_await fg_ContinueRunningOnActor(WriteTransaction.f_Checkout());
-					
+
 					for (auto &HostID : RemovedHostIDs)
 					{
 						CKnownHostKey Key{.m_DbPrefix = Prefix, .m_HostID = HostID};
@@ -424,7 +424,7 @@ namespace NMib::NConcurrency
 					{
 						if (Reading.m_UniqueSequence <= pSensor->m_LastSeenUniqueSequence)
 							continue; // Can happen if readings are being reported with two interfaces
-						
+
 						pSensor->m_LastSeenUniqueSequence = fg_Max(pSensor->m_LastSeenUniqueSequence, Reading.m_UniqueSequence);
 					}
 

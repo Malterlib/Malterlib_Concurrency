@@ -22,7 +22,7 @@ namespace NMib::NConcurrency
 		DigestStream << m_ExpirationTime;
 		return DigestStream.f_MoveVector();
 	}
-	
+
 	template <typename tf_CStream>
 	void ICDistributedActorAuthenticationHandler::CPermissionWithRequirements::f_Stream(tf_CStream &_Stream)
 	{
@@ -72,7 +72,7 @@ namespace NMib::NConcurrency
 		_Stream % m_ExpirationTime;
 	}
 	DMibDistributedStreamImplement(ICDistributedActorAuthenticationHandler::CSignedProperties);
-	
+
 	template <typename tf_CStream>
 	void ICDistributedActorAuthenticationHandler::CResponse::f_Stream(tf_CStream &_Stream)
 	{

@@ -1,4 +1,4 @@
-// Copyright © 2015 Hansoft AB 
+// Copyright © 2015 Hansoft AB
 // Distributed under the MIT license, see license text in LICENSE.Malterlib
 
 #define DMibRuntimeTypeRegistry
@@ -65,13 +65,13 @@ namespace NMib::NConcurrency::NPrivate
 					}
 					continue; // It's valid to have just a subscription
 				}
-				
+
 				if (ActorFunctor.m_ActorFunctors.f_GetLen() > 1)
 				{
 					o_Error = NStr::fg_Format("It's not valid to map actor functons to 0x{nfh} sequence ID", TCLimitsInt<uint32>::mc_Max);
 					return false;
 				}
-				
+
 				auto &Info = ActorFunctor.m_ActorFunctors.f_GetFirst();
 				if (Info.m_Functions.f_IsEmpty() || Info.m_Actor.f_IsEmpty())
 				{
@@ -114,7 +114,7 @@ namespace NMib::NConcurrency::NPrivate
 				}
 			}
 		}
-		
-		return true; 
+
+		return true;
 	}
 }

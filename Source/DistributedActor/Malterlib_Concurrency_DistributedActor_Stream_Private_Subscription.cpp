@@ -1,4 +1,4 @@
-// Copyright © 2015 Hansoft AB 
+// Copyright © 2015 Hansoft AB
 // Distributed under the MIT license, see license text in LICENSE.Malterlib
 
 #define DMibRuntimeTypeRegistry
@@ -10,7 +10,7 @@
 
 namespace NMib::NConcurrency
 {
-	void CDistributedActorReadStream::f_Consume(CActorSubscription &_Subscription, uint32 _SubscriptionSequenceID) 
+	void CDistributedActorReadStream::f_Consume(CActorSubscription &_Subscription, uint32 _SubscriptionSequenceID)
 	{
 		auto &State = f_GetState();
 		NStr::CStr SubscriptionID;
@@ -26,7 +26,7 @@ namespace NMib::NConcurrency
 		SubscriptionState.m_LastExecutionID = State.m_LastExecutionID;
 
 		State.m_ActorFunctors[_SubscriptionSequenceID].m_PendingSubscriptions.f_Insert(pSubscription->m_pState);
-		
+
 		auto DistributionManager = State.m_DistributionManager.f_Lock();
 		DMibCheck(DistributionManager); // Should be called from place where distribution manager is referenced
 		if (DistributionManager)
@@ -77,17 +77,17 @@ namespace NMib::NConcurrency::NPrivate
 		auto DistributionManager = m_DistributionManager.f_Lock();
 		if (!DistributionManager)
 			return g_Void;
-		
+
 		m_DistributionManager.f_Clear();
-		
+
 		return DistributionManager(&CActorDistributionManager::fp_DestroyRemoteSubscription, m_pHost, m_SubscriptionID, m_LastExecutionID);
 	}
-	
+
 	TCFuture<void> CDistributedActorSubscriptionReference::f_Destroy()
 	{
 		if (!m_pState)
 			return g_Void;
-		
+
 		return m_pState->f_Destroy();
 	}
 }

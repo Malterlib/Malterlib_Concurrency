@@ -155,7 +155,7 @@ namespace NMib::NConcurrency
 			)
 		;
 	}
-	
+
 	template <typename tf_CFunction, typename ...tfp_CParams>
 	auto fg_CallSafeDispatchedOn(TCActor<CActor> &&_Actor, tf_CFunction &&_fFunction, tfp_CParams &&...p_Params)
 	{

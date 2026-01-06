@@ -1,4 +1,4 @@
-// Copyright © 2015 Hansoft AB 
+// Copyright © 2015 Hansoft AB
 // Distributed under the MIT license, see license text in LICENSE.Malterlib
 
 #pragma once
@@ -15,7 +15,7 @@ namespace NMib::NConcurrency
 		virtual CActorDestroyEventLoop f_ActorDestroyLoop() = 0;
 		virtual NFunction::TCFunctionMovable<void (FActorQueueDispatchNoAlloc &&_Dispatch)> f_Dispatcher() = 0;
 		void f_Sleep(fp64 _Time);
-		
+
 		NStorage::CIntrusiveRefCount m_RefCount;
 	};
 

@@ -1,4 +1,4 @@
-// Copyright © 2015 Hansoft AB 
+// Copyright © 2015 Hansoft AB
 // Distributed under the MIT license, see license text in LICENSE.Malterlib
 
 #pragma once
@@ -16,7 +16,7 @@ namespace NMib::NConcurrency
 		enum EPermission
 		{
 			EPermission_None = 0
-			
+
 			, EPermission_HostID_Read = DMibBit(0)
 
 			, EPermission_Listen_Read = DMibBit(1)
@@ -58,18 +58,18 @@ namespace NMib::NConcurrency
 
 			, EPermission_All =
 			(
-				EPermission_HostID_Read 
-				| EPermission_Listen 
-				| EPermission_Client 
-				| EPermission_ClientConnection 
-				| EPermission_NamespacePermissions 
+				EPermission_HostID_Read
+				| EPermission_Listen
+				| EPermission_Client
+				| EPermission_ClientConnection
+				| EPermission_NamespacePermissions
 				| EPermission_Permissions
 				| EPermission_UserPermissions
 				| EPermission_UserPrivate_Read
 				| EPermission_ConnectionsDebugStats_Read
 			)
 		};
-		
+
 		struct CPermissions
 		{
 			EPermission m_Permissions = EPermission_None;
@@ -78,7 +78,7 @@ namespace NMib::NConcurrency
 			NContainer::TCSet<NStr::CStr> m_AllowedHosts; // If empty all hosts are allowed
 			NContainer::TCSet<NStr::CStr> m_AllowedUsers; // If empty all users are allowed
 		};
-		
+
 		CDistributedActorTrustManagerProxy(TCActor<CDistributedActorTrustManager> const &_Actor, CPermissions const &_Permissions);
 		~CDistributedActorTrustManagerProxy();
 
@@ -137,7 +137,7 @@ namespace NMib::NConcurrency
 	private:
 		NException::CException fp_AccessDenied() const;
 		bool fp_CheckPermissions(EPermission _Permissions) const;
-		
+
 		TCActor<CDistributedActorTrustManager> mp_TrustManager;
 		CPermissions mp_Permissions;
 	};

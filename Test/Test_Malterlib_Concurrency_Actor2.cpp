@@ -1,4 +1,4 @@
-// Copyright © 2015 Hansoft AB 
+// Copyright © 2015 Hansoft AB
 // Distributed under the MIT license, see license text in LICENSE.Malterlib
 
 #include <Mib/Test/Exception>
@@ -154,20 +154,20 @@ namespace NTestActor2
 
 			fg_AllDoneWrapped(Results).f_CallSync(g_Timeout);
 		}
-		
+
 		void f_TestAsyncResult()
 		{
 			DMibTestSuite("Async")
 			{
 				TCAsyncResult<int> TestValue;
 				TestValue.f_SetResult(6);
-				
+
 				DMibTest(DMibExpr(TestValue.f_Get()) == DMibExpr(6));
-				
+
 				auto Exception = DMibImpExceptionInstance(NMib::NException::CException, "Test");
 				TCAsyncResult<int> TestException;
 				TestException.f_SetException(Exception);
-			
+
 				DMibTest(!DMibExpr(TestException));
 				DMibExpectException(TestException.f_Get(), Exception);
 			};
@@ -337,7 +337,7 @@ namespace NTestActor2
 				DMibExpect(nDestroyed, ==, nDestructions);
 			};
 		}
-		
+
 		void f_GeneralTests()
 		{
 			DMibTestSuite("General")
@@ -419,7 +419,7 @@ namespace NTestActor2
 										DMibPDebugBreak;
 									TestLockValue.f_Exchange(0);
 								}
-								
+
 								if (--nExpectedHandlers == 0)
 									HandlersFinished.f_SetSignaled();
 							}
@@ -504,7 +504,7 @@ namespace NTestActor2
 								, [&]() -> TCFuture<void>
 								{
 									DMibNeverGetHere;
-									
+
 									co_return {};
 								}
 							)
@@ -531,7 +531,7 @@ namespace NTestActor2
 										if (--nExpectedHandlers == 0)
 											HandlersFinished.f_SetSignaled();
 									}
-									
+
 									co_return {};
 								}
 							)
@@ -557,7 +557,7 @@ namespace NTestActor2
 										if (--nExpectedHandlers == 0)
 											HandlersFinished.f_SetSignaled();
 									}
-									
+
 									co_return {};
 								}
 							)
@@ -781,7 +781,7 @@ namespace NTestActor2
 								HandlersFinished.f_SetSignaled();
 						}
 					;
-					
+
 					++nExpectedHandlers;
 					pActor(&CTestActor::f_TestValue2, 1, 1)
 						> pActor / [&, pActor](NMib::NConcurrency::TCAsyncResult<int> &&_Result)
@@ -852,7 +852,7 @@ namespace NTestActor2
 					}
 
 					++nExpectedHandlers;
-					
+
 					fg_AllDoneWrapped(VectorResults)
 						> pActor / [&, pActor](NMib::NConcurrency::TCAsyncResult<NMib::NContainer::TCVector<NMib::NConcurrency::TCAsyncResult<int>>> &&_Result)
 						{
@@ -867,10 +867,10 @@ namespace NTestActor2
 					;
 
 					mint nWorkObjects = ((fp64(NSys::fg_Thread_GetVirtualCores()) * fp64(5.0)) / g_SecondsToWait).f_ToInt();
-					try 
-					{			
+					try
+					{
 						NSys::fg_Thread_SetPriority(NSys::fg_Thread_GetCurrent(), EExecutionPriority_High);
-					}				
+					}
 					catch(NMib::NException::CException&)
 					{
 						// Because on linux EExecutionPriority_High requires root.
@@ -884,7 +884,7 @@ namespace NTestActor2
 								, []
 								{
 									int64 CyclesToWait = (NTime::CSystem_Time::fs_CyclesFrequencyFp() * g_SecondsToWait).f_ToInt();
-									
+
 									int64 StartCycles = NTime::NPlatform::fg_Timer_Cycles();
 									while (NTime::NPlatform::fg_Timer_Cycles() - StartCycles < CyclesToWait)
 										;
@@ -895,10 +895,10 @@ namespace NTestActor2
 							}
 						;
 					}
-					try 
-					{			
+					try
+					{
 						NSys::fg_Thread_SetPriority(NSys::fg_Thread_GetCurrent(), EExecutionPriority_Normal);
-					}				
+					}
 					catch(NMib::NException::CException&)
 					{
 						// Because fg_Thread_SetPriority can throw.
@@ -906,14 +906,14 @@ namespace NTestActor2
 
 					if (--nExpectedHandlers == 0)
 						HandlersFinished.f_SetSignaled();
-					
+
 					bool bTimedOutWatingForTimerHandlers = HandlersFinished.f_WaitTimeout(g_Timeout * 3.0);
 					DMibTest(!DMibExpr(bTimedOutWatingForTimerHandlers));
 
 					pActor->f_BlockDestroy();
 					pLocalActor->f_BlockDestroy();
 					pLockActor->f_BlockDestroy();
-					
+
 					DMibLock(TimersLock);
 				}
 
@@ -1026,6 +1026,6 @@ namespace NTestActor2
 		}
 	};
 
-	
+
 	DMibTestRegister(CConcurrency_Tests, Malterlib::Concurrency);
 }

@@ -18,7 +18,7 @@ namespace NMib::NConcurrency
 	CConcurrentRunQueueEntry::CConcurrentRunQueueEntry()
 	{
 	}
-	
+
 	CConcurrentRunQueueEntry::~CConcurrentRunQueueEntry()
 	{
 	}
@@ -33,7 +33,7 @@ namespace NMib::NConcurrency
 		m_fToCall(_ThreadLocal);
 		fg_DeleteObjectDefiniteType(NMemory::CDefaultAllocator(), this);
 	}
-	
+
 	CConcurrentRunQueueEntry_Functor::CConcurrentRunQueueEntry_Functor(FActorQueueDispatch &&_fToCall)
 		: m_fToCall(fg_Move(_fToCall))
 	{

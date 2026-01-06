@@ -177,7 +177,7 @@ namespace NMib::NConcurrency
 	TCFuture<void> CDistributedAppSensorStoreLocal::CInternal::f_SensorInfoChanged(CDistributedAppSensorReporter::CSensorInfoKey _SensorInfoKey, bool _bWasAdded)
 	{
 		auto CheckDestroy = co_await m_pThis->f_CheckDestroyedOnResume();
-		
+
 		auto Result = co_await m_Database
 			(
 				&CDatabaseActor::f_WriteWithCompaction

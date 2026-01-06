@@ -274,7 +274,7 @@ namespace NMib::NConcurrency
 	{
 		auto DatabaseKey = f_GetDatabaseKey<CLogKey>(_Log.m_Info);
 		auto pKnownHost = m_KnownHosts.f_FindEqual(_Log.m_Info.m_HostID);
-		
+
 		NLogStore::CFilterLogKeyContext FilterContext{.m_ThisHostID = m_ThisHostID, .m_Prefix = m_Prefix};
 
 		for (auto &Subscription : m_LogSubscriptions)

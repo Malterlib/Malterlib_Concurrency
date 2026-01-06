@@ -20,7 +20,7 @@ namespace NMib::NConcurrency
 		NStr::CStr f_GetLocalSocketHostname(bool _bEnclaveSpecific) const;
 		NStr::CStr f_GetLocalSocketFileName(bool _bEnclaveSpecific, NStr::CStr const &_Enclave) const;
 		NStr::CStr f_GetLocalSocketWildcard(bool _bEnclaveSpecific) const;
-		
+
 		CDistributedAppActor_Settings &&f_RootDirectory(NStr::CStr const &_RootDirectory) &&;
 		CDistributedAppActor_Settings &&f_FriendlyName(NStr::CStr const &_FriendlyName) &&;
 		CDistributedAppActor_Settings &&f_Enclave(NStr::CStr const &_Enclave) &&;

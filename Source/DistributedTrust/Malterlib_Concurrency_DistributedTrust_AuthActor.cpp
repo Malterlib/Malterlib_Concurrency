@@ -1,4 +1,4 @@
-// Copyright © 2015 Hansoft AB 
+// Copyright © 2015 Hansoft AB
 // Distributed under the MIT license, see license text in LICENSE.Malterlib
 
 #include <Mib/Core/RuntimeType>
@@ -45,7 +45,7 @@ namespace NMib::NConcurrency
 	{
 		auto &Internal = *mp_pInternal;
 		co_await Internal.f_WaitForInit();
-		
+
 		co_return Internal.m_AuthenticationActors;
 	}
 }

@@ -1,4 +1,4 @@
-// Copyright © 2015 Hansoft AB 
+// Copyright © 2015 Hansoft AB
 // Distributed under the MIT license, see license text in LICENSE.Malterlib
 
 #pragma once
@@ -18,7 +18,7 @@ namespace NMib::NConcurrency
 		return _Entry.m_Hash;
 	}
 }
-		
+
 #include "Malterlib_Concurrency_RuntimeTypeRegistry_Exception.hpp"
 #include "Malterlib_Concurrency_RuntimeTypeRegistry_MemberFunction.hpp"
 

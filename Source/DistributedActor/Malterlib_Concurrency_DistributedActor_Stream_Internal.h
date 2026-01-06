@@ -1,4 +1,4 @@
-// Copyright © 2015 Hansoft AB 
+// Copyright © 2015 Hansoft AB
 // Distributed under the MIT license, see license text in LICENSE.Malterlib
 
 #pragma once
@@ -20,7 +20,7 @@ namespace NMib::NConcurrency::NPrivate
 		NStr::CStr m_SubscriptionID;
 		NStr::CStr m_LastExecutionID;
 	};
-	
+
 	struct CDistributedActorSubscriptionReference : public CActorSubscriptionReference
 	{
 		CDistributedActorSubscriptionReference();
@@ -30,16 +30,16 @@ namespace NMib::NConcurrency::NPrivate
 
 		NStorage::TCSharedPointer<CDistributedActorSubscriptionReferenceState> m_pState;
 	};
-	
+
 	struct CDistributedActorStreamContextState
 	{
 		struct CSubscriptionInfo
 		{
-			NStr::CStr m_SubscriptionID; 
+			NStr::CStr m_SubscriptionID;
 			CActorSubscription m_Subscription;
 			NContainer::TCVector<TCActor<CActor>> m_ActorReferences;
 		};
-		
+
 		struct CActorFunctorInfo
 		{
 			struct CActorFunctors
@@ -47,11 +47,11 @@ namespace NMib::NConcurrency::NPrivate
 				NStr::CStr m_ActorID;
 				TCWeakActor<CActor> m_Actor;
 				NContainer::TCMap<NStr::CStr, NStorage::TCSharedPointer<CStreamingFunction>> m_Functions;
-				
+
 				CActorFunctors();
 				~CActorFunctors();
 			};
-			
+
 			struct CActorInterface
 			{
 				NStr::CStr m_ActorID;
@@ -59,16 +59,16 @@ namespace NMib::NConcurrency::NPrivate
 				NContainer::TCVector<uint32> m_Hierarchy;
 				CDistributedActorProtocolVersions m_ProtocolVersions;
 			};
-			
+
 			NContainer::TCVector<CActorFunctors> m_ActorFunctors;
 			NContainer::TCVector<CActorInterface> m_Interfaces;
 			NContainer::TCLinkedList<NStorage::TCSharedPointer<CDistributedActorSubscriptionReferenceState>> m_PendingSubscriptions;
-			
+
 			NContainer::TCSet<NStr::CStr> m_ImplicitlyPublishedFunctions;
 			NContainer::TCSet<NStr::CStr> m_ImplicitlyPublishedActors;
 			NContainer::TCSet<NStr::CStr> m_ImplicitlyPublishedInterfaces;
 		};
-		
+
 		CDistributedActorStreamContextState(uint32 _ActorProtocolVersion, bool _bCallInitiator);
 		virtual ~CDistributedActorStreamContextState();
 
@@ -78,7 +78,7 @@ namespace NMib::NConcurrency::NPrivate
 
 		NContainer::TCMap<uint32, CSubscriptionInfo> m_Subscriptions;
 		NContainer::TCMap<uint32, CActorFunctorInfo> m_ActorFunctors;
-		
+
 		TCWeakActor<CActorDistributionManager> m_DistributionManager;
 		NStr::CStr m_LastExecutionID;
 		NStorage::TCSharedPointerSupportWeak<NActorDistributionManagerInternal::CHost> m_pHost;

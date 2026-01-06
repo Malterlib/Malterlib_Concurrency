@@ -34,7 +34,7 @@ namespace NMib::NConcurrency
 	{
 		auto &Internal = *mp_pInternal;
 		co_await Internal.f_WaitForInit();
-		
+
 		NContainer::TCMap<NStr::CStr, CNamespacePermissions> Return;
 		NContainer::TCSet<NStr::CStr> HostIDs;
 		for (auto &Namespace : Internal.m_Namespaces)
@@ -185,7 +185,7 @@ namespace NMib::NConcurrency
 
 		auto &Internal = *mp_pInternal;
 		co_await Internal.f_WaitForInit();
-		
+
 		auto *pNamespace = Internal.m_Namespaces.f_FindEqual(_Namespace);
 		if (!pNamespace)
 			co_return {};
@@ -283,7 +283,7 @@ namespace NMib::NConcurrency
 
 		auto &Internal = *mp_pInternal;
 		co_await Internal.f_WaitForInit();
-		
+
 		auto &Namespace = Internal.m_Namespaces[_pState->m_NamespaceName];
 		auto NamespaceName = _pState->m_NamespaceName;
 

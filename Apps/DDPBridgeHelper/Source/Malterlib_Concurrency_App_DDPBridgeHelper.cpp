@@ -15,7 +15,7 @@ namespace NMib::NConcurrency::NDDPBridgeHelper
 		: CDistributedAppActor(CDistributedAppActor_Settings{"TrustDDPBridge"})
 	{
 	}
-	
+
 	CDDPBridgeHelperActor::~CDDPBridgeHelperActor()
 	{
 	}
@@ -24,11 +24,11 @@ namespace NMib::NConcurrency::NDDPBridgeHelper
 	{
 		co_return {};
 	}
-	
+
 	TCFuture<void> CDDPBridgeHelperActor::fp_StopApp()
-	{	
+	{
 		TCSharedPointer<CCanDestroyTracker> pCanDestroy = fg_Construct();
-		
+
 		return pCanDestroy->f_Future();
 	}
 }

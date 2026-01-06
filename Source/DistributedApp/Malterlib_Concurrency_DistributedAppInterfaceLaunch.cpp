@@ -30,16 +30,16 @@ namespace NMib::NConcurrency
 		, mp_bDelegateTrust(_bDelegateTrust)
 	{
 	}
-	
+
 	CDistributedAppInterfaceLaunchActor::~CDistributedAppInterfaceLaunchActor()
 	{
 	}
-	
+
 	bool CDistributedAppInterfaceLaunchActor::fp_WillFilterOutput()
 	{
 		return true;
 	}
-	
+
 	void CDistributedAppInterfaceLaunchActor::fp_ModifyLaunch(CLaunch &o_Launch)
 	{
 		o_Launch.m_bWholeLineOutput = true;
@@ -51,7 +51,7 @@ namespace NMib::NConcurrency
 		LaunchParams.m_Environment["MalterlibDistributedAppInterfaceServerLaunchID"] = mp_LaunchID;
 		if (mp_bDelegateTrust)
 			LaunchParams.m_Environment["MalterlibDistributedAppInterfaceServerOptions"] = "DelegateTrust";
-		
+
 		LaunchParams.m_Environment["MalterlibProtectedEnvironment"] =
 			"MalterlibDistributedAppInterfaceServerAddress"
 			";MalterlibDistributedAppInterfaceServerRequestTicket"
@@ -59,7 +59,7 @@ namespace NMib::NConcurrency
 			";MalterlibDistributedAppInterfaceServerLaunchID"
 		;
 	}
-	
+
 	void CDistributedAppInterfaceLaunchActor::fp_FilterOutput(NProcess::EProcessLaunchOutputType _OutputType, NStr::CStr &o_Output)
 	{
 		if (o_Output.f_IsEmpty())
@@ -114,13 +114,13 @@ namespace NMib::NConcurrency
 			}
 		}
 	}
-	
+
 	void CDistributedAppInterfaceLaunchActor::fp_HandleTicketRequest()
 	{
 		DMibLogWithCategory(Malterlib/Concurrency, Info, "Generating ticket for '{}'", mp_Description);
-		
+
 		NStr::CStr HandleRequestID = NCryptography::fg_RandomID(mp_HandleRequests);
-		
+
 		mp_TrustManager
 			(
 				&CDistributedActorTrustManager::f_GenerateConnectionTicket
@@ -132,12 +132,12 @@ namespace NMib::NConcurrency
 						auto pHandleRequest = mp_HandleRequests.f_FindEqual(HandleRequestID);
 						if (!pHandleRequest)
 							co_return {};
-						
+
 						if (pHandleRequest->m_NotificationsSubscription)
 							co_await pHandleRequest->m_NotificationsSubscription->f_Destroy();
 
 						mp_HandleRequests.f_Remove(HandleRequestID);
-						
+
 						co_return {};
 					}
 				)

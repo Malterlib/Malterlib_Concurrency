@@ -22,7 +22,7 @@ namespace NMib::NConcurrency
 	TCActorFunctorWeak<t_CFunction>::TCActorFunctorWeak(CNullPtr)
 	{
 	}
-	
+
 	template <typename t_CFunction>
 		requires (!NPrivate::TCAddRValueReferencesToFunctor<t_CFunction>::mc_bAnyReference)
 	TCActorFunctorWeak<t_CFunction>::~TCActorFunctorWeak()
@@ -42,7 +42,7 @@ namespace NMib::NConcurrency
 	{
 		return !mp_pFunctor || mp_pFunctor->f_IsEmpty();
 	}
-	
+
 	template <typename t_CFunction>
 		requires (!NPrivate::TCAddRValueReferencesToFunctor<t_CFunction>::mc_bAnyReference)
 	TCActorFunctorWeak<t_CFunction>::operator bool () const
@@ -210,14 +210,14 @@ namespace NMib::NConcurrency
 			(CMoveList())
 		;
 	}
-	
+
 	template <typename t_CFunction>
 		requires (!NPrivate::TCAddRValueReferencesToFunctor<t_CFunction>::mc_bAnyReference)
 	TCWeakActor<CActor> const &TCActorFunctorWeak<t_CFunction>::f_GetActor() const
 	{
 		return mp_Actor;
 	}
-	
+
 	template <typename t_CFunction>
 		requires (!NPrivate::TCAddRValueReferencesToFunctor<t_CFunction>::mc_bAnyReference)
 	auto TCActorFunctorWeak<t_CFunction>::f_GetFunctor() const -> CFunction const &
@@ -225,7 +225,7 @@ namespace NMib::NConcurrency
 		DMibFastCheck(mp_pFunctor);
 		return *mp_pFunctor;
 	}
-	
+
 	template <typename t_CFunction>
 		requires (!NPrivate::TCAddRValueReferencesToFunctor<t_CFunction>::mc_bAnyReference)
 	TCWeakActor<CActor> &TCActorFunctorWeak<t_CFunction>::f_GetActor()
@@ -306,24 +306,24 @@ namespace NMib::NConcurrency
 		mp_Actor.f_Clear();
 		mp_pFunctor.f_Clear();
 	}
-	
+
 	inline CActorFunctorWeakHelperWithProperties::CActorFunctorWeakHelperWithProperties(TCActor<> const &_Actor)
 		: mp_Actor(_Actor)
 	{
 	}
-	
+
 	template <typename tf_FFunction>
 	inline auto CActorFunctorWeakHelperWithProperties::operator / (tf_FFunction &&_fFunction) &&
 	{
 		return fg_ActorFunctorWeak(fg_Move(mp_Actor), fg_Forward<tf_FFunction>(_fFunction));
 	}
-	
+
 	inline CActorFunctorWeakHelperWithProperties &&CActorFunctorWeakHelperWithProperties::operator () (TCActor<> const &_Actor) &&
 	{
 		mp_Actor = _Actor;
 		return fg_Move(*this);
 	}
-	
+
 	template <typename tf_FFunction>
 	inline auto CActorFunctorWeakHelper::operator / (tf_FFunction &&_fFunction) const
 	{
@@ -331,7 +331,7 @@ namespace NMib::NConcurrency
 		DMibFastCheck(CurrentActor);
 		return fg_ActorFunctorWeak(fg_Move(CurrentActor), fg_Forward<tf_FFunction>(_fFunction));
 	}
-	
+
 	inline CActorFunctorWeakHelperWithProperties CActorFunctorWeakHelper::operator () (TCActor<> const &_Actor) const
 	{
 		return CActorFunctorWeakHelperWithProperties(_Actor);

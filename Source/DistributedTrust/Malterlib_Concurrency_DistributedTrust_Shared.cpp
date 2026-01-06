@@ -11,19 +11,19 @@ namespace NMib::NConcurrency
 
 	CDistributedActorTrustManager_Address::CDistributedActorTrustManager_Address() = default;
 	CDistributedActorTrustManager_Address::~CDistributedActorTrustManager_Address() = default;
-	
+
 	CDistributedActorTrustManager_Address::CDistributedActorTrustManager_Address(NWeb::NHTTP::CURL const &_URL)
 		: m_URL{_URL}
 	{
 	}
-	
+
 	CDistributedActorTrustManager_Address::CDistributedActorTrustManager_Address(NWeb::NHTTP::CURL &&_URL)
 		: m_URL{fg_Move(_URL)}
 	{
 	}
 
 	CPermissionIdentifiers::CPermissionIdentifiers() = default;
-	
+
 	CPermissionIdentifiers::CPermissionIdentifiers(NStr::CStr const &_HostID, NStr::CStr const &_UserID)
 	{
 		if (_HostID)
@@ -108,7 +108,7 @@ namespace NMib::NConcurrency
 	NStr::CStr CPermissionIdentifiers::f_GetStr() const
 	{
 		NStr::CStr FileName;
-		
+
 		for (auto const &ID : m_IDs)
 		{
 			ch8 const *pIDType;
@@ -128,9 +128,9 @@ namespace NMib::NConcurrency
 		}
 		return FileName;
 	}
-	
+
 	NStr::CStr const CPermissionIdentifiers::ms_EmptyID;
-	
+
 	NStr::CStr const &CPermissionIdentifiers::f_GetHostID() const
 	{
 		for (auto const &ID : m_IDs)

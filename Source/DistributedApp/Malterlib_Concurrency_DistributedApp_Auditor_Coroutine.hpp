@@ -32,8 +32,8 @@ namespace NMib::NConcurrency
 				, fg_ExceptionTransformer(nullptr, _Auditor)
 			)
 		;
-	}	
-	
+	}
+
 	template <typename tf_CReturnValue>
 	auto operator % (TCFuture<tf_CReturnValue> &&_Future, CDistributedAppAuditorWithError const &_Auditor)
 	{
@@ -59,5 +59,5 @@ namespace NMib::NConcurrency
 				, fg_ExceptionTransformer(nullptr, _Auditor)
 			)
 		;
-	}	
+	}
 }

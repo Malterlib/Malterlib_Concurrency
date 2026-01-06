@@ -170,7 +170,7 @@ namespace NMib::NConcurrency
 	{
 		if (_pEntries->f_IsEmpty())
 			co_return {};
-		
+
 		auto *pLog = m_Logs.f_FindEqual(_LogInfoKey);
 		if (!pLog)
 			co_return {};

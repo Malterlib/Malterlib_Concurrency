@@ -44,7 +44,7 @@ namespace NMib::NConcurrency::NSensorStore
 		if (_Filter.m_Identifier && NStr::fg_StrMatchWildcard(_Key.m_Identifier.f_GetStr(), _Filter.m_Identifier->f_GetStr()) != EMatchWildcardResult_WholeStringMatchedAndPatternExhausted)
 			return false;
 
-		if 
+		if
 			(
 				_Filter.m_IdentifierScope
 				&& NStr::fg_StrMatchWildcard(_Key.m_IdentifierScope.f_GetStr(), _Filter.m_IdentifierScope->f_GetStr()) != EMatchWildcardResult_WholeStringMatchedAndPatternExhausted

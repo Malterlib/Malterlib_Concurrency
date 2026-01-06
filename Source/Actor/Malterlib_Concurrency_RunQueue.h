@@ -50,7 +50,7 @@ namespace NMib::NConcurrency
 	{
 		CConcurrentRunQueueEntry();
 		~CConcurrentRunQueueEntry();
-		
+
 		virtual void f_Call(CConcurrencyThreadLocal &_ThreadLocal) = 0;
 		virtual void f_Cleanup() = 0;
 
@@ -94,7 +94,7 @@ namespace NMib::NConcurrency
 			>
 		>
 	;
-	
+
 	struct CConcurrentRunQueueEntry_FunctorNonVirtualNoAlloc
 	{
 		using FQueueDispatch = FActorQueueDispatchNoAlloc;
@@ -116,7 +116,7 @@ namespace NMib::NConcurrency
 
 		FActorQueueDispatchNoAlloc m_fToCall;
 	};
-	
+
 	template <typename tf_CBaseEntry>
 	struct TCConcurrentRunQueueEntryHolder
 	{
@@ -149,7 +149,7 @@ namespace NMib::NConcurrency
 
 		TCConcurrentRunQueue();
 		~TCConcurrentRunQueue();
-		
+
 		static NStorage::TCUniquePointer<tf_CEntry> fs_QueueEntry(FQueueDispatch &&_Functor);
 		bool f_AddToQueueIfEmpty(NStorage::TCUniquePointer<tf_CEntry> &&_pEntry);
 		void f_AddToQueue(NStorage::TCUniquePointer<tf_CEntry> &&_pEntry);

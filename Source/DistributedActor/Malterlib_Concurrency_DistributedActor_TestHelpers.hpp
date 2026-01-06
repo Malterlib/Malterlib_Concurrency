@@ -1,4 +1,4 @@
-// Copyright © 2015 Hansoft AB 
+// Copyright © 2015 Hansoft AB
 // Distributed under the MIT license, see license text in LICENSE.Malterlib
 
 #pragma once
@@ -18,7 +18,7 @@ namespace NMib::NConcurrency
 			DMibError("Server not there");
 		return mp_pServer->template f_Publish<tfp_CDistributedActors...>(_Actor, _Namespace);
 	}
-	
+
 	template <typename tf_CActor>
 	TCDistributedActor<tf_CActor> CDistributedActorTestHelperCombined::f_GetRemoteActor(NStr::CStr const &_SubscriptionID)
 	{
@@ -39,7 +39,7 @@ namespace NMib::NConcurrency
 		Publication.m_Actor = _Actor;
 		return PublicationID;
 	}
-	
+
 	template <typename tf_CActor>
 	TCDistributedActor<tf_CActor> CDistributedActorTestHelper::f_GetRemoteActor(NStr::CStr const &_Subscription)
 	{

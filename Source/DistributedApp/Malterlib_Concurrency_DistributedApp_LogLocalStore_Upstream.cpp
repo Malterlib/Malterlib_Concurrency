@@ -201,7 +201,7 @@ namespace NMib::NConcurrency
 	TCFuture<void> CDistributedAppLogStoreLocal::CInternal::f_LogInfoChanged(CDistributedAppLogReporter::CLogInfoKey _LogInfoKey, bool _bWasAdded)
 	{
 		auto CheckDestroy = co_await m_pThis->f_CheckDestroyedOnResume();
-		
+
 		auto Result = co_await m_Database
 			(
 				&CDatabaseActor::f_WriteWithCompaction
@@ -233,7 +233,7 @@ namespace NMib::NConcurrency
 						auto &KnownHostValue = pThis->m_KnownHosts[DatabaseKey.m_HostID];
 						KnownHostValue.m_LastSeen = fg_Max(KnownHostValue.m_LastSeen, LogInfo.m_LastSeen);
 					}
-					
+
 					co_await fg_ContinueRunningOnActor(WriteTransaction.f_Checkout());
 
 					if (DatabaseKey.m_HostID)

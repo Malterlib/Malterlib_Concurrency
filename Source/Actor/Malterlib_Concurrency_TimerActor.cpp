@@ -1,4 +1,4 @@
-// Copyright © 2015 Hansoft AB 
+// Copyright © 2015 Hansoft AB
 // Distributed under the MIT license, see license text in LICENSE.Malterlib
 
 #include <Mib/Core/Core>
@@ -95,7 +95,7 @@ namespace NMib::NConcurrency
 #endif
 		align_cacheline NAtomic::TCAtomic<smint> m_WaitTime;
 	};
-	
+
 	TCActor<CTimerActor> fg_TimerActor()
 	{
 		return fg_ConcurrencyManager().f_GetTimerActor();
@@ -344,7 +344,7 @@ namespace NMib::NConcurrency
 		: m_pThis(_pThis)
 	{
 	}
-	
+
 	CTimerActor::CInternal::CTimerSubscriptionState::~CTimerSubscriptionState()
 	{
 		*m_pDestroyed = true;
@@ -391,7 +391,7 @@ namespace NMib::NConcurrency
 				break;
 			}
 		}
-		
+
 		for (auto &pToDelete : ToDeleteOneshot)
 		{
 			Internal.m_TimerQueue.f_Remove(pToDelete);

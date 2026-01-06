@@ -1,4 +1,4 @@
-// Copyright © 2015 Hansoft AB 
+// Copyright © 2015 Hansoft AB
 // Distributed under the MIT license, see license text in LICENSE.Malterlib
 
 #pragma once
@@ -13,7 +13,7 @@ namespace NMib::NConcurrency
 		static constexpr bool mc_bIsAlwaysAlive = true;
 		static constexpr bool mc_bIsAlwaysAliveImpl = true;
 	};
-	
+
 	struct CConcurrentActorImpl : public CConcurrentActor
 	{
 		~CConcurrentActorImpl();

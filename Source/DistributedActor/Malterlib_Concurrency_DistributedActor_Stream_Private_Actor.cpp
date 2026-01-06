@@ -1,4 +1,4 @@
-// Copyright © 2015 Hansoft AB 
+// Copyright © 2015 Hansoft AB
 // Distributed under the MIT license, see license text in LICENSE.Malterlib
 
 #define DMibRuntimeTypeRegistry
@@ -16,7 +16,7 @@ namespace NMib::NConcurrency
 		auto &ActorFunctors = State.m_ActorFunctors[TCLimitsInt<uint32>::mc_Max];
 		if (ActorFunctors.m_ActorFunctors.f_IsEmpty())
 			ActorFunctors.m_ActorFunctors.f_Insert();
-		DMibCheck(ActorFunctors.m_ActorFunctors.f_GetLen() == 1); // This could happen if you use -1 as subscription ID. This has been reserved for free actors/functions. 
+		DMibCheck(ActorFunctors.m_ActorFunctors.f_GetLen() == 1); // This could happen if you use -1 as subscription ID. This has been reserved for free actors/functions.
 		auto &ActorFunctor = ActorFunctors.m_ActorFunctors.f_GetFirst();
 		DMibCheck(ActorFunctor.m_ActorID.f_IsEmpty()); // You can send one and only one actor in the call, otherwise it's impossible to know which actor to dispatch the functions to
 		NStr::CStr ActorID = NCryptography::fg_RandomID();
@@ -114,26 +114,26 @@ namespace NMib::NConcurrency
 			;
 		}
 	};
-	
+
 	struct CRemoteDispatchActor : public CActor
 	{
 		using CActorHolder = CRemoteDispatchActorActorHolder;
 	};
-	
+
 	void CDistributedActorReadStream::f_ConsumeActor(TCActor<> &_Actor, uint32 _SubscriptionSequenceID)
 	{
 		auto &State = f_GetState();
 		using namespace NActorDistributionManagerInternal;
 		NStr::CStr ActorID;
 		*this >> ActorID;
-		
+
 		if (ActorID.f_IsEmpty())
 			return;
-		
+
 		auto DistributionManager = State.m_DistributionManager.f_Lock();
 		if (!DistributionManager)
 			DMibError("Distribution manager unexpectedly gone");
-		
+
 		_Actor = fg_ConstructRemoteDistributedActor<CRemoteDispatchActor>
 			(
 				DistributionManager
@@ -142,7 +142,7 @@ namespace NMib::NConcurrency
 				, f_GetVersion()
 			)
 		;
-		
+
 		State.m_Subscriptions[_SubscriptionSequenceID].m_ActorReferences.f_Insert(_Actor);
 	}
 }

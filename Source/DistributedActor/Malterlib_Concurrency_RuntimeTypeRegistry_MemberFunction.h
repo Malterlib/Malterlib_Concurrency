@@ -1,4 +1,4 @@
-// Copyright © 2015 Hansoft AB 
+// Copyright © 2015 Hansoft AB
 // Distributed under the MIT license, see license text in LICENSE.Malterlib
 
 #pragma once
@@ -15,7 +15,7 @@ namespace NMib::NConcurrency
 			)
 		;
 		~CRuntimeTypeRegistryEntry_MemberFunction();
-		
+
 		virtual NConcurrency::TCFuture<NContainer::CIOByteVector> f_Call
 			(
 				NStream::CBinaryStreamMemoryPtr<NStream::CBinaryStreamDefault> &_Stream
@@ -23,11 +23,11 @@ namespace NMib::NConcurrency
 			)
 			= 0
 		;
-		
+
 		uint32 m_Hash;
 		uint32 m_TypeHash;
 		uint32 m_LowestSupportedVersion;
-		
+
 		NIntrusive::TCAVLLink<> m_HashLink;
 		NIntrusive::TCAVLLink<> m_MemberPointerLink;
 	};
@@ -88,7 +88,7 @@ namespace NMib::NConcurrency::NPrivate
 {
 	template <typename t_CType>
 	struct TCIsAsyncGenerator;
-	
+
 	template
 	<
 		auto t_pMemberFunction
@@ -249,7 +249,7 @@ namespace NMib::NConcurrency::NPrivate
 		;
 	};
 }
-	
+
 #define DMibConcurrencyRegisterMemberFunction(d_pMemberFunction) \
 	(void)::NMib::NConcurrency::NPrivate::TCMemberFunctionRegistry<DMibPointerToMemberFunctionForHash(d_pMemberFunction)>::ms_EntryInit
 

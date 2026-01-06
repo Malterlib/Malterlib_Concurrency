@@ -15,10 +15,10 @@ namespace NMib::NConcurrency::NDDPBridgeHelper
 		o_CommandLine.f_SetProgramDescription
 			(
 				"Malterlib DDP Bridge Helper"
-				, "Sets up trust for use on a DDP client." 
+				, "Sets up trust for use on a DDP client."
 			)
 		;
-		
+
 		auto DefaultSection = o_CommandLine.f_GetDefaultSection();
 		(void)DefaultSection;
 	}

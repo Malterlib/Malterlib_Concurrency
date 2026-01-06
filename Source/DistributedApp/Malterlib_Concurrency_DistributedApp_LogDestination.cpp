@@ -183,7 +183,7 @@ namespace NMib::NConcurrency
 		}
 
 		CDistributedAppLogDestination_Internal::CDeferredMessage Message{_Time, _Severity, _Message, _Categories, _Operations, _Location};
-		
+
 		auto &Internal = *mp_pInternal;
 		{
 			DMibLock(Internal.m_Lock);

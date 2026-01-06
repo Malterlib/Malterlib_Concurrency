@@ -371,7 +371,7 @@ namespace NMib::NConcurrency
 			Info.m_PauseReportingFor = fg_MaxValidFloat(Info.m_PauseReportingFor, _pKnownHostValue->m_PauseReportingFor);
 
 		auto *pKnownHost = m_KnownHosts.f_FindEqual(_Sensor.m_Info.m_HostID);
-		
+
 		for (auto &Subscription : m_SensorSubscriptions)
 		{
 			if (!NSensorStore::fg_FilterSensorKey(DatabaseKey, Subscription.m_Filters, FilterContext, &_Sensor.m_Info, pKnownHost))

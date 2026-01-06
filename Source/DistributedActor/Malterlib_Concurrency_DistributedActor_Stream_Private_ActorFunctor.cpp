@@ -1,4 +1,4 @@
-// Copyright © 2015 Hansoft AB 
+// Copyright © 2015 Hansoft AB
 // Distributed under the MIT license, see license text in LICENSE.Malterlib
 
 #define DMibRuntimeTypeRegistry
@@ -20,17 +20,17 @@ namespace NMib::NConcurrency
 		)
 	{
 		auto &State = f_GetState();
-		
+
 		*this << _SequenceID;
-		
+
 		uint8 bHasSubscription = !!_Subscription;
 		*this << bHasSubscription;
 		if (bHasSubscription)
 			f_Feed(fg_Move(_Subscription), _SequenceID);
-		
+
 		NStr::CStr ActorID;
 		NStr::CStr FunctionID;
-		
+
 		if (_Actor && _pFunction && !_pFunction->f_IsEmpty())
 		{
 			auto &ActorFunctors = State.m_ActorFunctors[_SequenceID];
@@ -38,7 +38,7 @@ namespace NMib::NConcurrency
 			ActorID = NCryptography::fg_RandomID();
 			ActorFunctor.m_ActorID = ActorID;
 			ActorFunctor.m_Actor = fg_Move(_Actor);
-			
+
 			FunctionID = NCryptography::fg_RandomID(ActorFunctor.m_Functions);
 			ActorFunctor.m_Functions[FunctionID] = fg_Move(_pFunction);
 		}

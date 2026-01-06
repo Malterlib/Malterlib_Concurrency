@@ -162,7 +162,7 @@ namespace NMib::NConcurrency
 			CTicketInterface(CDistributedActorTrustManager::CInternal *_pInternal, TCWeakActor<CDistributedActorTrustManager> const &_ThisActor);
 
 			TCFuture<NContainer::CByteVector> f_SignCertificate(NStr::CStr _Token, NContainer::CByteVector _CertificateRequest);
-			
+
 		private:
 			CDistributedActorTrustManager::CInternal *mp_pInternal;
 			TCWeakActor<CDistributedActorTrustManager> mp_ThisActor;

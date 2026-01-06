@@ -244,7 +244,7 @@ namespace NMib::NConcurrency
 		}
 
 		_LocalQueue.m_LocalQueue.f_InsertLast(NewEntries);
-		
+
 		return true;
 	}
 }

@@ -1,4 +1,4 @@
-// Copyright © 2015 Hansoft AB 
+// Copyright © 2015 Hansoft AB
 // Distributed under the MIT license, see license text in LICENSE.Malterlib
 
 #pragma once
@@ -13,7 +13,7 @@ namespace NMib::NConcurrency
 		_Stream << m_ServerPublicCert;
 		_Stream << m_Token;
 	}
-	
+
 	template <typename tf_CStream>
 	void CDistributedActorTrustManagerInterface::CTrustTicket::f_Consume(tf_CStream &_Stream)
 	{
@@ -62,13 +62,13 @@ namespace NMib::NConcurrency
 	{
 		return NContainer::TCMap<NStr::CStr, CNamespacePermissions>::fs_GetKey(*this);
 	}
-	
+
 	template <typename tf_CString>
 	void CDistributedActorTrustManagerInterface::CNamespacePermissions::f_Format(tf_CString &o_String) const
 	{
 		o_String += typename tf_CString::CFormat("Allowed {vs,vb} Disallowed {vs,vb}") << m_AllowedHosts << m_DisallowedHosts;
 	}
-	
+
 	template <typename tf_CString>
 	void CDistributedActorTrustManagerInterface::CClientConnectionInfo::f_Format(tf_CString &o_String) const
 	{

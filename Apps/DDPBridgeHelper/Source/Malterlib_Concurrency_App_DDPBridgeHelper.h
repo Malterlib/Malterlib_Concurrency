@@ -14,11 +14,11 @@ namespace NMib::NConcurrency::NDDPBridgeHelper
 	{
 		CDDPBridgeHelperActor();
 		~CDDPBridgeHelperActor();
-		
+
 		struct CServer;
 	private:
 		TCFuture<void> fp_StartApp(NEncoding::CEJsonSorted const _Params) override;
 		TCFuture<void> fp_StopApp() override;
-		void fp_BuildCommandLine(CDistributedAppCommandLineSpecification &o_CommandLine) override; 
+		void fp_BuildCommandLine(CDistributedAppCommandLineSpecification &o_CommandLine) override;
 	};
 }

@@ -47,7 +47,7 @@ namespace NMib::NConcurrency
 	{
 		_Stream % m_LogFilter;
 		_Stream % m_LogDataFilter;
-		
+
 		_Stream % m_MinSequence;
 		_Stream % m_MinTimestamp;
 	}

@@ -1,4 +1,4 @@
-// Copyright © 2015 Hansoft AB 
+// Copyright © 2015 Hansoft AB
 // Distributed under the MIT license, see license text in LICENSE.Malterlib
 
 #pragma once
@@ -47,7 +47,7 @@ namespace NMib::NConcurrency
 		{
 			CActorSubscription m_NotificationsSubscription;
 		};
-		
+
 		TCActor<CDistributedActorTrustManager> mp_TrustManager;
 		NWeb::NHTTP::CURL mp_Address;
 		NStr::CStrSecure mp_RequestTicketMagic;

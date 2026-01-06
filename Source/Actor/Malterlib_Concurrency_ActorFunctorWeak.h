@@ -1,4 +1,4 @@
-// Copyright © 2022 Favro Holding AB 
+// Copyright © 2022 Favro Holding AB
 // Distributed under the MIT license, see license text in LICENSE.Malterlib
 
 #pragma once
@@ -26,10 +26,10 @@ namespace NMib::NConcurrency
 		TCActorFunctorWeak(TCActorFunctorWeak const &) = delete;
 		TCActorFunctorWeak & operator = (TCActorFunctorWeak const &) = delete;
 		~TCActorFunctorWeak();
-		
+
 		TCActorFunctorWeak(CNullPtr);
 		TCActorFunctorWeak(TCActor<CActor> &&_Actor, CFunction &&_fFunctor);
-		
+
 		template <typename ...tfp_CParams>
 		auto operator ()(tfp_CParams &&...p_Params) const -> TCFuture<CStripedReturn>
 			requires(NPrivate::cIsActorFunctorCallableWith<t_CFunction, tfp_CParams...>)
@@ -60,7 +60,7 @@ namespace NMib::NConcurrency
 		NStorage::TCOptional<TCActorFunctor<t_CFunction>> f_Lock() const;
 
 		void f_Clear();
-		
+
 		bool f_IsEmpty() const;
 		explicit operator bool () const;
 
@@ -80,7 +80,7 @@ namespace NMib::NConcurrency
 
 		return TCActorFunctorWeak<CFunction>{fg_TempCopy(_Actor), fg_Forward<tf_CFunctor>(_fFunctor)};
 	}
-	
+
 	struct CActorFunctorWeakHelperWithProperties
 	{
 		inline CActorFunctorWeakHelperWithProperties(TCActor<> const &_Actor);
@@ -92,14 +92,14 @@ namespace NMib::NConcurrency
 	private:
 		TCActor<> mp_Actor;
 	};
-	
+
 	struct CActorFunctorWeakHelper
 	{
 		template <typename tf_FFunction>
 		inline auto operator / (tf_FFunction &&_fFunction) const;
 		inline CActorFunctorWeakHelperWithProperties operator () (TCActor<> const &_Actor) const;
 	};
-	
+
 	extern CActorFunctorWeakHelper const &g_ActorFunctorWeak;
 }
 

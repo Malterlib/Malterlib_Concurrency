@@ -1,4 +1,4 @@
-// Copyright © 2015 Hansoft AB 
+// Copyright © 2015 Hansoft AB
 // Distributed under the MIT license, see license text in LICENSE.Malterlib
 
 #include "Malterlib_Concurrency_DistributedTrust.h"
@@ -114,7 +114,7 @@ namespace NMib::NConcurrency
 	TCFuture<void> CDistributedActorTrustManager::f_AddListen(CDistributedActorTrustManager_Address _Address)
 	{
 		auto CheckDestroy = co_await f_CheckDestroyedOnResume();
-		
+
 		auto &Internal = *mp_pInternal;
 		co_await Internal.f_WaitForInit();
 
@@ -132,9 +132,9 @@ namespace NMib::NConcurrency
 		auto &ListenState = Internal.m_Listen[ListenConfig];
 		ListenState.m_ListenReference = fg_Move(ListenReference);
 
-		auto ConfigAddResult = co_await 
+		auto ConfigAddResult = co_await
 			(
-				Internal.m_Database.f_Bind<&ICDistributedActorTrustManagerDatabase::f_AddListenConfig>(ListenConfig) 
+				Internal.m_Database.f_Bind<&ICDistributedActorTrustManagerDatabase::f_AddListenConfig>(ListenConfig)
 				% "Failed to save new listen config to database"
 			).f_Wrap()
 		;

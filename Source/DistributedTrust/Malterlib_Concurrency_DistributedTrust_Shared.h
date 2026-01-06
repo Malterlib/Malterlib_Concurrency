@@ -1,4 +1,4 @@
-// Copyright © 2015 Hansoft AB 
+// Copyright © 2015 Hansoft AB
 // Distributed under the MIT license, see license text in LICENSE.Malterlib
 
 #pragma once
@@ -20,12 +20,12 @@ namespace NMib::NConcurrency
 		template <typename tf_CStream>
 		void f_Consume(tf_CStream &_Stream);
 		auto operator <=> (CDistributedActorTrustManager_Address const &_Right) const = default;
-		
+
 		CDistributedActorTrustManager_Address();
 		~CDistributedActorTrustManager_Address();
 		CDistributedActorTrustManager_Address(NWeb::NHTTP::CURL const &_URL);
 		CDistributedActorTrustManager_Address(NWeb::NHTTP::CURL &&_URL);
-		
+
 		template <typename tf_CStr>
 		void f_Format(tf_CStr &o_IntoStr) const;
 

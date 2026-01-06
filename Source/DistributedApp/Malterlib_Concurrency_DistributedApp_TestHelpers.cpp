@@ -124,7 +124,7 @@ namespace NMib::NConcurrency
 				, g_ActorFunctor / [this](TCVector<CFileChangeNotification::CNotification> _Changes) -> TCFuture<void>
 				{
 					auto &Internal = *mp_pInternal;
-					
+
 					for (auto &Change : _Changes)
 					{
 						if (!Change.m_Path.f_EndsWith(".log"))

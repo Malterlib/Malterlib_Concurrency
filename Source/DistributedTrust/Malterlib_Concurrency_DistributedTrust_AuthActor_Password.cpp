@@ -1,4 +1,4 @@
-// Copyright © 2015 Hansoft AB 
+// Copyright © 2015 Hansoft AB
 // Distributed under the MIT license, see license text in LICENSE.Malterlib
 
 #include <Mib/CommandLine/AnsiEncoding>
@@ -134,7 +134,7 @@ namespace NMib::NConcurrency
 			<< AnsiEncoding.f_Prompt()
 			<< AnsiEncoding.f_Default()
 		;
-		
+
 		auto TrustManager = m_TrustManager.f_Lock();
 		if (!TrustManager)
 			co_return DMibErrorInstance("No trust manager");
@@ -252,7 +252,7 @@ namespace NMib::NConcurrency
 		CAuthenticationActorInfo operator () (TCActor<CDistributedActorTrustManager> const &_TrustManager) override;
 		static mint ms_MakeActive;
 	};
-	
+
 	mint CDistributedActorTrustManagerAuthenticationActorFactoryPassword::ms_MakeActive;
 
 	CAuthenticationActorInfo CDistributedActorTrustManagerAuthenticationActorFactoryPassword::operator ()(TCActor<CDistributedActorTrustManager> const &_TrustManager)

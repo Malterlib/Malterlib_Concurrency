@@ -1,4 +1,4 @@
-// Copyright © 2015 Hansoft AB 
+// Copyright © 2015 Hansoft AB
 // Distributed under the MIT license, see license text in LICENSE.Malterlib
 
 #pragma once
@@ -18,7 +18,7 @@ namespace NMib::NConcurrency
 		DMibFastCheck(pContext && pContext->f_CorrectMagic());
 		return *pContext->m_pState;
 	}
-	
+
 	inline_always NStorage::TCSharedPointer<NPrivate::CDistributedActorStreamContextState> const &CDistributedActorWriteStream::f_GetStatePtr()
 	{
 		auto *pContext = (NPrivate::CDistributedActorStreamContext *)f_GetContext();
@@ -41,7 +41,7 @@ namespace NMib::NConcurrency::NPrivate
 	{
 		uint8 bException;
 		_Stream >> bException;
-		
+
 		if (bException)
 		{
 			uint32 TypeHash;
@@ -62,14 +62,14 @@ namespace NMib::NConcurrency::NPrivate
 				_PromiseOrAsyncResult.f_SetException(DMibErrorInstance("Unknown exception type received"));
 				return true;
 			}
-			
+
 			_PromiseOrAsyncResult.f_SetException(pEntry->f_Consume(_Stream));
-			
+
 			return true;
 		}
 		return false;
 	}
-	
+
 	template <typename tf_CResult>
 	void fg_CopyReplyToAsyncResult
 		(
@@ -85,7 +85,7 @@ namespace NMib::NConcurrency::NPrivate
 			return;
 		DMibBinaryStreamContext(ReplyStream, &_Context);
 		DMibBinaryStreamVersion(ReplyStream, _Version);
-		
+
 		tf_CResult Result;
 		ReplyStream >> Result;
 
@@ -113,7 +113,7 @@ namespace NMib::NConcurrency::NPrivate
 	{
 	};
 
-	template 
+	template
 	<
 		typename t_CType
 		, typename t_CTypeFrom
@@ -121,7 +121,7 @@ namespace NMib::NConcurrency::NPrivate
 	>
 	struct TCStreamForwardHelper
 	{
-		template <typename tf_CType> 
+		template <typename tf_CType>
 		static constexpr inline_always_debug NTraits::TCRemoveReferenceAndQualifiers<t_CType> fs_Forward(tf_CType &&_Value) noexcept
 		{
 			return fg_Forward<tf_CType>(_Value);
@@ -131,7 +131,7 @@ namespace NMib::NConcurrency::NPrivate
 	template <typename t_CType, typename t_CTypeFrom>
 	struct TCStreamForwardHelper<t_CType &&, t_CTypeFrom, true>
 	{
-		template <typename tf_CType> 
+		template <typename tf_CType>
 		static constexpr inline_always_debug t_CType &&fs_Forward(tf_CType &&_Value) noexcept
 		{
 			return fg_Move(fg_Forward<tf_CType>(_Value));
@@ -141,7 +141,7 @@ namespace NMib::NConcurrency::NPrivate
 	template <typename t_CType, typename t_CTypeFrom>
 	struct TCStreamForwardHelper<t_CType &, t_CTypeFrom, true>
 	{
-		template <typename tf_CType> 
+		template <typename tf_CType>
 		static constexpr inline_always_debug t_CType &&fs_Forward(tf_CType &&_Value) noexcept
 		{
 			return fg_Move(fg_Forward<tf_CType>(_Value));
@@ -151,13 +151,13 @@ namespace NMib::NConcurrency::NPrivate
 	template <typename t_CType, typename t_CTypeFrom>
 	struct TCStreamForwardHelper<t_CType const &, t_CTypeFrom, true>
 	{
-		template <typename tf_CType> 
+		template <typename tf_CType>
 		static constexpr inline_always_debug t_CType const &fs_Forward(tf_CType &&_Value) noexcept
 		{
 			return fg_Forward<tf_CType>(_Value);
 		}
 	};
-	
+
 	template <typename ...tp_CParam>
 	struct TCStreamArguments<NMeta::TCTypeList<tp_CParam...>>
 	{
@@ -183,7 +183,7 @@ namespace NMib::NConcurrency::NPrivate
 			);
 		}
 	};
-	
+
 }
 
 #include "Malterlib_Concurrency_DistributedActor_Stream_Private_Actor.hpp"

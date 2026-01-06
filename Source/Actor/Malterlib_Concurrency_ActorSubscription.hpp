@@ -1,4 +1,4 @@
-// Copyright © 2015 Hansoft AB 
+// Copyright © 2015 Hansoft AB
 // Distributed under the MIT license, see license text in LICENSE.Malterlib
 
 #pragma once
@@ -12,9 +12,9 @@ namespace NMib::NConcurrency
 
 	inline CActorSubscriptionHelperWithActor CActorSubscriptionHelper::operator ()(TCActor<> const &_Actor) const
 	{
-		return CActorSubscriptionHelperWithActor(_Actor); 
+		return CActorSubscriptionHelperWithActor(_Actor);
 	}
-	
+
 	template
 	<
 		typename tf_FCleanup
@@ -29,10 +29,10 @@ namespace NMib::NConcurrency
 		*
 	>
 	inline CActorSubscription CActorSubscriptionHelperWithActor::operator / (tf_FCleanup &&_fCleanup) const
-	{ 
+	{
 		return fg_ActorSubscriptionAsync(mp_Actor, fg_Forward<tf_FCleanup>(_fCleanup));
 	}
-	
+
 	template
 	<
 		typename tf_FCleanup
@@ -47,10 +47,10 @@ namespace NMib::NConcurrency
 		*
 	>
 	inline CActorSubscription CActorSubscriptionHelperWithActor::operator / (tf_FCleanup &&_fCleanup) const
-	{ 
-		return fg_ActorSubscription(mp_Actor, fg_Forward<tf_FCleanup>(_fCleanup)); 
+	{
+		return fg_ActorSubscription(mp_Actor, fg_Forward<tf_FCleanup>(_fCleanup));
 	}
-	
+
 	template
 	<
 		typename tf_FCleanup
@@ -65,7 +65,7 @@ namespace NMib::NConcurrency
 		*
 	>
 	inline CActorSubscription CActorSubscriptionHelper::operator / (tf_FCleanup &&_fCleanup) const
-	{ 
+	{
 		auto CurrentActor = fg_CurrentActor();
 		DMibFastCheck(CurrentActor);
 		return fg_ActorSubscriptionAsync(CurrentActor, fg_Forward<tf_FCleanup>(_fCleanup));
@@ -85,10 +85,10 @@ namespace NMib::NConcurrency
 		*
 	>
 	inline CActorSubscription CActorSubscriptionHelper::operator / (tf_FCleanup &&_fCleanup) const
-	{ 
+	{
 		auto CurrentActor = fg_CurrentActor();
 		DMibFastCheck(CurrentActor);
-		return fg_ActorSubscription(CurrentActor, fg_Forward<tf_FCleanup>(_fCleanup)); 
+		return fg_ActorSubscription(CurrentActor, fg_Forward<tf_FCleanup>(_fCleanup));
 	}
 
 	template <typename tf_FCleanup>

@@ -1,4 +1,4 @@
-// Copyright © 2015 Hansoft AB 
+// Copyright © 2015 Hansoft AB
 // Distributed under the MIT license, see license text in LICENSE.Malterlib
 
 #include "Malterlib_Concurrency_DistributedTrust.h"
@@ -62,7 +62,7 @@ namespace NMib::NConcurrency
 	CActorDistributionConnectionSettings CDistributedActorTrustManager::CInternal::f_GetConnectionSettings(CConnectionState const &_State)
 	{
 		auto &ClientConnection = _State.m_ClientConnection;
-		
+
 		CActorDistributionConnectionSettings ConnectionSettings;
 		ConnectionSettings.m_ServerURL = _State.f_GetAddress().m_URL;
 		ConnectionSettings.m_PublicServerCertificate = ClientConnection.m_PublicServerCertificate;
@@ -116,7 +116,7 @@ namespace NMib::NConcurrency
 				}
 			)
 		;
-		
+
 		m_BasicConfig = fg_Move(BasicConfig);
 		m_DefaultUser = fg_Move(DefaultUser);
 
@@ -127,18 +127,18 @@ namespace NMib::NConcurrency
 			// Generate root CA
 			if (m_BasicConfig.m_HostID.f_IsEmpty())
 				m_BasicConfig.m_HostID = NCryptography::fg_HighEntropyRandomID();
-			
+
 			NCryptography::CCertificateOptions Options;
 			Options.m_KeySetting = m_KeySetting;
-			Options.m_CommonName = fg_Format("Malterlib Distributed Actors Root - {}", m_BasicConfig.m_HostID).f_Left(64); 
+			Options.m_CommonName = fg_Format("Malterlib Distributed Actors Root - {}", m_BasicConfig.m_HostID).f_Left(64);
 			auto &Extension = Options.m_Extensions["MalterlibHostID"].f_Insert();
-			Extension.m_bCritical = false; 
+			Extension.m_bCritical = false;
 			Extension.m_Value = m_BasicConfig.m_HostID;
-			
+
 			NCryptography::CCertificateSignOptions SignOptions;
 			SignOptions.m_Serial = 1;
 			SignOptions.m_Days = 100*365;
-			
+
 			try
 			{
 				NCryptography::CCertificate::fs_GenerateSelfSignedCertAndKey
@@ -154,10 +154,10 @@ namespace NMib::NConcurrency
 			{
 				co_return DMibErrorInstance(fg_Format("Failed to generate root CA: {}", _Exception.f_GetErrorStr()));
 			}
-				
+
 			m_Database(&ICDistributedActorTrustManagerDatabase::f_SetBasicConfig, m_BasicConfig) > WriteDatabaseResults;
 		}
-		
+
 		if (m_BasicConfig.m_CACertificate.f_IsEmpty() || m_BasicConfig.m_CAPrivateKey.f_IsEmpty())
 			co_return DMibErrorInstance("Invalid trust manager basic config. Broken database?");
 
@@ -172,7 +172,7 @@ namespace NMib::NConcurrency
 			m_ActorDistributionManager = m_fDistributionManagerFactory(fg_Move(DistributionManagerInitSettings));
 		else
 		{
-			CActorDistributionManagerInitSettings ResultingSettings 
+			CActorDistributionManagerInitSettings ResultingSettings
 				= fg_InitDistributionManager(fg_Move(DistributionManagerInitSettings))
 			;
 			if (ResultingSettings.m_HostID != m_BasicConfig.m_HostID)

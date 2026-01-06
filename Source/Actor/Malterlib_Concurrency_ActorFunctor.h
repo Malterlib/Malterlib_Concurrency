@@ -1,4 +1,4 @@
-// Copyright © 2015 Hansoft AB 
+// Copyright © 2015 Hansoft AB
 // Distributed under the MIT license, see license text in LICENSE.Malterlib
 
 #pragma once
@@ -28,10 +28,10 @@ namespace NMib::NConcurrency
 		TCActorFunctor(TCActorFunctor const &) = delete;
 		TCActorFunctor & operator = (TCActorFunctor const &) = delete;
 		~TCActorFunctor();
-		
+
 		TCActorFunctor(CNullPtr);
 		TCActorFunctor(TCActor<CActor> &&_Actor, CFunction &&_fFunctor, CActorSubscription &&_Subscription = nullptr);
-		
+
 		template <typename ...tfp_CParams>
 		auto operator ()(tfp_CParams &&...p_Params) const -> TCFuture<CStripedReturn>
 			requires(NPrivate::cIsActorFunctorCallableWith<t_CFunction, tfp_CParams...>)
@@ -62,7 +62,7 @@ namespace NMib::NConcurrency
 		TCFuture<void> f_Destroy() &&;
 
 		void f_Clear();
-		
+
 		bool f_IsEmpty() const;
 		explicit operator bool () const;
 
@@ -71,7 +71,7 @@ namespace NMib::NConcurrency
 		NStorage::TCSharedPointer<CFunction> mp_pFunctor;
 		CActorSubscription mp_Subscription;
 	};
-	
+
 	template <typename tf_CFunctor>
 	auto fg_ActorFunctor(TCActor<> const &_Actor, tf_CFunctor &&_fFunctor, CActorSubscription &&_Subscription = nullptr)
 	{
@@ -84,22 +84,22 @@ namespace NMib::NConcurrency
 
 		return TCActorFunctor<CFunction>{fg_TempCopy(_Actor), fg_Forward<tf_CFunctor>(_fFunctor), fg_Move(_Subscription)};
 	}
-	
+
 	struct CActorFunctorHelperWithProperties
 	{
 		inline CActorFunctorHelperWithProperties(TCActor<> const &_Actor);
 		inline CActorFunctorHelperWithProperties(TCActor<> const &_Actor, CActorSubscription &&_Subscription);
-		
+
 		template <typename tf_FFunction>
 		inline auto operator / (tf_FFunction &&_fFunction) &&;
 		inline CActorFunctorHelperWithProperties &&operator () (TCActor<> const &_Actor) &&;
 		inline CActorFunctorHelperWithProperties &&operator () (CActorSubscription &&_Subscription) &&;
-		
+
 	private:
 		TCActor<> mp_Actor;
 		CActorSubscription mp_Subscription;
 	};
-	
+
 	struct CActorFunctorHelper
 	{
 		template <typename tf_FFunction>
@@ -107,7 +107,7 @@ namespace NMib::NConcurrency
 		inline CActorFunctorHelperWithProperties operator () (TCActor<> const &_Actor) const;
 		inline CActorFunctorHelperWithProperties operator () (CActorSubscription &&_Subscription) const;
 	};
-	
+
 	extern CActorFunctorHelper const &g_ActorFunctor;
 }
 

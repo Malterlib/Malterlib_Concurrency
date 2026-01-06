@@ -1,4 +1,4 @@
-// Copyright © 2015 Hansoft AB 
+// Copyright © 2015 Hansoft AB
 // Distributed under the MIT license, see license text in LICENSE.Malterlib
 
 #include <Mib/Concurrency/ConcurrencyManager>
@@ -1377,7 +1377,7 @@ namespace NMib::NConcurrency::NTest
 
 			co_return {};
 		}
-		
+
 		void f_TestGeneral()
 		{
 			DMibTestSuite("General")
@@ -2292,7 +2292,7 @@ namespace NMib::NConcurrency::NTest
 
 					co_return {};
 				};
-				
+
 				DMibTestCategory("Aborted Changed Owner Async Generator Simple") -> TCFuture<void>
 				{
 					TCSharedPointer<CAsyncDestroyTestState> pTestState = fg_Construct();

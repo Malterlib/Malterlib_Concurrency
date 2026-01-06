@@ -55,7 +55,7 @@ namespace NMib::NConcurrency
 		auto &Internal = *mp_pInternal;
 
 		CLogError LogError("SensorLocalStore");
-		
+
 		if (Internal.m_CleanupTimerSubscription)
 		{
 			co_await Internal.m_CleanupTimerSubscription->f_Destroy().f_Wrap() > LogError.f_Warning("Failed to destroy cleanup timer subscription");

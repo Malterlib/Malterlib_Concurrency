@@ -1,4 +1,4 @@
-// Copyright © 2015 Hansoft AB 
+// Copyright © 2015 Hansoft AB
 // Distributed under the MIT license, see license text in LICENSE.Malterlib
 
 #pragma once
@@ -26,7 +26,7 @@ namespace NMib::NConcurrency
 			return NTraits::cIsBaseOfOrSame<NException::CException, tf_CException>;
 		return false;
 	}
-	
+
 	template <typename t_CType>
 	TCAsyncResult<t_CType>::TCAsyncResult(TCAsyncResult const &_Other)
 		: CAsyncResult(_Other)
@@ -34,7 +34,7 @@ namespace NMib::NConcurrency
 		if (_Other.mp_Data.f_DataType() == EDataType_HasBeenSet)
 			m_ResultAggregate.f_Construct(*_Other.m_ResultAggregate);
 	}
-	
+
 	template <typename t_CType>
 	TCAsyncResult<t_CType>::TCAsyncResult(TCAsyncResult &&_Other)
 		: CAsyncResult(fg_Move(_Other))
@@ -42,7 +42,7 @@ namespace NMib::NConcurrency
 		if (_Other.mp_Data.f_DataType() == EDataType_HasBeenSet)
 			m_ResultAggregate.f_Construct(fg_Move(*_Other.m_ResultAggregate));
 	}
-	
+
 	template <typename t_CType>
 	auto TCAsyncResult<t_CType>::operator = (TCAsyncResult const &_Other) -> TCAsyncResult &
 	{
@@ -53,7 +53,7 @@ namespace NMib::NConcurrency
 			m_ResultAggregate.f_Construct(*_Other.m_ResultAggregate);
 		return *this;
 	}
-	
+
 	template <typename t_CType>
 	auto TCAsyncResult<t_CType>::operator =(TCAsyncResult &&_Other) -> TCAsyncResult &
 	{
@@ -84,7 +84,7 @@ namespace NMib::NConcurrency
 
 		mp_Data.m_DataType = EDataType_None;
 	}
-	
+
 	template <typename t_CType>
 	inline_always t_CType const &TCAsyncResult<t_CType>::f_Get() const
 	{

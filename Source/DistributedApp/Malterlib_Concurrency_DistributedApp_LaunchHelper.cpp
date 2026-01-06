@@ -1,4 +1,4 @@
-// Copyright © 2015 Hansoft AB 
+// Copyright © 2015 Hansoft AB
 // Distributed under the MIT license, see license text in LICENSE.Malterlib
 
 #include <Mib/Concurrency/ActorSubscription>
@@ -88,7 +88,7 @@ namespace NMib::NConcurrency
 	CDistributedApp_LaunchInfo::~CDistributedApp_LaunchInfo() = default;
 	CDistributedApp_LaunchInfoData::CDistributedApp_LaunchInfoData() = default;
 	CDistributedApp_LaunchInfoData::~CDistributedApp_LaunchInfoData() = default;
-	
+
 	TCFuture<TCActorSubscriptionWithID<>> CDistributedApp_LaunchHelper::CDistributedAppInterfaceServerImplementation::f_RegisterDistributedApp
 		(
 			TCDistributedActorInterfaceWithID<CDistributedAppInterfaceClient> _ClientInterface
@@ -101,12 +101,12 @@ namespace NMib::NConcurrency
 
 		auto *pThis = m_pThis;
 		auto &CallingHostInfo = fg_GetCallingHostInfo();
-		
+
 		auto &HostID = CallingHostInfo.f_GetRealHostID();
 		NStr::CStr LaunchID;
 		if (_RegisterInfo.m_LaunchID)
 			LaunchID = *_RegisterInfo.m_LaunchID;
-		
+
 		for (auto &LaunchInfo : pThis->m_Launches)
 		{
 			if (LaunchInfo.m_HostID != HostID && LaunchInfo.m_LaunchID != LaunchID)
@@ -154,7 +154,7 @@ namespace NMib::NConcurrency
 		PendingLaunch.m_pClientInterface = fg_Construct(fg_Move(_ClientInterface));
 		if (_TrustInterface)
 			PendingLaunch.m_pTrustInterface = fg_Construct(fg_Move(_TrustInterface));
-		
+
 		co_return g_ActorSubscription / []{};
 	}
 
@@ -185,7 +185,7 @@ namespace NMib::NConcurrency
 			}
 		;
 	}
-	
+
 	CDistributedApp_LaunchHelper::~CDistributedApp_LaunchHelper()
 	{
 		for (auto &Launch : m_PendingLaunches)
@@ -219,7 +219,7 @@ namespace NMib::NConcurrency
 
 		co_return {};
 	}
-	
+
 	CActorSubscription CDistributedApp_LaunchHelper::fp_GetLaunchSubscription(NStr::CStr const &_LaunchID)
 	{
 		return g_ActorSubscription / [this, _LaunchID]() -> TCFuture<void>

@@ -1,4 +1,4 @@
-// Copyright © 2015 Hansoft AB 
+// Copyright © 2015 Hansoft AB
 // Distributed under the MIT license, see license text in LICENSE.Malterlib
 
 #pragma once
@@ -15,7 +15,7 @@ namespace NMib::NConcurrency
 	struct CActorSubscriptionHelperWithActor
 	{
 		inline CActorSubscriptionHelperWithActor(TCActor<> const &_Actor);
-		
+
 		template
 		<
 			typename tf_FCleanup
@@ -30,7 +30,7 @@ namespace NMib::NConcurrency
 			* = nullptr
 		>
 		inline CActorSubscription operator / (tf_FCleanup &&_fCleanup) const;
-		
+
 		template
 		<
 			typename tf_FCleanup
@@ -45,11 +45,11 @@ namespace NMib::NConcurrency
 			* = nullptr
 		>
 		inline CActorSubscription operator / (tf_FCleanup &&_fCleanup) const;
-		
+
 	private:
 		TCActor<> const &mp_Actor;
 	};
-	
+
 	struct CActorSubscriptionHelper
 	{
 		template
@@ -81,7 +81,7 @@ namespace NMib::NConcurrency
 			* = nullptr
 		>
 		inline CActorSubscription operator / (tf_FCleanup &&_fCleanup) const;
-		
+
 		inline CActorSubscriptionHelperWithActor operator ()(TCActor<> const &_Actor) const;
 	};
 
@@ -90,7 +90,7 @@ namespace NMib::NConcurrency
 		template <typename tf_FCleanup>
 		inline CActorSubscription operator / (tf_FCleanup &&_fCleanup) const;
 	};
-	
+
 	extern CActorSubscriptionHelper const &g_ActorSubscription;
 	extern CBlockingActorSubscriptionHelper const &g_BlockingActorSubscription;
 }

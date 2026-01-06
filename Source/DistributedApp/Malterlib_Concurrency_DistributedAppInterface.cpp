@@ -1,4 +1,4 @@
-// Copyright © 2015 Hansoft AB 
+// Copyright © 2015 Hansoft AB
 // Distributed under the MIT license, see license text in LICENSE.Malterlib
 
 #include <Mib/Core/Core>
@@ -13,7 +13,7 @@ namespace NMib::NConcurrency
 		DMibPublishActorFunction(CDistributedAppInterfaceBackup::f_SubscribeInitialFinished);
 		DMibPublishActorFunction(CDistributedAppInterfaceBackup::f_SubscribeBackupStopped);
 	}
-	
+
 	CDistributedAppInterfaceBackup::~CDistributedAppInterfaceBackup() = default;
 
 	CDistributedAppInterfaceClient::CDistributedAppInterfaceClient()
@@ -23,7 +23,7 @@ namespace NMib::NConcurrency
 		DMibPublishActorFunction(CDistributedAppInterfaceClient::f_GetAppStartResult);
 		DMibPublishActorFunction(CDistributedAppInterfaceClient::f_StartBackup);
 	}
-	
+
 	CDistributedAppInterfaceClient::~CDistributedAppInterfaceClient() = default;
 
 	CDistributedAppInterfaceServer::CDistributedAppInterfaceServer()
@@ -33,9 +33,9 @@ namespace NMib::NConcurrency
 		DMibPublishActorFunction(CDistributedAppInterfaceServer::f_GetSensorReporter);
 		DMibPublishActorFunction(CDistributedAppInterfaceServer::f_GetLogReporter);
 	}
-	
+
 	CDistributedAppInterfaceServer::~CDistributedAppInterfaceServer() = default;
-	
+
 	template <typename tf_CStream>
 	void CDistributedAppInterfaceServer::CRegisterInfo::f_Stream(tf_CStream &_Stream)
 	{
@@ -54,13 +54,13 @@ namespace NMib::NConcurrency
 			_Stream % m_Resources_MaxMapCount;
 	}
 	DMibDistributedStreamImplement(CDistributedAppInterfaceServer::CRegisterInfo);
-	
+
 	bool CDistributedAppInterfaceServer::CRegisterInfo::f_IsSameIgnoringLaunchID(CRegisterInfo const &_Right) const
 	{
-		return m_UpdateType == _Right.m_UpdateType 
-			&& m_Resources_Files == _Right.m_Resources_Files 
-			&& m_Resources_FilesPerProcess == _Right.m_Resources_FilesPerProcess 
-			&& m_Resources_Threads == _Right.m_Resources_Threads 
+		return m_UpdateType == _Right.m_UpdateType
+			&& m_Resources_Files == _Right.m_Resources_Files
+			&& m_Resources_FilesPerProcess == _Right.m_Resources_FilesPerProcess
+			&& m_Resources_Threads == _Right.m_Resources_Threads
 			&& m_Resources_Processes == _Right.m_Resources_Processes
 			&& m_Resources_MaxMapCount == _Right.m_Resources_MaxMapCount
 		;

@@ -397,7 +397,7 @@ namespace NMib::NConcurrency::NPrivate
 				co_return {};
 			}
 		}
-		
+
 		if (fg_CurrentActor() != OwnerActor)
 		{
 			TCPromiseFuturePair<void> Promise;

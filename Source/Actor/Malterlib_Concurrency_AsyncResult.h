@@ -1,4 +1,4 @@
-// Copyright © 2015 Hansoft AB 
+// Copyright © 2015 Hansoft AB
 // Distributed under the MIT license, see license text in LICENSE.Malterlib
 
 #pragma once
@@ -72,12 +72,12 @@ namespace NMib::NConcurrency
 		bool f_HasExceptionType() const; ///< Returns true if the contained exception is of the specified exception type
 
 		void f_SetCurrentException(); ///< Sets the result to the current exception. Usually only used from TCPromise implementation
-		template 
+		template
 		<
 			typename tf_CException
 			, TCEnableIf<NTraits::cIsBaseOf<NTraits::TCRemoveReferenceAndQualifiers<tf_CException>, NException::CExceptionBase>> * = nullptr
 		>
-		void f_SetException(tf_CException &&_Exception); ///< Set exception instance directly. Usually used with DMibErrorInstance("Error string") or equivialent. 
+		void f_SetException(tf_CException &&_Exception); ///< Set exception instance directly. Usually used with DMibErrorInstance("Error string") or equivialent.
 														 ///< Usually only used from TCPromise implementation
 		void f_SetException(CAsyncResult && _AsyncResult); ///< Set exception from another async result. Usually only used from TCPromise implementation
 		void f_SetException(CAsyncResult const &_AsyncResult); ///< Set exception from another async result. Usually only used from TCPromise implementation
@@ -119,7 +119,7 @@ namespace NMib::NConcurrency
 		mark_nodebug inline_always t_CType &operator *();
 		mark_nodebug inline_always t_CType const *operator ->() const;
 		mark_nodebug inline_always t_CType *operator ->();
-		
+
 		template <typename ...tfp_CType>
 		void f_SetResult(tfp_CType && ...p_Result);
 		void f_SetResult(TCAsyncResult const &_Result);
@@ -159,7 +159,7 @@ namespace NMib::NConcurrency
 		CVoidTag f_Move();
 		mark_nodebug CVoidTag operator *() const;
 		mark_nodebug CVoidTag operator *();
-		
+
 		void f_SetResult();
 		void f_SetResult(TCAsyncResult const &_Result);
 		void f_SetResult(TCAsyncResult &_Result);
@@ -180,7 +180,7 @@ namespace NMib::NConcurrency
 #else
 	static_assert(sizeof(TCAsyncResult<void>) == sizeof(void *));
 #endif
-	
+
 #endif
 
 }

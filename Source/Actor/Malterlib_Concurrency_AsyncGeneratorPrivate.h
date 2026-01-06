@@ -94,7 +94,7 @@ namespace NMib::NConcurrency::NPrivate
 			bool m_bDestroyed = false;
 		};
 
-		static CFutureCoroutineContext::FDeliverExceptionResult fs_KeepaliveSetExceptionFunctor(CFutureCoroutineContext &_Context, TCActor<CActor> &&_Actor);
+		static CFutureCoroutineContext::FDeliverResult fs_KeepaliveSetResultFunctor(CFutureCoroutineContext &_Context, TCActor<CActor> &&_Actor);
 
 		CSuspendAlways initial_suspend() noexcept;
 

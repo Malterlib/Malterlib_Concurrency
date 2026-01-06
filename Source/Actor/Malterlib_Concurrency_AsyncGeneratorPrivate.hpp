@@ -192,14 +192,20 @@ namespace NMib::NConcurrency::NPrivate
 	}
 
 	template <typename t_CReturnType>
-	auto TCAsyncGeneratorCoroutineContext<t_CReturnType>::fs_KeepaliveSetExceptionFunctor(CFutureCoroutineContext &_Context, TCActor<CActor> &&_Actor)
-		-> CFutureCoroutineContext::FDeliverExceptionResult
+	auto TCAsyncGeneratorCoroutineContext<t_CReturnType>::fs_KeepaliveSetResultFunctor(CFutureCoroutineContext &_Context, TCActor<CActor> &&_Actor)
+		-> CFutureCoroutineContext::FDeliverResult
 	{
 		auto *pThis = static_cast<TCAsyncGeneratorCoroutineContext<t_CReturnType> *>(&_Context);
 
-		return [KeepAlive = pThis->f_KeepAlive(fg_Move(_Actor))](NException::CExceptionPointer &&_pException)
+		return [KeepAlive = pThis->f_KeepAlive(fg_Move(_Actor))](NStorage::TCUniquePointer<ICOnResumeResult> &&_pResult)
 			{
-				KeepAlive.f_PromiseData().f_SetException(fg_Move(_pException));
+				if (!_pResult)
+					return;  // Should not happen
+
+				if (auto pException = fg_Move(*_pResult).f_TryGetException())
+					KeepAlive.f_PromiseData().f_SetException(fg_Move(pException));
+				else
+					_pResult->f_ApplyValue(&KeepAlive.f_PromiseData());
 			}
 		;
 	}
@@ -303,7 +309,7 @@ namespace NMib::NConcurrency::NPrivate
 						auto RestoreStates = CoroutineContext.f_Resume
 							(
 								ThreadLocal
-								, &TCAsyncGeneratorCoroutineContext<NStorage::TCOptional<t_CReturnType>>::fs_KeepaliveSetExceptionFunctor
+								, &TCAsyncGeneratorCoroutineContext<NStorage::TCOptional<t_CReturnType>>::fs_KeepaliveSetResultFunctor
 								, bAborted
 							)
 						;

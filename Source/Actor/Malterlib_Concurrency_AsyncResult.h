@@ -101,6 +101,8 @@ namespace NMib::NConcurrency
 		template <typename t_CType2>
 		friend struct TCAsyncResult;
 
+		using CValue = t_CType;
+
 		NStorage::TCAggregateSimple<t_CType> m_ResultAggregate;
 	public:
 		TCAsyncResult() = default;
@@ -144,6 +146,8 @@ namespace NMib::NConcurrency
 		template <typename t_CType2>
 		friend struct TCAsyncResult;
 
+		using CValue = void;
+
 	public:
 		TCAsyncResult();
 		~TCAsyncResult();
@@ -182,6 +186,41 @@ namespace NMib::NConcurrency
 #endif
 
 #endif
+
+	struct COnResumeException : ICOnResumeResult
+	{
+		COnResumeException(NException::CExceptionPointer &&_pException);
+
+		NException::CExceptionPointer f_TryGetException() && override;
+		void f_SetException(NException::CExceptionPointer &&_pException) override;
+		void f_ApplyValue(NPrivate::CPromiseDataBase *) override;
+
+		NException::CExceptionPointer m_pException;
+	};
+
+	template <typename t_CType>
+	struct TCOnResumeResult : ICOnResumeResult
+	{
+		TCOnResumeResult(TCAsyncResult<t_CType> &&_Result);
+
+		NException::CExceptionPointer f_TryGetException() && override;
+		void f_SetException(NException::CExceptionPointer &&_pException) override;
+		void f_ApplyValue(NPrivate::CPromiseDataBase *_pPromiseData) override;
+
+		TCAsyncResult<t_CType> m_Result;
+	};
+
+	template <>
+	struct TCOnResumeResult<void> : ICOnResumeResult
+	{
+		TCOnResumeResult(TCAsyncResult<void> &&_Result);
+
+		NException::CExceptionPointer f_TryGetException() && override;
+		void f_SetException(NException::CExceptionPointer &&_pException) override;
+		void f_ApplyValue(NPrivate::CPromiseDataBase *_pPromiseData) override;
+
+		TCAsyncResult<void> m_Result;
+	};
 
 }
 

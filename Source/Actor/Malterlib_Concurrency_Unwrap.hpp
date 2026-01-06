@@ -267,11 +267,12 @@ namespace NMib::NConcurrency::NUnwrap
 
 			DMibFastCheck(!mp_Result);
 
-			CoroutineContext.f_HandleAwaitedException
+			NStorage::TCUniquePointer<COnResumeException> pResult = fg_Construct(fg_TransformException(fg_Move(mp_Result).f_GetException(), mp_fExceptionTransform));
+			CoroutineContext.f_HandleAwaitedResult
 				(
 					fg_ConcurrencyThreadLocal()
-					, &tf_CCoroutineContext::fs_KeepaliveSetExceptionFunctor
-					, fg_TransformException(fg_Move(mp_Result).f_GetException(), mp_fExceptionTransform)
+					, &tf_CCoroutineContext::fs_KeepaliveSetResultFunctor
+					, fg_Move(pResult)
 				)
 			;
 			return true;

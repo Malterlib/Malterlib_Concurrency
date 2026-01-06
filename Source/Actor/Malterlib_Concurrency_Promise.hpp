@@ -966,14 +966,83 @@ namespace NMib::NConcurrency
 	{
 		DMibFastCheck(fg_CurrentActor());
 
-		auto pException = mp_fOnResume();
-		if (pException)
+		auto pResult = mp_fOnResume();
+		if (pResult)
 		{
-			mp_pThis->f_HandleAwaitedException(fg_ConcurrencyThreadLocal(), &tf_CCoroutineContext::fs_KeepaliveSetExceptionFunctor, fg_Move(pException));
+			mp_pThis->f_HandleAwaitedResult(fg_ConcurrencyThreadLocal(), &tf_CCoroutineContext::fs_KeepaliveSetResultFunctor, fg_Move(pResult));
 			return true;
 		}
 
 		return false;
+	}
+
+	template <typename t_CType>
+	TCOnResumeResult<t_CType>::TCOnResumeResult(TCAsyncResult<t_CType> &&_Result)
+		: m_Result(fg_Move(_Result))
+	{
+	}
+
+	template <typename t_CType>
+	NException::CExceptionPointer TCOnResumeResult<t_CType>::f_TryGetException() &&
+	{
+		if (m_Result)
+			return {};
+
+		return fg_Move(m_Result).f_GetException();
+	}
+
+	template <typename t_CType>
+	void TCOnResumeResult<t_CType>::f_SetException(NException::CExceptionPointer &&_pException)
+	{
+		m_Result.f_Clear();
+		m_Result.f_SetException(fg_Move(_pException));
+	}
+
+	template <typename t_CType>
+	void TCOnResumeResult<t_CType>::f_ApplyValue(NPrivate::CPromiseDataBase *_pPromiseData)
+	{
+		DMibFastCheck(_pPromiseData->m_pDebugTypeId == NPrivate::fg_PromiseDataTypeId<t_CType>());
+		auto *pTyped = static_cast<NPrivate::TCPromiseData<t_CType> *>(_pPromiseData);
+		pTyped->f_SetResultNoReport(fg_Move(*m_Result));
+	}
+
+	template <typename tf_FOnResume>
+	auto fg_OnResume(tf_FOnResume &&_fOnResume)
+	{
+		using CReturnType = decltype(_fOnResume());
+
+		if constexpr (NTraits::cIsSame<CReturnType, NException::CExceptionPointer>)
+		{
+			return CFutureCoroutineContextOnResumeScopeAwaiter
+				(
+					[fOnResume = fg_Move(_fOnResume)]() mutable -> NStorage::TCUniquePointer<ICOnResumeResult>
+					{
+						auto pException = fOnResume();
+						if (!pException)
+							return {};  // Continue coroutine
+
+						return fg_Construct<COnResumeException>(fg_Move(pException));
+					}
+				)
+			;
+		}
+		else
+		{
+			using CValueType = typename CReturnType::CValue;
+			return TCFutureCoroutineContextOnResumeScopeAwaiter<CValueType>
+				(
+					[fOnResume = fg_Move(_fOnResume)]() mutable -> NStorage::TCUniquePointer<ICOnResumeResult>
+					{
+						auto Result = fOnResume();
+						if (!Result.f_IsSet())
+							return {};  // Continue coroutine
+
+						NStorage::TCUniquePointer<TCOnResumeResult<CValueType>> pResult = fg_Construct(fg_Move(Result));
+						return pResult;
+					}
+				)
+			;
+		}
 	}
 }
 
@@ -1015,6 +1084,9 @@ namespace NMib::NConcurrency::NPrivate
 #if DMibConfig_Concurrency_DebugFutures
 			, fg_GetTypeName<t_CReturnValue>()
 #endif
+#if DMibEnableSafeCheck > 0
+			, fg_PromiseDataTypeId<t_CReturnValue>()
+#endif
 		)
 		, m_fOnResult{_Init.m_pOnResult ? fg_Move(*_Init.m_pOnResult) : nullptr}
 	{
@@ -1030,6 +1102,9 @@ namespace NMib::NConcurrency::NPrivate
 			, fg_GetHighestBitSet(fg_MaxConstexpr(TCAlignOfWithVoid<t_CReturnValue>::mc_Value, sizeof(void *)) / sizeof(void *))
 #if DMibConfig_Concurrency_DebugFutures
 			, fg_GetTypeName<t_CReturnValue>()
+#endif
+#if DMibEnableSafeCheck > 0
+			, fg_PromiseDataTypeId<t_CReturnValue>()
 #endif
 		)
 	{
@@ -1055,6 +1130,9 @@ namespace NMib::NConcurrency::NPrivate
 #if DMibConfig_Concurrency_DebugFutures
 			, fg_GetTypeName<t_CReturnValue>()
 #endif
+#if DMibEnableSafeCheck > 0
+			, fg_PromiseDataTypeId<t_CReturnValue>()
+#endif
 		)
 	{
 	}
@@ -1069,6 +1147,9 @@ namespace NMib::NConcurrency::NPrivate
 			, fg_GetHighestBitSet(fg_MaxConstexpr(TCAlignOfWithVoid<t_CReturnValue>::mc_Value, sizeof(void *)) / sizeof(void *))
 #if DMibConfig_Concurrency_DebugFutures
 			, fg_GetTypeName<t_CReturnValue>()
+#endif
+#if DMibEnableSafeCheck > 0
+			, fg_PromiseDataTypeId<t_CReturnValue>()
 #endif
 		)
 		, m_fOnResult(fg_Move(_fOnResult))

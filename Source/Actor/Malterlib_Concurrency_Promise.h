@@ -170,6 +170,10 @@ namespace NMib::NConcurrency
 
 	struct CFutureCoroutineContextOnResumeScopeAwaiter;
 
+	/// fg_OnResume accepts callables returning either CExceptionPointer or TCAsyncResult<T>
+	template <typename tf_FOnResume>
+	auto fg_OnResume(tf_FOnResume &&_fOnResume);
+
 	struct CFutureCoroutineContext
 	{
 		struct [[nodiscard("You need to capture the scope")]] CCaptureExceptionScope : public CCoroutineThreadLocalHandler
@@ -219,8 +223,8 @@ namespace NMib::NConcurrency
 			FExceptionTransformer m_fTransformer;
 		};
 
-		using FDeliverExceptionResult = NFunction::TCFunctionSmallMovable<void (NException::CExceptionPointer &&_pException)>;
-		using FKeepaliveSetException = FDeliverExceptionResult (CFutureCoroutineContext &_Context, TCActor<CActor> &&_Actor);
+		using FDeliverResult = NFunction::TCFunctionSmallMovable<void (NStorage::TCUniquePointer<ICOnResumeResult> &&_pResult)>;
+		using FKeepaliveSetResult = FDeliverResult (CFutureCoroutineContext &_Context, TCActor<CActor> &&_Actor);
 
 		CFutureCoroutineContext(ECoroutineFlag _Flags) noexcept;
 		~CFutureCoroutineContext() noexcept;
@@ -270,10 +274,10 @@ namespace NMib::NConcurrency
 		static void *fs_New(mint _Size, mint _Alignment, mint _PromiseDataSize, mint _PromiseDataAlignment);
 		static void fs_Delete(void *_pMemory, mint _Size, mint _Alignment);
 
-		void f_HandleAwaitedException(CConcurrencyThreadLocal &_ThreadLocal, FKeepaliveSetException *_fSetException, NException::CExceptionPointer &&_pException);
+		void f_HandleAwaitedResult(CConcurrencyThreadLocal &_ThreadLocal, FKeepaliveSetResult *_fSetResult, NStorage::TCUniquePointer<ICOnResumeResult> &&_pResult);
 		TCFuture<void> f_AsyncDestroy(CConcurrencyThreadLocal &_ThreadLocal);
 		NContainer::TCVector<TCFuture<void>> fp_AbortAndCaptureAsyncDestructors(CConcurrencyThreadLocal &_ThreadLocal);
-		FDeliverExceptionResult f_PrepareExceptionResult(FKeepaliveSetException *_fSetException, TCActor<CActor> &&_Actor);
+		FDeliverResult f_PrepareResult(FKeepaliveSetResult *_fSetResult, TCActor<CActor> &&_Actor);
 
 		template <typename t_CAwaitable>
 		decltype(auto) await_transform(t_CAwaitable &&_Awaitable)
@@ -286,7 +290,7 @@ namespace NMib::NConcurrency
 			noexcept
 #endif
 		;
-		FRestoreScopesState f_Resume(CSystemThreadLocal &_ThreadLocal, FKeepaliveSetException *_fSetException, bool &o_bAborted);
+		FRestoreScopesState f_Resume(CSystemThreadLocal &_ThreadLocal, FKeepaliveSetResult *_fSetResult, bool &o_bAborted);
 
 		void f_InitialSuspend(CSystemThreadLocal &_ThreadLocal);
 		void f_ResumeInitialSuspend(CSystemThreadLocal &_ThreadLocal, FRestoreScopesState &o_RestoreScopes);
@@ -399,17 +403,25 @@ namespace NMib::NConcurrency
 
 	private:
 		friend struct CFutureCoroutineContext;
-		friend CFutureCoroutineContextOnResumeScopeAwaiter fg_OnResume(NFunction::TCFunctionMovable<NException::CExceptionPointer ()> &&_fOnResume);
 
-		CFutureCoroutineContextOnResumeScopeAwaiter(NFunction::TCFunctionMovable<NException::CExceptionPointer ()> &&_fOnResume);
+		template <typename tf_FOnResume>
+		friend auto fg_OnResume(tf_FOnResume &&_fOnResume);
 
-		NFunction::TCFunctionMovable<NException::CExceptionPointer ()> mp_fOnResume;
+		CFutureCoroutineContextOnResumeScopeAwaiter(NFunction::TCFunctionMovable<NStorage::TCUniquePointer<ICOnResumeResult> ()> &&_fOnResume);
+
+		NFunction::TCFunctionMovable<NStorage::TCUniquePointer<ICOnResumeResult> ()> mp_fOnResume;
 		CFutureCoroutineContext *mp_pThis = nullptr;
 #if DMibEnableSafeCheck > 0
 		bool mp_bAwaited = false;
 #endif
 	};
 
+	/// Templated awaiter that enforces type safety for TCAsyncResult<T> returns
+	template <typename t_CReturnType>
+	struct TCFutureCoroutineContextOnResumeScopeAwaiter : public CFutureCoroutineContextOnResumeScopeAwaiter
+	{
+		using CFutureCoroutineContextOnResumeScopeAwaiter::CFutureCoroutineContextOnResumeScopeAwaiter;
+	};
 }
 
 namespace NMib::NConcurrency::NPrivate
@@ -504,7 +516,7 @@ namespace NMib::NConcurrency::NPrivate
 
 		CConcurrentRunQueueEntryImpl *f_ConstructRunQueueEntry();
 
-		static FDeliverExceptionResult fs_KeepaliveSetExceptionFunctor(CFutureCoroutineContext &_Context, TCActor<CActor> &&_Actor);
+		static FDeliverResult fs_KeepaliveSetResultFunctor(CFutureCoroutineContext &_Context, TCActor<CActor> &&_Actor);
 
 		struct CAccessCoroutineAwaiter
 		{
@@ -519,6 +531,9 @@ namespace NMib::NConcurrency::NPrivate
 		};
 
 		using CFutureCoroutineContext::await_transform;
+
+		template <typename tf_CReturnType>
+		CFutureCoroutineContextOnResumeScopeAwaiter &&await_transform(TCFutureCoroutineContextOnResumeScopeAwaiter<tf_CReturnType> &&_Awaiter);
 
 		CAccessCoroutineAwaiter await_transform(CAccessCoroutine _Coroutine)
 		{
@@ -793,6 +808,16 @@ namespace NMib::NConcurrency::NPrivate
 #endif
 	};
 
+#if DMibEnableSafeCheck > 0
+	/// Returns a unique pointer value for each type T, used for debug type checking
+	template <typename t_CType>
+	inline void const *fg_PromiseDataTypeId()
+	{
+		static char const s_TypeId = 0;
+		return &s_TypeId;
+	}
+#endif
+
 	struct CPromiseDataBase
 	{
 		CPromiseDataBase
@@ -803,6 +828,9 @@ namespace NMib::NConcurrency::NPrivate
 				, uint8 _OverAlignment
 #if DMibConfig_Concurrency_DebugFutures
 				, NStr::CStr const &_Name
+#endif
+#if DMibEnableSafeCheck > 0
+				, void const *_pDebugTypeId
 #endif
 			)
 		;
@@ -857,6 +885,7 @@ namespace NMib::NConcurrency::NPrivate
 #if DMibEnableSafeCheck > 0
 		CActorHolder *m_pCoroutineOwner = nullptr;
 		void *m_pHadCoroutine = nullptr;
+		void const *m_pDebugTypeId = nullptr;
 		bool m_bFutureGotten = false;
 #endif
 #if DMibConfig_Concurrency_DebugUnobservedException
@@ -1400,13 +1429,13 @@ namespace NMib::NConcurrency
 
 	struct [[nodiscard("You should store the on resume scope")]] CCoroutineOnResumeScope final : public CCoroutineThreadLocalHandler
 	{
-		CCoroutineOnResumeScope(NFunction::TCFunctionMovable<NException::CExceptionPointer ()> &&_fOnResume);
+		CCoroutineOnResumeScope(NFunction::TCFunctionMovable<NStorage::TCUniquePointer<ICOnResumeResult> ()> &&_fOnResume);
 		~CCoroutineOnResumeScope();
 		void f_Suspend() noexcept override;
-		NException::CExceptionPointer f_Resume() noexcept override;
+		NStorage::TCUniquePointer<ICOnResumeResult> f_Resume() noexcept override;
 
 	private:
-		NFunction::TCFunctionMovable<NException::CExceptionPointer ()> mp_fOnResume;
+		NFunction::TCFunctionMovable<NStorage::TCUniquePointer<ICOnResumeResult> ()> mp_fOnResume;
 	};
 
 	struct CCoroutineOnSuspendHelper
@@ -1415,7 +1444,6 @@ namespace NMib::NConcurrency
 	};
 
 	extern CCoroutineOnSuspendHelper g_OnSuspend;
-	CFutureCoroutineContextOnResumeScopeAwaiter fg_OnResume(NFunction::TCFunctionMovable<NException::CExceptionPointer ()> &&_fOnResume);
 }
 
 namespace NMib::NFunction

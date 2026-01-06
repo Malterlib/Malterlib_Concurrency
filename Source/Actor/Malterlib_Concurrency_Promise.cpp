@@ -47,7 +47,7 @@ namespace NMib::NConcurrency
 		m_fOnSuspend();
 	}
 
-	CCoroutineOnResumeScope::CCoroutineOnResumeScope(NFunction::TCFunctionMovable<NException::CExceptionPointer ()> &&_fOnResume)
+	CCoroutineOnResumeScope::CCoroutineOnResumeScope(NFunction::TCFunctionMovable<NStorage::TCUniquePointer<ICOnResumeResult> ()> &&_fOnResume)
 		: mp_fOnResume(fg_Move(_fOnResume))
 	{
 	}
@@ -60,7 +60,7 @@ namespace NMib::NConcurrency
 	{
 	}
 
-	NException::CExceptionPointer CCoroutineOnResumeScope::f_Resume() noexcept
+	NStorage::TCUniquePointer<ICOnResumeResult> CCoroutineOnResumeScope::f_Resume() noexcept
 	{
 		return mp_fOnResume();
 	}
@@ -187,14 +187,9 @@ namespace NMib::NConcurrency
 		*/
 	}
 
-	CFutureCoroutineContextOnResumeScopeAwaiter::CFutureCoroutineContextOnResumeScopeAwaiter(NFunction::TCFunctionMovable<NException::CExceptionPointer ()> &&_fOnResume)
+	CFutureCoroutineContextOnResumeScopeAwaiter::CFutureCoroutineContextOnResumeScopeAwaiter(NFunction::TCFunctionMovable<NStorage::TCUniquePointer<ICOnResumeResult> ()> &&_fOnResume)
 		: mp_fOnResume(fg_Move(_fOnResume))
 	{
-	}
-
-	CFutureCoroutineContextOnResumeScopeAwaiter fg_OnResume(NFunction::TCFunctionMovable<NException::CExceptionPointer ()> &&_fOnResume)
-	{
-		return CFutureCoroutineContextOnResumeScopeAwaiter(fg_Move(_fOnResume));
 	}
 
 	CFutureCoroutineContext::CCaptureExceptionScopeAwaiter CFutureCoroutineContext::await_transform(CCaptureExceptionsHelper)
@@ -316,19 +311,34 @@ namespace NMib::NConcurrency
 		return {};
 	}
 
-	void CFutureCoroutineContext::f_HandleAwaitedException(CConcurrencyThreadLocal &_ThreadLocal, FKeepaliveSetException *_fSetException, NException::CExceptionPointer &&_pException)
+	void CFutureCoroutineContext::f_HandleAwaitedResult(CConcurrencyThreadLocal &_ThreadLocal, FKeepaliveSetResult *_fSetResult, NStorage::TCUniquePointer<ICOnResumeResult> &&_pResult)
 	{
+		DMibFastCheck(_pResult);
 #if DMibEnableSafeCheck > 0
+		NException::CExceptionPointer pCaptureCheckException;
 		try
 		{
 			fp_CheckCaptureExceptions();
 		}
 		catch (NException::CDebugException const &_Exception)
 		{
-			_pException = _Exception.f_ExceptionPointer();
+			pCaptureCheckException = _Exception.f_ExceptionPointer();
+		}
+
+		if (pCaptureCheckException)
+		{
+			if (auto pOrigException = fg_Move(*_pResult).f_TryGetException())
+			{
+				NException::CExceptionExceptionVectorData::CErrorCollector ErrorCollector;
+				ErrorCollector.f_AddError(fg_Move(pOrigException));
+				ErrorCollector.f_AddError(fg_Move(pCaptureCheckException));
+				_pResult->f_SetException(fg_Move(ErrorCollector).f_GetException());
+			}
+			else
+				_pResult->f_SetException(fg_Move(pCaptureCheckException));
 		}
 #endif
-		auto fDeliverExceptionResult = f_PrepareExceptionResult(_fSetException, fg_CurrentActor(_ThreadLocal));
+		auto fDeliverResult = f_PrepareResult(_fSetResult, fg_CurrentActor(_ThreadLocal));
 
 		auto AsyncDestructors = fp_AbortAndCaptureAsyncDestructors(_ThreadLocal);
 
@@ -345,17 +355,22 @@ namespace NMib::NConcurrency
 			{
 				TCPromise<void> Promise
 					(
-						[fDeliverExceptionResult = fg_Move(fDeliverExceptionResult), pException = fg_Move(_pException)](TCAsyncResult<void> &&_DestroyResults) mutable
+						[fDeliverResult = fg_Move(fDeliverResult), pResult = fg_Move(_pResult)](TCAsyncResult<void> &&_DestroyResults) mutable
 						{
 							if (!_DestroyResults)
 							{
-								NException::CExceptionExceptionVectorData::CErrorCollector ErrorCollector;
-								ErrorCollector.f_AddError(fg_Move(pException));
-								ErrorCollector.f_AddError(fg_Move(_DestroyResults).f_GetException());
-								pException = fg_Move(ErrorCollector).f_GetException();
+								if (auto pOrigException = fg_Move(*pResult).f_TryGetException())
+								{
+									NException::CExceptionExceptionVectorData::CErrorCollector ErrorCollector;
+									ErrorCollector.f_AddError(fg_Move(pOrigException));
+									ErrorCollector.f_AddError(fg_Move(_DestroyResults).f_GetException());
+									pResult->f_SetException(fg_Move(ErrorCollector).f_GetException());
+								}
+								else
+									pResult->f_SetException(fg_Move(_DestroyResults).f_GetException());
 							}
 
-							fDeliverExceptionResult(fg_Move(pException));
+							fDeliverResult(fg_Move(pResult));
 						}
 					)
 				;
@@ -366,7 +381,7 @@ namespace NMib::NConcurrency
 			}
 		}
 
-		fDeliverExceptionResult(fg_Move(_pException));
+		fDeliverResult(fg_Move(_pResult));
 	}
 
 	void *CFutureCoroutineContext::fs_New(mint _Size, mint _Alignment, mint _PromiseDataSize, mint _PromiseDataAlignment)
@@ -426,6 +441,51 @@ namespace NMib::NConcurrency
 			}
 		;
 	}
+
+	COnResumeException::COnResumeException(NException::CExceptionPointer &&_pException)
+		: m_pException(fg_Move(_pException))
+	{
+	}
+
+	NException::CExceptionPointer COnResumeException::f_TryGetException() &&
+	{
+		return fg_Move(m_pException);
+	}
+
+	void COnResumeException::f_SetException(NException::CExceptionPointer &&_pException)
+	{
+		m_pException = fg_Move(_pException);
+	}
+
+	void COnResumeException::f_ApplyValue(NPrivate::CPromiseDataBase *)
+	{
+		DMibFastCheck(false);  // Should never be called - this type only holds exceptions
+	}
+
+	TCOnResumeResult<void>::TCOnResumeResult(TCAsyncResult<void> &&_Result)
+		: m_Result(fg_Move(_Result))
+	{
+	}
+
+	NException::CExceptionPointer TCOnResumeResult<void>::f_TryGetException() &&
+	{
+		if (m_Result)
+			return {};  // Has value, not exception
+
+		return fg_Move(m_Result).f_GetException();
+	}
+
+	void TCOnResumeResult<void>::f_SetException(NException::CExceptionPointer &&_pException)
+	{
+		m_Result.f_Clear();
+		m_Result.f_SetException(fg_Move(_pException));
+	}
+
+	void TCOnResumeResult<void>::f_ApplyValue(NPrivate::CPromiseDataBase *_pPromiseData)
+	{
+		auto *pTyped = static_cast<NPrivate::TCPromiseData<void> *>(_pPromiseData);
+		pTyped->f_SetResultNoReport();
+	}
 }
 
 namespace NMib::NConcurrency::NPrivate
@@ -445,12 +505,18 @@ namespace NMib::NConcurrency::NPrivate
 #if DMibConfig_Concurrency_DebugFutures
 			, NStr::CStr const &_Name
 #endif
+#if DMibEnableSafeCheck > 0
+			, void const *_pDebugTypeId
+#endif
 		)
 		: m_OnResultSet(_OnResultSet)
 		, m_RefCount(_RefCount)
 		, m_BeforeSuspend{.m_bOnResultSetAtInit = _bOnResultSetAtInit, .m_OverAlignment = _OverAlignment}
 #if DMibConfig_Concurrency_DebugFutures
 		, m_FutureTypeName(_Name)
+#endif
+#if DMibEnableSafeCheck > 0
+		, m_pDebugTypeId(_pDebugTypeId)
 #endif
 	{
 		DMibFastCheck(_OverAlignment <= 7);

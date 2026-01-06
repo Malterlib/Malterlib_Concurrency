@@ -1087,7 +1087,7 @@ namespace NMib::NConcurrency
 #endif
 						{
 							bool bAborted = false;
-							auto RestoreStates = CoroutineContext.f_Resume(_ThreadLocal.m_SystemThreadLocal, &tf_CCoroutineContext::fs_KeepaliveSetExceptionFunctor, bAborted);
+							auto RestoreStates = CoroutineContext.f_Resume(_ThreadLocal.m_SystemThreadLocal, &tf_CCoroutineContext::fs_KeepaliveSetResultFunctor, bAborted);
 							if (!bAborted)
 								Handle.resume();
 						}

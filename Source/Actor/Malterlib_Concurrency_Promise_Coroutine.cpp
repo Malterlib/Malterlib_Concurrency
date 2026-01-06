@@ -215,11 +215,11 @@ namespace NMib::NConcurrency
 		m_pPromiseData->f_OnResultPendingAppendable();
 	}
 
-	auto CFutureCoroutineContext::f_PrepareExceptionResult(FKeepaliveSetException *_fSetException, TCActor<CActor> &&_Actor) -> FDeliverExceptionResult
+	auto CFutureCoroutineContext::f_PrepareResult(FKeepaliveSetResult *_fSetResult, TCActor<CActor> &&_Actor) -> FDeliverResult
 	{
-		return [fSetException = _fSetException(*this, fg_Move(_Actor))](NException::CExceptionPointer &&_pException) mutable -> void
+		return [fSetResult = _fSetResult(*this, fg_Move(_Actor))](NStorage::TCUniquePointer<ICOnResumeResult> &&_pResult) mutable -> void
 			{
-				fSetException(fg_Move(_pException));
+				fSetResult(fg_Move(_pResult));
 			}
 		;
 	}
@@ -338,7 +338,7 @@ namespace NMib::NConcurrency
 		}
 	}
 
-	FRestoreScopesState CFutureCoroutineContext::f_Resume(CSystemThreadLocal &_ThreadLocal, FKeepaliveSetException *_fSetException, bool &o_bAborted)
+	FRestoreScopesState CFutureCoroutineContext::f_Resume(CSystemThreadLocal &_ThreadLocal, FKeepaliveSetResult *_fSetResult, bool &o_bAborted)
 	{
 		auto &ConcurrencyThreadLocal = fg_ConcurrencyThreadLocal();
 		auto &ThreadLocal = ConcurrencyThreadLocal.m_SystemThreadLocal;
@@ -360,8 +360,8 @@ namespace NMib::NConcurrency
 #if DMibEnableSafeCheck > 0
 		if (m_pSuspendDebugException)
 		{
-			auto pException = fg_Move(m_pSuspendDebugException);
-			f_HandleAwaitedException(ConcurrencyThreadLocal, _fSetException, fg_Move(pException));
+			NStorage::TCUniquePointer<COnResumeException> pResult = fg_Construct(fg_Move(m_pSuspendDebugException));
+			f_HandleAwaitedResult(ConcurrencyThreadLocal, _fSetResult, fg_Move(pResult));
 			o_bAborted = true;
 			return {};
 		}
@@ -369,15 +369,15 @@ namespace NMib::NConcurrency
 		auto iHandler = m_CoroutineHandlers.m_ThreadLocalHandlers.f_GetIterator();
 		for (; iHandler; ++iHandler)
 		{
-			auto pException = iHandler->f_Resume();
-			if (pException)
+			auto pResult = iHandler->f_Resume();
+			if (pResult)
 			{
 				if (iHandler)
 					--iHandler;
 				for (; iHandler; --iHandler)
 					iHandler->f_Suspend();
 
-				f_HandleAwaitedException(ConcurrencyThreadLocal, _fSetException, fg_Move(pException));
+				f_HandleAwaitedResult(ConcurrencyThreadLocal, _fSetResult, fg_Move(pResult));
 
 				o_bAborted = true;
 

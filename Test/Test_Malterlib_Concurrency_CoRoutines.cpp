@@ -122,7 +122,7 @@ namespace NMib::NConcurrency::NTest
 
 		static TCFuture<void> fs_TestParams(CTestClass *_pTest, int32 _Value)
 		{
-			co_await fg_Timeout(0.001);
+			co_await g_Yield;
 			co_return {};
 		}
 	};
@@ -1063,7 +1063,7 @@ namespace NMib::NConcurrency::NTest
 				)
 			;
 			bThrow = !_bThrowInitial;
-			co_await fg_Timeout(0.001);
+			co_await g_Yield;
 
 			co_return {};
 		}
@@ -1087,6 +1087,154 @@ namespace NMib::NConcurrency::NTest
 			co_await Promise.f_Future();
 
 			co_return {};
+		}
+
+		// Tests for fg_OnResume returning TCAsyncResult<T>
+		TCFuture<int32> f_TestOnResumeValue(bool _bSetValueInitial)
+		{
+			bool bSetValue = _bSetValueInitial;
+			auto OnResume = co_await fg_OnResume
+				(
+					[&]() -> TCAsyncResult<int32>
+					{
+						TCAsyncResult<int32> Result;
+						if (bSetValue)
+							Result.f_SetResult(42);
+						return Result;
+					}
+				)
+			;
+			bSetValue = !_bSetValueInitial;
+			co_await g_Yield;
+
+			co_return 99;
+		}
+
+		TCFuture<int32> f_TestOnResumeValueNoSuspend(bool _bSetValueInitial)
+		{
+			bool bSetValue = _bSetValueInitial;
+			auto OnResume = co_await fg_OnResume
+				(
+					[&]() -> TCAsyncResult<int32>
+					{
+						TCAsyncResult<int32> Result;
+						if (bSetValue)
+							Result.f_SetResult(42);
+						return Result;
+					}
+				)
+			;
+			bSetValue = !_bSetValueInitial;
+			TCPromise<void> Promise;
+			Promise.f_SetResult();
+			co_await Promise.f_Future();
+
+			co_return 99;
+		}
+
+		TCFuture<int32> f_TestOnResumeResultException(bool _bSetExceptionInitial)
+		{
+			bool bSetException = _bSetExceptionInitial;
+			auto OnResume = co_await fg_OnResume
+				(
+					[&]() -> TCAsyncResult<int32>
+					{
+						TCAsyncResult<int32> Result;
+						if (bSetException)
+							Result.f_SetException(DMibErrorInstance("OnResumeException"));
+						return Result;
+					}
+				)
+			;
+			bSetException = !_bSetExceptionInitial;
+			co_await g_Yield;
+
+			co_return 99;
+		}
+
+		TCFuture<void> f_TestOnResumeVoidValue(bool _bSetValueInitial)
+		{
+			bool bSetValue = _bSetValueInitial;
+			auto OnResume = co_await fg_OnResume
+				(
+					[&]() -> TCAsyncResult<void>
+					{
+						TCAsyncResult<void> Result;
+						if (bSetValue)
+							Result.f_SetResult();
+						return Result;
+					}
+				)
+			;
+			bSetValue = !_bSetValueInitial;
+			co_await g_Yield;
+
+			co_return {};
+		}
+
+		TCFuture<void> f_TestOnResumeVoidException(bool _bSetExceptionInitial)
+		{
+			bool bSetException = _bSetExceptionInitial;
+			auto OnResume = co_await fg_OnResume
+				(
+					[&]() -> TCAsyncResult<void>
+					{
+						TCAsyncResult<void> Result;
+						if (bSetException)
+							Result.f_SetException(DMibErrorInstance("OnResumeVoidException"));
+						return Result;
+					}
+				)
+			;
+			bSetException = !_bSetExceptionInitial;
+			co_await g_Yield;
+
+			co_return {};
+		}
+
+		// Tests for fg_OnResume with g_CaptureExceptions
+		TCFuture<int32> f_TestOnResumeValueWithCaptureExceptions(bool _bSetValueInitial)
+		{
+			auto CaptureScope = co_await g_CaptureExceptions;
+
+			bool bSetValue = _bSetValueInitial;
+			auto OnResume = co_await fg_OnResume
+				(
+					[&]() -> TCAsyncResult<int32>
+					{
+						TCAsyncResult<int32> Result;
+						if (bSetValue)
+							Result.f_SetResult(42);
+						return Result;
+					}
+				)
+			;
+			bSetValue = !_bSetValueInitial;
+			co_await g_Yield;
+
+			co_return 99;
+		}
+
+		TCFuture<int32> f_TestOnResumeExceptionWithCaptureExceptions(bool _bSetExceptionInitial)
+		{
+			auto CaptureScope = co_await g_CaptureExceptions;
+
+			bool bSetException = _bSetExceptionInitial;
+			auto OnResume = co_await fg_OnResume
+				(
+					[&]() -> TCAsyncResult<int32>
+					{
+						TCAsyncResult<int32> Result;
+						if (bSetException)
+							Result.f_SetException(DMibErrorInstance("OnResumeWithCapture"));
+						return Result;
+					}
+				)
+			;
+			bSetException = !_bSetExceptionInitial;
+			co_await g_Yield;
+
+			co_return 99;
 		}
 
 		TCFuture<void> f_TestCaptureSpecific()
@@ -1196,7 +1344,7 @@ namespace NMib::NConcurrency::NTest
 		{
 			auto CaptureExceptions = co_await (g_CaptureExceptions.f_Specific<CCustomException>() % (fg_LogError("Test", "Test") % "User Message Custom"));
 
-			co_await fg_Timeout(0.001);
+			co_await g_Yield;
 			DMibCustomException("Test Custom");
 
 			co_return {};
@@ -1206,7 +1354,7 @@ namespace NMib::NConcurrency::NTest
 		{
 			auto CaptureExceptions = co_await (g_CaptureExceptions % fg_LogError("Test", "Test"));
 
-			co_await fg_Timeout(0.001);
+			co_await g_Yield;
 			DMibError("Test Log");
 
 			co_return {};
@@ -1216,7 +1364,7 @@ namespace NMib::NConcurrency::NTest
 		{
 			auto CaptureExceptions = co_await (g_CaptureExceptions % (fg_LogError("Test", "Test") % "User Message"));
 
-			co_await fg_Timeout(0.001);
+			co_await g_Yield;
 			DMibError("Test Log");
 
 			co_return {};
@@ -1227,7 +1375,7 @@ namespace NMib::NConcurrency::NTest
 			auto CaptureExceptions = co_await (g_CaptureExceptions % (fg_LogError("Test", "Test") % "User Message"));
 			{
 				auto CaptureExceptionsNested = co_await (g_CaptureExceptions % (fg_LogError("Test", "Test") % "User Message Nested"));
-				co_await fg_Timeout(0.001);
+				co_await g_Yield;
 				DMibError("Test Log");
 			}
 
@@ -1240,7 +1388,7 @@ namespace NMib::NConcurrency::NTest
 			try
 			{
 				auto CaptureExceptionsNested = co_await (g_CaptureExceptions % (fg_LogError("Test", "Test") % "User Message Nested"));
-				co_await fg_Timeout(0.001);
+				co_await g_Yield;
 				DMibError("Test Log");
 			}
 			catch (...)
@@ -1263,10 +1411,73 @@ namespace NMib::NConcurrency::NTest
 			{
 			}
 
-			co_await fg_Timeout(0.001);
+			co_await g_Yield;
 			DMibError("Test Log2");
 
 			co_return {};
+		}
+
+		// Test: fg_OnResume returning value with g_CaptureExceptions inside try/catch
+		// Without outer capture scope
+		TCFuture<int32> f_TestOnResumeValueWithCaptureInsideTryCatch(bool _bReturnValueInitially)
+		{
+			bool bReturnValue = _bReturnValueInitially;
+			try
+			{
+				auto CaptureExceptionsNested = co_await (g_CaptureExceptions % (fg_LogError("Test", "Test") % "User Message Nested"));
+				DMibError("Test Log");
+			}
+			catch (...)
+			{
+			}
+
+			auto OnResume = co_await fg_OnResume
+				(
+					[&]() -> TCAsyncResult<int32>
+					{
+						TCAsyncResult<int32> Result;
+						if (bReturnValue)
+							Result.f_SetResult(42);
+						return Result;
+					}
+				)
+			;
+			bReturnValue = !_bReturnValueInitially;
+			co_await g_Yield;
+
+			co_return 99;
+		}
+
+		// Test: fg_OnResume returning value with g_CaptureExceptions inside try/catch
+		// With outer capture scope
+		TCFuture<int32> f_TestOnResumeValueWithCaptureInsideTryCatchOuter(bool _bReturnValueInitially)
+		{
+			auto CaptureExceptions = co_await (g_CaptureExceptions % (fg_LogError("Test", "Test") % "User Message"));
+			bool bReturnValue = _bReturnValueInitially;
+			try
+			{
+				auto CaptureExceptionsNested = co_await (g_CaptureExceptions % (fg_LogError("Test", "Test") % "User Message Nested"));
+				DMibError("Test Log");
+			}
+			catch (...)
+			{
+			}
+
+			auto OnResume = co_await fg_OnResume
+				(
+					[&]() -> TCAsyncResult<int32>
+					{
+						TCAsyncResult<int32> Result;
+						if (bReturnValue)
+							Result.f_SetResult(42);
+						return Result;
+					}
+				)
+			;
+			bReturnValue = !_bReturnValueInitially;
+			co_await g_Yield;
+
+			co_return 99;
 		}
 
 		TCFuture<void> fp_Destroy() override
@@ -1603,7 +1814,7 @@ namespace NMib::NConcurrency::NTest
 			TCFuture<void> f_Destroy()
 			{
 				++m_pTestState->m_nStartDestroy;
-				co_await fg_Timeout(0.001);
+				co_await g_Yield;
 				++m_pTestState->m_nDestroyed;
 				co_return {};
 			}
@@ -1626,7 +1837,7 @@ namespace NMib::NConcurrency::NTest
 			TCFuture<void> fp_Destroy() override
 			{
 				++m_pTestState->m_nStartDestroy;
-				co_await fg_Timeout(0.001);
+				co_await g_Yield;
 				++m_pTestState->m_nDestroyed;
 				co_return {};
 			}
@@ -1744,7 +1955,7 @@ namespace NMib::NConcurrency::NTest
 									)
 								;
 
-								co_await fg_Timeout(0.001);
+								co_await g_Yield;
 
 								pTestState->m_ExitSequence = pTestState->m_Sequence.f_FetchAdd(1);
 
@@ -1775,7 +1986,7 @@ namespace NMib::NConcurrency::NTest
 
 								auto AsyncDestroy = co_await fg_AsyncDestroy(Variable);
 
-								co_await fg_Timeout(0.001);
+								co_await g_Yield;
 
 								DMibExpect(pTestState->m_nDestroyed.f_Load(), ==, 0);
 								DMibExpect(pTestState->m_nDestructed.f_Load(), ==, 0);
@@ -2348,7 +2559,7 @@ namespace NMib::NConcurrency::NTest
 
 								auto AsyncDestroy = co_await fg_AsyncDestroy(Variable);
 
-								co_await fg_Timeout(0.001);
+								co_await g_Yield;
 
 								DMibExpect(pTestState->m_nDestroyed.f_Load(), ==, 0);
 								DMibExpect(pTestState->m_nDestructed.f_Load(), ==, 0);
@@ -2376,7 +2587,7 @@ namespace NMib::NConcurrency::NTest
 
 								auto AsyncDestroy = co_await fg_AsyncDestroy(Variable);
 
-								co_await fg_Timeout(0.001);
+								co_await g_Yield;
 
 								DMibExpect(pTestState->m_nDestroyed.f_Load(), ==, 0);
 								DMibExpect(pTestState->m_nDestructed.f_Load(), ==, 0);
@@ -2412,7 +2623,7 @@ namespace NMib::NConcurrency::NTest
 										[&, pTestState]() -> TCFuture<void>
 										{
 											auto ToDestroy = fg_Move(Variable);
-											co_await fg_Timeout(0.001);
+											co_await g_Yield;
 											co_await ToDestroy.f_Destroy();
 											co_return {};
 										}
@@ -2459,7 +2670,7 @@ namespace NMib::NConcurrency::NTest
 										[&, pTestState]() -> TCFuture<void>
 										{
 											auto ToDestroy = fg_Move(Variable);
-											co_await fg_Timeout(0.001);
+											co_await g_Yield;
 											co_await ToDestroy.f_Destroy();
 											co_return {};
 										}
@@ -2516,7 +2727,7 @@ namespace NMib::NConcurrency::NTest
 										[&, pTestState]() -> TCFuture<void>
 										{
 											auto ToDestroy = fg_Move(Variable);
-											co_await fg_Timeout(0.001);
+											co_await g_Yield;
 											co_await ToDestroy.f_Destroy();
 											co_return {};
 										}
@@ -2561,7 +2772,7 @@ namespace NMib::NConcurrency::NTest
 
 								auto AsyncDestroy = co_await fg_AsyncDestroy(Variable);
 
-								co_await fg_Timeout(0.001);
+								co_await g_Yield;
 
 								DMibExpect(pTestState->m_nDestroyed.f_Load(), ==, 0);
 								DMibExpect(pTestState->m_nDestructed.f_Load(), ==, 0);
@@ -2678,7 +2889,7 @@ namespace NMib::NConcurrency::NTest
 									)
 								;
 
-								co_await fg_Timeout(0.001);
+								co_await g_Yield;
 
 								pTestState->m_ExitSequence = pTestState->m_Sequence.f_FetchAdd(1);
 
@@ -2711,7 +2922,7 @@ namespace NMib::NConcurrency::NTest
 									)
 								;
 
-								co_await fg_Timeout(0.001);
+								co_await g_Yield;
 
 								co_return {};
 							}
@@ -2791,6 +3002,37 @@ namespace NMib::NConcurrency::NTest
 
 					DMibExpectException(TestActor(&CTestActor::f_TestOnResumeExceptionNoSuspend, false).f_CallSync());
 					DMibExpectException(TestActor(&CTestActor::f_TestOnResumeExceptionNoSuspend, true).f_CallSync(), DMibErrorInstance("Aborted"));
+
+					// TCAsyncResult<int32> - return value on initial call (immediate return)
+					DMibExpect(TestActor(&CTestActor::f_TestOnResumeValue, true).f_CallSync(), ==, 42);
+					// TCAsyncResult<int32> - return value after suspend (first call empty, second call returns value)
+					DMibExpect(TestActor(&CTestActor::f_TestOnResumeValue, false).f_CallSync(), ==, 42);
+					// TCAsyncResult<int32> - no suspend, return value on initial call
+					DMibExpect(TestActor(&CTestActor::f_TestOnResumeValueNoSuspend, true).f_CallSync(), ==, 42);
+					// TCAsyncResult<int32> - no suspend, empty result initially (no suspend means functor not called again, so continues to natural return)
+					DMibExpect(TestActor(&CTestActor::f_TestOnResumeValueNoSuspend, false).f_CallSync(), ==, 99);
+					// TCAsyncResult<int32> - exception on initial call
+					DMibExpectException(TestActor(&CTestActor::f_TestOnResumeResultException, true).f_CallSync(), DMibErrorInstance("OnResumeException"));
+					// TCAsyncResult<int32> - exception after suspend
+					DMibExpectException(TestActor(&CTestActor::f_TestOnResumeResultException, false).f_CallSync(), DMibErrorInstance("OnResumeException"));
+
+					// TCAsyncResult<void> - return void value on initial call
+					DMibExpectException(TestActor(&CTestActor::f_TestOnResumeVoidValue, true).f_CallSync());
+					// TCAsyncResult<void> - return void value after suspend
+					DMibExpectException(TestActor(&CTestActor::f_TestOnResumeVoidValue, false).f_CallSync());
+					// TCAsyncResult<void> - exception on initial call
+					DMibExpectException(TestActor(&CTestActor::f_TestOnResumeVoidException, true).f_CallSync(), DMibErrorInstance("OnResumeVoidException"));
+					// TCAsyncResult<void> - exception after suspend
+					DMibExpectException(TestActor(&CTestActor::f_TestOnResumeVoidException, false).f_CallSync(), DMibErrorInstance("OnResumeVoidException"));
+
+					// fg_OnResume with g_CaptureExceptions - return value initially
+					DMibExpect(TestActor(&CTestActor::f_TestOnResumeValueWithCaptureExceptions, true).f_CallSync(), ==, 42);
+					// fg_OnResume with g_CaptureExceptions - return value after suspend
+					DMibExpect(TestActor(&CTestActor::f_TestOnResumeValueWithCaptureExceptions, false).f_CallSync(), ==, 42);
+					// fg_OnResume with g_CaptureExceptions - exception initially
+					DMibExpectException(TestActor(&CTestActor::f_TestOnResumeExceptionWithCaptureExceptions, true).f_CallSync(), DMibErrorInstance("OnResumeWithCapture"));
+					// fg_OnResume with g_CaptureExceptions - exception after suspend
+					DMibExpectException(TestActor(&CTestActor::f_TestOnResumeExceptionWithCaptureExceptions, false).f_CallSync(), DMibErrorInstance("OnResumeWithCapture"));
 				};
 #if DMibEnableSafeCheck > 0
 				DMibTestCategory("Require co_await") -> TCFuture<void>
@@ -2892,6 +3134,14 @@ namespace NMib::NConcurrency::NTest
 					DMibExpectViolatesSafeCheck(TestActor(&CTestActor::f_TestCaptureLogErrorUserMessageLeaked).f_CallSync(), CaptureInsideTryCatchError)(ETest_ExpectFail);
 					DMibExpectViolatesSafeCheck(TestActor(&CTestActor::f_TestCaptureLogErrorUserMessageLeakedAfterSupend).f_CallSync(), CaptureInsideTryCatchError)(ETest_ExpectFail);
 					DMibExpectViolatesSafeCheck(TestActor(&CTestActor::f_TestCaptureLogErrorUserMessageLeakedAfterSupendOuter).f_CallSync(), CaptureInsideTryCatchError);
+
+					// fg_OnResume returning value with capture inside try/catch - without outer capture scope
+					DMibExpectViolatesSafeCheck(TestActor(&CTestActor::f_TestOnResumeValueWithCaptureInsideTryCatch, true).f_CallSync(), CaptureInsideTryCatchError);
+					DMibExpectViolatesSafeCheck(TestActor(&CTestActor::f_TestOnResumeValueWithCaptureInsideTryCatch, false).f_CallSync(), CaptureInsideTryCatchError);
+
+					// fg_OnResume returning value with capture inside try/catch - with outer capture scope
+					DMibExpectViolatesSafeCheck(TestActor(&CTestActor::f_TestOnResumeValueWithCaptureInsideTryCatchOuter, true).f_CallSync(), CaptureInsideTryCatchError);
+					DMibExpectViolatesSafeCheck(TestActor(&CTestActor::f_TestOnResumeValueWithCaptureInsideTryCatchOuter, false).f_CallSync(), CaptureInsideTryCatchError);
 #endif
 				};
 #if 0

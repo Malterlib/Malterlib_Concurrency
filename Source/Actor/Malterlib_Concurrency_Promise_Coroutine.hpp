@@ -274,15 +274,35 @@ namespace NMib::NConcurrency::NPrivate
 	}
 
 	template <typename t_CReturnType>
-	auto TCFutureCoroutineContextShared<t_CReturnType>::fs_KeepaliveSetExceptionFunctor(CFutureCoroutineContext &_Context, TCActor<CActor> &&_Actor) -> FDeliverExceptionResult
+	auto TCFutureCoroutineContextShared<t_CReturnType>::fs_KeepaliveSetResultFunctor(CFutureCoroutineContext &_Context, TCActor<CActor> &&_Actor) -> FDeliverResult
 	{
 		auto *pThis = static_cast<TCFutureCoroutineContextShared<t_CReturnType> *>(&_Context);
 
-		return [KeepAlive = pThis->f_KeepAlive(fg_Move(_Actor))](NException::CExceptionPointer &&_pException)
+		return [KeepAlive = pThis->f_KeepAlive(fg_Move(_Actor))](NStorage::TCUniquePointer<ICOnResumeResult> &&_pResult)
 			{
-				KeepAlive.f_PromiseData().f_SetExceptionNoReport(fg_Move(_pException));
+				if (!_pResult)
+					return;  // Should not happen
+
+				if (auto pException = fg_Move(*_pResult).f_TryGetException())
+					KeepAlive.f_PromiseData().f_SetExceptionNoReport(fg_Move(pException));
+				else
+					_pResult->f_ApplyValue(&KeepAlive.f_PromiseData());
 			}
 		;
+	}
+
+	template <typename t_CReturnType>
+	template <typename tf_CReturnType>
+	CFutureCoroutineContextOnResumeScopeAwaiter &&TCFutureCoroutineContextShared<t_CReturnType>::await_transform(TCFutureCoroutineContextOnResumeScopeAwaiter<tf_CReturnType> &&_Awaiter)
+	{
+		static_assert
+			(
+				NTraits::cIsSame<t_CReturnType, tf_CReturnType>
+				, "fg_OnResume TCAsyncResult type must match coroutine return type"
+			)
+		;
+
+		return CFutureCoroutineContext::await_transform(static_cast<CFutureCoroutineContextOnResumeScopeAwaiter &&>(_Awaiter));
 	}
 
 	template <typename t_CReturnType>
@@ -573,11 +593,12 @@ namespace NMib::NConcurrency
 				if (mp_bForceDelete)
 				{
 					DMibFastCheck(PromiseData.m_Result.f_IsSet() && !PromiseData.m_Result);
-					CoroutineContext.f_HandleAwaitedException
+					NStorage::TCUniquePointer<COnResumeException> pResult = fg_Construct(fg_TransformException(fg_Move(PromiseData.m_Result).f_GetException(), mp_fExceptionTransform));
+					CoroutineContext.f_HandleAwaitedResult
 						(
 							ThreadLocal
-							, &tf_CCoroutineContext::fs_KeepaliveSetExceptionFunctor
-							, fg_TransformException(fg_Move(PromiseData.m_Result).f_GetException(), mp_fExceptionTransform)
+							, &tf_CCoroutineContext::fs_KeepaliveSetResultFunctor
+							, fg_Move(pResult)
 						)
 					;
 					return true;
@@ -623,11 +644,16 @@ namespace NMib::NConcurrency
 										{
 											if (!PromiseData.m_Result)
 											{
-												CoroutineContext.f_HandleAwaitedException
+												NStorage::TCUniquePointer<COnResumeException> pResult = fg_Construct
+													(
+														fg_TransformException(fg_Move(PromiseData.m_Result).f_GetException(), mp_fExceptionTransform)
+													)
+												;
+												CoroutineContext.f_HandleAwaitedResult
 													(
 														_ThreadLocal
-														, &tf_CCoroutineContext::fs_KeepaliveSetExceptionFunctor
-														, fg_TransformException(fg_Move(PromiseData.m_Result).f_GetException(), mp_fExceptionTransform)
+														, &tf_CCoroutineContext::fs_KeepaliveSetResultFunctor
+														, fg_Move(pResult)
 													)
 												;
 												return;
@@ -639,7 +665,7 @@ namespace NMib::NConcurrency
 											auto RestoreStates = CoroutineContext.f_Resume
 												(
 													_ThreadLocal.m_SystemThreadLocal
-													, &tf_CCoroutineContext::fs_KeepaliveSetExceptionFunctor
+													, &tf_CCoroutineContext::fs_KeepaliveSetResultFunctor
 													, bAborted
 												)
 											;
@@ -657,11 +683,12 @@ namespace NMib::NConcurrency
 				{
 					if (!PromiseData.m_Result)
 					{
-						CoroutineContext.f_HandleAwaitedException
+						NStorage::TCUniquePointer<COnResumeException> pResult = fg_Construct(fg_TransformException(fg_Move(PromiseData.m_Result).f_GetException(), mp_fExceptionTransform));
+						CoroutineContext.f_HandleAwaitedResult
 							(
 								ThreadLocal
-								, &tf_CCoroutineContext::fs_KeepaliveSetExceptionFunctor
-								, fg_TransformException(fg_Move(PromiseData.m_Result).f_GetException(), mp_fExceptionTransform)
+								, &tf_CCoroutineContext::fs_KeepaliveSetResultFunctor
+								, fg_Move(pResult)
 							)
 						;
 						return true;

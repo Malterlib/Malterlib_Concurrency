@@ -591,11 +591,12 @@ namespace NMib::NConcurrency
 							{
 								if (!mp_AsyncResult)
 								{
-									CoroutineContext.f_HandleAwaitedException
+									NStorage::TCUniquePointer<COnResumeException> pResult = fg_Construct(fg_TransformException(fg_Move(mp_AsyncResult).f_GetException(), mp_fExceptionTransform));
+									CoroutineContext.f_HandleAwaitedResult
 										(
 											_ThreadLocal
-											, &tf_CCoroutineContext::fs_KeepaliveSetExceptionFunctor
-											, fg_TransformException(fg_Move(mp_AsyncResult).f_GetException(), mp_fExceptionTransform)
+											, &tf_CCoroutineContext::fs_KeepaliveSetResultFunctor
+											, fg_Move(pResult)
 										)
 									;
 									return;
@@ -604,7 +605,7 @@ namespace NMib::NConcurrency
 
 							{
 								bool bAborted = false;
-								auto RestoreStates = CoroutineContext.f_Resume(_ThreadLocal.m_SystemThreadLocal, &tf_CCoroutineContext::fs_KeepaliveSetExceptionFunctor, bAborted);
+								auto RestoreStates = CoroutineContext.f_Resume(_ThreadLocal.m_SystemThreadLocal, &tf_CCoroutineContext::fs_KeepaliveSetResultFunctor, bAborted);
 								if (!bAborted)
 									Handle.resume();
 							}

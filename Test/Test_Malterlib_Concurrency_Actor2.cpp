@@ -342,7 +342,13 @@ namespace NTestActor2
 		{
 			DMibTestSuite("General")
 			{
-				EExecutionPriority ExecutionPriority[EPriority_Max] = {EExecutionPriority_Lowest, EExecutionPriority_Normal};
+				EExecutionPriority ExecutionPriority[EPriority_Max]
+#ifdef DPlatformFamily_macOS
+					= {EExecutionPriority_BelowNormal, EExecutionPriority_Normal, EExecutionPriority_Normal}
+#else
+					= {EExecutionPriority_Lowest, EExecutionPriority_Normal, EExecutionPriority_Normal}
+#endif
+				;
 
 				CConcurrencyManager ConcurrencyManager(ExecutionPriority);
 				auto Cleanup = g_OnScopeExit / [&]

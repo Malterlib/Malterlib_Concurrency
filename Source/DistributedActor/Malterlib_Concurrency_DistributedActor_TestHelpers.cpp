@@ -35,6 +35,29 @@ namespace NMib::NConcurrency
 
 	CDistributedActorTestHelperCombined::~CDistributedActorTestHelperCombined()
 	{
+		// Stop client connection and listen socket, waiting for completion
+		// This prevents race conditions with subsequent tests using the same socket path
+		TCFutureVector<void> Futures;
+
+		if (mp_ClientConnectionReference.f_IsValid())
+			mp_ClientConnectionReference.f_Disconnect() > Futures;
+
+		// f_Stop() returns an error if already stopped, so wrap to ignore errors
+		mp_ListenReference.f_Stop() > Futures;
+
+		if (mp_pClient)
+			mp_pClient->f_Destroy();
+
+		if (mp_pServer)
+			mp_pServer->f_Destroy();
+
+		try
+		{
+			fg_AllDoneWrapped(Futures).f_CallSync(mp_pRunLoop, 60.0);
+		}
+		catch (...)
+		{
+		}
 	}
 
 	NStr::CStr CDistributedActorTestHelperCombined::f_GetListenSocketPath() const

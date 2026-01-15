@@ -28,6 +28,8 @@ namespace NMib::NConcurrency
 		void f_SetLazyStartApp(NFunction::TCFunction<FStopApp (NEncoding::CEJsonSorted const &_Params, EDistributedAppCommandFlag _Flags)> const &_fLazyStartApp);
 		void f_SetLazyPreRunDirectCommand(NFunction::TCFunction<void (NEncoding::CEJsonSorted const &_Params, EDistributedAppCommandFlag _Flags)> const &_fLazyPreRunDirectCommand);
 
+		NStorage::TCSharedPointer<CRunLoop> const &f_GetRunLoop() const;
+
 		CDistributedAppCommandLineClient
 			(
 				CDistributedAppActor_Settings const &_Settings

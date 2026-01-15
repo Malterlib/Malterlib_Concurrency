@@ -45,6 +45,12 @@ namespace NMib::NConcurrency
 		mp_fLazyPreRunDirectCommand = _fLazyPreRunDirectCommand;
 	}
 
+	NStorage::TCSharedPointer<CRunLoop> const &CDistributedAppCommandLineClient::f_GetRunLoop() const
+	{
+		auto &Internal = *mp_pInternal;
+		return Internal.m_pRunLoop;
+	}
+
 	namespace
 	{
 		struct CCommandLineControlActor : public ICCommandLineControl

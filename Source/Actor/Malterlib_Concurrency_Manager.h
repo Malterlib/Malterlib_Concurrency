@@ -32,6 +32,10 @@ namespace NMib::NConcurrency
 	{
 		TCActor<CBlockingActor> m_Actor;
 		DMibListLinkDS_Link(CBlockingActorStorage, m_Link);
+#if DMibConfig_Concurrency_DebugBlockDestroy
+		NThread::CLowLevelLock m_CheckoutCallstackLock;
+		NException::CCallstack m_CheckoutCallstack;
+#endif
 	};
 
 	/// \brief Manages scheduling of running actors in a thread pool

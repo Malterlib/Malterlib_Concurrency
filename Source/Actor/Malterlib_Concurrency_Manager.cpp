@@ -459,7 +459,7 @@ namespace NMib::NConcurrency
 					DMibTrace("    TCFuture<{}>   RefCount {}{\n}", Future.m_FutureTypeName << Future.m_RefCount.f_Get());
 
 	#if DMibConfig_RefCountDebugging
-					mint iCallstack = 0;
+					[[maybe_unused]] mint iCallstack = 0;
 					DMibLock(Future.m_RefCount.m_Debug->m_Lock);
 					for (auto &Callstack : Future.m_RefCount.m_Debug->m_Callstacks)
 					{
@@ -935,7 +935,7 @@ namespace NMib::NConcurrency
 							;
 
 	#if DMibConfig_RefCountDebugging
-							mint iCallstack = 0;
+							[[maybe_unused]] mint iCallstack = 0;
 							DMibLock(Actor.m_RefCount.m_Debug->m_Lock);
 							for (auto &Callstack : Actor.m_RefCount.m_Debug->m_Callstacks)
 							{
@@ -965,7 +965,7 @@ namespace NMib::NConcurrency
 								DMibTrace("    TCFuture<{}>   RefCount {}{\n}", Future.m_FutureTypeName << Future.m_RefCount.f_Get());
 
 		#if DMibConfig_RefCountDebugging
-								mint iCallstack = 0;
+								[[maybe_unused]] mint iCallstack = 0;
 								DMibLock(Future.m_RefCount.m_Debug->m_Lock);
 								for (auto &Callstack : Future.m_RefCount.m_Debug->m_Callstacks)
 								{
@@ -1084,10 +1084,34 @@ namespace NMib::NConcurrency
 				+ m_ConcurrentActors[EPriority_Low].f_GetLen()
 				+ c_nDirectDeleteActors
 			;
-			while (fp_NumActors() > nExpectedActors)
 			{
-				fDestroyFreeBlockingActors();
-				NSys::fg_Thread_SmallestSleep();
+				bool bLoggedBlockingActorShutdown = false;
+				while (fp_NumActors() > nExpectedActors)
+				{
+					fDestroyFreeBlockingActors();
+					NSys::fg_Thread_SmallestSleep();
+					if (Clock.f_GetTime() > 10.0)
+					{
+						if (m_bShutdownLogging && !bLoggedBlockingActorShutdown)
+						{
+							bLoggedBlockingActorShutdown = true;
+							DMibLog(Info, "Shutting down concurrency manager: Waiting for blocking actor checkouts to be released");
+						}
+#if DMibConfig_Concurrency_DebugBlockDestroy
+						DMibLock(m_BlockingActorsLock);
+						for (auto &pActor : m_BlockingActors)
+						{
+							if (!pActor->m_Link.f_IsInList())
+							{
+								DMibTrace("Blocking actor still checked out:{\n}", 0);
+								DMibLock(pActor->m_CheckoutCallstackLock);
+								pActor->m_CheckoutCallstack.f_Trace(8);
+							}
+						}
+#endif
+						Clock.f_Start();
+					}
+				}
 			}
 		}
 
@@ -1338,18 +1362,42 @@ namespace NMib::NConcurrency
 		: mp_pConcurrencyManager(_pConcurrencyManager)
 		, mp_pBlockingActorStorage(_pBlockingActorStorage)
 	{
+#if DMibConfig_Concurrency_DebugBlockDestroy
+		if (mp_pBlockingActorStorage)
+		{
+			DMibLock(mp_pBlockingActorStorage->m_CheckoutCallstackLock);
+			mp_pBlockingActorStorage->m_CheckoutCallstack.f_Capture();
+		}
+#endif
 	}
 
 	CBlockingActorCheckout::CBlockingActorCheckout(CBlockingActorCheckout &&_Other)
 		: mp_pConcurrencyManager(fg_Exchange(_Other.mp_pConcurrencyManager, nullptr))
 		, mp_pBlockingActorStorage(fg_Exchange(_Other.mp_pBlockingActorStorage, nullptr))
 	{
+#if DMibConfig_Concurrency_DebugBlockDestroy
+		if (mp_pBlockingActorStorage)
+		{
+			DMibLock(mp_pBlockingActorStorage->m_CheckoutCallstackLock);
+			mp_pBlockingActorStorage->m_CheckoutCallstack.f_Capture();
+		}
+#endif
 	}
 
 	CBlockingActorCheckout &CBlockingActorCheckout::operator = (CBlockingActorCheckout &&_Other)
 	{
+		f_Clear();
+
 		mp_pConcurrencyManager = fg_Exchange(_Other.mp_pConcurrencyManager, nullptr);
 		mp_pBlockingActorStorage = fg_Exchange(_Other.mp_pBlockingActorStorage, nullptr);
+
+#if DMibConfig_Concurrency_DebugBlockDestroy
+		if (mp_pBlockingActorStorage)
+		{
+			DMibLock(mp_pBlockingActorStorage->m_CheckoutCallstackLock);
+			mp_pBlockingActorStorage->m_CheckoutCallstack.f_Capture();
+		}
+#endif
 
 		return *this;
 	}

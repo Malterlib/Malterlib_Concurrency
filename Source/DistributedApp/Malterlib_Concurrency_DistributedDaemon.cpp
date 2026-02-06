@@ -198,6 +198,7 @@ namespace NMib::NConcurrency
 			DaemonParams.f_SetAction(_Action);
 			DaemonParams.f_SetExecutionPriority(_DistributedDaemon.m_ExecutionPriority);
 			DaemonParams.f_SetDaemonDependencies(_DistributedDaemon.m_DaemonDependencies);
+			DaemonParams.f_SetRequiresGraphicalSessionInUserMode(_DistributedDaemon.m_bRequiresGraphicalSessionInUserMode);
 			NStr::CStr DaemonName = _Params["Daemon_Name"].f_String();
 			DaemonParams.f_SetDaemonName(DaemonName, DaemonName != _DistributedDaemon.m_DaemonName);
 			fg_SetDaemonOptions(DaemonParams, _Params);

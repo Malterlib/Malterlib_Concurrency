@@ -35,6 +35,7 @@ namespace NMib::NConcurrency
 		NStorage::TCSharedPointer<CRunLoop> m_pRunLoop;
 		EExecutionPriority m_ExecutionPriority = EExecutionPriority_Normal;
 		NContainer::TCVector<NStr::CStr> m_DaemonDependencies;
+		bool m_bRequiresGraphicalSessionInUserMode = true;
 
 	private:
 		void fp_AddDaemonCommands(CDistributedAppCommandLineSpecification &o_CommandLine, CDistributedAppActor_Settings const &_Settings);

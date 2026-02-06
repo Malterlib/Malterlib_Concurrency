@@ -3,6 +3,8 @@
 
 #pragma once
 
+#include <Mib/Storage/Optional>
+
 namespace NMib::NConcurrency
 {
 	struct CRunLoop
@@ -34,5 +36,14 @@ namespace NMib::NConcurrency
 #if DMibEnableSafeCheck > 0
 		bool m_bProcessing = false;
 #endif
+	};
+
+	struct CActorRunLoopHelper
+	{
+		~CActorRunLoopHelper();
+
+		NStorage::TCSharedPointer<CDefaultRunLoop> m_pRunLoop = fg_Construct();
+		TCActor<CDispatchingActor> m_HelperActor{fg_Construct(), m_pRunLoop->f_Dispatcher()};
+		NStorage::TCOptional<CCurrentActorScope> m_CurrentActor{fg_Construct(fg_ConcurrencyThreadLocal(), m_HelperActor)};
 	};
 }

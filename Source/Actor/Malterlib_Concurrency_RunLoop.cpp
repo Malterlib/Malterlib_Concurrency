@@ -7,6 +7,19 @@
 
 namespace NMib::NConcurrency
 {
+	CActorRunLoopHelper::~CActorRunLoopHelper()
+	{
+		m_CurrentActor.f_Clear();
+
+		m_HelperActor->f_BlockDestroy(m_pRunLoop->f_ActorDestroyLoop());
+		m_HelperActor.f_Clear();
+
+		while (m_pRunLoop->m_RefCount.f_Get() > 0)
+			m_pRunLoop->f_WaitOnceTimeout(0.1);
+
+		m_pRunLoop.f_Clear();
+	}
+
 	CRunLoop::~CRunLoop() = default;
 
 	void CRunLoop::f_Sleep(fp64 _Time)

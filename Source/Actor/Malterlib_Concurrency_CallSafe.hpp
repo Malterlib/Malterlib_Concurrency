@@ -40,7 +40,7 @@ namespace NMib::NConcurrency
 			{
 			}
 
-			tf_CFunction m_Function;
+			NTraits::TCDecay<tf_CFunction> m_Function;
 		};
 
 		auto pState = new CState(fg_Forward<tf_CFunction>(_Function));

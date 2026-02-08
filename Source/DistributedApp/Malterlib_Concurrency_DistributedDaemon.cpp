@@ -193,6 +193,7 @@ namespace NMib::NConcurrency
 					}
 				}
 			;
+			DaemonParams.f_SetRootDirectory(_Settings.m_RootDirectory);
 			DaemonParams.f_SetAlwaysRunStatusApp(_DistributedDaemon.m_bAlwaysRunStatusApp);
 			DaemonParams.f_SetCanPause(false);
 			DaemonParams.f_SetAction(_Action);

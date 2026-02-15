@@ -79,9 +79,9 @@ namespace NMib::NConcurrency
 
 		if (!_bConfirm)
 		{
-			DMibConErrOut2("{\n}No actions were performed.{\n}{\n}");
-			DMibConErrOut2("Are you really sure you want to delete all certificates, client connections and clients?{\n}{\n}");
-			DMibConErrOut2("Confirm with --yes{\n}{\n}");
+			DMibConErrOut("{\n}No actions were performed.{\n}{\n}");
+			DMibConErrOut("Are you really sure you want to delete all certificates, client connections and clients?{\n}{\n}");
+			DMibConErrOut("Confirm with --yes{\n}{\n}");
 		}
 
 		return 0;

@@ -69,7 +69,7 @@ namespace NMib::NConcurrency
 					[pCanDestroy = m_pCanDestroy](TCAsyncResult<CDistributedAppLogReporter::CReportEntriesResult> &&_Result)
 					{
 						if (!_Result)
-							DMibConErrOut2("Error reporting log entries: {}\n", _Result.f_GetExceptionStr());
+							DMibConErrOut("Error reporting log entries: {}\n", _Result.f_GetExceptionStr());
 					}
 				)
 			;
@@ -152,7 +152,7 @@ namespace NMib::NConcurrency
 			{
 				if (!_LogReporter)
 				{
-					DMibConErrOut2("Failed to open log reporter in distributed app: {}\n", _LogReporter.f_GetExceptionStr());
+					DMibConErrOut("Failed to open log reporter in distributed app: {}\n", _LogReporter.f_GetExceptionStr());
 					return;
 				}
 				auto &Internal = *pInternal;

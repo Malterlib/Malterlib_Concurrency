@@ -922,7 +922,7 @@ namespace NTestActor2
 					DMibLock(TimersLock);
 				}
 
-				//DMibTrace("nTestLockThread: {} nTestLockActor: {}\r\n", nTestLockThread.f_Load() << nTestLockActor.f_Load());
+				//DMibTrace("nTestLockThread: {} nTestLockActor: {}\r\n", nTestLockThread.f_Load(), nTestLockActor.f_Load());
 			};
 		}
 

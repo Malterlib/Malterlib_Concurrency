@@ -456,14 +456,14 @@ namespace NMib::NConcurrency
 				DMibTrace("Futures alive in ~CConcurrencyManager():{\n}", 0);
 				for (auto &Future : this->m_Futures)
 				{
-					DMibTrace("    TCFuture<{}>   RefCount {}{\n}", Future.m_FutureTypeName << Future.m_RefCount.f_Get());
+					DMibTrace("    TCFuture<{}>   RefCount {}{\n}", Future.m_FutureTypeName, Future.m_RefCount.f_Get());
 
 	#if DMibConfig_RefCountDebugging
 					[[maybe_unused]] mint iCallstack = 0;
 					DMibLock(Future.m_RefCount.m_Debug->m_Lock);
 					for (auto &Callstack : Future.m_RefCount.m_Debug->m_Callstacks)
 					{
-						DMibTrace2("        Reference callstack {} {}\n", iCallstack, Callstack.m_CallstackLen);
+						DMibTrace("        Reference callstack {} {}\n", iCallstack, Callstack.m_CallstackLen);
 						Callstack.f_Trace(12);
 						++iCallstack;
 					}
@@ -930,7 +930,10 @@ namespace NMib::NConcurrency
 							DMibTrace
 								(
 									"    {}   Destroyed {}   RefCount {}   WeakCount {}{\n}"
-									, Actor.m_ActorTypeName << Actor.mp_Destroyed.f_Load() << Actor.m_RefCount.f_Get() << Actor.m_RefCount.f_WeakGet()
+									, Actor.m_ActorTypeName
+									, Actor.mp_Destroyed.f_Load()
+									, Actor.m_RefCount.f_Get()
+									, Actor.m_RefCount.f_WeakGet()
 								)
 							;
 
@@ -939,14 +942,14 @@ namespace NMib::NConcurrency
 							DMibLock(Actor.m_RefCount.m_Debug->m_Lock);
 							for (auto &Callstack : Actor.m_RefCount.m_Debug->m_Callstacks)
 							{
-								DMibTrace2("        Reference callstack {} {}\n", iCallstack, Callstack.m_CallstackLen);
+								DMibTrace("        Reference callstack {} {}\n", iCallstack, Callstack.m_CallstackLen);
 								Callstack.f_Trace(12);
 								++iCallstack;
 							}
 							iCallstack = 0;
 							for (auto &Callstack : Actor.m_RefCount.m_Debug->m_WeakCallstacks)
 							{
-								DMibTrace2("        Weak reference callstack {} {}\n", iCallstack, Callstack.m_CallstackLen);
+								DMibTrace("        Weak reference callstack {} {}\n", iCallstack, Callstack.m_CallstackLen);
 								Callstack.f_Trace(12);
 								++iCallstack;
 							}
@@ -962,14 +965,14 @@ namespace NMib::NConcurrency
 							DMibTrace("Futures alive:{\n}", 0);
 							for (auto &Future : this->m_Futures)
 							{
-								DMibTrace("    TCFuture<{}>   RefCount {}{\n}", Future.m_FutureTypeName << Future.m_RefCount.f_Get());
+								DMibTrace("    TCFuture<{}>   RefCount {}{\n}", Future.m_FutureTypeName, Future.m_RefCount.f_Get());
 
 		#if DMibConfig_RefCountDebugging
 								[[maybe_unused]] mint iCallstack = 0;
 								DMibLock(Future.m_RefCount.m_Debug->m_Lock);
 								for (auto &Callstack : Future.m_RefCount.m_Debug->m_Callstacks)
 								{
-									DMibTrace2("        Reference callstack {} {}\n", iCallstack, Callstack.m_CallstackLen);
+									DMibTrace("        Reference callstack {} {}\n", iCallstack, Callstack.m_CallstackLen);
 									Callstack.f_Trace(12);
 									++iCallstack;
 								}

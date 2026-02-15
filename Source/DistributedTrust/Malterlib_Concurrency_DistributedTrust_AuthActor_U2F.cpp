@@ -1158,7 +1158,7 @@ namespace NMib::NConcurrency
 			Attempt.m_ChallengeDigest = ChallengeDigest;
 			Attempt.m_AppDigest = AppDigest;
 			Attempt.m_KeyHandle = KeyHandle;
-			DMibConOut2("Attempt: chall {} app {} key {}\n", ChallengeDigest, AppDigest, NCryptography::CHash_SHA256::fs_DigestFromData(KeyHandle));
+			DMibConOut("Attempt: chall {} app {} key {}\n", ChallengeDigest, AppDigest, NCryptography::CHash_SHA256::fs_DigestFromData(KeyHandle));
 		}
 
 		if (Authenticate.m_Attempts.f_IsEmpty())

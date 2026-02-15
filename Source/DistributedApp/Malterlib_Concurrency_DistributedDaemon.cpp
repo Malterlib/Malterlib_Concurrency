@@ -41,7 +41,7 @@ namespace NMib::NConcurrency
 
 						NEncoding::CEJsonSorted Json;
 						Json["Error"] = _Result.f_GetExceptionStr();
-						DMibConErrOut2("{}:Error:{}\n", Ticket, Json.f_ToString(nullptr));
+						DMibConErrOut("{}:Error:{}\n", Ticket, Json.f_ToString(nullptr));
 					}
 				)
 			;

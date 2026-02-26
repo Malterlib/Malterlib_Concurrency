@@ -1361,7 +1361,7 @@ namespace NMib::NConcurrency
 		auto &PromiseData = *State.m_Promise.f_Unsafe_PromiseData();
 		auto &Result = PromiseData.m_Result.f_PrepareResult();
 		auto nFutures = _Futures.f_GetLen();
-		State.m_RefCount.m_RefCount.f_FetchAdd(nFutures, NAtomic::EMemoryOrder_Relaxed);
+		State.m_RefCount.m_RefCount.f_FetchAdd(nFutures, NAtomic::gc_MemoryOrder_Relaxed);
 		Result.f_SetLen(nFutures);
 		auto pResultArray = Result.f_GetArray();
 
@@ -1385,7 +1385,7 @@ namespace NMib::NConcurrency
 		_Futures.f_Clear();
 
 		if (nDirectFutures)
-			State.m_RefCount.m_RefCount.f_FetchSub(nDirectFutures, NAtomic::EMemoryOrder_Relaxed);
+			State.m_RefCount.m_RefCount.f_FetchSub(nDirectFutures, NAtomic::gc_MemoryOrder_Relaxed);
 
 		return fg_Move(Promise.m_Future);
 	}
@@ -1449,7 +1449,7 @@ namespace NMib::NConcurrency
 		{
 			if (PrecachedCount == 0)
 			{
-				State.m_RefCount.m_RefCount.f_FetchAdd(1024, NAtomic::EMemoryOrder_Relaxed);
+				State.m_RefCount.m_RefCount.f_FetchAdd(1024, NAtomic::gc_MemoryOrder_Relaxed);
 				PrecachedCount = 1024;
 			}
 
@@ -1468,7 +1468,7 @@ namespace NMib::NConcurrency
 
 		_Futures.f_Clear();
 
-		State.m_RefCount.m_RefCount.f_FetchSub(PrecachedCount + nDirectFutures, NAtomic::EMemoryOrder_Relaxed);
+		State.m_RefCount.m_RefCount.f_FetchSub(PrecachedCount + nDirectFutures, NAtomic::gc_MemoryOrder_Relaxed);
 
 		return fg_Move(Promise.m_Future);
 	}

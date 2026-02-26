@@ -124,7 +124,7 @@ namespace NMib::NConcurrency
 							co_return DMibErrorInstance("Internal error (missing or incorrect distributed actor data)");
 
 						auto pHost = pActorDataRaw->m_pHost.f_Lock();
-						if (!pHost || pHost->m_bDeleted.f_Load(NAtomic::EMemoryOrder_Relaxed))
+						if (!pHost || pHost->m_bDeleted.f_Load(NAtomic::gc_MemoryOrder_Relaxed))
 							co_return DMibErrorInstance("Remote actor host no longer available");
 
 						CDistributedActorWriteStream Stream;
@@ -185,7 +185,7 @@ namespace NMib::NConcurrency
 							co_return DMibErrorInstance("Internal error (missing or incorrect distributed actor data)");
 
 						auto pHost = pActorDataRaw->m_pHost.f_Lock();
-						if (!pHost || pHost->m_bDeleted.f_Load(NAtomic::EMemoryOrder_Relaxed))
+						if (!pHost || pHost->m_bDeleted.f_Load(NAtomic::gc_MemoryOrder_Relaxed))
 							co_return DMibErrorInstance("Remote actor host no longer available");
 
 						CDistributedActorWriteStream Stream;

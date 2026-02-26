@@ -57,7 +57,7 @@ namespace NMib::NConcurrency
 			DMibFastCheck(m_ServerConnections.f_IsEmpty());
 			DMibFastCheck(m_OutstandingCalls.f_IsEmpty());
 
-			m_bDeleted.f_Store(true, NAtomic::EMemoryOrder_Relaxed);
+			m_bDeleted.f_Store(true, NAtomic::gc_MemoryOrder_Relaxed);
 
 			f_DeletePackets();
 		}

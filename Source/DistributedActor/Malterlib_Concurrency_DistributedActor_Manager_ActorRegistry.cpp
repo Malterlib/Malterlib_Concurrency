@@ -704,7 +704,7 @@ namespace NMib::NConcurrency
 		auto &pHost = _pConnection->m_pHost;
 		auto &Host = *pHost;
 
-		if (Host.m_bDeleted.f_Load(NAtomic::EMemoryOrder_Relaxed))
+		if (Host.m_bDeleted.f_Load(NAtomic::gc_MemoryOrder_Relaxed))
 			return true;
 
 		CDistributedActorCommand_UnpublishFinished UnpublishFinished;
@@ -728,7 +728,7 @@ namespace NMib::NConcurrency
 		auto &pHost = _pConnection->m_pHost;
 		auto &Host = *pHost;
 
-		if (Host.m_bDeleted.f_Load(NAtomic::EMemoryOrder_Relaxed))
+		if (Host.m_bDeleted.f_Load(NAtomic::gc_MemoryOrder_Relaxed))
 			return true;
 
 		CDistributedActorCommand_PublishFinished PublishFinished;
@@ -752,7 +752,7 @@ namespace NMib::NConcurrency
 		auto &pHost = _pConnection->m_pHost;
 		auto &Host = *pHost;
 
-		if (!Host.f_CanReceivePublish() || Host.m_bDeleted.f_Load(NAtomic::EMemoryOrder_Relaxed))
+		if (!Host.f_CanReceivePublish() || Host.m_bDeleted.f_Load(NAtomic::gc_MemoryOrder_Relaxed))
 		{
 			DMibLogWithCategory
 				(
@@ -760,7 +760,7 @@ namespace NMib::NConcurrency
 					, SubscriptionLogVerbosity
 					, "   Low level publish packet: Skipped: CanReceive {} Deleted {}"
 					, pHost->f_CanReceivePublish()
-					, pHost->m_bDeleted.f_Load(NAtomic::EMemoryOrder_Relaxed)
+					, pHost->m_bDeleted.f_Load(NAtomic::gc_MemoryOrder_Relaxed)
 				)
 			;
 
@@ -861,7 +861,7 @@ namespace NMib::NConcurrency
 		auto &pHost = _pConnection->m_pHost;
 		auto &Host = *pHost;
 
-		if (!pHost->f_CanReceivePublish() || pHost->m_bDeleted.f_Load(NAtomic::EMemoryOrder_Relaxed))
+		if (!pHost->f_CanReceivePublish() || pHost->m_bDeleted.f_Load(NAtomic::gc_MemoryOrder_Relaxed))
 		{
 			DMibLogWithCategory
 				(
@@ -869,7 +869,7 @@ namespace NMib::NConcurrency
 					, SubscriptionLogVerbosity
 					, "   Low level unpublish packet: Skipped: CanReceive {} Deleted {}"
 					, pHost->f_CanReceivePublish()
-					, pHost->m_bDeleted.f_Load(NAtomic::EMemoryOrder_Relaxed)
+					, pHost->m_bDeleted.f_Load(NAtomic::gc_MemoryOrder_Relaxed)
 				)
 			;
 			return true;

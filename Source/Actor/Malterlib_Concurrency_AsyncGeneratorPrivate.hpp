@@ -217,7 +217,7 @@ namespace NMib::NConcurrency::NPrivate
 
 		auto &PromiseData = *m_pPromiseData;
 
-		m_RefCount.m_RefCount.f_FetchAdd(2, NAtomic::EMemoryOrder_Relaxed);
+		m_RefCount.m_RefCount.f_FetchAdd(2, NAtomic::gc_MemoryOrder_Relaxed);
 
 		DMibFastCheck(!m_bDestroyed);
 

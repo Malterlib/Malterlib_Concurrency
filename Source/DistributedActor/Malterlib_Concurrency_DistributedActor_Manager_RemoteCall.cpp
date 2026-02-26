@@ -141,7 +141,7 @@ namespace NMib::NConcurrency
 				]
 				(CActorDistributionManagerInternal &_Internal)
 				{
-					if (pHost->m_bDeleted.f_Load(NAtomic::EMemoryOrder_Relaxed) || pHost->m_LastExecutionID != LastExecutionID)
+					if (pHost->m_bDeleted.f_Load(NAtomic::gc_MemoryOrder_Relaxed) || pHost->m_LastExecutionID != LastExecutionID)
 						return;
 
 					for (auto &FunctionID : ImplicitlyPublishedFunctions)
@@ -227,7 +227,7 @@ namespace NMib::NConcurrency
 
 		auto pHostInterface = DistributedData.m_pHost.f_Lock();
 
-		if (!pHostInterface || pHostInterface->m_bDeleted.f_Load(NAtomic::EMemoryOrder_Relaxed))
+		if (!pHostInterface || pHostInterface->m_bDeleted.f_Load(NAtomic::gc_MemoryOrder_Relaxed))
 			co_return DMibErrorInstance("Remote actor host no longer available");
 
 		auto pHost = reinterpret_cast<NStorage::TCSharedPointerSupportWeak<CHost> &>(pHostInterface);
@@ -353,11 +353,11 @@ namespace NMib::NConcurrency
 	{
 		auto &State = *_Context.m_pState;
 		auto &Host = *_pHost;
-		if (Host.m_bDeleted.f_Load(NAtomic::EMemoryOrder_Relaxed) || Host.m_LastExecutionID != State.m_LastExecutionID)
+		if (Host.m_bDeleted.f_Load(NAtomic::gc_MemoryOrder_Relaxed) || Host.m_LastExecutionID != State.m_LastExecutionID)
 			return;
 
 		uint8 Priority = State.m_Priority;
-		uint32 HostActorProtocolVersion = Host.m_ActorProtocolVersion.f_Load(NAtomic::EMemoryOrder_Relaxed);
+		uint32 HostActorProtocolVersion = Host.m_ActorProtocolVersion.f_Load(NAtomic::gc_MemoryOrder_Relaxed);
 		bool bUsePriority = Priority != 128 && HostActorProtocolVersion >= EDistributedActorProtocolVersion_PrioritySupport;
 
 		NStream::CBinaryStreamMemory<NStream::CBinaryStreamDefault, NContainer::CIOByteVector> Stream;
@@ -480,7 +480,7 @@ namespace NMib::NConcurrency
 			ClaimedUserName = Entry.m_ClaimedUserName;
 		}
 
-		NPrivate::CDistributedActorStreamContext Context{Host.m_ActorProtocolVersion.f_Load(NAtomic::EMemoryOrder_Relaxed), false};
+		NPrivate::CDistributedActorStreamContext Context{Host.m_ActorProtocolVersion.f_Load(NAtomic::gc_MemoryOrder_Relaxed), false};
 		Context.m_pState->m_Priority = _Priority; // Store priority for reply
 		auto &ContextState = *Context.m_pState;
 		ContextState.m_pHost = pHost;
@@ -716,7 +716,7 @@ namespace NMib::NConcurrency
 		}
 		for (auto &Subscription : _State.m_Subscriptions)
 		{
-			if (_pSubscriptionData && _Host.m_ActorProtocolVersion.f_Load(NAtomic::EMemoryOrder_Relaxed) >= 0x104 && Claimed.f_BinarySearch(Subscription.m_SubscriptionID) < 0)
+			if (_pSubscriptionData && _Host.m_ActorProtocolVersion.f_Load(NAtomic::gc_MemoryOrder_Relaxed) >= 0x104 && Claimed.f_BinarySearch(Subscription.m_SubscriptionID) < 0)
 				continue;
 			auto &PublishedSubscription = _Host.m_ImplicitlyPublishedSubscriptions[Subscription.m_SubscriptionID];
 			PublishedSubscription.m_Subscription = fg_Move(Subscription.m_Subscription);
@@ -731,7 +731,7 @@ namespace NMib::NConcurrency
 		if (!pHost)
 			return;
 		auto &Host = *pHost;
-		if (Host.m_bDeleted.f_Load(NAtomic::EMemoryOrder_Relaxed) || Host.m_LastExecutionID != State.m_LastExecutionID)
+		if (Host.m_bDeleted.f_Load(NAtomic::gc_MemoryOrder_Relaxed) || Host.m_LastExecutionID != State.m_LastExecutionID)
 			return;
 
 		for (auto &Subscription : State.m_Subscriptions)
@@ -761,7 +761,7 @@ namespace NMib::NConcurrency
 		if (!pHost)
 			return;
 		auto &Host = *pHost;
-		if (Host.m_bDeleted.f_Load(NAtomic::EMemoryOrder_Relaxed) || Host.m_LastExecutionID != State.m_LastExecutionID)
+		if (Host.m_bDeleted.f_Load(NAtomic::gc_MemoryOrder_Relaxed) || Host.m_LastExecutionID != State.m_LastExecutionID)
 			return;
 
 		auto &References = Host.m_RemoteSubscriptionReferences[_SubscriptionID];
@@ -784,13 +784,13 @@ namespace NMib::NConcurrency
 	{
 		auto &Host = *(static_cast<CHost *>(_pHost.f_Get()));
 		{
-			if (Host.m_bDeleted.f_Load(NAtomic::EMemoryOrder_Relaxed) || Host.m_LastExecutionID != _LastExecutionID)
+			if (Host.m_bDeleted.f_Load(NAtomic::gc_MemoryOrder_Relaxed) || Host.m_LastExecutionID != _LastExecutionID)
 				co_return {};
 			auto *pSubscription = Host.m_RemoteSubscriptionReferences.f_FindEqual(_SubscriptionID);
 			if (!pSubscription)
 				co_return {}; // Host destroyed
 
-			uint32 HostActorProtocolVersion = Host.m_ActorProtocolVersion.f_Load(NAtomic::EMemoryOrder_Relaxed);
+			uint32 HostActorProtocolVersion = Host.m_ActorProtocolVersion.f_Load(NAtomic::gc_MemoryOrder_Relaxed);
 
 			if (HostActorProtocolVersion >= EDistributedActorProtocolVersion_SubscriptionDestroyedSupported)
 			{
@@ -857,14 +857,14 @@ namespace NMib::NConcurrency
 	bool CActorDistributionManagerInternal::fp_HandleDestroySubscription(CConnection *_pConnection, NStream::CBinaryStreamMemoryPtr<> &_Stream)
 	{
 		auto &pHost = _pConnection->m_pHost;
-		if (pHost->m_bDeleted.f_Load(NAtomic::EMemoryOrder_Relaxed))
+		if (pHost->m_bDeleted.f_Load(NAtomic::gc_MemoryOrder_Relaxed))
 			return true;
 
 		auto &Host = *pHost;
 
 		CDistributedActorCommand_DestroySubscription DestroySubscription;
 		_Stream >> DestroySubscription;
-		uint32 ActorProtocolVersion = Host.m_ActorProtocolVersion.f_Load(NAtomic::EMemoryOrder_Relaxed);
+		uint32 ActorProtocolVersion = Host.m_ActorProtocolVersion.f_Load(NAtomic::gc_MemoryOrder_Relaxed);
 		if (ActorProtocolVersion >= EDistributedActorProtocolVersion_SubscriptionDestroyedSupported)
 		{
 			auto *pSubscription = Host.m_ImplicitlyPublishedSubscriptions.f_FindEqual(DestroySubscription.m_SubscriptionID);
@@ -875,7 +875,7 @@ namespace NMib::NConcurrency
 					> [this, pHost, SubscriptionID = DestroySubscription.m_SubscriptionID, LastExecutionID = pHost->m_LastExecutionID, ActorProtocolVersion]
 					(TCAsyncResult<void> &&_Result)
 					{
-						if (pHost->m_bDeleted.f_Load(NAtomic::EMemoryOrder_Relaxed) || pHost->m_LastExecutionID != LastExecutionID)
+						if (pHost->m_bDeleted.f_Load(NAtomic::gc_MemoryOrder_Relaxed) || pHost->m_LastExecutionID != LastExecutionID)
 							return;
 
 						CDistributedActorCommand_SubscriptionDestroyed Result;
@@ -909,12 +909,12 @@ namespace NMib::NConcurrency
 	bool CActorDistributionManagerInternal::fp_HandleSubscriptionDestroyed(CConnection *_pConnection, NStream::CBinaryStreamMemoryPtr<> &_Stream)
 	{
 		auto &pHost = _pConnection->m_pHost;
-		if (pHost->m_bDeleted.f_Load(NAtomic::EMemoryOrder_Relaxed))
+		if (pHost->m_bDeleted.f_Load(NAtomic::gc_MemoryOrder_Relaxed))
 			return true;
 
 		auto &Host = *pHost;
 
-		uint32 ActorProtocolVersion = Host.m_ActorProtocolVersion.f_Load(NAtomic::EMemoryOrder_Relaxed);
+		uint32 ActorProtocolVersion = Host.m_ActorProtocolVersion.f_Load(NAtomic::gc_MemoryOrder_Relaxed);
 
 		CDistributedActorCommand_SubscriptionDestroyed DestroySubscription;
 		DestroySubscription.f_Consume(_Stream, ActorProtocolVersion);

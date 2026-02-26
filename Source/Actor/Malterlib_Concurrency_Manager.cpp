@@ -528,7 +528,7 @@ namespace NMib::NConcurrency
 	inline_always void CConcurrencyManager::CQueue::f_Signal(CConcurrencyManager *_pThis)
 	{
 		m_Event.f_Signal();
-		if (!m_bThreadCreated.f_Load(NAtomic::EMemoryOrder_Relaxed))
+		if (!m_bThreadCreated.f_Load(NAtomic::gc_MemoryOrder_Relaxed))
 			fp_CreateThread(_pThis);
 	}
 
@@ -555,7 +555,7 @@ namespace NMib::NConcurrency
 			return;
 		}
 
-		mint nActors = m_nConcurrentActors.f_Load(NAtomic::EMemoryOrder_Acquire);
+		mint nActors = m_nConcurrentActors.f_Load(NAtomic::gc_MemoryOrder_Acquire);
 		if (!nActors)
 			nActors = fp_InitConcurrentActors();
 
@@ -581,7 +581,7 @@ namespace NMib::NConcurrency
 			return;
 		}
 
-		mint nActors = m_nConcurrentActors.f_Load(NAtomic::EMemoryOrder_Acquire);
+		mint nActors = m_nConcurrentActors.f_Load(NAtomic::gc_MemoryOrder_Acquire);
 		if (!nActors)
 			nActors = fp_InitConcurrentActors();
 
@@ -782,11 +782,11 @@ namespace NMib::NConcurrency
 		if (ThreadLocal.m_pThisQueue)
 		{
 			auto &Queue = *ThreadLocal.m_pThisQueue;
-			m_nActorsPerQueueArray[Queue.m_Priority][Queue.m_iQueue].m_nActors.f_FetchAdd(1, NAtomic::EMemoryOrder_Relaxed);
+			m_nActorsPerQueueArray[Queue.m_Priority][Queue.m_iQueue].m_nActors.f_FetchAdd(1, NAtomic::gc_MemoryOrder_Relaxed);
 			return;
 		}
 
-		m_nActorsOther[(ThreadLocal.m_nActorsIndex & m_ActorsOtherMask)].m_nActors.f_FetchAdd(1, NAtomic::EMemoryOrder_Relaxed);
+		m_nActorsOther[(ThreadLocal.m_nActorsIndex & m_ActorsOtherMask)].m_nActors.f_FetchAdd(1, NAtomic::gc_MemoryOrder_Relaxed);
 	}
 
 	void CConcurrencyManager::fp_RemovedActor()
@@ -795,11 +795,11 @@ namespace NMib::NConcurrency
 		if (ThreadLocal.m_pThisQueue)
 		{
 			auto &Queue = *ThreadLocal.m_pThisQueue;
-			m_nActorsPerQueueArray[Queue.m_Priority][Queue.m_iQueue].m_nActors.f_FetchSub(1, NAtomic::EMemoryOrder_Release);
+			m_nActorsPerQueueArray[Queue.m_Priority][Queue.m_iQueue].m_nActors.f_FetchSub(1, NAtomic::gc_MemoryOrder_Release);
 			return;
 		}
 
-		m_nActorsOther[(ThreadLocal.m_nActorsIndex & m_ActorsOtherMask)].m_nActors.f_FetchSub(1, NAtomic::EMemoryOrder_Release);
+		m_nActorsOther[(ThreadLocal.m_nActorsIndex & m_ActorsOtherMask)].m_nActors.f_FetchSub(1, NAtomic::gc_MemoryOrder_Release);
 	}
 
 	mint CConcurrencyManager::fp_NumActors()
@@ -1248,13 +1248,13 @@ namespace NMib::NConcurrency
 			}
 		}
 
-		m_nConcurrentActors.f_Store(nActors, NAtomic::EMemoryOrder_Release);
+		m_nConcurrentActors.f_Store(nActors, NAtomic::gc_MemoryOrder_Release);
 		return nActors;
 	}
 
 	TCActor<CConcurrentActor> const &CConcurrencyManager::f_GetConcurrentActorForThisThread(EPriority _Priority)
 	{
-		mint nActors = m_nConcurrentActors.f_Load(NAtomic::EMemoryOrder_Acquire);
+		mint nActors = m_nConcurrentActors.f_Load(NAtomic::gc_MemoryOrder_Acquire);
 		if (!nActors)
 			nActors = fp_InitConcurrentActors();
 
@@ -1274,7 +1274,7 @@ namespace NMib::NConcurrency
 
 	TCActor<CConcurrentActor> const &CConcurrencyManager::f_GetConcurrentActorForOtherThread(EPriority _Priority)
 	{
-		mint nActors = m_nConcurrentActors.f_Load(NAtomic::EMemoryOrder_Acquire);
+		mint nActors = m_nConcurrentActors.f_Load(NAtomic::gc_MemoryOrder_Acquire);
 		if (!nActors)
 			nActors = fp_InitConcurrentActors();
 
@@ -1305,7 +1305,7 @@ namespace NMib::NConcurrency
 	{
 		// Returns a actor that is consistent based on weak pointer
 
-		mint nActors = m_nConcurrentActors.f_Load(NAtomic::EMemoryOrder_Acquire);
+		mint nActors = m_nConcurrentActors.f_Load(NAtomic::gc_MemoryOrder_Acquire);
 		if (!nActors)
 			nActors = fp_InitConcurrentActors();
 
@@ -1321,7 +1321,7 @@ namespace NMib::NConcurrency
 
 	TCActor<CConcurrentActor> const &CConcurrencyManager::f_GetConcurrentActor()
 	{
-		mint nActors = m_nConcurrentActors.f_Load(NAtomic::EMemoryOrder_Acquire);
+		mint nActors = m_nConcurrentActors.f_Load(NAtomic::gc_MemoryOrder_Acquire);
 		if (!nActors)
 			nActors = fp_InitConcurrentActors();
 
@@ -1335,7 +1335,7 @@ namespace NMib::NConcurrency
 
 	TCActor<CConcurrentActor> const &CConcurrencyManager::f_GetConcurrentActorLowPrio()
 	{
-		mint nActors = m_nConcurrentActors.f_Load(NAtomic::EMemoryOrder_Acquire);
+		mint nActors = m_nConcurrentActors.f_Load(NAtomic::gc_MemoryOrder_Acquire);
 		if (!nActors)
 			nActors = fp_InitConcurrentActors();
 
@@ -1349,7 +1349,7 @@ namespace NMib::NConcurrency
 
 	TCActor<CConcurrentActor> const &CConcurrencyManager::f_GetConcurrentActorHighCPU()
 	{
-		mint nActors = m_nConcurrentActors.f_Load(NAtomic::EMemoryOrder_Acquire);
+		mint nActors = m_nConcurrentActors.f_Load(NAtomic::gc_MemoryOrder_Acquire);
 		if (!nActors)
 			nActors = fp_InitConcurrentActors();
 
@@ -1534,7 +1534,7 @@ namespace NMib::NConcurrency
 
 	TCActor<CTimerActor> const &CConcurrencyManager::f_GetTimerActor()
 	{
-		if (!m_bTimerActorInit.f_Load(NAtomic::EMemoryOrder_Acquire))
+		if (!m_bTimerActorInit.f_Load(NAtomic::gc_MemoryOrder_Acquire))
 		{
 			DMibLock(m_TimerActorLock);
 			if (!m_bTimerActorInit.f_Load())

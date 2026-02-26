@@ -702,19 +702,19 @@ namespace NMib::NConcurrency::NPrivate
 
 		int32 f_GetFutureCount() const
 		{
-			return fs_GetFutureCount(m_RefCount.f_Load(NAtomic::EMemoryOrder_Relaxed));
+			return fs_GetFutureCount(m_RefCount.f_Load(NAtomic::gc_MemoryOrder_Relaxed));
 		}
 
 		int32 f_GetPromiseCount() const
 		{
-			int32 Value = (m_RefCount.f_Load(NAtomic::EMemoryOrder_Relaxed) & mc_PromiseMask) << 3;
+			int32 Value = (m_RefCount.f_Load(NAtomic::gc_MemoryOrder_Relaxed) & mc_PromiseMask) << 3;
 			Value = Value >> 3; // Sign extend
 			return Value;
 		}
 
 		bool f_PromiseToFuture()
 		{
-			auto OldValue = m_RefCount.f_FetchAdd(mc_FutureBit - 1, NAtomic::EMemoryOrder_Relaxed);
+			auto OldValue = m_RefCount.f_FetchAdd(mc_FutureBit - 1, NAtomic::gc_MemoryOrder_Relaxed);
 			DMibSafeCheck(fs_GetFutureCount(OldValue) <= 2, "Maximum three futures");
 
 			return (OldValue & mc_PromiseMask) == 0;
@@ -722,26 +722,26 @@ namespace NMib::NConcurrency::NPrivate
 
 		void f_FutureToPromise()
 		{
-			m_RefCount.f_FetchSub(mc_FutureBit - 1, NAtomic::EMemoryOrder_Relaxed);
+			m_RefCount.f_FetchSub(mc_FutureBit - 1, NAtomic::gc_MemoryOrder_Relaxed);
 		}
 
 		void f_IncreaseFuture()
 		{
-			[[maybe_unused]] int32 Return = m_RefCount.f_FetchAdd(mc_FutureBit, NAtomic::EMemoryOrder_Relaxed);
+			[[maybe_unused]] int32 Return = m_RefCount.f_FetchAdd(mc_FutureBit, NAtomic::gc_MemoryOrder_Relaxed);
 			DMibFastCheck(Return >= 0);
 			DMibSafeCheck(fs_GetFutureCount(Return) <= 2, "Maximum three futures");
 		}
 
 		bool f_DecreaseFuture()
 		{
-			int32 Return = m_RefCount.f_FetchSub(mc_FutureBit, NAtomic::EMemoryOrder_Release);
+			int32 Return = m_RefCount.f_FetchSub(mc_FutureBit, NAtomic::gc_MemoryOrder_Release);
 			DMibFastCheck(Return >= 0);
 			if ((Return - mc_FutureBit) < 0)
 			{
 	#ifdef DMibSanitizerEnabled_Thread
-				m_RefCount.f_Load(NAtomic::EMemoryOrder_Acquire);
+				m_RefCount.f_Load(NAtomic::gc_MemoryOrder_Acquire);
 	#else
-				NAtomic::fg_MemoryFence(NAtomic::EMemoryOrder_Acquire);
+				NAtomic::fg_MemoryFence(NAtomic::gc_MemoryOrder_Acquire);
 	#endif
 				return true;
 			}
@@ -752,18 +752,18 @@ namespace NMib::NConcurrency::NPrivate
 		bool f_IsLastPromiseReference()
 		{
 			// A future cannot be converted into a promise, so this should be safe
-			return (m_RefCount.f_Load(NAtomic::EMemoryOrder_Acquire) & mc_PromiseMask) == 0;
+			return (m_RefCount.f_Load(NAtomic::gc_MemoryOrder_Acquire) & mc_PromiseMask) == 0;
 		}
 
 		bool f_PromiseDecrease()
 		{
-			auto OldValue = m_RefCount.f_FetchSub(1, NAtomic::EMemoryOrder_Release);
+			auto OldValue = m_RefCount.f_FetchSub(1, NAtomic::gc_MemoryOrder_Release);
 			if (OldValue == 0)
 			{
 	#ifdef DMibSanitizerEnabled_Thread
-				m_RefCount.f_Load(NAtomic::EMemoryOrder_Acquire);
+				m_RefCount.f_Load(NAtomic::gc_MemoryOrder_Acquire);
 	#else
-				NAtomic::fg_MemoryFence(NAtomic::EMemoryOrder_Acquire);
+				NAtomic::fg_MemoryFence(NAtomic::gc_MemoryOrder_Acquire);
 	#endif
 				return true;
 			}
@@ -800,7 +800,7 @@ namespace NMib::NConcurrency::NPrivate
 #endif
 			) const
 		{
-			int32 Return = m_RefCount.f_FetchAdd(1, NAtomic::EMemoryOrder_Relaxed);
+			int32 Return = m_RefCount.f_FetchAdd(1, NAtomic::gc_MemoryOrder_Relaxed);
 			DMibFastCheck(Return >= 0 || _bAllowRevive && Return == -1);
 			DMibSafeCheck((Return & mc_PromiseMask) == mc_PromiseMask || (Return & mc_PromiseMask) < (mc_PromiseMask - 1), "Promise reference overflow");
 			return Return;
@@ -838,7 +838,7 @@ namespace NMib::NConcurrency::NPrivate
 #if DMibConfig_Concurrency_DebugFutures
 		~CPromiseDataBase();
 #endif
-		inline_always NAtomic::EMemoryOrder f_MemoryOrder(NAtomic::EMemoryOrder _Default) const;
+		inline_always NAtomic::CMemoryOrder f_MemoryOrder(NAtomic::CMemoryOrder _Default) const;
 
 		inline_always bool f_CanUseRelaxedAtomicsForRead() const
 		{

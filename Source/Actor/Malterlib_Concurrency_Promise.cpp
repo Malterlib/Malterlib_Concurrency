@@ -559,7 +559,7 @@ namespace NMib::NConcurrency::NPrivate
 	inline_always_lto void CPromiseDataBase::f_OnResultPending()
 	{
 		DMibFastCheck(!m_AfterSuspend.m_bPendingResult);
-		DMibFastCheck(!(m_OnResultSet.f_Load(NAtomic::EMemoryOrder_Relaxed) & EFutureResultFlag_DataSet));
+		DMibFastCheck(!(m_OnResultSet.f_Load(NAtomic::gc_MemoryOrder_Relaxed) & EFutureResultFlag_DataSet));
 		m_AfterSuspend.m_bPendingResult = true;
 #if DMibConfig_Concurrency_DebugActorCallstacks
 		m_PendingResultSetCallstack.f_Capture();
@@ -568,7 +568,7 @@ namespace NMib::NConcurrency::NPrivate
 
 	inline_always_lto void CPromiseDataBase::f_OnResultPendingAppendable()
 	{
-		DMibFastCheck(!(m_OnResultSet.f_Load(NAtomic::EMemoryOrder_Relaxed) & EFutureResultFlag_DataSet));
+		DMibFastCheck(!(m_OnResultSet.f_Load(NAtomic::gc_MemoryOrder_Relaxed) & EFutureResultFlag_DataSet));
 		m_AfterSuspend.m_bPendingResult = true;
 #if DMibConfig_Concurrency_DebugActorCallstacks
 		m_PendingResultSetCallstack.f_Capture();

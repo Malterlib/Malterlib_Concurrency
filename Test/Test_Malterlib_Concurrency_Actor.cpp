@@ -3141,7 +3141,7 @@ namespace
 								Promise.f_Unsafe_PromiseData()->m_RefCount.m_RefCount.f_FetchSub
 									(
 										NConcurrency::NPrivate::CPromiseDataBaseRefCount::mc_FutureBit
-										, NAtomic::EMemoryOrder_Release
+										, NAtomic::gc_MemoryOrder_Release
 									)
 								;
 							}

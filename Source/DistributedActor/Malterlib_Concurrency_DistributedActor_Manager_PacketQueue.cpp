@@ -359,7 +359,7 @@ namespace NMib::NConcurrency
 		if (bAccPacket)
 		{
 			NStream::CBinaryStreamMemory<NStream::CBinaryStreamDefault, NContainer::CIOByteVector> Stream;
-			uint32 HostActorProtocolVersion = pHost->m_ActorProtocolVersion.f_Load(NAtomic::EMemoryOrder_Relaxed);
+			uint32 HostActorProtocolVersion = pHost->m_ActorProtocolVersion.f_Load(NAtomic::gc_MemoryOrder_Relaxed);
 
 			// Use priority-aware acknowledgment when priority != 128 and protocol supports it
 			if (_Priority != 128 && HostActorProtocolVersion >= EDistributedActorProtocolVersion_PrioritySupport)

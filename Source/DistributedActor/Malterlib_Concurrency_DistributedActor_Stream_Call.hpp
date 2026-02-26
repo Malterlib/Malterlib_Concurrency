@@ -46,7 +46,7 @@ namespace NMib::NConcurrency
 					break;
 				}
 				auto pHost = pActorDataRaw->m_pHost.f_Lock();
-				if (!pHost || pHost->m_bDeleted.f_Load(NAtomic::EMemoryOrder_Relaxed))
+				if (!pHost || pHost->m_bDeleted.f_Load(NAtomic::gc_MemoryOrder_Relaxed))
 				{
 					ToDispatch = []() -> TCFuture<CReturn>
 						{
@@ -57,7 +57,7 @@ namespace NMib::NConcurrency
 					break;
 				}
 
-				uint32 HostActorProtocolVersion = pHost->m_ActorProtocolVersion.f_Load(NAtomic::EMemoryOrder_Relaxed);
+				uint32 HostActorProtocolVersion = pHost->m_ActorProtocolVersion.f_Load(NAtomic::gc_MemoryOrder_Relaxed);
 				uint32 AuthHandlerID = CAuthenticationHandlerIDScope::fs_GetCurrentHandlerID();
 				bool bUseAuthHandler = AuthHandlerID != 0 && HostActorProtocolVersion >= EDistributedActorProtocolVersion_MultipleAuthenticationHandlers;
 				uint8 Priority = CPriorityScope::fs_GetCurrentPriority();

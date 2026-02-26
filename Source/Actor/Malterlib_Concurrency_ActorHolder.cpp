@@ -101,19 +101,19 @@ namespace NMib::NConcurrency
 
 	void CActorHolder::fp_DeleteActor()
 	{
-		auto *pActor = mp_pActorUnsafe.f_Exchange(nullptr, NAtomic::EMemoryOrder_Relaxed);
+		auto *pActor = mp_pActorUnsafe.f_Exchange(nullptr, NAtomic::gc_MemoryOrder_Relaxed);
 		if (pActor)
 			pActor->~CActor();
 	}
 
 	void CActorHolder::fp_DetachActor()
 	{
-		mp_pActorUnsafe.f_Store(nullptr, NAtomic::EMemoryOrder_Relaxed);
+		mp_pActorUnsafe.f_Store(nullptr, NAtomic::gc_MemoryOrder_Relaxed);
 	}
 
 	CActor *CActorHolder::fp_GetActorRelaxed() const
 	{
-		return mp_pActorUnsafe.f_Load(NAtomic::EMemoryOrder_Relaxed);
+		return mp_pActorUnsafe.f_Load(NAtomic::gc_MemoryOrder_Relaxed);
 	}
 
 	void CActorHolder::fp_ConstructActor(NFunction::TCFunctionNoAllocMovable<void ()> &&_fConstruct, void *_pActorMemory)
@@ -265,7 +265,7 @@ namespace NMib::NConcurrency
 				;
 
 				if (ThreadLocal.m_pThisQueue)
-					mp_iLastQueue.f_Exchange(ThreadLocal.m_pThisQueue->m_iQueue, NAtomic::EMemoryOrder_Relaxed);
+					mp_iLastQueue.f_Exchange(ThreadLocal.m_pThisQueue->m_iQueue, NAtomic::gc_MemoryOrder_Relaxed);
 
 				bool bDoneSomething = true;
 				while (bDoneSomething)
@@ -316,7 +316,7 @@ namespace NMib::NConcurrency
 
 	bool CActorHolder::f_IsHolderDestroyed() const
 	{
-		return mp_Destroyed.f_Load(NAtomic::EMemoryOrder_Relaxed) != 0;
+		return mp_Destroyed.f_Load(NAtomic::gc_MemoryOrder_Relaxed) != 0;
 	}
 
 	bool CActorHolder::f_IsCurrentActorAndProcessing() const
@@ -1394,7 +1394,7 @@ namespace NMib::NConcurrency
 			(
 				this->f_GetPriority()
 				, this->mp_iFixedQueue
-				, this->mp_iLastQueue.f_Load(NAtomic::EMemoryOrder_Relaxed)
+				, this->mp_iLastQueue.f_Load(NAtomic::gc_MemoryOrder_Relaxed)
 				, [pThis = TCActorHolderSharedPointer<CDefaultActorHolder>(fg_Explicit(this))](CConcurrencyThreadLocal &_ThreadLocal)
 				{
 					DMibFastCheck(pThis->m_RefCount.m_RefCount.f_Load() >= 0);
@@ -1423,7 +1423,7 @@ namespace NMib::NConcurrency
 				(
 					this->f_GetPriority()
 					, this->mp_iFixedQueue
-					, this->mp_iLastQueue.f_Load(NAtomic::EMemoryOrder_Relaxed)
+					, this->mp_iLastQueue.f_Load(NAtomic::gc_MemoryOrder_Relaxed)
 					, [pThis = TCActorHolderSharedPointer<CDefaultActorHolder>(fg_Explicit(this))](CConcurrencyThreadLocal &_ThreadLocal)
 					{
 						DMibFastCheck(pThis->m_RefCount.m_RefCount.f_Load() >= 0);
@@ -1453,7 +1453,7 @@ namespace NMib::NConcurrency
 				(
 					this->f_GetPriority()
 					, this->mp_iFixedQueue
-					, this->mp_iLastQueue.f_Load(NAtomic::EMemoryOrder_Relaxed)
+					, this->mp_iLastQueue.f_Load(NAtomic::gc_MemoryOrder_Relaxed)
 					, [pThis = TCActorHolderSharedPointer<CDefaultActorHolder>(fg_Explicit(this))](CConcurrencyThreadLocal &_ThreadLocal)
 					{
 						DMibFastCheck(pThis->m_RefCount.m_RefCount.f_Load() >= 0);

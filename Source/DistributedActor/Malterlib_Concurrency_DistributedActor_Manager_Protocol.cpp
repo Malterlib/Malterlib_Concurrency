@@ -222,7 +222,7 @@ namespace NMib::NConcurrency
 					else
 						Host.m_AllowedNamespaces += Identify.m_AllowedNamespaces;
 
-					uint32 HostActorProtocolVersion = Host.m_ActorProtocolVersion.f_Load(NAtomic::EMemoryOrder_Relaxed);
+					uint32 HostActorProtocolVersion = Host.m_ActorProtocolVersion.f_Load(NAtomic::gc_MemoryOrder_Relaxed);
 
 					if (!bShouldReset && HostActorProtocolVersion)
 					{

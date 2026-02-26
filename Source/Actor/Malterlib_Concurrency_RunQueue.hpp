@@ -55,13 +55,13 @@ namespace NMib::NConcurrency
 	template <typename tf_CBaseEntry, typename tf_CEntry>
 	TCConcurrentRunQueue<tf_CBaseEntry, tf_CEntry>::~TCConcurrentRunQueue()
 	{
-		auto *pEntry = mp_pFirstQueued.f_Exchange(nullptr, NAtomic::EMemoryOrder_Acquire);
+		auto *pEntry = mp_pFirstQueued.f_Exchange(nullptr, NAtomic::gc_MemoryOrder_Acquire);
 		if (!pEntry)
 			return;
 
 		while (pEntry)
 		{
-			auto *pNextEntry = pEntry->m_pNextQueued.f_Load(NAtomic::EMemoryOrder_Relaxed);
+			auto *pNextEntry = pEntry->m_pNextQueued.f_Load(NAtomic::gc_MemoryOrder_Relaxed);
 			pNextEntry->f_Cleanup();
 			pEntry = pNextEntry;
 		}
@@ -92,15 +92,15 @@ namespace NMib::NConcurrency
 	bool TCConcurrentRunQueue<tf_CBaseEntry, tf_CEntry>::f_AddToQueueIfEmpty(NStorage::TCUniquePointer<tf_CEntry> &&_pEntry)
 	{
 		tf_CEntry *pNewEntry = _pEntry.f_Get();
-		pNewEntry->m_pNextQueued.f_Store(nullptr, NAtomic::EMemoryOrder_Relaxed);
+		pNewEntry->m_pNextQueued.f_Store(nullptr, NAtomic::gc_MemoryOrder_Relaxed);
 
 		while (true)
 		{
-			auto *pFirstEntry = mp_pFirstQueued.f_Load(NAtomic::EMemoryOrder_Relaxed);
+			auto *pFirstEntry = mp_pFirstQueued.f_Load(NAtomic::gc_MemoryOrder_Relaxed);
 			if (pFirstEntry)
 				return false;
 
-			if (mp_pFirstQueued.f_CompareExchangeStrong(pFirstEntry, pNewEntry, NAtomic::EMemoryOrder_Release, NAtomic::EMemoryOrder_Relaxed))
+			if (mp_pFirstQueued.f_CompareExchangeStrong(pFirstEntry, pNewEntry, NAtomic::gc_MemoryOrder_Release, NAtomic::gc_MemoryOrder_Relaxed))
 			{
 				_pEntry.f_Detach();
 				return true;
@@ -114,9 +114,9 @@ namespace NMib::NConcurrency
 		tf_CEntry *pNewEntry = _pEntry.f_Detach();
 		while (true)
 		{
-			auto *pFirstEntry = mp_pFirstQueued.f_Load(NAtomic::EMemoryOrder_Relaxed);
-			pNewEntry->m_pNextQueued.f_Store(pFirstEntry, NAtomic::EMemoryOrder_Relaxed);
-			if (mp_pFirstQueued.f_CompareExchangeStrong(pFirstEntry, pNewEntry, NAtomic::EMemoryOrder_Release, NAtomic::EMemoryOrder_Relaxed))
+			auto *pFirstEntry = mp_pFirstQueued.f_Load(NAtomic::gc_MemoryOrder_Relaxed);
+			pNewEntry->m_pNextQueued.f_Store(pFirstEntry, NAtomic::gc_MemoryOrder_Relaxed);
+			if (mp_pFirstQueued.f_CompareExchangeStrong(pFirstEntry, pNewEntry, NAtomic::gc_MemoryOrder_Release, NAtomic::gc_MemoryOrder_Relaxed))
 				break;
 		}
 	}
@@ -137,9 +137,9 @@ namespace NMib::NConcurrency
 		auto *pNewEntry = _Entry.f_Detach();
 		while (true)
 		{
-			auto *pFirstEntry = mp_pFirstQueued.f_Load(NAtomic::EMemoryOrder_Relaxed);
-			pNewEntry->m_pNextQueued.f_Store(pFirstEntry, NAtomic::EMemoryOrder_Relaxed);
-			if (mp_pFirstQueued.f_CompareExchangeStrong(pFirstEntry, pNewEntry, NAtomic::EMemoryOrder_Release, NAtomic::EMemoryOrder_Relaxed))
+			auto *pFirstEntry = mp_pFirstQueued.f_Load(NAtomic::gc_MemoryOrder_Relaxed);
+			pNewEntry->m_pNextQueued.f_Store(pFirstEntry, NAtomic::gc_MemoryOrder_Relaxed);
+			if (mp_pFirstQueued.f_CompareExchangeStrong(pFirstEntry, pNewEntry, NAtomic::gc_MemoryOrder_Release, NAtomic::gc_MemoryOrder_Relaxed))
 				break;
 		}
 	}
@@ -161,9 +161,9 @@ namespace NMib::NConcurrency
 		tf_CEntry *pNewEntry = pNewEntryUnique.f_Detach();
 		while (true)
 		{
-			auto *pFirstEntry = mp_pFirstQueued.f_Load(NAtomic::EMemoryOrder_Relaxed);
-			pNewEntry->m_pNextQueued.f_Store(pFirstEntry, NAtomic::EMemoryOrder_Relaxed);
-			if (mp_pFirstQueued.f_CompareExchangeStrong(pFirstEntry, pNewEntry, NAtomic::EMemoryOrder_Release, NAtomic::EMemoryOrder_Relaxed))
+			auto *pFirstEntry = mp_pFirstQueued.f_Load(NAtomic::gc_MemoryOrder_Relaxed);
+			pNewEntry->m_pNextQueued.f_Store(pFirstEntry, NAtomic::gc_MemoryOrder_Relaxed);
+			if (mp_pFirstQueued.f_CompareExchangeStrong(pFirstEntry, pNewEntry, NAtomic::gc_MemoryOrder_Release, NAtomic::gc_MemoryOrder_Relaxed))
 				break;
 		}
 	}
@@ -217,26 +217,26 @@ namespace NMib::NConcurrency
 	template <typename tf_CBaseEntry, typename tf_CEntry>
 	bool TCConcurrentRunQueue<tf_CBaseEntry, tf_CEntry>::f_OneOrLessInQueue(CLocalQueueData &_LocalQueue)
 	{
-		return (_LocalQueue.m_LocalQueue.f_IsEmpty() || _LocalQueue.m_LocalQueue.f_GetFirst()->m_Link.f_IsAloneInList()) && mp_pFirstQueued.f_Load(NAtomic::EMemoryOrder_Relaxed) == nullptr;
+		return (_LocalQueue.m_LocalQueue.f_IsEmpty() || _LocalQueue.m_LocalQueue.f_GetFirst()->m_Link.f_IsAloneInList()) && mp_pFirstQueued.f_Load(NAtomic::gc_MemoryOrder_Relaxed) == nullptr;
 	}
 
 	template <typename tf_CBaseEntry, typename tf_CEntry>
 	bool TCConcurrentRunQueue<tf_CBaseEntry, tf_CEntry>::f_IsEmpty(CLocalQueueData &_LocalQueue)
 	{
-		return _LocalQueue.m_LocalQueue.f_IsEmpty() && mp_pFirstQueued.f_Load(NAtomic::EMemoryOrder_Relaxed) == nullptr;
+		return _LocalQueue.m_LocalQueue.f_IsEmpty() && mp_pFirstQueued.f_Load(NAtomic::gc_MemoryOrder_Relaxed) == nullptr;
 	}
 
 	template <typename tf_CBaseEntry, typename tf_CEntry>
 	bool TCConcurrentRunQueue<tf_CBaseEntry, tf_CEntry>::f_TransferThreadSafeQueue(CLocalQueueData &_LocalQueue)
 	{
-		auto *pEntry = mp_pFirstQueued.f_Exchange(nullptr, NAtomic::EMemoryOrder_Acquire);
+		auto *pEntry = mp_pFirstQueued.f_Exchange(nullptr, NAtomic::gc_MemoryOrder_Acquire);
 		if (!pEntry)
 			return false;
 
 		decltype(_LocalQueue.m_LocalQueue) NewEntries;
 		while (pEntry)
 		{
-			auto *pNextEntry = pEntry->m_pNextQueued.f_Load(NAtomic::EMemoryOrder_Relaxed);
+			auto *pNextEntry = pEntry->m_pNextQueued.f_Load(NAtomic::gc_MemoryOrder_Relaxed);
 
 			NewEntries.f_UnsafeInsertFirst(pEntry);
 

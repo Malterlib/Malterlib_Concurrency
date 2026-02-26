@@ -70,7 +70,7 @@ namespace NMib::NConcurrency
 		)
 	{
 		auto &Host = *(static_cast<CHost *>(_pHost.f_Get()));
-		if (Host.m_bDeleted.f_Load(NAtomic::EMemoryOrder_Relaxed) || Host.m_LastExecutionID != _LastExecutionID)
+		if (Host.m_bDeleted.f_Load(NAtomic::gc_MemoryOrder_Relaxed) || Host.m_LastExecutionID != _LastExecutionID)
 			co_return {};
 
 		auto &Entry = Host.m_AuthenticationHandlers[_HandlerID];
@@ -89,7 +89,7 @@ namespace NMib::NConcurrency
 		)
 	{
 		auto &Host = *(static_cast<CHost *>(_pHost.f_Get()));
-		if (Host.m_bDeleted.f_Load(NAtomic::EMemoryOrder_Relaxed) || Host.m_LastExecutionID != _LastExecutionID)
+		if (Host.m_bDeleted.f_Load(NAtomic::gc_MemoryOrder_Relaxed) || Host.m_LastExecutionID != _LastExecutionID)
 			co_return {};
 
 		Host.m_AuthenticationHandlers.f_Remove(_HandlerID);

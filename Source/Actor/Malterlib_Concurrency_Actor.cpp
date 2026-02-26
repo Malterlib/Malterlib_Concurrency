@@ -39,7 +39,7 @@ namespace NMib::NConcurrency
 
 		DMibFastCheck(ThreadLocal.m_pCurrentlyConstructingActor == this); // You can only construct actors through concurrency manager
 
-		ThreadLocal.m_pCurrentlyProcessingActorHolder->mp_pActorUnsafe.f_Store(this, NAtomic::EMemoryOrder_Relaxed);
+		ThreadLocal.m_pCurrentlyProcessingActorHolder->mp_pActorUnsafe.f_Store(this, NAtomic::gc_MemoryOrder_Relaxed);
 
 		self.m_pThis = ThreadLocal.m_pCurrentlyProcessingActorHolder;
 	}

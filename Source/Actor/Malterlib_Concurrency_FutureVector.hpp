@@ -44,7 +44,7 @@ namespace NMib::NConcurrency
 	template <typename t_CType>
 	TCFutureVector<t_CType>::CInternal::~CInternal()
 	{
-		if (!mp_bLazyResultsGotten.f_Load(NAtomic::EMemoryOrder_Acquire)) [[unlikely]]
+		if (!mp_bLazyResultsGotten.f_Load(NAtomic::gc_MemoryOrder_Acquire)) [[unlikely]]
 		{
 			fp_DestroyResults();
 
@@ -70,7 +70,7 @@ namespace NMib::NConcurrency
 		if (!mp_bDefinedSize)
 			mp_Results.f_SetLen(mp_nAdded);
 
-		mp_bLazyResultsGotten.f_Store(true, NAtomic::EMemoryOrder_Release);
+		mp_bLazyResultsGotten.f_Store(true, NAtomic::gc_MemoryOrder_Release);
 
 		return mp_GetResultsPromise.f_Future();
 	}
@@ -78,7 +78,7 @@ namespace NMib::NConcurrency
 	template <typename t_CType>
 	void TCFutureVector<t_CType>::CInternal::fp_DestroyResults()
 	{
-		auto *pResult = mp_pFirstResult.f_Exchange(nullptr, NAtomic::EMemoryOrder_Acquire);
+		auto *pResult = mp_pFirstResult.f_Exchange(nullptr, NAtomic::gc_MemoryOrder_Acquire);
 
 		while (pResult)
 		{
@@ -91,7 +91,7 @@ namespace NMib::NConcurrency
 	template <typename t_CType>
 	void TCFutureVector<t_CType>::CInternal::fp_TransferResults()
 	{
-		auto *pResult = mp_pFirstResult.f_Exchange(nullptr, NAtomic::EMemoryOrder_Acquire);
+		auto *pResult = mp_pFirstResult.f_Exchange(nullptr, NAtomic::gc_MemoryOrder_Acquire);
 
 		auto pResultsArray = mp_Results.f_GetArray();
 		while (pResult)
@@ -114,7 +114,7 @@ namespace NMib::NConcurrency
 	void TCFutureVector<t_CType>::CResultReceived::operator ()(TCAsyncResult<t_CType> &&_Result) const
 	{
 		auto &Internal = *mp_pInternal;
-		if (Internal.mp_bDefinedSize || Internal.mp_bLazyResultsGotten.f_Load(NAtomic::EMemoryOrder_Acquire))
+		if (Internal.mp_bDefinedSize || Internal.mp_bLazyResultsGotten.f_Load(NAtomic::gc_MemoryOrder_Acquire))
 			Internal.mp_Results.f_GetArray()[mp_iResult] = fg_Move(_Result);
 		else
 		{
@@ -125,9 +125,9 @@ namespace NMib::NConcurrency
 
 			while (true)
 			{
-				CQueuedResult *pFirstResult = Internal.mp_pFirstResult.f_Load(NAtomic::EMemoryOrder_Relaxed);
+				CQueuedResult *pFirstResult = Internal.mp_pFirstResult.f_Load(NAtomic::gc_MemoryOrder_Relaxed);
 				pQueuedResult->m_pNext = pFirstResult;
-				if (Internal.mp_pFirstResult.f_CompareExchangeStrong(pFirstResult, pQueuedResult.f_Get(), NAtomic::EMemoryOrder_Release, NAtomic::EMemoryOrder_Relaxed))
+				if (Internal.mp_pFirstResult.f_CompareExchangeStrong(pFirstResult, pQueuedResult.f_Get(), NAtomic::gc_MemoryOrder_Release, NAtomic::gc_MemoryOrder_Relaxed))
 					break;
 			}
 

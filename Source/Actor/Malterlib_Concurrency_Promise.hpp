@@ -294,7 +294,7 @@ namespace NMib::NConcurrency
 	{
 		auto pData = mp_pData.f_Detach();
 		DMibFastCheck(pData);
-		DMibFastCheck(pData->m_OnResultSet.f_Load(NAtomic::EMemoryOrder_Relaxed) & (EFutureResultFlag_DataSet | EFutureResultFlag_DiscardResult));
+		DMibFastCheck(pData->m_OnResultSet.f_Load(NAtomic::gc_MemoryOrder_Relaxed) & (EFutureResultFlag_DataSet | EFutureResultFlag_DiscardResult));
 
 		if (pData->m_RefCount.f_PromiseDecrease())
 			fg_DeleteObject(NMemory::CDefaultAllocator(), pData);
@@ -712,7 +712,7 @@ namespace NMib::NConcurrency
 
 		pData->m_fOnResult = fg_Move(_fOnResult);
 
-		EFutureResultFlag PreviousFlags = (EFutureResultFlag)pData->m_OnResultSet.f_FetchOr(EFutureResultFlag_ResultFunctorSet, NAtomic::EMemoryOrder_AcquireRelease);
+		EFutureResultFlag PreviousFlags = (EFutureResultFlag)pData->m_OnResultSet.f_FetchOr(EFutureResultFlag_ResultFunctorSet, NAtomic::gc_MemoryOrder_AcquireRelease);
 		DMibFastCheck(!(PreviousFlags & EFutureResultFlag_ResultFunctorSet)); // You can only observe the result once
 
 #if DMibConfig_Concurrency_DebugActorCallstacks
@@ -735,7 +735,7 @@ namespace NMib::NConcurrency
 
 		pData->m_fOnResult = fg_Move(_fOnResult);
 
-		EFutureResultFlag PreviousFlags = (EFutureResultFlag)pData->m_OnResultSet.f_FetchOr(EFutureResultFlag_ResultFunctorSet, NAtomic::EMemoryOrder_AcquireRelease);
+		EFutureResultFlag PreviousFlags = (EFutureResultFlag)pData->m_OnResultSet.f_FetchOr(EFutureResultFlag_ResultFunctorSet, NAtomic::gc_MemoryOrder_AcquireRelease);
 		DMibFastCheck(!(PreviousFlags & EFutureResultFlag_ResultFunctorSet)); // You can only observe the result once
 
 #if DMibConfig_Concurrency_DebugActorCallstacks
@@ -756,7 +756,7 @@ namespace NMib::NConcurrency
 
 		pData->m_fOnResult = fg_Move(_fOnResult);
 
-		EFutureResultFlag PreviousFlags = (EFutureResultFlag)pData->m_OnResultSet.f_FetchOr(EFutureResultFlag_ResultFunctorSet, NAtomic::EMemoryOrder_AcquireRelease);
+		EFutureResultFlag PreviousFlags = (EFutureResultFlag)pData->m_OnResultSet.f_FetchOr(EFutureResultFlag_ResultFunctorSet, NAtomic::gc_MemoryOrder_AcquireRelease);
 		DMibFastCheck(!(PreviousFlags & EFutureResultFlag_ResultFunctorSet)); // You can only observe the result once
 
 #if DMibConfig_Concurrency_DebugActorCallstacks
@@ -783,7 +783,7 @@ namespace NMib::NConcurrency
 	void TCFuture<t_CReturnValue>::f_DiscardResult()
 	{
 		auto pData = mp_pData.f_Get();
-		pData->m_OnResultSet.f_FetchOr(EFutureResultFlag_DiscardResult, NAtomic::EMemoryOrder_Relaxed);
+		pData->m_OnResultSet.f_FetchOr(EFutureResultFlag_DiscardResult, NAtomic::gc_MemoryOrder_Relaxed);
 	}
 
 	template <typename t_CReturnValue>
@@ -796,7 +796,7 @@ namespace NMib::NConcurrency
 
 		auto constexpr c_FlagsToAdd = EFutureResultFlag_DataSet | EFutureResultFlag_DiscardResult;
 
-		return pData->m_OnResultSet.f_CompareExchangeStrong(Expected, c_FlagsToAdd, NAtomic::EMemoryOrder_Acquire, NAtomic::EMemoryOrder_Relaxed);
+		return pData->m_OnResultSet.f_CompareExchangeStrong(Expected, c_FlagsToAdd, NAtomic::gc_MemoryOrder_Acquire, NAtomic::gc_MemoryOrder_Relaxed);
 	}
 
 	template <typename t_CReturnValue>
@@ -819,7 +819,7 @@ namespace NMib::NConcurrency
 
 		return false;
 #else
-		return pData->m_OnResultSet.f_CompareExchangeStrong(Expected, c_FlagsToAdd, NAtomic::EMemoryOrder_Relaxed, NAtomic::EMemoryOrder_Relaxed);
+		return pData->m_OnResultSet.f_CompareExchangeStrong(Expected, c_FlagsToAdd, NAtomic::gc_MemoryOrder_Relaxed, NAtomic::gc_MemoryOrder_Relaxed);
 #endif
 	}
 
@@ -827,7 +827,7 @@ namespace NMib::NConcurrency
 	TCAsyncResult<t_CReturnValue> &&TCFuture<t_CReturnValue>::f_MoveResult()
 	{
 		auto pData = mp_pData.f_Get();
-		DMibFastCheck(pData->m_OnResultSet.f_Load(NAtomic::EMemoryOrder_Relaxed) & EFutureResultFlag_DataSet);
+		DMibFastCheck(pData->m_OnResultSet.f_Load(NAtomic::gc_MemoryOrder_Relaxed) & EFutureResultFlag_DataSet);
 		return fg_Move(pData->m_Result);
 	}
 
@@ -835,7 +835,7 @@ namespace NMib::NConcurrency
 	TCAsyncResult<t_CReturnValue> &&TCPromise<t_CReturnValue>::f_MoveResult()
 	{
 		auto pData = mp_pData.f_Get();
-		DMibFastCheck(pData->m_OnResultSet.f_Load(NAtomic::EMemoryOrder_Relaxed) & EFutureResultFlag_DataSet);
+		DMibFastCheck(pData->m_OnResultSet.f_Load(NAtomic::gc_MemoryOrder_Relaxed) & EFutureResultFlag_DataSet);
 		return fg_Move(pData->m_Result);
 	}
 
@@ -861,7 +861,7 @@ namespace NMib::NConcurrency
 				PreviousFlags = (EFutureResultFlag)pData->m_OnResultSet.f_FetchOr
 					(
 						EFutureResultFlag_DataSet | EFutureResultFlag_ResultFunctorSet
-						, NAtomic::EMemoryOrder_AcquireRelease
+						, NAtomic::gc_MemoryOrder_AcquireRelease
 					)
 				;
 			}
@@ -869,7 +869,7 @@ namespace NMib::NConcurrency
 			EFutureResultFlag PreviousFlags = (EFutureResultFlag)pData->m_OnResultSet.f_FetchOr
 				(
 					EFutureResultFlag_DataSet | EFutureResultFlag_ResultFunctorSet
-					, pData->f_MemoryOrder(NAtomic::EMemoryOrder_AcquireRelease)
+					, pData->f_MemoryOrder(NAtomic::gc_MemoryOrder_AcquireRelease)
 				)
 			;
 #endif
@@ -887,7 +887,7 @@ namespace NMib::NConcurrency
 		}
 		else
 		{
-			[[maybe_unused]] EFutureResultFlag PreviousFlags = (EFutureResultFlag)pData->m_OnResultSet.f_FetchOr(EFutureResultFlag_ResultFunctorSet, NAtomic::EMemoryOrder_Relaxed);
+			[[maybe_unused]] EFutureResultFlag PreviousFlags = (EFutureResultFlag)pData->m_OnResultSet.f_FetchOr(EFutureResultFlag_ResultFunctorSet, NAtomic::gc_MemoryOrder_Relaxed);
 
 			DMibFastCheck(PreviousFlags & EFutureResultFlag_DataSet); // Result should already have been set
 		}
@@ -1216,11 +1216,11 @@ namespace NMib::NConcurrency::NPrivate
 		}
 		else
 		{
-			if (m_OnResultSet.f_Load(NAtomic::EMemoryOrder_Relaxed) & (EFutureResultFlag_DataSet | EFutureResultFlag_DiscardResult))
+			if (m_OnResultSet.f_Load(NAtomic::gc_MemoryOrder_Relaxed) & (EFutureResultFlag_DataSet | EFutureResultFlag_DiscardResult))
 				return;
 		}
 #else
-		if (m_OnResultSet.f_Load(NAtomic::EMemoryOrder_Relaxed) & (EFutureResultFlag_DataSet | EFutureResultFlag_DiscardResult))
+		if (m_OnResultSet.f_Load(NAtomic::gc_MemoryOrder_Relaxed) & (EFutureResultFlag_DataSet | EFutureResultFlag_DiscardResult))
 			return;
 #endif
 
@@ -1239,7 +1239,7 @@ namespace NMib::NConcurrency::NPrivate
 			PreviousFlags = (EFutureResultFlag)m_OnResultSet.f_FetchOr
 				(
 					EFutureResultFlag_DataSet | EFutureResultFlag_DiscardResult
-					, NAtomic::EMemoryOrder_AcquireRelease
+					, NAtomic::gc_MemoryOrder_AcquireRelease
 				)
 			;
 		}
@@ -1247,7 +1247,7 @@ namespace NMib::NConcurrency::NPrivate
 		EFutureResultFlag PreviousFlags = (EFutureResultFlag)m_OnResultSet.f_FetchOr
 			(
 				EFutureResultFlag_DataSet | EFutureResultFlag_DiscardResult
-				, f_MemoryOrder(NAtomic::EMemoryOrder_AcquireRelease)
+				, f_MemoryOrder(NAtomic::gc_MemoryOrder_AcquireRelease)
 			)
 		;
 #endif
@@ -1280,7 +1280,7 @@ namespace NMib::NConcurrency::NPrivate
 			PreviousFlags = (EFutureResultFlag)m_OnResultSet.f_FetchOr
 				(
 					EFutureResultFlag_DataSet | EFutureResultFlag_ResultFunctorSet
-					, NAtomic::EMemoryOrder_Acquire
+					, NAtomic::gc_MemoryOrder_Acquire
 				)
 			;
 		}
@@ -1288,7 +1288,7 @@ namespace NMib::NConcurrency::NPrivate
 		EFutureResultFlag PreviousFlags = (EFutureResultFlag)m_OnResultSet.f_FetchOr
 			(
 				EFutureResultFlag_DataSet | EFutureResultFlag_ResultFunctorSet
-				, f_MemoryOrder(NAtomic::EMemoryOrder_Acquire)
+				, f_MemoryOrder(NAtomic::gc_MemoryOrder_Acquire)
 			)
 		;
 #endif
@@ -1376,9 +1376,9 @@ namespace NMib::NConcurrency::NPrivate
 			OnResultSet |= EFutureResultFlag_DataSet;
 		}
 		else
-			PreviousFlags = (EFutureResultFlag)m_OnResultSet.f_FetchOr(EFutureResultFlag_DataSet, f_MemoryOrder(NAtomic::EMemoryOrder_AcquireRelease));
+			PreviousFlags = (EFutureResultFlag)m_OnResultSet.f_FetchOr(EFutureResultFlag_DataSet, f_MemoryOrder(NAtomic::gc_MemoryOrder_AcquireRelease));
 #else
-		EFutureResultFlag PreviousFlags = (EFutureResultFlag)m_OnResultSet.f_FetchOr(EFutureResultFlag_DataSet, f_MemoryOrder(NAtomic::EMemoryOrder_AcquireRelease));
+		EFutureResultFlag PreviousFlags = (EFutureResultFlag)m_OnResultSet.f_FetchOr(EFutureResultFlag_DataSet, f_MemoryOrder(NAtomic::gc_MemoryOrder_AcquireRelease));
 #endif
 
 		DMibFastCheck(!(PreviousFlags & EFutureResultFlag_DataSet)); // You can only set result once
@@ -1408,9 +1408,9 @@ namespace NMib::NConcurrency::NPrivate
 			OnResultSet |= EFutureResultFlag_DataSet;
 		}
 		else
-			PreviousFlags = (EFutureResultFlag)m_OnResultSet.f_FetchOr(EFutureResultFlag_DataSet, f_MemoryOrder(NAtomic::EMemoryOrder_AcquireRelease));
+			PreviousFlags = (EFutureResultFlag)m_OnResultSet.f_FetchOr(EFutureResultFlag_DataSet, f_MemoryOrder(NAtomic::gc_MemoryOrder_AcquireRelease));
 #else
-		EFutureResultFlag PreviousFlags = (EFutureResultFlag)m_OnResultSet.f_FetchOr(EFutureResultFlag_DataSet, f_MemoryOrder(NAtomic::EMemoryOrder_AcquireRelease));
+		EFutureResultFlag PreviousFlags = (EFutureResultFlag)m_OnResultSet.f_FetchOr(EFutureResultFlag_DataSet, f_MemoryOrder(NAtomic::gc_MemoryOrder_AcquireRelease));
 #endif
 
 		DMibFastCheck(!(PreviousFlags & EFutureResultFlag_DataSet)); // You can only set result once
@@ -1432,7 +1432,7 @@ namespace NMib::NConcurrency::NPrivate
 		EFutureResultFlag PreviousFlags = (EFutureResultFlag)OnResultSet;
 		OnResultSet |= EFutureResultFlag_DataSet;
 #else
-		EFutureResultFlag PreviousFlags = (EFutureResultFlag)m_OnResultSet.f_FetchOr(EFutureResultFlag_DataSet, NAtomic::EMemoryOrder_Relaxed);
+		EFutureResultFlag PreviousFlags = (EFutureResultFlag)m_OnResultSet.f_FetchOr(EFutureResultFlag_DataSet, NAtomic::gc_MemoryOrder_Relaxed);
 #endif
 
 		DMibFastCheck(!(PreviousFlags & EFutureResultFlag_DataSet)); // You can only set result once
@@ -1457,18 +1457,18 @@ namespace NMib::NConcurrency::NPrivate
 	template <typename t_CReturnValue>
 	bool TCPromiseData<t_CReturnValue>::f_IsSet() const
 	{
-		return (m_OnResultSet.f_Load(NAtomic::EMemoryOrder_Relaxed) & EFutureResultFlag_DataSet) != EFutureResultFlag_None;
+		return (m_OnResultSet.f_Load(NAtomic::gc_MemoryOrder_Relaxed) & EFutureResultFlag_DataSet) != EFutureResultFlag_None;
 	}
 
 	template <typename t_CReturnValue>
 	bool TCPromiseData<t_CReturnValue>::f_IsDiscarded() const
 	{
-		return (m_OnResultSet.f_Load(NAtomic::EMemoryOrder_Relaxed) & EFutureResultFlag_DiscardResult) != EFutureResultFlag_None;
+		return (m_OnResultSet.f_Load(NAtomic::gc_MemoryOrder_Relaxed) & EFutureResultFlag_DiscardResult) != EFutureResultFlag_None;
 	}
 
-	inline_always NAtomic::EMemoryOrder CPromiseDataBase::f_MemoryOrder(NAtomic::EMemoryOrder _Default) const
+	inline_always NAtomic::CMemoryOrder CPromiseDataBase::f_MemoryOrder(NAtomic::CMemoryOrder _Default) const
 	{
-		return m_BeforeSuspend.m_bOnResultSetAtInit ? NAtomic::EMemoryOrder_Relaxed : _Default;
+		return m_BeforeSuspend.m_bOnResultSetAtInit ? NAtomic::gc_MemoryOrder_Relaxed : _Default;
 	}
 
 	template <typename t_CReturnValue>

@@ -163,7 +163,7 @@ public:
 	}
 };
 
-constinit TCAtomicAggregate<mint> g_TestValueGetSubscription = {DAggregateInit};
+constinit TCAtomic<mint> g_TestValueGetSubscription{0};
 
 struct CMultipleSubscriptions
 {

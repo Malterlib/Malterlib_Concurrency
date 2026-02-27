@@ -295,10 +295,12 @@ namespace NTestTrustManager
 					TCSharedPointer<CDefaultRunLoop> const &_pRunLoop
 					, TCFunction<TCActor<ICDistributedActorTrustManagerDatabase> (CStr const &_Name)> const &_fDatabaseFactory
 					, TCFunction<void ()> const &_fCleanup
-					, CStr const &_NameDistinguish = {}
+					, CStr const &_NameDistinguish
+					, CStr const &_RootDir
 				)
 				: m_fCleanup(_fCleanup)
 				, m_pRunLoop(_pRunLoop)
+				, m_RootDir(_RootDir)
 			{
 				if (_fCleanup)
 					_fCleanup();
@@ -318,11 +320,12 @@ namespace NTestTrustManager
 			TCActor<ICDistributedActorTrustManagerDatabase> m_ClientDatabase;
 			TCFunction<void ()> m_fCleanup;
 			TCSharedPointer<CDefaultRunLoop> m_pRunLoop;
+			CStr m_RootDir;
 		};
 
-		static CStr fg_GetSocketUrl(CStr const &_SocketName)
+		static CStr fg_GetSocketUrl(CStr const &_SocketName, CStr const &_RootDir)
 		{
-			CStr Path = NNetwork::fg_GetSafeUnixSocketPath(NFile::CFile::fs_GetProgramDirectory() / ("Sockets/TrustManagerPermissions/{}.sock"_f << _SocketName));
+			CStr Path = NNetwork::fg_GetSafeUnixSocketPath(NFile::CFile::fs_GetProgramDirectory() / ("Sockets/TrustManagerPermissions/{}/{}.sock"_f << _RootDir << _SocketName));
 			fg_TestAddCleanupPath(Path);
 			return NStr::CStr::CFormat("wss://[UNIX(666):{}]/") << Path;
 		}
@@ -330,7 +333,7 @@ namespace NTestTrustManager
 		struct CPermissionTestState
 		{
 			CPermissionTestState(CState &_State, NStr::CStr const &_SocketName)
-				: m_SocketUrl(fg_GetSocketUrl(_SocketName))
+				: m_SocketUrl(fg_GetSocketUrl(_SocketName, _State.m_RootDir))
 				, m_ServerTrustManager{f_CreateServerTrustManager(_State)}
 				, m_ClientTrustManager{f_CreateClientTrustManager(_State)}
 				, m_ServerHelper{f_InitServerTrustManager(), _State.m_pRunLoop}
@@ -593,13 +596,14 @@ namespace NTestTrustManager
 			(
 				TCFunction<TCActor<ICDistributedActorTrustManagerDatabase> (CStr const &_Name)> const &_fDatabaseFactory
 				, TCFunction<void ()> const &_fCleanup
+				, CStr const &_RootDir
 			)
 		{
 			{
 				DMibTestPath("Basic");
 				CActorRunLoopTestHelper RunLoopHelper;
 
-				CState State{RunLoopHelper.m_pRunLoop, _fDatabaseFactory, _fCleanup};
+				CState State{RunLoopHelper.m_pRunLoop, _fDatabaseFactory, _fCleanup, {}, _RootDir};
 
 				{
 					DMibTestPath("Initial");
@@ -610,7 +614,7 @@ namespace NTestTrustManager
 					CStr ClientHostID = ClientTrustManager(&CDistributedActorTrustManager::f_GetHostID).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
 
 					CDistributedActorTrustManager_Address ServerAddress;
-					ServerAddress.m_URL = fg_GetSocketUrl("TrustBasic");
+					ServerAddress.m_URL = fg_GetSocketUrl("TrustBasic", _RootDir);
 					ServerTrustManager(&CDistributedActorTrustManager::f_AddListen, ServerAddress).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
 					DMibExpectTrue(ServerTrustManager(&CDistributedActorTrustManager::f_HasListen, ServerAddress).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout));
 
@@ -663,7 +667,7 @@ namespace NTestTrustManager
 					TCActor<CDistributedActorTrustManager> ServerTrustManager = State.f_CreateServerTrustManager();
 
 					CDistributedActorTrustManager_Address ServerAddress;
-					ServerAddress.m_URL = fg_GetSocketUrl("TrustBasic");
+					ServerAddress.m_URL = fg_GetSocketUrl("TrustBasic", _RootDir);
 					DMibExpectTrue(ServerTrustManager(&CDistributedActorTrustManager::f_HasListen, ServerAddress).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout));
 
 					TCActor<CDistributedActorTrustManager> ClientTrustManager = State.f_CreateClientTrustManager();
@@ -679,11 +683,11 @@ namespace NTestTrustManager
 					TCActor<CDistributedActorTrustManager> ServerTrustManager = State.f_CreateServerTrustManager();
 
 					CDistributedActorTrustManager_Address ServerAddress;
-					ServerAddress.m_URL = fg_GetSocketUrl("TrustBasicChanged");
+					ServerAddress.m_URL = fg_GetSocketUrl("TrustBasicChanged", _RootDir);
 					ServerTrustManager(&CDistributedActorTrustManager::f_AddListen, ServerAddress).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
 
 					CDistributedActorTrustManager_Address OldServerAddress;
-					OldServerAddress.m_URL = fg_GetSocketUrl("TrustBasic");
+					OldServerAddress.m_URL = fg_GetSocketUrl("TrustBasic", _RootDir);
 
 					ServerTrustManager(&CDistributedActorTrustManager::f_RemoveListen, OldServerAddress).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);;
 
@@ -736,13 +740,13 @@ namespace NTestTrustManager
 				DMibTestPath("Remove client while connected");
 				CActorRunLoopTestHelper RunLoopHelper;
 
-				CState State{RunLoopHelper.m_pRunLoop, _fDatabaseFactory, _fCleanup};
+				CState State{RunLoopHelper.m_pRunLoop, _fDatabaseFactory, _fCleanup, {}, _RootDir};
 
 				TCActor<CDistributedActorTrustManager> ServerTrustManager = State.f_CreateServerTrustManager();
 				TCActor<CDistributedActorTrustManager> ClientTrustManager = State.f_CreateClientTrustManager();
 
 				CDistributedActorTrustManager_Address ServerAddress;
-				ServerAddress.m_URL = fg_GetSocketUrl("TrustRemoveClient");
+				ServerAddress.m_URL = fg_GetSocketUrl("TrustRemoveClient", _RootDir);
 				ServerTrustManager(&CDistributedActorTrustManager::f_AddListen, ServerAddress).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
 
 				auto TrustTicket = ServerTrustManager(&CDistributedActorTrustManager::f_GenerateConnectionTicket, ServerAddress, nullptr, nullptr)
@@ -779,13 +783,13 @@ namespace NTestTrustManager
 				DMibTestPath("Disconnects");
 				CActorRunLoopTestHelper RunLoopHelper;
 
-				CState State{RunLoopHelper.m_pRunLoop, _fDatabaseFactory, _fCleanup};
+				CState State{RunLoopHelper.m_pRunLoop, _fDatabaseFactory, _fCleanup, {}, _RootDir};
 
 				TCActor<CDistributedActorTrustManager> ServerTrustManager = State.f_CreateServerTrustManager();
 				TCActor<CDistributedActorTrustManager> ClientTrustManager = State.f_CreateClientTrustManager();
 
 				CDistributedActorTrustManager_Address ServerAddress;
-				ServerAddress.m_URL = fg_GetSocketUrl("TrustRemoveDisconnects");
+				ServerAddress.m_URL = fg_GetSocketUrl("TrustRemoveDisconnects", _RootDir);
 				ServerTrustManager(&CDistributedActorTrustManager::f_AddListen, ServerAddress).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
 
 				{
@@ -912,13 +916,13 @@ namespace NTestTrustManager
 				DMibTestPath("Broken Connections");
 				CActorRunLoopTestHelper RunLoopHelper;
 
-				CState State{RunLoopHelper.m_pRunLoop, _fDatabaseFactory, _fCleanup};
+				CState State{RunLoopHelper.m_pRunLoop, _fDatabaseFactory, _fCleanup, {}, _RootDir};
 
 				TCActor<CDistributedActorTrustManager> ServerTrustManager = State.f_CreateServerTrustManager();
 				TCActor<CDistributedActorTrustManager> ClientTrustManager = State.f_CreateClientTrustManager();
 
 				CDistributedActorTrustManager_Address ServerAddress;
-				ServerAddress.m_URL = fg_GetSocketUrl("TrustBrokenConnections");
+				ServerAddress.m_URL = fg_GetSocketUrl("TrustBrokenConnections", _RootDir);
 				ServerTrustManager(&CDistributedActorTrustManager::f_AddListen, ServerAddress).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
 
 				{
@@ -1048,7 +1052,7 @@ namespace NTestTrustManager
 
 					CActorRunLoopTestHelper RunLoopHelper;
 
-					CState State{RunLoopHelper.m_pRunLoop, _fDatabaseFactory, _fCleanup};
+					CState State{RunLoopHelper.m_pRunLoop, _fDatabaseFactory, _fCleanup, {}, _RootDir};
 
 					CDistributedActorTrustManager::COptions ServerOptions{.m_ReconnectDelay = 1_ms};
 					CDistributedActorTrustManager::COptions ClientOptions{.m_ReconnectDelay = 1_ms};
@@ -1062,7 +1066,7 @@ namespace NTestTrustManager
 					TCActor<CDistributedActorTrustManager> ClientTrustManager = State.f_CreateClientTrustManager(fg_Move(ClientOptions));
 
 					CDistributedActorTrustManager_Address ServerAddress;
-					ServerAddress.m_URL = fg_GetSocketUrl("TrustHostCleanup");
+					ServerAddress.m_URL = fg_GetSocketUrl("TrustHostCleanup", _RootDir);
 					ServerTrustManager(&CDistributedActorTrustManager::f_AddListen, ServerAddress).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
 
 					CHostInfo HostInfo;
@@ -1219,13 +1223,13 @@ namespace NTestTrustManager
 				DMibTestPath("Security");
 				CActorRunLoopTestHelper RunLoopHelper;
 
-				CState State{RunLoopHelper.m_pRunLoop, _fDatabaseFactory, _fCleanup};
+				CState State{RunLoopHelper.m_pRunLoop, _fDatabaseFactory, _fCleanup, {}, _RootDir};
 
 				TCActor<CDistributedActorTrustManager> ServerTrustManager = State.f_CreateServerTrustManager();
 				TCActor<CDistributedActorTrustManager> ClientTrustManager = State.f_CreateClientTrustManager();
 
 				CDistributedActorTrustManager_Address ServerAddress;
-				ServerAddress.m_URL = fg_GetSocketUrl("TrustSecurity");
+				ServerAddress.m_URL = fg_GetSocketUrl("TrustSecurity", _RootDir);
 				ServerTrustManager(&CDistributedActorTrustManager::f_AddListen, ServerAddress).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
 
 				{
@@ -1314,13 +1318,13 @@ namespace NTestTrustManager
 				DMibTestPath("Multiple Enclaves");
 				CActorRunLoopTestHelper RunLoopHelper;
 
-				CState State{RunLoopHelper.m_pRunLoop, _fDatabaseFactory, _fCleanup};
+				CState State{RunLoopHelper.m_pRunLoop, _fDatabaseFactory, _fCleanup, {}, _RootDir};
 
 				TCActor<CDistributedActorTrustManager> ServerTrustManager = State.f_CreateServerTrustManager();
 				TCActor<CDistributedActorTrustManager> ClientTrustManager = State.f_CreateClientTrustManager();
 
 				CDistributedActorTrustManager_Address ServerAddress;
-				ServerAddress.m_URL = fg_GetSocketUrl("TrustMultipleEnclaves");
+				ServerAddress.m_URL = fg_GetSocketUrl("TrustMultipleEnclaves", _RootDir);
 				ServerTrustManager(&CDistributedActorTrustManager::f_AddListen, ServerAddress).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
 
 				{
@@ -1383,7 +1387,7 @@ namespace NTestTrustManager
 				DMibTestPath("Subscriptions");
 				CActorRunLoopTestHelper RunLoopHelper;
 
-				CState State{RunLoopHelper.m_pRunLoop, _fDatabaseFactory, _fCleanup};
+				CState State{RunLoopHelper.m_pRunLoop, _fDatabaseFactory, _fCleanup, {}, _RootDir};
 
 				TCActor<CDistributedActorTrustManager> ServerTrustManager = State.f_CreateServerTrustManager();
 				TCActor<CDistributedActorTrustManager> ClientTrustManager = State.f_CreateClientTrustManager();
@@ -1391,7 +1395,7 @@ namespace NTestTrustManager
 				CStr ServerHostID = ServerTrustManager(&CDistributedActorTrustManager::f_GetHostID).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
 
 				CDistributedActorTrustManager_Address ServerAddress;
-				ServerAddress.m_URL = fg_GetSocketUrl("TrustSubscriptions");
+				ServerAddress.m_URL = fg_GetSocketUrl("TrustSubscriptions", _RootDir);
 				ServerTrustManager(&CDistributedActorTrustManager::f_AddListen, ServerAddress).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
 
 				{
@@ -1823,12 +1827,12 @@ namespace NTestTrustManager
 				}
 				{
 					DMibTestPath("2 hosts no sub");
-					CState State2{RunLoopHelper.m_pRunLoop, _fDatabaseFactory, nullptr, "2"};
+					CState State2{RunLoopHelper.m_pRunLoop, _fDatabaseFactory, nullptr, "2", _RootDir};
 					TCActor<CDistributedActorTrustManager> ServerTrustManager2 = State2.f_CreateServerTrustManager();
 					CDistributedActorTestHelper ServerHelper2{ServerTrustManager, RunLoopHelper.m_pRunLoop};
 					{
 						CDistributedActorTrustManager_Address ServerAddress;
-						ServerAddress.m_URL = fg_GetSocketUrl("Trust2HostsNoSub");
+						ServerAddress.m_URL = fg_GetSocketUrl("Trust2HostsNoSub", _RootDir);
 						ServerTrustManager2(&CDistributedActorTrustManager::f_AddListen, ServerAddress).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
 
 						auto TrustTicket = ServerTrustManager2(&CDistributedActorTrustManager::f_GenerateConnectionTicket, ServerAddress, nullptr, nullptr)
@@ -1877,35 +1881,44 @@ namespace NTestTrustManager
 				}
 				{
 					DMibTestPath("Subscribe stress");
-					TCFutureVector<void> Dispatches;
+					TCFutureVector<TCOptional<TCFuture<TCTrustedActorSubscription<CTestActor>>>> Dispatches;
+					TCFutureVector<TCTrustedActorSubscription<CTestActor>> SubscribesFutures;
 #if DMibConfig_RefCountDebugging || defined(DMibSanitizerEnabled_Thread)
 					constexpr mint c_nLoops = 100;
-#elif DMibPPtrBits == 32 && DMibConfig_Concurrency_DebugSubscriptions
+#elif DMibConfig_Concurrency_DebugSubscriptions
 					constexpr mint c_nLoops = 10000;
 #else
 					constexpr mint c_nLoops = 100000;
 #endif
+					SubscribesFutures.f_SetLen(c_nLoops);
+					Dispatches.f_SetLen(c_nLoops);
+
+					DMibLog(Info, "Starting Stress {}", c_nLoops);
+
 					for (mint i = 0; i < c_nLoops; ++i)
 					{
 						fg_ConcurrentDispatch
 							(
-								[ClientTrustManager, HelperActor = RunLoopHelper.m_HelperActor]
+								[ClientTrustManager, HelperActor = RunLoopHelper.m_HelperActor] -> TCOptional<TCFuture<TCTrustedActorSubscription<CTestActor>>>
 								{
-									ClientTrustManager.f_Bind<&CDistributedActorTrustManager::f_SubscribeTrustedActors<CTestActor>>
+									return ClientTrustManager.f_Bind<&CDistributedActorTrustManager::f_SubscribeTrustedActors<CTestActor>>
 										(
 											"com.malterlib/Test"
 											, HelperActor
 											, 0
 											, TCLimitsInt<uint32>::mc_Max
 										)
-										.f_DiscardResult()
+										.f_Call()
 									;
 								}
 							)
 							> Dispatches;
 						;
 					}
-					fg_AllDoneWrapped(Dispatches).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
+
+					for (auto &Dispatch : fg_AllDone(Dispatches).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout))
+						fg_Move(*Dispatch) > SubscribesFutures;
+
 					fg_Dispatch(RunLoopHelper.m_HelperActor, []{}).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
 					ClientTrustManager(&CDistributedActorTrustManager::f_AllowHostsForNamespace, "com.malterlib/Test", ServerHosts, c_WaitForSubscriptions)
 						.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
@@ -1913,6 +1926,13 @@ namespace NTestTrustManager
 					ClientTrustManager(&CDistributedActorTrustManager::f_DisallowHostsForNamespace, "com.malterlib/Test", ServerHosts, c_WaitForSubscriptions)
 						.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
 					;
+					auto Subscribes = fg_AllDone(SubscribesFutures).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
+					TCFutureVector<void> Destroys;
+					for (auto &Subscribe : Subscribes)
+						fg_Move(Subscribe).f_Destroy() > Destroys;
+					fg_AllDone(Destroys).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
+
+					DMibLog(Info, "Ending Stress {}", c_nLoops);
 				}
 				{
 					DMibTestPath("Notifications");
@@ -2008,7 +2028,7 @@ namespace NTestTrustManager
 				DMibTestPath("Permissions");
 				CActorRunLoopTestHelper RunLoopHelper;
 
-				CState State{RunLoopHelper.m_pRunLoop, _fDatabaseFactory, _fCleanup};
+				CState State{RunLoopHelper.m_pRunLoop, _fDatabaseFactory, _fCleanup, {}, _RootDir};
 
 				CPermissionTestState TestState{State, "Permissions"};
 
@@ -2281,7 +2301,7 @@ namespace NTestTrustManager
 				DMibTestPath("Permissions Database");
 				CActorRunLoopTestHelper RunLoopHelper;
 
-				CState State{RunLoopHelper.m_pRunLoop, _fDatabaseFactory, _fCleanup};
+				CState State{RunLoopHelper.m_pRunLoop, _fDatabaseFactory, _fCleanup, {}, _RootDir};
 				{
 					DMibTestPath("Setup");
 					CPermissionTestState TestState{State, "PermissionsDatabase"};
@@ -2366,7 +2386,7 @@ namespace NTestTrustManager
 				using CMetadata = TCMap<CStr, NEncoding::CEJsonSorted>;
 				using CKeys = TCSet<CStr>;
 				TCSharedPointer<CCommandLineControl> pCommandLine;
-				CState State{RunLoopHelper.m_pRunLoop, _fDatabaseFactory, _fCleanup};
+				CState State{RunLoopHelper.m_pRunLoop, _fDatabaseFactory, _fCleanup, {}, _RootDir};
 				CStr const ID1 = "2YAzJPcR2K5QMbJYP";
 				CStr const ID2 = "DPYQEvAqw4RQhXRYe";
 				CStr const ID3 = "JNsXrbgP3dL6xuFXm";
@@ -2793,7 +2813,7 @@ namespace NTestTrustManager
 				CStr const ID4 = "Tao5Dmb6FpMzTCQyD";
 				CStr const ID5 = "RSZFNPB5mFEANtCNd";
 
-				CState State{RunLoopHelper.m_pRunLoop, _fDatabaseFactory, _fCleanup};
+				CState State{RunLoopHelper.m_pRunLoop, _fDatabaseFactory, _fCleanup, {}, _RootDir};
 				{
 					DMibTestPath("Basic HostID+UserID permission checks");
 					CPermissionTestState TestState{State, "PermissionsCombos"};
@@ -3601,10 +3621,10 @@ namespace NTestTrustManager
 				fp_DoDatabaseConversionTests();
 			};
 
-			DMibTestSuite("Tests")
+			DMibTestCategory("Tests")
 			{
+				DMibTestSuite("Dummy Database")
 				{
-					DMibTestPath("Dummy Database");
 					fp_DoBasicTests
 						(
 							[](CStr const &_Name)
@@ -3614,11 +3634,12 @@ namespace NTestTrustManager
 							, []
 							{
 							}
+							, "Basic"
 						)
 					;
-				}
+				};
+				DMibTestSuite("Json Directory Database")
 				{
-					DMibTestPath("Json Directory Database");
 					CStr BaseDirectory = NFile::CFile::fs_GetProgramDirectory() + "/TestTrustManager/JsonDirectoryDatabase";
 					fp_DoBasicTests
 						(
@@ -3641,9 +3662,10 @@ namespace NTestTrustManager
 									}
 								}
 							}
+							, "Json"
 						)
 					;
-				}
+				};
 			};
 		}
 	};

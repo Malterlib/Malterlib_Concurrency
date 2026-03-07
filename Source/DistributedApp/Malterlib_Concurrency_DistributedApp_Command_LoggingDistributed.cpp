@@ -659,7 +659,7 @@ namespace NMib::NConcurrency
 		CEJsonSorted JsonOutput;
 		auto &JsonOutputArray = JsonOutput.f_Array();
 
-		CClock LastOutput{true};
+		CStopwatch LastOutput{true};
 		auto fOutputStatus = [&]
 			{
 				if (LastOutput.f_GetTime() > 0.016 || nEntries == _MaxEntries)

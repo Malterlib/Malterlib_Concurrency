@@ -871,8 +871,8 @@ namespace NMib::NConcurrency
 		auto Checkout = fg_GetSys()->f_MemoryManager_Checkout();
 #endif
 #ifdef DDoWorkPolling
-		NTime::CCyclesClock Clock;
-		Clock.f_Start();
+		NTime::CCyclesStopwatch Stopwatch;
+		Stopwatch.f_Start();
 #endif
 		while (true)
 		{
@@ -920,7 +920,7 @@ namespace NMib::NConcurrency
 			Checkout = NMemory::CMemoryManagerCheckout(nullptr);
 #endif
 #ifdef DDoWorkPolling
-			if (Clock.f_GetTime() > 0.000'035) // Loop for at least 35 µs before going to kernel
+			if (Stopwatch.f_GetTime() > 0.000'035) // Loop for at least 35 µs before going to kernel
 				break;
 #else
 			break;
@@ -952,12 +952,12 @@ namespace NMib::NConcurrency
 					while (_pThread->f_GetState() != NThread::EThreadState_EventWantQuit)
 					{
 #if DMibConfig_Tests_Enable && !defined(DTests_PerfTests)
-						NTime::CCyclesClock Clock;
-						Clock.f_Start();
+						NTime::CCyclesStopwatch Stopwatch;
+						Stopwatch.f_Start();
 						while (true)
 						{
 							fp_RunQueue(ThreadLocal);
-							if (BusyWaitTime == 0.0 || Clock.f_GetTime() > BusyWaitTime)
+							if (BusyWaitTime == 0.0 || Stopwatch.f_GetTime() > BusyWaitTime)
 								break;
 						}
 #else

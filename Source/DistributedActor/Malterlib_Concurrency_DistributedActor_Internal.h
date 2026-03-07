@@ -267,7 +267,7 @@ namespace NMib::NConcurrency::NActorDistributionManagerInternal
 
 		DMibListLinkDS_Link(CHost, m_RealHostsLink);
 
-		NTime::CClock m_InactiveClock;
+		NTime::CStopwatch m_InactiveStopwatch;
 		DMibListLinkDS_Link(CHost, m_InactiveHostsLink);
 
 		NContainer::TCMap<uint64, COutstandingCall> m_OutstandingCalls; // Key is fg_MakeOutstandingCallKey(priority, packetID)

@@ -715,8 +715,8 @@ namespace NMib::NConcurrency
 		while (_pThread->f_GetState() != NThread::EThreadState_EventWantQuit)
 		{
 #ifdef DDoWorkPolling
-			NTime::CCyclesClock Clock;
-			Clock.f_Start();
+			NTime::CCyclesStopwatch Stopwatch;
+			Stopwatch.f_Start();
 #endif
 			while (true)
 			{
@@ -764,7 +764,7 @@ namespace NMib::NConcurrency
 				Checkout = NMemory::CMemoryManagerCheckout(nullptr);
 #endif
 #ifdef DDoWorkPolling
-				if (Clock.f_GetTime() > 0.000'035) // Loop for at least 35 µs before going to kernel
+				if (Stopwatch.f_GetTime() > 0.000'035) // Loop for at least 35 µs before going to kernel
 					break;
 #else
 				break;
@@ -831,8 +831,11 @@ namespace NMib::NConcurrency
 
 		m_bDestroyed = true;
 
-		NTime::CClock Clock{true};
-		NTime::CClock TimerClock{true};
+		NTime::CStopwatch FireTimersStopwatch{true};
+		NTime::CStopwatch TimerCheckStopwatch{true};
+#if DMibConfig_Concurrency_DebugBlockDestroy
+ 		NTime::CStopwatch DebugBlockDestroyStopwatch{true};
+#endif
 
 		static constexpr mint c_nDirectDeleteActors
 			= sizeof(m_DirectCallActor) / sizeof(m_DirectCallActor) // NOLINT
@@ -878,9 +881,9 @@ namespace NMib::NConcurrency
 
 			while (fHasUserActors())
 			{
-				if (TimerClock.f_GetTime() > 0.010)
+				if (TimerCheckStopwatch.f_GetTime() > 0.010)
 				{
-					if (Clock.f_GetTime() > 10.0)
+					if (FireTimersStopwatch.f_GetTime() > 10.0)
 					{
 						TimerActor(&CTimerActor::f_FireAllTimeouts).f_CallSync();
 						if (m_bShutdownLogging && !bLoggedLongTimeShutdown)
@@ -888,17 +891,18 @@ namespace NMib::NConcurrency
 							bLoggedLongTimeShutdown = true;
 							DMibLog(Info, "Shutting down concurrency manager: Shutdown is taking a long time, firing all timeouts", bLoggedLongTimeShutdown);
 						}
+						FireTimersStopwatch.f_Start();
 					}
 					else
 					{
 						TimerActor(&CTimerActor::f_FireAtExit).f_CallSync();
 					}
-					TimerClock.f_Start();
+					TimerCheckStopwatch.f_Start();
 				}
 
 				NSys::fg_Thread_SmallestSleep();
 #if DMibConfig_Concurrency_DebugBlockDestroy
-				if (Clock.f_GetTime() > 10.0)
+				if (DebugBlockDestroyStopwatch.f_GetTime() > 10.0)
 				{
 					DMibTrace("Shutting down of actors is taking a long time. Waiting for actors:{\n}", 0);
 					{
@@ -981,7 +985,7 @@ namespace NMib::NConcurrency
 						}
 					}
 #endif
-					Clock.f_Start();
+					DebugBlockDestroyStopwatch.f_Start();
 				}
 				if (s_AbortLoop)
 				{
@@ -1087,13 +1091,14 @@ namespace NMib::NConcurrency
 				+ m_ConcurrentActors[EPriority_Low].f_GetLen()
 				+ c_nDirectDeleteActors
 			;
+			TimerCheckStopwatch.f_Start();
 			{
 				bool bLoggedBlockingActorShutdown = false;
 				while (fp_NumActors() > nExpectedActors)
 				{
 					fDestroyFreeBlockingActors();
 					NSys::fg_Thread_SmallestSleep();
-					if (Clock.f_GetTime() > 10.0)
+					if (TimerCheckStopwatch.f_GetTime() > 10.0)
 					{
 						if (m_bShutdownLogging && !bLoggedBlockingActorShutdown)
 						{
@@ -1112,7 +1117,7 @@ namespace NMib::NConcurrency
 							}
 						}
 #endif
-						Clock.f_Start();
+						TimerCheckStopwatch.f_Start();
 					}
 				}
 			}

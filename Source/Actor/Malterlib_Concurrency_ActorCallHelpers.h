@@ -6,6 +6,7 @@
 #include <Mib/Concurrency/Actor/Timer>
 #include <Mib/Concurrency/RunLoop>
 #include <Mib/Storage/Optional>
+#include <Mib/Time/Stopwatch>
 
 namespace NMib::NConcurrency
 {
@@ -250,10 +251,10 @@ namespace NMib::NConcurrency
 
 			bool f_WaitTimeout(fp64 _Timeout)
 			{
-				NTime::CClock Clock(true);
+				NTime::CStopwatch Stopwatch(true);
 				while (!m_bFinished.f_Load())
 				{
-					fp64 ToWait = _Timeout - Clock.f_GetTime();
+					fp64 ToWait = _Timeout - Stopwatch.f_GetTime();
 					if (ToWait < 0.0)
 						return true;
 

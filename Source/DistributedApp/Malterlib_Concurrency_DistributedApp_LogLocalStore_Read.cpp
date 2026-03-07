@@ -186,13 +186,13 @@ namespace NMib::NConcurrency
 			}
 		}
 
-		NTime::CCyclesClock YieldClock(true);
+		NTime::CCyclesStopwatch YieldStopwatch(true);
 
 		auto OnResume = co_await fg_OnResume
 			(
 				[&]() -> CExceptionPointer
 				{
-					YieldClock.f_Start();
+					YieldStopwatch.f_Start();
 					return {};
 				}
 			)
@@ -242,7 +242,7 @@ namespace NMib::NConcurrency
 				}
 			}
 
-			if (YieldClock.f_GetTime() > 0.1)
+			if (YieldStopwatch.f_GetTime() > 0.1)
 			{
 				if (co_await g_bShouldAbort)
 					co_return DMibErrorInstance("Aborted");

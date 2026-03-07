@@ -24,10 +24,10 @@ namespace NMib::NConcurrency
 
 	void CRunLoop::f_Sleep(fp64 _Time)
 	{
-		NTime::CClock Clock{true};
+		NTime::CStopwatch Stopwatch{true};
 		while (true)
 		{
-			auto WaitTime = _Time - Clock.f_GetTime();
+			auto WaitTime = _Time - Stopwatch.f_GetTime();
 			if (WaitTime <= 0)
 				break;
 

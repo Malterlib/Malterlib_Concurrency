@@ -24,7 +24,7 @@ namespace NMib::NConcurrency
 		if (_Host.m_InactiveHostsLink.f_IsInList())
 			return;
 
-		_Host.m_InactiveClock.f_Start();
+		_Host.m_InactiveStopwatch.f_Start();
 		m_InactiveHosts.f_Insert(_Host);
 		fp_CleanupUpdateTimer(false);
 	}
@@ -116,7 +116,7 @@ namespace NMib::NConcurrency
 			if (m_Enclave.f_IsEmpty() && Host.f_IsDaemon())
 				CleanupTimeout = m_HostDaemonTimeout;
 
-			if (Host.m_InactiveClock.f_GetTime() > CleanupTimeout)
+			if (Host.m_InactiveStopwatch.f_GetTime() > CleanupTimeout)
 				fp_DestroyHost(Host, nullptr, "Host inactivity ({} s)"_f << CleanupTimeout);
 		}
 	}

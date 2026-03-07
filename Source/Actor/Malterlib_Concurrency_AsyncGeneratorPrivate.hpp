@@ -460,7 +460,7 @@ namespace NMib::NConcurrency::NPrivate
 		{
 			auto &RunState = *m_pRunState;
 
-			NTime::CClock Clock{true};
+			NTime::CStopwatch Stopwatch{true};
 			RunState.m_Lock.f_Lock();
 			auto LockCleanup = g_OnScopeExit / [&]
 				{

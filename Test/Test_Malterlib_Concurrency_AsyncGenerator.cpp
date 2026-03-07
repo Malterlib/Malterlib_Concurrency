@@ -776,10 +776,10 @@ namespace
 					)
 				;
 
-				NTime::CClock Clock(true);
+				NTime::CStopwatch Stopwatch(true);
 				co_await fg_Move(Generator).f_Destroy();
 
-				DMibExpect(Clock.f_GetTime(), <, 5.0);
+				DMibExpect(Stopwatch.f_GetTime(), <, 5.0);
 
 				co_return {};
 			};
@@ -806,13 +806,13 @@ namespace
 					)
 				;
 
-				NTime::CClock Clock(true);
+				NTime::CStopwatch Stopwatch(true);
 
 				auto iIterator = co_await fg_Move(Generator).f_GetSimpleIterator();
 
 				co_await fg_Move(iIterator).f_Destroy();
 
-				DMibExpect(Clock.f_GetTime(), <, 5.0);
+				DMibExpect(Stopwatch.f_GetTime(), <, 5.0);
 
 				co_return {};
 			};
@@ -839,13 +839,13 @@ namespace
 					)
 				;
 
-				NTime::CClock Clock(true);
+				NTime::CStopwatch Stopwatch(true);
 
 				auto iIterator = co_await fg_Move(Generator).f_GetPipelinedIterator(1);
 
 				co_await fg_Move(iIterator).f_Destroy();
 
-				DMibExpect(Clock.f_GetTime(), <, 5.0);
+				DMibExpect(Stopwatch.f_GetTime(), <, 5.0);
 
 				co_return {};
 			};
@@ -881,7 +881,7 @@ namespace
 					)
 				;
 
-				NTime::CClock Clock(true);
+				NTime::CStopwatch Stopwatch(true);
 
 				auto iIterator = co_await fg_Move(Generator).f_GetSimpleIterator();
 				DMibAssertTrue(iIterator);
@@ -894,7 +894,7 @@ namespace
 				co_await fg_Move(iIterator).f_Destroy();
 				co_await AbortedPromise.f_Future().f_Timeout(g_Timeout, "Timed out");
 
-				DMibExpect(Clock.f_GetTime(), <, 5.0);
+				DMibExpect(Stopwatch.f_GetTime(), <, 5.0);
 				DMibExpectTrue(pAborted->f_Load());
 
 				co_return {};
@@ -931,7 +931,7 @@ namespace
 					)
 				;
 
-				NTime::CClock Clock(true);
+				NTime::CStopwatch Stopwatch(true);
 
 				auto iIterator = co_await fg_Move(Generator).f_GetPipelinedIterator(1);
 				DMibAssertTrue(iIterator);
@@ -944,7 +944,7 @@ namespace
 				co_await fg_Move(iIterator).f_Destroy();
 				co_await AbortedPromise.f_Future().f_Timeout(g_Timeout, "Timed out");
 
-				DMibExpect(Clock.f_GetTime(), <, 5.0);
+				DMibExpect(Stopwatch.f_GetTime(), <, 5.0);
 				DMibExpectTrue(pAborted->f_Load());
 
 				co_return {};
@@ -992,7 +992,7 @@ namespace
 					)
 				;
 
-				NTime::CClock Clock(true);
+				NTime::CStopwatch Stopwatch(true);
 
 				auto iIterator = co_await fg_Move(Generator).f_GetSimpleIterator();
 				DMibAssertTrue(iIterator);
@@ -1004,7 +1004,7 @@ namespace
 
 				co_await FinishedPromise.f_Future().f_Timeout(g_Timeout, "Timed out");
 
-				DMibExpect(Clock.f_GetTime(), <, 5.0);
+				DMibExpect(Stopwatch.f_GetTime(), <, 5.0);
 				DMibExpectFalse(iIterator);
 
 				co_return {};
@@ -1051,7 +1051,7 @@ namespace
 					)
 				;
 
-				NTime::CClock Clock(true);
+				NTime::CStopwatch Stopwatch(true);
 
 				auto iIterator = co_await fg_Move(Generator).f_GetPipelinedIterator(1);
 				DMibAssertTrue(iIterator);
@@ -1063,7 +1063,7 @@ namespace
 
 				co_await FinishedPromise.f_Future().f_Timeout(g_Timeout, "Timed out");
 
-				DMibExpect(Clock.f_GetTime(), <, 5.0);
+				DMibExpect(Stopwatch.f_GetTime(), <, 5.0);
 				DMibExpectFalse(iIterator);
 
 				co_return {};
@@ -1091,7 +1091,7 @@ namespace
 					)
 				;
 
-				NTime::CClock Clock(true);
+				NTime::CStopwatch Stopwatch(true);
 
 				auto iIterator = co_await fg_Move(Generator).f_GetSimpleIterator();
 
@@ -1099,7 +1099,7 @@ namespace
 
 				co_await fg_Move(iIterator).f_Destroy();
 
-				DMibExpect(Clock.f_GetTime(), <, 5.0);
+				DMibExpect(Stopwatch.f_GetTime(), <, 5.0);
 
 				co_return {};
 			};
@@ -1126,7 +1126,7 @@ namespace
 					)
 				;
 
-				NTime::CClock Clock(true);
+				NTime::CStopwatch Stopwatch(true);
 
 				auto iIterator = co_await fg_Move(Generator).f_GetPipelinedIterator(1);
 
@@ -1134,7 +1134,7 @@ namespace
 
 				co_await fg_Move(iIterator).f_Destroy();
 
-				DMibExpect(Clock.f_GetTime(), <, 5.0);
+				DMibExpect(Stopwatch.f_GetTime(), <, 5.0);
 
 				co_return {};
 			};
@@ -1169,7 +1169,7 @@ namespace
 					)
 				;
 
-				NTime::CClock Clock(true);
+				NTime::CStopwatch Stopwatch(true);
 
 				auto iIterator = co_await fg_Move(Generator).f_GetSimpleIterator();
 
@@ -1180,7 +1180,7 @@ namespace
 				co_await fg_Move(iIterator).f_Destroy();
 				co_await AbortedPromise.f_Future().f_Timeout(g_Timeout, "Timed out");;
 
-				DMibExpect(Clock.f_GetTime(), <, 5.0);
+				DMibExpect(Stopwatch.f_GetTime(), <, 5.0);
 				DMibExpectTrue(pAborted->f_Load());
 
 				co_return {};
@@ -1216,7 +1216,7 @@ namespace
 					)
 				;
 
-				NTime::CClock Clock(true);
+				NTime::CStopwatch Stopwatch(true);
 
 				auto iIterator = co_await fg_Move(Generator).f_GetPipelinedIterator(1);
 
@@ -1227,7 +1227,7 @@ namespace
 				co_await fg_Move(iIterator).f_Destroy();
 				co_await AbortedPromise.f_Future().f_Timeout(g_Timeout, "Timed out");;
 
-				DMibExpect(Clock.f_GetTime(), <, 5.0);
+				DMibExpect(Stopwatch.f_GetTime(), <, 5.0);
 				DMibExpectTrue(pAborted->f_Load());
 
 				co_return {};
@@ -1263,7 +1263,7 @@ namespace
 					)
 				;
 
-				NTime::CClock Clock(true);
+				NTime::CStopwatch Stopwatch(true);
 
 				auto iIterator = co_await fg_Move(Generator).f_GetSimpleIterator();
 				(++iIterator).f_DiscardResult();
@@ -1275,7 +1275,7 @@ namespace
 				}
 				co_await AbortedPromise.f_Future().f_Timeout(g_Timeout, "Timed out");;
 
-				DMibExpect(Clock.f_GetTime(), <, 5.0);
+				DMibExpect(Stopwatch.f_GetTime(), <, 5.0);
 				DMibExpectTrue(pAborted->f_Load());
 
 				co_return {};
@@ -1311,7 +1311,7 @@ namespace
 					)
 				;
 
-				NTime::CClock Clock(true);
+				NTime::CStopwatch Stopwatch(true);
 
 				auto iIterator = co_await fg_Move(Generator).f_GetPipelinedIterator(1);
 				(++iIterator).f_DiscardResult();
@@ -1323,7 +1323,7 @@ namespace
 				}
 				co_await AbortedPromise.f_Future().f_Timeout(g_Timeout, "Timed out");;
 
-				DMibExpect(Clock.f_GetTime(), <, 5.0);
+				DMibExpect(Stopwatch.f_GetTime(), <, 5.0);
 				DMibExpectTrue(pAborted->f_Load());
 
 				co_return {};

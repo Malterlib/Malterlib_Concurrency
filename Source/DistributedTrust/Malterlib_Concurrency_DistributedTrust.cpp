@@ -47,6 +47,7 @@ namespace NMib::NConcurrency
 		, m_ReconnectDelay(_Options.m_ReconnectDelay)
 		, m_bTimeoutForUnixSockets(_Options.m_bTimeoutForUnixSockets)
 	{
+		m_TicketTimer.f_Start();
 	}
 
 	CDistributedActorTrustManager::CInternal::~CInternal()

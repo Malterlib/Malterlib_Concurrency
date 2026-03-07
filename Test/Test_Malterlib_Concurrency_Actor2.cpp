@@ -277,10 +277,10 @@ namespace NTestActor2
 
 				fp_SyncOnAllThreads();
 
-				CClock Clock{true};
+				CStopwatch Stopwatch{true};
 				while (g_nDestroyedActors.f_Load() - nDestroyedStart < nDestructions)
 				{
-					if (Clock.f_GetTime() >= g_Timeout)
+					if (Stopwatch.f_GetTime() >= g_Timeout)
 						break;
 					NSys::fg_Thread_Sleep(0.001f);
 				}
@@ -325,10 +325,10 @@ namespace NTestActor2
 
 				fp_SyncOnAllThreads();
 
-				CClock Clock{true};
+				CStopwatch Stopwatch{true};
 				while (g_nDestroyedActors.f_Load() - nDestroyedStart < nDestructions)
 				{
-					if (Clock.f_GetTime() >= g_Timeout)
+					if (Stopwatch.f_GetTime() >= g_Timeout)
 						break;
 					NSys::fg_Thread_Sleep(0.001f);
 				}

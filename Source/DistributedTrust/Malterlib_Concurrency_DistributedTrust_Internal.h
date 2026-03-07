@@ -11,6 +11,7 @@
 #include <Mib/Concurrency/DistributedActorAuthentication>
 #include <Mib/Concurrency/DistributedActorAuthenticationHandler>
 #include <Mib/Concurrency/ActorSequencerActor>
+#include <Mib/Time/TimeMeasure>
 
 namespace NMib::NConcurrency
 {
@@ -47,7 +48,7 @@ namespace NMib::NConcurrency
 
 		struct CTicketState
 		{
-			NTime::CTimer m_CreationTime;
+			NTime::CTimeMeasure m_CreationTime;
 			TCActorFunctor<TCFuture<void> (NStr::CStr _HostID, CCallingHostInfo _HostInfo, NContainer::CByteVector _CertificateRequest)> m_fOnUseTicket;
 			TCActorFunctor<TCFuture<void> (NStr::CStr _HostID, CCallingHostInfo _HostInfo)> m_fOnCertificateSigned;
 		};
@@ -282,7 +283,7 @@ namespace NMib::NConcurrency
 		NContainer::TCMap<NStr::CStr, NContainer::TCMap<NStr::CStr, CUserAuthenticationFactorState>> m_UserAuthenticationFactors;
 		NContainer::TCMap<NStr::CStr, CAuthenticationActorInfo> m_AuthenticationActors;
 
-		NTime::CTimer m_TicketTimer;
+		NTime::CTimeMeasure m_TicketTimer;
 
 		NCryptography::CPublicKeySetting const m_KeySetting;
 		NNetwork::ENetFlag const m_ListenFlags;

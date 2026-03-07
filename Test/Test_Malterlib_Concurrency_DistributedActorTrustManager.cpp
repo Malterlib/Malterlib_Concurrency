@@ -576,13 +576,13 @@ namespace NTestTrustManager
 		{
 			bool bTimedOut = false;
 
-			NTime::CClock Clock;
-			Clock.f_Start();
+			NTime::CStopwatch Stopwatch;
+			Stopwatch.f_Start();
 
 			while (!_fPredicate())
 			{
 				NSys::fg_Thread_Sleep(0.01f);
-				if (Clock.f_GetTime() > g_Timeout / 2)
+				if (Stopwatch.f_GetTime() > g_Timeout / 2)
 				{
 					bTimedOut = true;
 					break;
@@ -1642,9 +1642,9 @@ namespace NTestTrustManager
 				}
 				auto fWaitForSubscribed = [&](auto &_Subscription, mint _nSubScribed)
 					{
-						NTime::CClock Clock{true};
+						NTime::CStopwatch Stopwatch{true};
 						mint nSubscribed = 0;
-						while (Clock.f_GetTime() < 10.0)
+						while (Stopwatch.f_GetTime() < 10.0)
 						{
 							nSubscribed = fg_Dispatch
 								(
@@ -1760,8 +1760,8 @@ namespace NTestTrustManager
 						DMibExpect(fWaitForSubscribed(TrustedSubscription2, 1), ==, 1);
 						TrustedSubscription2.f_Destroy().f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
 						ServerHelper.f_Unpublish(NewPublish2);
-						NTime::CClock Clock{true};
-						while (Clock.f_GetTime() < 10.0)
+						NTime::CStopwatch Stopwatch{true};
+						while (Stopwatch.f_GetTime() < 10.0)
 						{
 							if (!ClientHelper.f_GetRemoteActor<CTestActor2>(Subscription))
 								break;
@@ -1799,8 +1799,8 @@ namespace NTestTrustManager
 						fg_Dispatch(RunLoopHelper.m_HelperActor, []{}).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
 						ServerHelper.f_Unpublish(NewPublish2);
 						ServerHelper.f_Unpublish(NewPublish3);
-						NTime::CClock Clock{true};
-						while (Clock.f_GetTime() < 10.0)
+						NTime::CStopwatch Stopwatch{true};
+						while (Stopwatch.f_GetTime() < 10.0)
 						{
 							if (!ClientHelper.f_GetRemoteActor<CTestActor2>(Subscription) && !ClientHelper.f_GetRemoteActor<CTestActor>(Subscription))
 								break;
@@ -1866,8 +1866,8 @@ namespace NTestTrustManager
 					DMibExpectTrue(ClientHelper.f_GetRemoteActor<CTestActor2>(Subscription));
 					ServerHelper.f_Unpublish(NewPublish2);
 					ServerHelper2.f_Unpublish(NewPublish3);
-					NTime::CClock Clock{true};
-					while (Clock.f_GetTime() < 10.0)
+					NTime::CStopwatch Stopwatch{true};
+					while (Stopwatch.f_GetTime() < 10.0)
 					{
 						if (!ClientHelper.f_GetRemoteActor<CTestActor2>(Subscription))
 							break;

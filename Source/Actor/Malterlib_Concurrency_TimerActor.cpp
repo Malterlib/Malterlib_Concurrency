@@ -57,7 +57,7 @@ namespace NMib::NConcurrency
 
 			~CTimeMeasure();
 
-			COrdering_Strong operator <=> (CTimeMeasure const &_Right) const;
+			COrdering_Strong operator <=> (CTimeMeasure const &_Right) const noexcept;
 
 			NIntrusive::TCAVLLink<> m_TreeLink;
 			mint m_NextCallbackID = 0;
@@ -356,7 +356,7 @@ namespace NMib::NConcurrency
 			*m_pDestroyed = true;
 	}
 
-	COrdering_Strong CTimerActor::CInternal::CTimeMeasure::operator <=> (CTimeMeasure const &_Right) const
+	COrdering_Strong CTimerActor::CInternal::CTimeMeasure::operator <=> (CTimeMeasure const &_Right) const noexcept
 	{
 		if (auto Compare = m_NextElapseLexicographic <=> _Right.m_NextElapseLexicographic; Compare != COrdering_Strong::equivalent)
 			return Compare;

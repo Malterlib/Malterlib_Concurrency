@@ -661,14 +661,14 @@ namespace NMib::NConcurrency
 		return mp_ClaimedUserName;
 	}
 
-	bool CCallingHostInfo::operator ==(CCallingHostInfo const &_Right) const
+	bool CCallingHostInfo::operator == (CCallingHostInfo const &_Right) const noexcept
 	{
 		return NStorage::fg_TupleReferences(mp_UniqueHostID, mp_HostInfo.m_HostID, mp_LastExecutionID)
 			== NStorage::fg_TupleReferences(_Right.mp_UniqueHostID, _Right.mp_HostInfo.m_HostID, _Right.mp_LastExecutionID)
 		;
 	}
 
-	COrdering_Strong CCallingHostInfo::operator <=> (CCallingHostInfo const &_Right) const
+	COrdering_Strong CCallingHostInfo::operator <=> (CCallingHostInfo const &_Right) const noexcept
 	{
 		return NStorage::fg_TupleReferences(mp_UniqueHostID, mp_HostInfo.m_HostID, mp_LastExecutionID)
 			<=> NStorage::fg_TupleReferences(_Right.mp_UniqueHostID, _Right.mp_HostInfo.m_HostID, _Right.mp_LastExecutionID)
@@ -854,7 +854,7 @@ namespace NMib::NConcurrency
 	{
 	}
 
-	bool CDistributedActorIdentifier::operator == (TCActor<> const &_Right) const
+	bool CDistributedActorIdentifier::operator == (TCActor<> const &_Right) const noexcept
 	{
 		if (!_Right)
 			return false;
@@ -868,7 +868,7 @@ namespace NMib::NConcurrency
 		return NStorage::fg_TupleReferences(mp_pHost, mp_ActorID) == NStorage::fg_TupleReferences(pRightInternal->m_pHost, pRightInternal->m_ActorID);
 	}
 
-	COrdering_Weak CDistributedActorIdentifier::operator <=> (TCActor<> const &_Right) const
+	COrdering_Weak CDistributedActorIdentifier::operator <=> (TCActor<> const &_Right) const noexcept
 	{
 		if (!_Right)
 			return COrdering_Weak::greater;

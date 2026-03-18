@@ -16,7 +16,7 @@ namespace NMib::NConcurrency::NSensorStoreLocalDatabase
 		template <typename tf_CStream>
 		void f_ConsumeLexicographic(tf_CStream &_Stream);
 
-		auto operator <=>(CSensorGlobalStateKey const &_Right) const = default;
+		auto operator <=>(CSensorGlobalStateKey const &_Right) const noexcept = default;
 
 		static NStr::CStr const mc_Prefix;
 
@@ -39,7 +39,7 @@ namespace NMib::NConcurrency::NSensorStoreLocalDatabase
 		template <typename tf_CStream>
 		void f_ConsumeLexicographic(tf_CStream &_Stream);
 
-		auto operator <=>(CKnownHostKey const &_Right) const = default;
+		auto operator <=>(CKnownHostKey const &_Right) const noexcept = default;
 
 		static NStr::CStr const mc_Prefix;
 
@@ -69,7 +69,7 @@ namespace NMib::NConcurrency::NSensorStoreLocalDatabase
 
 		CSensorKey const &f_SensorKey() const &;
 
-		auto operator <=>(CSensorKey const &_Right) const = default;
+		auto operator <=>(CSensorKey const &_Right) const noexcept = default;
 
 		CDistributedAppSensorReporter::CSensorInfoKey f_SensorInfoKey() const &;
 		CDistributedAppSensorReporter::CSensorInfoKey f_SensorInfoKey() &&;

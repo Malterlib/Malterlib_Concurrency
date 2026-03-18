@@ -24,8 +24,8 @@ namespace NMib::NConcurrency
 			void f_Stream(tf_CStream &_Stream);
 			template <typename tf_CStr>
 			void f_Format(tf_CStr &o_Str) const;
-			COrdering_Strong operator <=> (CPermissionWithRequirements const &_Right) const;
-			bool operator == (CPermissionWithRequirements const &_Right) const;
+			COrdering_Strong operator <=> (CPermissionWithRequirements const &_Right) const noexcept;
+			bool operator == (CPermissionWithRequirements const &_Right) const noexcept;
 
 			NStr::CStr m_Permission;
 			NStr::CStr m_Description;
@@ -43,7 +43,7 @@ namespace NMib::NConcurrency
 			void f_Stream(tf_CStream &_Stream);
 			template <typename tf_CStr>
 			void f_Format(tf_CStr &o_Str) const;
-			auto operator <=> (CRequest const &_Right) const = default;
+			auto operator <=> (CRequest const &_Right) const noexcept = default;
 
 			NStr::CStr m_Description;
 
@@ -70,7 +70,7 @@ namespace NMib::NConcurrency
 			void f_Stream(tf_CStream &_Stream);
 			template <typename tf_CStr>
 			void f_Format(tf_CStr &o_Str) const;
-			inline bool operator == (CChallenge const &_Other) const;
+			inline bool operator == (CChallenge const &_Other) const noexcept;
 
 			NContainer::CByteVector m_ChallengeData;
 			NStr::CStr m_UserID;

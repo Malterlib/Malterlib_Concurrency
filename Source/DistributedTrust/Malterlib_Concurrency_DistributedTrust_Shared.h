@@ -19,7 +19,7 @@ namespace NMib::NConcurrency
 		void f_Feed(tf_CStream &_Stream) const;
 		template <typename tf_CStream>
 		void f_Consume(tf_CStream &_Stream);
-		auto operator <=> (CDistributedActorTrustManager_Address const &_Right) const = default;
+		auto operator <=> (CDistributedActorTrustManager_Address const &_Right) const noexcept = default;
 
 		CDistributedActorTrustManager_Address();
 		~CDistributedActorTrustManager_Address();
@@ -46,7 +46,7 @@ namespace NMib::NConcurrency
 		template <typename tf_CStr>
 		void f_Format(tf_CStr &o_Str) const;
 
-		auto operator <=> (CPermissionIdentifier const &_Right) const = default;
+		auto operator <=> (CPermissionIdentifier const &_Right) const noexcept = default;
 
 		EPermissionIdentifierType m_Type = EPermissionIdentifierType_None;
 		NStr::CStr m_ID;
@@ -59,7 +59,7 @@ namespace NMib::NConcurrency
 		template <typename tf_CStr>
 		void f_Format(tf_CStr &o_Str) const;
 
-		auto operator <=> (CPermissionIdentifiers const &_Right) const = default;
+		auto operator <=> (CPermissionIdentifiers const &_Right) const noexcept = default;
 
 		CPermissionIdentifiers();
 		CPermissionIdentifiers(NStr::CStr const &_HostID, NStr::CStr const &_UserID);
@@ -86,7 +86,7 @@ namespace NMib::NConcurrency
 		template <typename tf_CStr>
 		void f_Format(tf_CStr &o_Str) const;
 
-		auto operator <=> (CPermissionRequirements const &_Right) const = default;
+		auto operator <=> (CPermissionRequirements const &_Right) const noexcept = default;
 
 		NContainer::TCSet<NContainer::TCSet<NStr::CStr>> m_AuthenticationFactors;
 		int64 m_MaximumAuthenticationLifetime = mc_OverrideLifetimeNotSet;

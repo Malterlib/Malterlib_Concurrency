@@ -314,7 +314,7 @@ namespace NMib::NConcurrency
 		return Result;
 	}
 
-	bool CDistributedActorTrustManagerInterface::CPermissionInfo::operator == (CPermissionInfo const &_Right) const
+	bool CDistributedActorTrustManagerInterface::CPermissionInfo::operator == (CPermissionInfo const &_Right) const noexcept
 	{
 		return NStorage::fg_TupleReferences(m_HostInfo, m_UserInfo) == NStorage::fg_TupleReferences(_Right.m_HostInfo, _Right.m_UserInfo);
 	}

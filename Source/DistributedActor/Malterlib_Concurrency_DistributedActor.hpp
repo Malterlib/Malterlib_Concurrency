@@ -622,13 +622,13 @@ namespace NMib::NConcurrency
 	}
 
 	template <typename t_CActor>
-	bool CDistributedActorIdentifier::operator == (TCActor<t_CActor> const &_Right) const
+	bool CDistributedActorIdentifier::operator == (TCActor<t_CActor> const &_Right) const noexcept
 	{
 		return *this == (TCActor<> const &)_Right;
 	}
 
 	template <typename t_CActor>
-	COrdering_Weak CDistributedActorIdentifier::operator <=> (TCActor<t_CActor> const &_Right) const
+	COrdering_Weak CDistributedActorIdentifier::operator <=> (TCActor<t_CActor> const &_Right) const noexcept
 	{
 		return *this <=> (TCActor<> const &)_Right;
 	}

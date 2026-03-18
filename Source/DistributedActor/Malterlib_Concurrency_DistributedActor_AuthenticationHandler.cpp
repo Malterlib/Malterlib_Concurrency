@@ -34,14 +34,14 @@ namespace NMib::NConcurrency
 	}
 	DMibDistributedStreamImplement(ICDistributedActorAuthenticationHandler::CPermissionWithRequirements);
 
-	COrdering_Strong ICDistributedActorAuthenticationHandler::CPermissionWithRequirements::operator <=> (CPermissionWithRequirements const &_Right) const
+	COrdering_Strong ICDistributedActorAuthenticationHandler::CPermissionWithRequirements::operator <=> (CPermissionWithRequirements const &_Right) const noexcept
 	{
 		return fg_TupleReferences(m_Permission, m_AuthenticationFactors, m_MaximumAuthenticationLifetime, m_Preauthenticated)
 			<=> fg_TupleReferences(_Right.m_Permission, _Right.m_AuthenticationFactors, _Right.m_MaximumAuthenticationLifetime, _Right.m_Preauthenticated)
 		;
 	}
 
-	bool ICDistributedActorAuthenticationHandler::CPermissionWithRequirements::operator == (CPermissionWithRequirements const &_Right) const
+	bool ICDistributedActorAuthenticationHandler::CPermissionWithRequirements::operator == (CPermissionWithRequirements const &_Right) const noexcept
 	{
 		return fg_TupleReferences(m_Permission, m_AuthenticationFactors, m_MaximumAuthenticationLifetime, m_Preauthenticated)
 			== fg_TupleReferences(_Right.m_Permission, _Right.m_AuthenticationFactors, _Right.m_MaximumAuthenticationLifetime, _Right.m_Preauthenticated)

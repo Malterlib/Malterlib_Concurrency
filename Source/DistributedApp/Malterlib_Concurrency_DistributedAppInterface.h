@@ -112,7 +112,7 @@ namespace NMib::NConcurrency
 			template <typename tf_CStr>
 			void f_Format(tf_CStr &o_Str) const;
 
-			auto operator <=> (CConfigFile const &_Other) const = default;
+			auto operator <=> (CConfigFile const &_Other) const noexcept = default;
 
 			EMonitorConfigType m_Type = EMonitorConfigType_GeneralText;
 		};

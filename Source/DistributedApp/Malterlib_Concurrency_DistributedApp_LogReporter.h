@@ -66,7 +66,7 @@ namespace NMib::NConcurrency
 			template <typename tf_CStr>
 			void f_Format(tf_CStr &o_Str) const;
 
-			auto operator <=> (CSourceLocation const &_Right) const = default;
+			auto operator <=> (CSourceLocation const &_Right) const noexcept = default;
 
 			NStr::CStr m_File;
 			int32 m_Line = 0;
@@ -79,7 +79,7 @@ namespace NMib::NConcurrency
 			template <typename tf_CStr>
 			void f_Format(tf_CStr &o_Str) const;
 
-			auto operator <=> (CLogScope_Unsupported const &_Right) const = default;
+			auto operator <=> (CLogScope_Unsupported const &_Right) const noexcept = default;
 		};
 
 		struct CLogScope_Host
@@ -89,7 +89,7 @@ namespace NMib::NConcurrency
 			template <typename tf_CStr>
 			void f_Format(tf_CStr &o_Str) const;
 
-			auto operator <=> (CLogScope_Host const &_Right) const = default;
+			auto operator <=> (CLogScope_Host const &_Right) const noexcept = default;
 		};
 
 		struct CLogScope_Application
@@ -99,7 +99,7 @@ namespace NMib::NConcurrency
 			template <typename tf_CStr>
 			void f_Format(tf_CStr &o_Str) const;
 
-			auto operator <=> (CLogScope_Application const &_Right) const = default;
+			auto operator <=> (CLogScope_Application const &_Right) const noexcept = default;
 
 			NStr::CStr m_ApplicationName; // Supports wildcards
 		};
@@ -120,7 +120,7 @@ namespace NMib::NConcurrency
 			void f_SetFromLogSeverity(NLog::ESeverity _Severity);
 			NEncoding::CEJsonSorted f_ToJson() const;
 
-			auto operator <=> (CLogData const &_Right) const = default;
+			auto operator <=> (CLogData const &_Right) const noexcept = default;
 
 			NContainer::TCVector<NStr::CStr> m_Categories;
 			NContainer::TCVector<NStr::CStr> m_Operations;
@@ -146,7 +146,7 @@ namespace NMib::NConcurrency
 			template <typename tf_CStream>
 			void f_Stream(tf_CStream &_Stream);
 
-			auto operator <=> (CLogInfoAutomatic const &_Right) const = default;
+			auto operator <=> (CLogInfoAutomatic const &_Right) const noexcept = default;
 
 			/// This will be filled in automatically when using CDistributedAppLogStoreLocal
 			NStr::CStr m_HostID;
@@ -162,7 +162,7 @@ namespace NMib::NConcurrency
 			template <typename tf_CStr>
 			void f_Format(tf_CStr &o_Str) const;
 
-			auto operator <=> (CLogInfoKey const &_Right) const = default;
+			auto operator <=> (CLogInfoKey const &_Right) const noexcept = default;
 
 			NStr::CStr m_HostID;
 			CLogScope m_Scope;
@@ -179,7 +179,7 @@ namespace NMib::NConcurrency
 			template <typename tf_CStr>
 			void f_Format(tf_CStr &o_Str) const;
 
-			auto operator <=> (CLogInfo const &_Right) const = default;
+			auto operator <=> (CLogInfo const &_Right) const noexcept = default;
 
 			NStr::CStr m_Identifier;
 			NStr::CStr m_IdentifierScope;

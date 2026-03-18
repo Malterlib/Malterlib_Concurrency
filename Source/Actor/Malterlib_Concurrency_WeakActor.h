@@ -86,14 +86,14 @@ namespace NMib::NConcurrency
 		TCActorHolderWeakPointer<CActorInternal> &f_Unsafe_AccessInternal();
 
 		template <typename tf_CActor>
-		COrdering_Strong operator <=> (TCWeakActor<tf_CActor> const& _Right) const;
+		COrdering_Strong operator <=> (TCWeakActor<tf_CActor> const& _Right) const noexcept;
 		template <typename tf_CActor>
-		COrdering_Strong operator <=> (TCActor<tf_CActor> const& _Right) const;
+		COrdering_Strong operator <=> (TCActor<tf_CActor> const& _Right) const noexcept;
 
 		template <typename tf_CActor>
-		bool operator == (TCWeakActor<tf_CActor> const& _Right) const;
+		bool operator == (TCWeakActor<tf_CActor> const& _Right) const noexcept;
 		template <typename tf_CActor>
-		bool operator == (TCActor<tf_CActor> const& _Right) const;
+		bool operator == (TCActor<tf_CActor> const& _Right) const noexcept;
 
 		inline_small explicit operator bool() const;
 

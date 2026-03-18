@@ -29,7 +29,7 @@ namespace NMib::NConcurrency
 		o_Str += typename tf_CStr::CFormat("{vs} {}") << m_ChallengeData << m_UserID;
 	}
 
-	bool ICDistributedActorAuthenticationHandler::CChallenge::operator == (CChallenge const &_Other) const
+	bool ICDistributedActorAuthenticationHandler::CChallenge::operator == (CChallenge const &_Other) const noexcept
 	{
 		return m_ChallengeData == _Other.m_ChallengeData && m_UserID == _Other.m_UserID;
 	}

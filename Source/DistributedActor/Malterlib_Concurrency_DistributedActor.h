@@ -109,16 +109,16 @@ namespace NMib::NConcurrency
 		CDistributedActorIdentifier();
 		CDistributedActorIdentifier(NStorage::TCWeakPointer<NPrivate::ICHost> const &_pHost, NStr::CStr const &_ActorID);
 
-		bool operator == (CDistributedActorIdentifier const &_Other) const = default;
-		auto operator <=> (CDistributedActorIdentifier const &_Other) const = default;
+		bool operator == (CDistributedActorIdentifier const &_Other) const noexcept = default;
+		auto operator <=> (CDistributedActorIdentifier const &_Other) const noexcept = default;
 
 		template <typename tf_CActor>
-		COrdering_Weak operator <=> (TCActor<tf_CActor> const &_Right) const;
-		COrdering_Weak operator <=> (TCActor<> const &_Right) const;
+		COrdering_Weak operator <=> (TCActor<tf_CActor> const &_Right) const noexcept;
+		COrdering_Weak operator <=> (TCActor<> const &_Right) const noexcept;
 
 		template <typename t_CActor>
-		bool operator == (TCActor<t_CActor> const &_Right) const;
-		bool operator == (TCActor<> const &_Right) const;
+		bool operator == (TCActor<t_CActor> const &_Right) const noexcept;
+		bool operator == (TCActor<> const &_Right) const noexcept;
 
 		template <typename tf_CStr>
 		void f_Format(tf_CStr &o_Str) const;
@@ -144,7 +144,7 @@ namespace NMib::NConcurrency
 
 		bool f_IsEmpty() const;
 
-		auto operator <=> (CHostInfo const &_Right) const = default;
+		auto operator <=> (CHostInfo const &_Right) const noexcept = default;
 
 		template <typename tf_CString>
 		void f_Format(tf_CString &o_String) const;
@@ -271,7 +271,7 @@ namespace NMib::NConcurrency
 
 		bool f_HighestSupportedVersion(CDistributedActorProtocolVersions const &_Other, uint32 &o_Version) const;
 		bool f_ValidVersion(uint32 _Version);
-		auto operator <=> (CDistributedActorProtocolVersions const &_Other) const = default;
+		auto operator <=> (CDistributedActorProtocolVersions const &_Other) const noexcept = default;
 
 		template <typename tf_CStream>
 		void f_Feed(tf_CStream &_Stream) const;
@@ -515,8 +515,8 @@ namespace NMib::NConcurrency
 		NStorage::TCSharedPointerSupportWeak<NPrivate::ICHost> f_GetHost() const;
 		uint8 f_GetCallPriority() const;
 
-		bool operator == (CCallingHostInfo const &_Right) const;
-		COrdering_Strong operator <=> (CCallingHostInfo const &_Right) const;
+		bool operator == (CCallingHostInfo const &_Right) const noexcept;
+		COrdering_Strong operator <=> (CCallingHostInfo const &_Right) const noexcept;
 
 	protected:
 		TCWeakActor<CActorDistributionManager> mp_DistributionManager;

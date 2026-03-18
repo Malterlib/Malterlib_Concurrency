@@ -186,7 +186,7 @@ namespace NMib::NConcurrency
 
 			NFunction::TCFunctionMutable<void ()> m_fOnTerminate;
 
-			COrdering_Strong operator <=> (COnTerminate const &_Other) const
+			COrdering_Strong operator <=> (COnTerminate const &_Other) const noexcept
 			{
 				return this <=> &_Other;
 			}

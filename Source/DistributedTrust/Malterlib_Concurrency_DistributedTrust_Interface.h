@@ -52,7 +52,7 @@ namespace NMib::NConcurrency
 		struct CNamespacePermissions
 		{
 			inline NStr::CStr const &f_GetName() const;
-			inline auto operator <=> (CNamespacePermissions const &_Right) const = default;
+			inline auto operator <=> (CNamespacePermissions const &_Right) const noexcept = default;
 
 			template <typename tf_CString>
 			void f_Format(tf_CString &o_String) const;
@@ -80,7 +80,7 @@ namespace NMib::NConcurrency
 			template <typename tf_CString>
 			void f_Format(tf_CString &o_String) const;
 
-			auto operator <=> (CClientConnectionInfo const &_Right) const = default;
+			auto operator <=> (CClientConnectionInfo const &_Right) const noexcept = default;
 
 			CHostInfo m_HostInfo;
 			int32 m_ConnectionConcurrency = -1;
@@ -137,7 +137,7 @@ namespace NMib::NConcurrency
 			void f_Stream(tf_CStream &_Stream);
 			template <typename tf_CString>
 			void f_Format(tf_CString &o_String) const;
-			auto operator <=> (CUserInfo const &_Right) const = default;
+			auto operator <=> (CUserInfo const &_Right) const noexcept = default;
 
 			NStr::CStr m_UserName;
 			NContainer::TCMap<NStr::CStr, NEncoding::CEJsonSorted> m_Metadata;
@@ -213,7 +213,7 @@ namespace NMib::NConcurrency
 
 			NStr::CStr f_GetDesc() const;
 			NStr::CStr f_GetDescColored(NCommandLine::EAnsiEncodingFlag _AnsiFlags) const;
-			bool operator == (CPermissionInfo const &_Right) const;
+			bool operator == (CPermissionInfo const &_Right) const noexcept;
 
 			NStorage::TCOptional<CHostInfo> m_HostInfo;
 			NStorage::TCOptional<CUserInfo> m_UserInfo;

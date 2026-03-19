@@ -113,7 +113,7 @@ namespace NMib::NConcurrency
 			;
 			ReadTransaction = fg_Move(ReadTransactionMove);
 
-			static constexpr mint c_BatchSize = 32768;
+			static constexpr umint c_BatchSize = 32768;
 
 			auto fGetBatch = [iSensorReading = fg_Move(iSensorReading)]() mutable -> TCFuture<TCOptional<TCVector<CDistributedAppSensorReporter::CSensorReading>>>
 				{
@@ -317,17 +317,17 @@ namespace NMib::NConcurrency
 
 		TCVector<TCSharedPointer<TCVector<CDistributedAppSensorReporter::CSensorReading> const>> ReadingsChunks;
 
-		static constexpr mint c_ChunkSize = 32768;
+		static constexpr umint c_ChunkSize = 32768;
 
-		mint nReadings = _pReadings->f_GetLen();
+		umint nReadings = _pReadings->f_GetLen();
 
 		if (nReadings < c_ChunkSize)
 			ReadingsChunks.f_Insert(fg_Move(_pReadings));
 		else
 		{
-			for (mint iStartReading = 0; iStartReading < nReadings;)
+			for (umint iStartReading = 0; iStartReading < nReadings;)
 			{
-				mint ThisTime = fg_Min(nReadings - iStartReading, c_ChunkSize);
+				umint ThisTime = fg_Min(nReadings - iStartReading, c_ChunkSize);
 
 				ReadingsChunks.f_Insert
 					(

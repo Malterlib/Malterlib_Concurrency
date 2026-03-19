@@ -186,7 +186,7 @@ namespace NMib::NConcurrency
 		return NStr::gc_Str<"No error (no exception was set)">;
 	}
 
-	NStr::CStr CAsyncResult::f_GetExceptionCallstackStr(mint _Indent) const
+	NStr::CStr CAsyncResult::f_GetExceptionCallstackStr(umint _Indent) const
 	{
 		if (mp_Data.f_DataType() == EDataType_Exception)
 		{

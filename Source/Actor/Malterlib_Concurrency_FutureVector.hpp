@@ -104,7 +104,7 @@ namespace NMib::NConcurrency
 	}
 
 	template <typename t_CType>
-	TCFutureVector<t_CType>::CResultReceived::CResultReceived(mint _iResult, NStorage::TCSharedPointer<CInternal> const &_pInternal)
+	TCFutureVector<t_CType>::CResultReceived::CResultReceived(umint _iResult, NStorage::TCSharedPointer<CInternal> const &_pInternal)
 		: mp_iResult(_iResult)
 		, mp_pInternal(_pInternal)
 	{
@@ -143,7 +143,7 @@ namespace NMib::NConcurrency
 	}
 
 	template <typename t_CType>
-	TCFutureVector<t_CType>::TCFutureVector(mint _DefinedSize)
+	TCFutureVector<t_CType>::TCFutureVector(umint _DefinedSize)
 		: mp_pInternal(fg_Construct())
 	{
 		mp_pInternal->mp_bDefinedSize = true;
@@ -152,7 +152,7 @@ namespace NMib::NConcurrency
 	}
 
 	template <typename t_CType>
-	void TCFutureVector<t_CType>::f_SetLen(mint _DefinedSize)
+	void TCFutureVector<t_CType>::f_SetLen(umint _DefinedSize)
 	{
 		DMibRequire(!mp_pInternal->mp_bDefinedSize);
 		DMibRequire(mp_pInternal->mp_nAdded == 0);
@@ -172,7 +172,7 @@ namespace NMib::NConcurrency
 	auto TCFutureVector<t_CType>::fp_AddResult() -> CResultReceived
 	{
 		auto &Internal = *mp_pInternal;
-		mint iResult = Internal.mp_nAdded++;
+		umint iResult = Internal.mp_nAdded++;
 		DMibRequire(!Internal.mp_bDefinedSize || iResult < Internal.mp_Results.f_GetLen());
 		return CResultReceived(iResult, mp_pInternal);
 	}

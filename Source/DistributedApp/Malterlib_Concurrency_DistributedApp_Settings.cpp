@@ -100,7 +100,7 @@ namespace NMib::NConcurrency
 
 	NStr::CStr CDistributedAppActor_Settings::f_GetLocalSocketFileName(bool _bEnclaveSpecific, NStr::CStr const &_Enclave) const
 	{
-		mint MaxLength = NSys::NNetwork::fg_GetMaxUnixSocketNameLength();
+		umint MaxLength = NSys::NNetwork::fg_GetMaxUnixSocketNameLength();
 		if (fp_GetLocalSocketPath(m_RootDirectory, true, m_Enclave).f_GetLen() <= aint(MaxLength))
 			return fp_GetLocalSocketPath(m_RootDirectory, _bEnclaveSpecific, _Enclave);
 

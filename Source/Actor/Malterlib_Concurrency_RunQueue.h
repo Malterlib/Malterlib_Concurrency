@@ -7,7 +7,7 @@
 
 namespace NMib::NConcurrency
 {
-	constexpr static const mint gc_ActorQueueDispatchFunctionMemory = fg_AlignUpConstExpr(sizeof(void*)*4*2, mint(DMibPMemoryCacheLineSize));
+	constexpr static const umint gc_ActorQueueDispatchFunctionMemory = fg_AlignUpConstExpr(sizeof(void*)*4*2, umint(DMibPMemoryCacheLineSize));
 	constexpr static const uint32 gc_InvalidQueue = TCLimitsInt<uint16>::mc_Max;
 
 	/*
@@ -16,7 +16,7 @@ namespace NMib::NConcurrency
 	void * // NextPtr
 	void * // TCFunction VTable
 	*/
-	constexpr static const mint gc_ActorQueueDispatchQueueEntryOverhead = sizeof(void *) * 4;
+	constexpr static const umint gc_ActorQueueDispatchQueueEntryOverhead = sizeof(void *) * 4;
 
 	using FActorQueueDispatch = NFunction::TCFunction
 		<

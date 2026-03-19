@@ -97,7 +97,7 @@ namespace NMib::NConcurrency
 		template <typename t_CReturn, typename ...tp_CParams>
 		struct TCStreamingFunctionHelper<t_CReturn (tp_CParams...)>
 		{
-			static constexpr mint mc_nParams = sizeof...(tp_CParams);
+			static constexpr umint mc_nParams = sizeof...(tp_CParams);
 			static constexpr bool mc_bIsFuture = TCIsFuture<t_CReturn>::mc_Value;
 			static constexpr bool mc_bIsAsyncGenerator = TCIsAsyncGenerator<t_CReturn>::mc_Value;
 			using CReturnType = typename NPrivate::TCGetReturnType<t_CReturn>::CType;
@@ -269,7 +269,7 @@ namespace NMib::NConcurrency
 				;
 			}
 
-			template <typename tf_FFunction, mint... tfp_Indices>
+			template <typename tf_FFunction, umint... tfp_Indices>
 			static NConcurrency::TCFuture<NContainer::CIOByteVector> fs_Call
 				(
 					CDistributedActorReadStream &_Stream

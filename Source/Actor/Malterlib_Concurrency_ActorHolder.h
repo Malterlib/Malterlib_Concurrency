@@ -130,7 +130,7 @@ namespace NMib::NConcurrency
 		virtual ~CActorHolder();
 
 		void f_Yield();
-		void f_SetFixedQueue(mint _iFixedCore);
+		void f_SetFixedQueue(umint _iFixedCore);
 		void f_QueueProcessDestroy(FActorQueueDispatch &&_Functor);
 		void f_QueueProcess(FActorQueueDispatch &&_Functor);
 		void f_QueueProcessEntry(CConcurrentRunQueueEntryHolder &&_Entry);
@@ -206,13 +206,13 @@ namespace NMib::NConcurrency
 		uint8 mp_bIsAlwaysAlive:1 = false;
 		uint8 mp_bHasOverriddenDestroy:1 = false;
 
-		static constexpr mint mc_AligmentZone1Size = sizeof(void *) + sizeof(void *) * 4 + sizeof(uint32) + sizeof(uint8);
+		static constexpr umint mc_AligmentZone1Size = sizeof(void *) + sizeof(void *) * 4 + sizeof(uint32) + sizeof(uint8);
 
 		uint8 mp_PaddingZone1[fg_AlignUpConstExpr(mc_AligmentZone1Size, DMibPMemoryCacheLineSize) - mc_AligmentZone1Size];
 
 		// Alignment zone 2 (Changed from other threads) = 8 + 8 + 4 = 20 => 64 bytes
 		CConcurrentRunQueue mp_ConcurrentRunQueue;
-		NAtomic::TCAtomic<mint> mp_Working;
+		NAtomic::TCAtomic<umint> mp_Working;
 
 		NAtomic::TCAtomic<uint32> mp_iLastQueue{gc_InvalidQueue}; // Changed from local thread, read from other threads
 
@@ -225,7 +225,7 @@ namespace NMib::NConcurrency
 		DIfRefCountDebugging(NStorage::CRefCountDebugReference m_DebugSelfRef);
 
 	protected:
-		static constexpr mint mc_AligmentZone2Size = sizeof(void *) * 2 + sizeof(uint32)
+		static constexpr umint mc_AligmentZone2Size = sizeof(void *) * 2 + sizeof(uint32)
 #if DMibConfig_RefCountDebugging || DMibConfig_Concurrency_DebugBlockDestroy
 			+ (fg_AlignUpConstExpr(sizeof(uint32), sizeof(void *)) - sizeof(uint32))
 #endif
@@ -351,7 +351,7 @@ namespace NMib::NConcurrency
 		NStr::CStr mp_ThreadName;
 
 		align_cacheline CConcurrentRunQueueNonVirtualNoAlloc mp_JobQueue;
-		NAtomic::TCAtomic<mint> mp_JobQueueWorking;
+		NAtomic::TCAtomic<umint> mp_JobQueueWorking;
 	};
 
 	class CDirectCallActorHolder : public CDefaultActorHolder

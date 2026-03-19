@@ -224,7 +224,7 @@ namespace NMib::NConcurrency
 			CCallingHostInfo m_NewInfo;
 			NStorage::TCOptional<CCallingHostInfoScope> m_Scope;
 #if DMibEnableSafeCheck > 0
-			mint m_StoredThreadID = 0;
+			umint m_StoredThreadID = 0;
 #endif
 		};
 
@@ -312,7 +312,7 @@ namespace NMib::NConcurrency
 			uint32 m_HandlerID;
 			NStorage::TCOptional<CAuthenticationHandlerIDScope> m_Scope;
 #if DMibEnableSafeCheck > 0
-			mint m_StoredThreadID = 0;
+			umint m_StoredThreadID = 0;
 #endif
 		};
 
@@ -387,7 +387,7 @@ namespace NMib::NConcurrency
 			uint8 m_Priority;
 			NStorage::TCUniquePointer<CPriorityScope> m_Scope;
 #if DMibEnableSafeCheck > 0
-			mint m_StoredThreadID;
+			umint m_StoredThreadID;
 #endif
 		};
 

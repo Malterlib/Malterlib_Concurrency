@@ -66,8 +66,8 @@ namespace
 	using namespace NMib::NFunction;
 	using namespace NMib::NStr;
 
-	constexpr static mint gc_nRepetitions = 111;
-	constexpr static mint gc_YieldMask = 0xff;
+	constexpr static umint gc_nRepetitions = 111;
+	constexpr static umint gc_YieldMask = 0xff;
 	// 0b1						742
 	// 0b1111 					270
 	// 0b11111					255
@@ -362,8 +362,8 @@ namespace
 			return Promise.f_MoveFutureConsumedResultSet();
 		}
 
-		mint m_DummyMember0 = 0;
-		mint m_DummyMember1 = 1;
+		umint m_DummyMember0 = 0;
+		umint m_DummyMember1 = 1;
 	};
 
 	class CCallbackActor : public CActor
@@ -389,12 +389,12 @@ namespace
 		}
 	};
 
-	TCFuture<mint> fg_ReturnCoroOne()
+	TCFuture<umint> fg_ReturnCoroOne()
 	{
-		co_return mint(1);
+		co_return umint(1);
 	}
 
-	mint fg_ReturnOne()
+	umint fg_ReturnOne()
 	{
 		return 1;
 	}
@@ -423,13 +423,13 @@ namespace
 
 		void fp_BlockOnAllThreads(TCFutureVector<void> &_Results, bool _bGarbageCollect)
 		{
-			mint nThreads = NSys::fg_Thread_GetVirtualCores();
-			for (mint i = 0; i < nThreads; ++i)
+			umint nThreads = NSys::fg_Thread_GetVirtualCores();
+			for (umint i = 0; i < nThreads; ++i)
 				fg_ConcurrentDispatch(fp_GarbageCollectFunctor(_bGarbageCollect)) > _Results;
 		}
 		void fp_BlockOnAllThreads(bool _bGarbageCollect)
 		{
-			mint nThreads = NSys::fg_Thread_GetVirtualCores();
+			umint nThreads = NSys::fg_Thread_GetVirtualCores();
 			TCFutureVector<void> Results;
 			Results.f_SetLen(nThreads);
 
@@ -576,11 +576,11 @@ namespace
 					DMibTestPath("Future");
 					bool bCrashed = false;
 					TCFutureVector<void> Results;
-					for (mint i = 0; i < 200; ++i)
+					for (umint i = 0; i < 200; ++i)
 					{
 						TCActor<CDestructActor> Actor{fg_Construct()};
 
-						for (mint i = 0; i < 200; ++i)
+						for (umint i = 0; i < 200; ++i)
 							Actor.f_Bind<&CDestructActor::f_Future>() > Results;
 
 						g_Dispatch(fg_ConcurrentActor()) / [Actor = fg_Move(Actor)]
@@ -598,11 +598,11 @@ namespace
 					DMibTestPath("FutureVirtual");
 					bool bCrashed = false;
 					TCFutureVector<void> Results;
-					for (mint i = 0; i < 200; ++i)
+					for (umint i = 0; i < 200; ++i)
 					{
 						TCActor<CDestructActor> Actor{fg_Construct()};
 
-						for (mint i = 0; i < 200; ++i)
+						for (umint i = 0; i < 200; ++i)
 							Actor.f_Bind<&CDestructActor::f_FutureVirtual>() > Results;
 
 						g_Dispatch(fg_ConcurrentActor()) / [Actor = fg_Move(Actor)]
@@ -620,11 +620,11 @@ namespace
 					DMibTestPath("NoFuture");
 					bool bCrashed = false;
 					TCFutureVector<void> Results;
-					for (mint i = 0; i < 200; ++i)
+					for (umint i = 0; i < 200; ++i)
 					{
 						TCActor<CDestructActor> Actor{fg_Construct()};
 
-						for (mint i = 0; i < 200; ++i)
+						for (umint i = 0; i < 200; ++i)
 							Actor.f_Bind<&CDestructActor::f_NoFuture>() > Results;
 
 						g_Dispatch(fg_ConcurrentActor()) / [Actor = fg_Move(Actor)]
@@ -642,11 +642,11 @@ namespace
 					DMibTestPath("SeparateThreadFuture");
 					bool bCrashed = false;
 					TCFutureVector<void> Results;
-					for (mint i = 0; i < 200; ++i)
+					for (umint i = 0; i < 200; ++i)
 					{
 						TCActor<CDestructActorSeparateThread> Actor{fg_Construct(), "TestThread"};
 
-						for (mint i = 0; i < 200; ++i)
+						for (umint i = 0; i < 200; ++i)
 							Actor.f_Bind<&CDestructActorSeparateThread::f_Future>() > Results;
 
 						g_Dispatch(fg_ConcurrentActor()) / [Actor = fg_Move(Actor)]
@@ -664,11 +664,11 @@ namespace
 					DMibTestPath("SeparateThreadFutureVirtual");
 					bool bCrashed = false;
 					TCFutureVector<void> Results;
-					for (mint i = 0; i < 200; ++i)
+					for (umint i = 0; i < 200; ++i)
 					{
 						TCActor<CDestructActorSeparateThread> Actor{fg_Construct(), "TestThread"};
 
-						for (mint i = 0; i < 200; ++i)
+						for (umint i = 0; i < 200; ++i)
 							Actor.f_Bind<&CDestructActorSeparateThread::f_FutureVirtual>() > Results;
 
 						g_Dispatch(fg_ConcurrentActor()) / [Actor = fg_Move(Actor)]
@@ -686,11 +686,11 @@ namespace
 					DMibTestPath("SeparateThreadNoFuture");
 					bool bCrashed = false;
 					TCFutureVector<void> Results;
-					for (mint i = 0; i < 200; ++i)
+					for (umint i = 0; i < 200; ++i)
 					{
 						TCActor<CDestructActorSeparateThread> Actor{fg_Construct(), "TestThread"};
 
-						for (mint i = 0; i < 200; ++i)
+						for (umint i = 0; i < 200; ++i)
 							Actor.f_Bind<&CDestructActorSeparateThread::f_NoFuture>() > Results;
 
 						g_Dispatch(fg_ConcurrentActor()) / [Actor = fg_Move(Actor)]
@@ -1461,15 +1461,15 @@ namespace
 			{
 				auto Checkout = fg_GetSys()->f_MemoryManager_Checkout();
 #if defined(DMibDebug) || defined(DMibSanitizerEnabled)
-				mint nIterations = 1'000;
+				umint nIterations = 1'000;
 #elif DMibConfig_RefCountDebugging
-				mint nIterations = 10'000;
+				umint nIterations = 10'000;
 #elif defined(DConfig_ReleaseDebug)
-				mint nIterations = 500'000;
+				umint nIterations = 500'000;
 #else
-				mint nIterations = 5'000'000;
+				umint nIterations = 5'000'000;
 #endif
-				[[maybe_unused]] mint nIterationsFull = nIterations;
+				[[maybe_unused]] umint nIterationsFull = nIterations;
 				CTestPerformance PerfTest(0.1);
 
 #if DDoTest_Message_DispatchVector
@@ -1484,7 +1484,7 @@ namespace
 					TCVector<TCFunction<void ()>> ToDispatch;
 					ToDispatch.f_SetLen(nIterations);
 
-					for (mint i = 0; i < gc_nRepetitions; ++i)
+					for (umint i = 0; i < gc_nRepetitions; ++i)
 					{
 						DMibTestScopeMeasure(DispatchMeasure, nIterations);
 						for (auto &Dispatch : ToDispatch)
@@ -1517,10 +1517,10 @@ namespace
 					auto &ActorEmul = ActorEmulActor->f_AccessInternal();
 					TCLinkedList<TCFunction<void ()>> ToDispatch;
 
-					for (mint i = 0; i < gc_nRepetitions; ++i)
+					for (umint i = 0; i < gc_nRepetitions; ++i)
 					{
 						DMibTestScopeMeasure(DispatchMeasure, nIterations);
-						for (mint i = 0; i < nIterations; ++i)
+						for (umint i = 0; i < nIterations; ++i)
 						{
 							ToDispatch.f_Insert
 								(
@@ -1554,10 +1554,10 @@ namespace
 					auto &ActorEmul = ActorEmulActor->f_AccessInternal();
 					TCThreadSafeQueue<TCFunction<void ()>> ToDispatch;
 
-					for (mint i = 0; i < gc_nRepetitions; ++i)
+					for (umint i = 0; i < gc_nRepetitions; ++i)
 					{
 						DMibTestScopeMeasure(DispatchMeasure, nIterations);
-						for (mint i = 0; i < nIterations; ++i)
+						for (umint i = 0; i < nIterations; ++i)
 						{
 							ToDispatch.f_Push
 								(
@@ -1587,13 +1587,13 @@ namespace
 					TCActor<CSeparateThreadActor> LaunchActor{fg_Construct(), "Test"};
 
 					uint32 Result = 0;
-					for (mint i = 0; i < gc_nRepetitions; ++i)
+					for (umint i = 0; i < gc_nRepetitions; ++i)
 					{
 						DMibTestScopeMeasure(ActorMeasure, nIterations);
 							(
 								g_Dispatch(LaunchActor) / [&]() -> TCFuture<void>
 								{
-									for (mint i = 0; i < nIterations; ++i)
+									for (umint i = 0; i < nIterations; ++i)
 									{
 										if ((i & gc_YieldMask) == gc_YieldMask)
 											co_await g_Yield;
@@ -1630,13 +1630,13 @@ namespace
 					TCActor<CSeparateThreadActor> LaunchActor{fg_Construct(), "Test"};
 
 					uint32 Result = 0;
-					for (mint i = 0; i < gc_nRepetitions; ++i)
+					for (umint i = 0; i < gc_nRepetitions; ++i)
 					{
 						DMibTestScopeMeasure(ActorMeasure, nIterations);
 							(
 								g_Dispatch(LaunchActor) / [&]() -> TCFuture<void>
 								{
-									for (mint i = 0; i < nIterations; ++i)
+									for (umint i = 0; i < nIterations; ++i)
 									{
 										if ((i & gc_YieldMask) == gc_YieldMask)
 											co_await g_Yield;
@@ -1673,13 +1673,13 @@ namespace
 					TCActor<CSeparateThreadActor> LaunchActor{fg_Construct(), "Test"};
 
 					uint32 Result = 0;
-					for (mint i = 0; i < gc_nRepetitions; ++i)
+					for (umint i = 0; i < gc_nRepetitions; ++i)
 					{
 						DMibTestScopeMeasure(ActorMeasure, nIterations);
 							(
 								g_Dispatch(LaunchActor) / [&]() -> TCFuture<void>
 								{
-									for (mint i = 0; i < nIterations; ++i)
+									for (umint i = 0; i < nIterations; ++i)
 									{
 										if ((i & gc_YieldMask) == gc_YieldMask)
 											co_await g_Yield;
@@ -1718,14 +1718,14 @@ namespace
 					TCActor<CSeparateThreadActor> LaunchActor{fg_Construct(), "Test"};
 
 					uint32 Result = 0;;
-					for (mint i = 0; i < gc_nRepetitions; ++i)
+					for (umint i = 0; i < gc_nRepetitions; ++i)
 					{
 						DDoSleep;
 						DMibTestScopeMeasure(ActorMeasure, nIterations);
 							(
 								g_Dispatch(LaunchActor) / [&]() -> TCFuture<void>
 								{
-									for (mint i = 0; i < nIterations; ++i)
+									for (umint i = 0; i < nIterations; ++i)
 									{
 										if ((i & gc_YieldMask) == gc_YieldMask)
 											co_await g_Yield;
@@ -1765,14 +1765,14 @@ namespace
 					TCActor<CSeparateThreadActor> LaunchActor{fg_Construct(), "Test"};
 
 					uint32 Result = 0;;
-					for (mint i = 0; i < gc_nRepetitions; ++i)
+					for (umint i = 0; i < gc_nRepetitions; ++i)
 					{
 						DDoSleep;
 						DMibTestScopeMeasure(ActorMeasure, nIterations);
 							(
 								g_Dispatch(LaunchActor) / [&]() -> TCFuture<void>
 								{
-									for (mint i = 0; i < nIterations; ++i)
+									for (umint i = 0; i < nIterations; ++i)
 									{
 										if ((i & gc_YieldMask) == gc_YieldMask)
 											co_await g_Yield;
@@ -1812,14 +1812,14 @@ namespace
 					TCActor<CSeparateThreadActor> LaunchActor{fg_Construct(), "Test"};
 
 					uint32 Result = 0;;
-					for (mint i = 0; i < gc_nRepetitions; ++i)
+					for (umint i = 0; i < gc_nRepetitions; ++i)
 					{
 						DDoSleep;
 						DMibTestScopeMeasure(ActorMeasure, nIterations);
 							(
 								g_Dispatch(LaunchActor) / [&]() -> TCFuture<void>
 								{
-									for (mint i = 0; i < nIterations; ++i)
+									for (umint i = 0; i < nIterations; ++i)
 									{
 										if ((i & gc_YieldMask) == gc_YieldMask)
 											co_await g_Yield;
@@ -1854,7 +1854,7 @@ namespace
 				{
 					DMibTestPath("Actor->Other");
 					fp_BlockOnAllThreads(true);
-					mint nIterations = nIterationsFull;
+					umint nIterations = nIterationsFull;
 
 					CTestPerformanceMeasure ActorMeasure("Actor->Other");
 					TCActor<CPerformanceTestActor> PerfTestActor = fg_ConstructActor<CPerformanceTestActor>();
@@ -1862,13 +1862,13 @@ namespace
 
 					uint32 Result = 0;;
 					auto ReplyActor = fg_ConstructActor<CActor>();
-					for (mint i = 0; i < gc_nRepetitions; ++i)
+					for (umint i = 0; i < gc_nRepetitions; ++i)
 					{
 						DMibTestScopeMeasureThreads(ActorMeasure, nIterations, 2);
 							(
 								g_Dispatch(LaunchActor) / [&]() -> TCFuture<void>
 								{
-									for (mint i = 0; i < nIterations; ++i)
+									for (umint i = 0; i < nIterations; ++i)
 									{
 										if ((i & gc_YieldMask) == gc_YieldMask)
 											co_await g_Yield;
@@ -1899,20 +1899,20 @@ namespace
 				{
 					DMibTestPath("Actor->Other Coro");
 					fp_BlockOnAllThreads(true);
-					mint nIterations = nIterationsFull;
+					umint nIterations = nIterationsFull;
 					TCActor<CActor> LaunchActor{fg_Construct()};
 
 					CTestPerformanceMeasure ActorMeasure("Actor->Other Coro");
 					TCActor<CPerformanceTestActor> PerfTestActor = fg_ConstructActor<CPerformanceTestActor>();
 
 					uint32 Result = 0;;
-					for (mint i = 0; i < gc_nRepetitions; ++i)
+					for (umint i = 0; i < gc_nRepetitions; ++i)
 					{
 						DMibTestScopeMeasureThreads(ActorMeasure, nIterations, 2);
 							(
 								g_Dispatch(LaunchActor) / [&]() -> TCFuture<void>
 								{
-									for (mint i = 0; i < nIterations; ++i)
+									for (umint i = 0; i < nIterations; ++i)
 									{
 										if ((i & gc_YieldMask) == gc_YieldMask)
 											co_await g_Yield;
@@ -1940,19 +1940,19 @@ namespace
 				{
 					DMibTestPath("Actor->Same");
 					fp_BlockOnAllThreads(true);
-					mint nIterations = nIterationsFull;
+					umint nIterations = nIterationsFull;
 
 					CTestPerformanceMeasure ActorMeasure("Actor->Same");
 					TCActor<CPerformanceTestActor> PerfTestActor = fg_ConstructActor<CPerformanceTestActor>();
 
 					uint32 Result = 0;;
-					for (mint i = 0; i < gc_nRepetitions; ++i)
+					for (umint i = 0; i < gc_nRepetitions; ++i)
 					{
 						DMibTestScopeMeasure(ActorMeasure, nIterations);
 							(
 								g_Dispatch(PerfTestActor) / [&]() -> TCFuture<void>
 								{
-									for (mint i = 0; i < nIterations; ++i)
+									for (umint i = 0; i < nIterations; ++i)
 									{
 										if ((i & gc_YieldMask) == gc_YieldMask)
 											co_await g_Yield;
@@ -1983,19 +1983,19 @@ namespace
 				{
 					DMibTestPath("Actor->Same Coro");
 					fp_BlockOnAllThreads(true);
-					mint nIterations = nIterationsFull;
+					umint nIterations = nIterationsFull;
 
 					CTestPerformanceMeasure ActorMeasure("Actor->Same Coro");
 					TCActor<CPerformanceTestActor> PerfTestActor = fg_ConstructActor<CPerformanceTestActor>();
 
 					uint32 Result = 0;;
-					for (mint i = 0; i < gc_nRepetitions; ++i)
+					for (umint i = 0; i < gc_nRepetitions; ++i)
 					{
 						DMibTestScopeMeasure(ActorMeasure, nIterations);
 							(
 								g_Dispatch(PerfTestActor) / [&]() -> TCFuture<void>
 								{
-									for (mint i = 0; i < nIterations; ++i)
+									for (umint i = 0; i < nIterations; ++i)
 									{
 										if ((i & gc_YieldMask) == gc_YieldMask)
 											co_await g_Yield;
@@ -2026,28 +2026,28 @@ namespace
 					CTestPerformanceMeasure ActorMeasure("PC Actor->Discard");
 
 					uint32 Result = 0;
-					mint nSplits = NSys::fg_Thread_GetVirtualCores();
-					mint nIterations = nIterationsFull;
-					mint nIterationsPerSplit = nIterations / nSplits;
+					umint nSplits = NSys::fg_Thread_GetVirtualCores();
+					umint nIterations = nIterationsFull;
+					umint nIterationsPerSplit = nIterations / nSplits;
 					nIterations = nIterationsPerSplit * nSplits;
 					TCVector<TCActor<CPerformanceTestActor>> PerfTestActors;
 					PerfTestActors.f_SetLen(nSplits);
-					for (mint i = 0; i < nSplits; ++i)
+					for (umint i = 0; i < nSplits; ++i)
 						PerfTestActors[i] = fg_ConstructActor<CPerformanceTestActor>();
 
-					for (mint i = 0; i < gc_nRepetitions; ++i)
+					for (umint i = 0; i < gc_nRepetitions; ++i)
 					{
 						DMibTestScopeMeasureThreads(ActorMeasure, nIterations, NSys::fg_Thread_GetPhysicalCores());
 						TCFutureVector<void> Results;
 						Results.f_SetLen(nSplits);
-						for (mint iSplit = 0; iSplit < nSplits; ++iSplit)
+						for (umint iSplit = 0; iSplit < nSplits; ++iSplit)
 						{
 							auto *pActor = &PerfTestActors[iSplit];
 							fg_ConcurrentDispatch
 								(
 									[nIterationsPerSplit, pActor]() -> TCFuture<void>
 									{
-										for (mint i = 0; i < nIterationsPerSplit; ++i)
+										for (umint i = 0; i < nIterationsPerSplit; ++i)
 										{
 											if ((i & gc_YieldMask) == gc_YieldMask)
 												co_await g_Yield;
@@ -2063,7 +2063,7 @@ namespace
 						}
 						fg_AllDoneWrapped(Results).f_CallSync();
 						Result = PerfTestActors[0].f_Bind<&CPerformanceTestActor::f_GetResult>().f_CallSync();
-						for (mint iSplit = 1; iSplit < nSplits; ++iSplit)
+						for (umint iSplit = 1; iSplit < nSplits; ++iSplit)
 							Result += PerfTestActors[iSplit].f_Bind<&CPerformanceTestActor::f_GetResult>().f_CallSync();
 						fp_BlockOnAllThreads(false);
 					}
@@ -2082,28 +2082,28 @@ namespace
 					CTestPerformanceMeasure ActorMeasure("PC Actor->DiscardCo");
 
 					uint32 Result = 0;
-					mint nSplits = NSys::fg_Thread_GetVirtualCores();
-					mint nIterations = nIterationsFull;
-					mint nIterationsPerSplit = nIterations / nSplits;
+					umint nSplits = NSys::fg_Thread_GetVirtualCores();
+					umint nIterations = nIterationsFull;
+					umint nIterationsPerSplit = nIterations / nSplits;
 					nIterations = nIterationsPerSplit * nSplits;
 					TCVector<TCActor<CPerformanceTestActor>> PerfTestActors;
 					PerfTestActors.f_SetLen(nSplits);
-					for (mint i = 0; i < nSplits; ++i)
+					for (umint i = 0; i < nSplits; ++i)
 						PerfTestActors[i] = fg_ConstructActor<CPerformanceTestActor>();
 
-					for (mint i = 0; i < gc_nRepetitions; ++i)
+					for (umint i = 0; i < gc_nRepetitions; ++i)
 					{
 						DMibTestScopeMeasureThreads(ActorMeasure, nIterations, NSys::fg_Thread_GetPhysicalCores());
 						TCFutureVector<void> Results;
 						Results.f_SetLen(nSplits);
-						for (mint iSplit = 0; iSplit < nSplits; ++iSplit)
+						for (umint iSplit = 0; iSplit < nSplits; ++iSplit)
 						{
 							auto *pActor = &PerfTestActors[iSplit];
 							fg_ConcurrentDispatch
 								(
 									[nIterationsPerSplit, pActor]() -> TCFuture<void>
 									{
-										for (mint i = 0; i < nIterationsPerSplit; ++i)
+										for (umint i = 0; i < nIterationsPerSplit; ++i)
 										{
 											if ((i & gc_YieldMask) == gc_YieldMask)
 												co_await g_Yield;
@@ -2119,7 +2119,7 @@ namespace
 						}
 						fg_AllDoneWrapped(Results).f_CallSync();
 						Result = PerfTestActors[0].f_Bind<&CPerformanceTestActor::f_GetResult>().f_CallSync();
-						for (mint iSplit = 1; iSplit < nSplits; ++iSplit)
+						for (umint iSplit = 1; iSplit < nSplits; ++iSplit)
 							Result += PerfTestActors[iSplit].f_Bind<&CPerformanceTestActor::f_GetResult>().f_CallSync();
 						fp_BlockOnAllThreads(false);
 					}
@@ -2138,22 +2138,22 @@ namespace
 					CTestPerformanceMeasure ActorMeasure("PC Actor->ResMap");
 
 					uint32 Result = 0;
-					mint nSplits = NSys::fg_Thread_GetVirtualCores();
-					mint nIterations = nIterationsFull;
-					mint nIterationsPerSplit = nIterations / nSplits;
+					umint nSplits = NSys::fg_Thread_GetVirtualCores();
+					umint nIterations = nIterationsFull;
+					umint nIterationsPerSplit = nIterations / nSplits;
 					nIterations = nIterationsPerSplit * nSplits;
 					TCVector<TCActor<CPerformanceTestActor>> PerfTestActors;
 					PerfTestActors.f_SetLen(nSplits);
-					for (mint i = 0; i < nSplits; ++i)
+					for (umint i = 0; i < nSplits; ++i)
 						PerfTestActors[i] = fg_ConstructActor<CPerformanceTestActor>();
 
-					for (mint i = 0; i < gc_nRepetitions; ++i)
+					for (umint i = 0; i < gc_nRepetitions; ++i)
 					{
 						TCFutureVector<uint32> Dispatches;
 						Dispatches.f_SetLen(nSplits);
 
 						DMibTestScopeMeasureThreads(ActorMeasure, nIterations, NSys::fg_Thread_GetPhysicalCores());
-						for (mint iSplit = 0; iSplit < nSplits; ++iSplit)
+						for (umint iSplit = 0; iSplit < nSplits; ++iSplit)
 						{
 							auto *pActor = &PerfTestActors[iSplit];
 							fg_ConcurrentDispatch
@@ -2162,7 +2162,7 @@ namespace
 									{
 										TCFutureMap<uint32, void> ResultMap;
 
-										for (mint i = 0; i < nIterationsPerSplit; ++i)
+										for (umint i = 0; i < nIterationsPerSplit; ++i)
 										{
 											if ((i & gc_YieldMask) == gc_YieldMask)
 												co_await g_Yield;
@@ -2198,22 +2198,22 @@ namespace
 					CTestPerformanceMeasure ActorMeasure("PC Actor->Map");
 
 					uint32 Result = 0;
-					mint nSplits = NSys::fg_Thread_GetVirtualCores();
-					mint nIterations = nIterationsFull;
-					mint nIterationsPerSplit = nIterations / nSplits;
+					umint nSplits = NSys::fg_Thread_GetVirtualCores();
+					umint nIterations = nIterationsFull;
+					umint nIterationsPerSplit = nIterations / nSplits;
 					nIterations = nIterationsPerSplit * nSplits;
 					TCVector<TCActor<CPerformanceTestActor>> PerfTestActors;
 					PerfTestActors.f_SetLen(nSplits);
-					for (mint i = 0; i < nSplits; ++i)
+					for (umint i = 0; i < nSplits; ++i)
 						PerfTestActors[i] = fg_ConstructActor<CPerformanceTestActor>();
 
-					for (mint i = 0; i < gc_nRepetitions; ++i)
+					for (umint i = 0; i < gc_nRepetitions; ++i)
 					{
 						TCFutureVector<uint32> Dispatches;
 						Dispatches.f_SetLen(nSplits);
 
 						DMibTestScopeMeasureThreads(ActorMeasure, nIterations, NSys::fg_Thread_GetPhysicalCores());
-						for (mint iSplit = 0; iSplit < nSplits; ++iSplit)
+						for (umint iSplit = 0; iSplit < nSplits; ++iSplit)
 						{
 							auto *pActor = &PerfTestActors[iSplit];
 							fg_ConcurrentDispatch
@@ -2222,7 +2222,7 @@ namespace
 									{
 										TCMapOfFutures<uint32, void> ResultMap;
 
-										for (mint i = 0; i < nIterationsPerSplit; ++i)
+										for (umint i = 0; i < nIterationsPerSplit; ++i)
 										{
 											if ((i & gc_YieldMask) == gc_YieldMask)
 												co_await g_Yield;
@@ -2258,22 +2258,22 @@ namespace
 					CTestPerformanceMeasure ActorMeasure("PC Actor->Vector");
 
 					uint32 Result = 0;
-					mint nSplits = NSys::fg_Thread_GetVirtualCores();
-					mint nIterations = nIterationsFull;
-					mint nIterationsPerSplit = nIterations / nSplits;
+					umint nSplits = NSys::fg_Thread_GetVirtualCores();
+					umint nIterations = nIterationsFull;
+					umint nIterationsPerSplit = nIterations / nSplits;
 					nIterations = nIterationsPerSplit * nSplits;
 					TCVector<TCActor<CPerformanceTestActor>> PerfTestActors;
 					PerfTestActors.f_SetLen(nSplits);
-					for (mint i = 0; i < nSplits; ++i)
+					for (umint i = 0; i < nSplits; ++i)
 						PerfTestActors[i] = fg_ConstructActor<CPerformanceTestActor>();
 
-					for (mint i = 0; i < gc_nRepetitions; ++i)
+					for (umint i = 0; i < gc_nRepetitions; ++i)
 					{
 						TCVectorOfFutures<uint32> Dispatches;
 						Dispatches.f_Reserve(nSplits);
 
 						DMibTestScopeMeasureThreads(ActorMeasure, nIterations, NSys::fg_Thread_GetPhysicalCores());
-						for (mint iSplit = 0; iSplit < nSplits; ++iSplit)
+						for (umint iSplit = 0; iSplit < nSplits; ++iSplit)
 						{
 							auto *pActor = &PerfTestActors[iSplit];
 							fg_ConcurrentDispatch
@@ -2283,7 +2283,7 @@ namespace
 										TCVectorOfFutures<void> ResultVector;
 										ResultVector.f_Reserve(nIterationsPerSplit);
 
-										for (mint i = 0; i < nIterationsPerSplit; ++i)
+										for (umint i = 0; i < nIterationsPerSplit; ++i)
 										{
 											if ((i & gc_YieldMask) == gc_YieldMask)
 												co_await g_Yield;
@@ -2319,22 +2319,22 @@ namespace
 					CTestPerformanceMeasure ActorMeasure("PC Actor->ResVector");
 
 					uint32 Result = 0;
-					mint nSplits = NSys::fg_Thread_GetVirtualCores();
-					mint nIterations = nIterationsFull;
-					mint nIterationsPerSplit = nIterations / nSplits;
+					umint nSplits = NSys::fg_Thread_GetVirtualCores();
+					umint nIterations = nIterationsFull;
+					umint nIterationsPerSplit = nIterations / nSplits;
 					nIterations = nIterationsPerSplit * nSplits;
 					TCVector<TCActor<CPerformanceTestActor>> PerfTestActors;
 					PerfTestActors.f_SetLen(nSplits);
-					for (mint i = 0; i < nSplits; ++i)
+					for (umint i = 0; i < nSplits; ++i)
 						PerfTestActors[i] = fg_ConstructActor<CPerformanceTestActor>();
 
-					for (mint i = 0; i < gc_nRepetitions; ++i)
+					for (umint i = 0; i < gc_nRepetitions; ++i)
 					{
 						TCFutureVector<uint32> Dispatches;
 						Dispatches.f_SetLen(nSplits);
 
 						DMibTestScopeMeasureThreads(ActorMeasure, nIterations, NSys::fg_Thread_GetPhysicalCores());
-						for (mint iSplit = 0; iSplit < nSplits; ++iSplit)
+						for (umint iSplit = 0; iSplit < nSplits; ++iSplit)
 						{
 							auto *pActor = &PerfTestActors[iSplit];
 							fg_ConcurrentDispatch
@@ -2344,7 +2344,7 @@ namespace
 										TCFutureVector<void> ResultVector;
 										ResultVector.f_SetLen(nIterationsPerSplit);
 
-										for (mint i = 0; i < nIterationsPerSplit; ++i)
+										for (umint i = 0; i < nIterationsPerSplit; ++i)
 										{
 											if ((i & gc_YieldMask) == gc_YieldMask)
 												co_await g_Yield;
@@ -2380,22 +2380,22 @@ namespace
 					CTestPerformanceMeasure ActorMeasure("PC Actor->ResVecD");
 
 					uint32 Result = 0;
-					mint nSplits = NSys::fg_Thread_GetVirtualCores();
-					mint nIterations = nIterationsFull;
-					mint nIterationsPerSplit = nIterations / nSplits;
+					umint nSplits = NSys::fg_Thread_GetVirtualCores();
+					umint nIterations = nIterationsFull;
+					umint nIterationsPerSplit = nIterations / nSplits;
 					nIterations = nIterationsPerSplit * nSplits;
 					TCVector<TCActor<CPerformanceTestActor>> PerfTestActors;
 					PerfTestActors.f_SetLen(nSplits);
-					for (mint i = 0; i < nSplits; ++i)
+					for (umint i = 0; i < nSplits; ++i)
 						PerfTestActors[i] = fg_ConstructActor<CPerformanceTestActor>();
 
-					for (mint i = 0; i < gc_nRepetitions; ++i)
+					for (umint i = 0; i < gc_nRepetitions; ++i)
 					{
 						TCFutureVector<uint32> Dispatches;
 						Dispatches.f_SetLen(nSplits);
 
 						DMibTestScopeMeasureThreads(ActorMeasure, nIterations, NSys::fg_Thread_GetPhysicalCores());
-						for (mint iSplit = 0; iSplit < nSplits; ++iSplit)
+						for (umint iSplit = 0; iSplit < nSplits; ++iSplit)
 						{
 							auto *pActor = &PerfTestActors[iSplit];
 							fg_ConcurrentDispatch
@@ -2404,7 +2404,7 @@ namespace
 									{
 										TCFutureVector<void> ResultVector;
 
-										for (mint i = 0; i < nIterationsPerSplit; ++i)
+										for (umint i = 0; i < nIterationsPerSplit; ++i)
 										{
 											if ((i & gc_YieldMask) == gc_YieldMask)
 												co_await g_Yield;
@@ -2440,22 +2440,22 @@ namespace
 					CTestPerformanceMeasure ActorMeasure("PC Actor->ResVecCo");
 
 					uint32 Result = 0;
-					mint nSplits = NSys::fg_Thread_GetVirtualCores();
-					mint nIterations = nIterationsFull;
-					mint nIterationsPerSplit = nIterations / nSplits;
+					umint nSplits = NSys::fg_Thread_GetVirtualCores();
+					umint nIterations = nIterationsFull;
+					umint nIterationsPerSplit = nIterations / nSplits;
 					nIterations = nIterationsPerSplit * nSplits;
 					TCVector<TCActor<CPerformanceTestActor>> PerfTestActors;
 					PerfTestActors.f_SetLen(nSplits);
-					for (mint i = 0; i < nSplits; ++i)
+					for (umint i = 0; i < nSplits; ++i)
 						PerfTestActors[i] = fg_ConstructActor<CPerformanceTestActor>();
 
-					for (mint i = 0; i < gc_nRepetitions; ++i)
+					for (umint i = 0; i < gc_nRepetitions; ++i)
 					{
 						TCFutureVector<uint32> Dispatches;
 						Dispatches.f_SetLen(nSplits);
 
 						DMibTestScopeMeasureThreads(ActorMeasure, nIterations, NSys::fg_Thread_GetPhysicalCores());
-						for (mint iSplit = 0; iSplit < nSplits; ++iSplit)
+						for (umint iSplit = 0; iSplit < nSplits; ++iSplit)
 						{
 							auto *pActor = &PerfTestActors[iSplit];
 							fg_ConcurrentDispatch
@@ -2465,7 +2465,7 @@ namespace
 										TCFutureVector<void> ResultVector;
 										ResultVector.f_SetLen(nIterationsPerSplit);
 
-										for (mint i = 0; i < nIterationsPerSplit; ++i)
+										for (umint i = 0; i < nIterationsPerSplit; ++i)
 										{
 											if ((i & gc_YieldMask) == gc_YieldMask)
 												co_await g_Yield;
@@ -2501,27 +2501,27 @@ namespace
 					CTestPerformanceMeasure ActorMeasure("C Actor->ResVector");
 
 					uint32 Result = 0;
-					mint nIterations = nIterationsFull;
-					mint nSplits = NSys::fg_Thread_GetVirtualCores();
-					mint nIterationsPerSplit = nIterations / nSplits;
+					umint nIterations = nIterationsFull;
+					umint nSplits = NSys::fg_Thread_GetVirtualCores();
+					umint nIterationsPerSplit = nIterations / nSplits;
 					nIterations = nIterationsPerSplit * nSplits;
 
-					for (mint i = 0; i < gc_nRepetitions; ++i)
+					for (umint i = 0; i < gc_nRepetitions; ++i)
 					{
 						DMibTestScopeMeasureThreads(ActorMeasure, nIterations, NSys::fg_Thread_GetPhysicalCores());
-						TCFutureVector<TCVector<mint>> Dispatches;
+						TCFutureVector<TCVector<umint>> Dispatches;
 						Dispatches.f_SetLen(nSplits);
 
-						for (mint iSplit = 0; iSplit < nSplits; ++iSplit)
+						for (umint iSplit = 0; iSplit < nSplits; ++iSplit)
 						{
 							fg_ConcurrentDispatch
 								(
-									[&]() -> TCFuture<TCVector<mint>>
+									[&]() -> TCFuture<TCVector<umint>>
 									{
 										auto &ConcurrentActor = fg_ConcurrencyManager().f_GetConcurrentActorForThisThread(EPriority_Normal);
-										TCFutureVector<mint> Results;
+										TCFutureVector<umint> Results;
 										Results.f_SetLen(nIterationsPerSplit);
-										for (mint iIteration = 0; iIteration < nIterationsPerSplit; ++iIteration)
+										for (umint iIteration = 0; iIteration < nIterationsPerSplit; ++iIteration)
 										{
 											if ((iIteration & gc_YieldMask) == gc_YieldMask)
 												co_await g_Yield;
@@ -2558,27 +2558,27 @@ namespace
 					CTestPerformanceMeasure ActorMeasure("C Actor->ResVectorC");
 
 					uint32 Result = 0;
-					mint nIterations = nIterationsFull;
-					mint nSplits = NSys::fg_Thread_GetVirtualCores();
-					mint nIterationsPerSplit = nIterations / nSplits;
+					umint nIterations = nIterationsFull;
+					umint nSplits = NSys::fg_Thread_GetVirtualCores();
+					umint nIterationsPerSplit = nIterations / nSplits;
 					nIterations = nIterationsPerSplit * nSplits;
 
-					for (mint i = 0; i < gc_nRepetitions; ++i)
+					for (umint i = 0; i < gc_nRepetitions; ++i)
 					{
 						DMibTestScopeMeasureThreads(ActorMeasure, nIterations, NSys::fg_Thread_GetPhysicalCores());
-						TCFutureVector<TCVector<mint>> Dispatches;
+						TCFutureVector<TCVector<umint>> Dispatches;
 						Dispatches.f_SetLen(nSplits);
 
-						for (mint iSplit = 0; iSplit < nSplits; ++iSplit)
+						for (umint iSplit = 0; iSplit < nSplits; ++iSplit)
 						{
 							fg_ConcurrentDispatch
 								(
-									[&]() -> TCFuture<TCVector<mint>>
+									[&]() -> TCFuture<TCVector<umint>>
 									{
 										auto &ConcurrentActor = fg_ConcurrencyManager().f_GetConcurrentActorForThisThread(EPriority_Normal);
-										TCFutureVector<mint> Results;
+										TCFutureVector<umint> Results;
 										Results.f_SetLen(nIterationsPerSplit);
-										for (mint iIteration = 0; iIteration < nIterationsPerSplit; ++iIteration)
+										for (umint iIteration = 0; iIteration < nIterationsPerSplit; ++iIteration)
 										{
 											if ((iIteration & gc_YieldMask) == gc_YieldMask)
 												co_await g_Yield;
@@ -2610,7 +2610,7 @@ namespace
 				[&]() inline_never
 				{
 					fp_BlockOnAllThreads(true);
-					mint nIterations = nIterationsFull / 2;
+					umint nIterations = nIterationsFull / 2;
 					DMibTestPath("Branched");
 					CTestPerformanceMeasure ActorMeasure("Branched");
 					auto fActor = [](this auto &_fThis, uint32 _Start, uint32 _End) -> TCUnsafeFuture<uint32>
@@ -2642,7 +2642,7 @@ namespace
 
 					auto ConcurrentActor = fg_ConcurrentActor();
 
-					for (mint i = 0; i < gc_nRepetitions; ++i)
+					for (umint i = 0; i < gc_nRepetitions; ++i)
 					{
 						DMibTestScopeMeasureThreads(ActorMeasure, nIterationsFull, NSys::fg_Thread_GetPhysicalCores());
 						Result += fg_ConcurrentActor().f_Bind<&CActor::f_DispatchWithReturn<TCFuture<uint32>>>
@@ -2665,13 +2665,13 @@ namespace
 				[&]() inline_never
 				{
 					fp_BlockOnAllThreads(true);
-					mint nIterations = nIterationsFull / 2;
+					umint nIterations = nIterationsFull / 2;
 					DMibTestPath("Branched Coro");
 					CTestPerformanceMeasure ActorMeasure("Branched Coro");
 
 					uint32 Result = 0;
 
-					for (mint i = 0; i < gc_nRepetitions; ++i)
+					for (umint i = 0; i < gc_nRepetitions; ++i)
 					{
 						DMibTestScopeMeasureThreads(ActorMeasure, nIterationsFull, NSys::fg_Thread_GetPhysicalCores());
 						Result +=
@@ -2696,7 +2696,7 @@ namespace
 				[&]() inline_never
 				{
 					fp_BlockOnAllThreads(true);
-					mint nIterations = nIterationsFull / 6;
+					umint nIterations = nIterationsFull / 6;
 					DMibTestPath("Branched std::async");
 					CTestPerformanceMeasure ActorMeasure("Branched std::async");
 					TCFunction<uint32 (uint32 _Start, uint32 _End)> Actor;
@@ -2714,7 +2714,7 @@ namespace
 
 					uint32 Result = 0;
 
-					for (mint i = 0; i < gc_nRepetitions; ++i)
+					for (umint i = 0; i < gc_nRepetitions; ++i)
 					{
 						DMibTestScopeMeasureThreads(ActorMeasure, nIterations * 2, NSys::fg_Thread_GetPhysicalCores());
 
@@ -2735,14 +2735,14 @@ namespace
 		{
 			CTestPerformance &m_PerfTest;
 			CTestPerformance &m_PerfTestDestroy;
-			mint m_nIterations;
+			umint m_nIterations;
 			NMemory::CMemoryManagerCheckout &m_Checkout;
 		};
 
 		inline_never void f_PerformanceTests_Create_Vector(CCreateContext const &_CreateContext)
 		{
 #if DDoTest_Create_Vector
-			mint nIterations = _CreateContext.m_nIterations;
+			umint nIterations = _CreateContext.m_nIterations;
 
 			fp_BlockOnAllThreads(true);
 			DMibTestPath("Vector");
@@ -2757,7 +2757,7 @@ namespace
 			TCVector<TCOptional<CPerformanceTestActorEmul>> Actors;
 			Actors.f_SetLen(nIterations);
 
-			for (mint i = 0; i < gc_nRepetitions; ++i)
+			for (umint i = 0; i < gc_nRepetitions; ++i)
 			{
 				{
 					DMibTestScopeMeasure(DispatchMeasure, nIterations);
@@ -2783,7 +2783,7 @@ namespace
 		inline_never void f_PerformanceTests_Create_LinkedList(CCreateContext const &_CreateContext)
 		{
 #if DDoTest_Create_LinkedList
-			mint nIterations = _CreateContext.m_nIterations;
+			umint nIterations = _CreateContext.m_nIterations;
 
 			fp_BlockOnAllThreads(true);
 			DMibTestPath("Linked List");
@@ -2797,11 +2797,11 @@ namespace
 
 			TCLinkedList<CPerformanceTestActorEmul> ToDispatch;
 
-			for (mint i = 0; i < gc_nRepetitions; ++i)
+			for (umint i = 0; i < gc_nRepetitions; ++i)
 			{
 				{
 					DMibTestScopeMeasure(DispatchMeasure, nIterations);
-					for (mint i = 0; i < nIterations; ++i)
+					for (umint i = 0; i < nIterations; ++i)
 					{
 						ToDispatch.f_Insert();
 					}
@@ -2822,7 +2822,7 @@ namespace
 		inline_never void f_PerformanceTests_Create_ThreadSafeQueue(CCreateContext const &_CreateContext)
 		{
 #if DDoTest_Create_ThreadSafeQueue
-			mint nIterations = _CreateContext.m_nIterations;
+			umint nIterations = _CreateContext.m_nIterations;
 
 			fp_BlockOnAllThreads(true);
 			DMibTestPath("Thread safe queue");
@@ -2837,11 +2837,11 @@ namespace
 
 			TCThreadSafeQueue<CPerformanceTestActorEmul> ToDispatch;
 
-			for (mint i = 0; i < gc_nRepetitions; ++i)
+			for (umint i = 0; i < gc_nRepetitions; ++i)
 			{
 				{
 					DMibTestScopeMeasure(DispatchMeasure, nIterations);
-					for (mint i = 0; i < nIterations; ++i)
+					for (umint i = 0; i < nIterations; ++i)
 					{
 						ToDispatch.f_Push();
 					}
@@ -2862,7 +2862,7 @@ namespace
 		inline_never void f_PerformanceTests_Create_ActorConcurrent(CCreateContext const &_CreateContext)
 		{
 #if DDoTest_Create_ActorConcurrent
-			mint nIterations = _CreateContext.m_nIterations;
+			umint nIterations = _CreateContext.m_nIterations;
 
 			fp_BlockOnAllThreads(true);
 			DMibTestPath("ActorConcurrent");
@@ -2870,11 +2870,11 @@ namespace
 			CTestPerformanceMeasure ActorMeasureDestroy("D ActorConcurent");
 			TCVector<TCActor<CPerformanceTestActor>> PerfTestActors;
 
-			mint nThreads = NSys::fg_Thread_GetVirtualCores();
-			mint nIterationsPerThread = nIterations / nThreads;
+			umint nThreads = NSys::fg_Thread_GetVirtualCores();
+			umint nIterationsPerThread = nIterations / nThreads;
 			nIterations = nIterationsPerThread * nThreads;
 
-			for (mint i = 0; i < gc_nRepetitions; ++i)
+			for (umint i = 0; i < gc_nRepetitions; ++i)
 			{
 				fp_BlockOnAllThreads(true);
 				PerfTestActors.f_SetLen(nIterations);
@@ -2886,7 +2886,7 @@ namespace
 				{
 					TCFutureVector<void> ThreadResults;
 					DMibTestScopeMeasureThreads(ActorMeasure, nIterations, NSys::fg_Thread_GetPhysicalCores());
-					for (mint iThread = 0; iThread < nThreads; ++iThread)
+					for (umint iThread = 0; iThread < nThreads; ++iThread)
 					{
 						fg_Dispatch
 							(
@@ -2919,7 +2919,7 @@ namespace
 				{
 					TCFutureVector<void> ThreadResults;
 					DMibTestScopeMeasureThreads(ActorMeasureDestroy, nIterations, NSys::fg_Thread_GetPhysicalCores());
-					for (mint iThread = 0; iThread < nThreads; ++iThread)
+					for (umint iThread = 0; iThread < nThreads; ++iThread)
 					{
 						fg_Dispatch
 							(
@@ -2966,7 +2966,7 @@ namespace
 		inline_never void f_PerformanceTests_Create_Actor(CCreateContext const &_CreateContext)
 		{
 #if DDoTest_Create_Actor
-			mint nIterations = _CreateContext.m_nIterations;
+			umint nIterations = _CreateContext.m_nIterations;
 
 			fp_BlockOnAllThreads(true);
 			DMibTestPath("Actor");
@@ -2976,7 +2976,7 @@ namespace
 
 			auto &ConcurrentActor = fg_ConcurrentActor();
 
-			for (mint i = 0; i < gc_nRepetitions; ++i)
+			for (umint i = 0; i < gc_nRepetitions; ++i)
 			{
 				PerfTestActors.f_SetLen(nIterations);
 				{
@@ -2986,7 +2986,7 @@ namespace
 							ConcurrentActor
 							, [&]() -> TCFuture<void>
 							{
-								mint i = 0;
+								umint i = 0;
 								for (auto &PerfTestActor : PerfTestActors)
 								{
 									if ((i & gc_YieldMask) == gc_YieldMask)
@@ -3011,7 +3011,7 @@ namespace
 							{
 								TCFutureVector<void> Results;
 								Results.f_SetLen(PerfTestActors.f_GetLen());
-								mint i = 0;
+								umint i = 0;
 								for (auto &PerfTestActor : PerfTestActors)
 								{
 									if ((i & gc_YieldMask) == gc_YieldMask)
@@ -3039,7 +3039,7 @@ namespace
 		inline_never void f_PerformanceTests_Create_ActorOutside(CCreateContext const &_CreateContext)
 		{
 #if DDoTest_Create_ActorOutside
-			mint nIterations = _CreateContext.m_nIterations;
+			umint nIterations = _CreateContext.m_nIterations;
 
 			fp_BlockOnAllThreads(true);
 			DMibTestPath("Actor Outside");
@@ -3047,7 +3047,7 @@ namespace
 			CTestPerformanceMeasure ActorMeasureDestroy("D ActorOutside");
 			TCVector<TCActor<CPerformanceTestActor>> PerfTestActors;
 
-			for (mint i = 0; i < gc_nRepetitions; ++i)
+			for (umint i = 0; i < gc_nRepetitions; ++i)
 			{
 				PerfTestActors.f_SetLen(nIterations);
 				{
@@ -3081,13 +3081,13 @@ namespace
 			{
 				auto Checkout = fg_GetSys()->f_MemoryManager_Checkout();
 #if defined(DMibDebug) || defined(DMibSanitizerEnabled)
-				mint nIterations = 1'000;
+				umint nIterations = 1'000;
 #elif DMibConfig_RefCountDebugging
-				mint nIterations = 10'000;
+				umint nIterations = 10'000;
 #else
-				mint nIterations = 1'000'000;
+				umint nIterations = 1'000'000;
 #endif
-				[[maybe_unused]] mint nIterationsFull = nIterations;
+				[[maybe_unused]] umint nIterationsFull = nIterations;
 				CTestPerformance PerfTest(0.1);
 				CTestPerformance PerfTestDestroy(0.01);
 				CCreateContext CreateContext{PerfTest, PerfTestDestroy, nIterations, Checkout};
@@ -3115,11 +3115,11 @@ namespace
 #if DMibEnableSafeCheck > 0 && !defined(DMibDebug) && DMibPPtrBits > 32
 			DMibTestSuite("Promise Limits")
 			{
-				mint nToTest = 512 * 1024 * 1024 - 2; // 4 GB memory
+				umint nToTest = 512 * 1024 * 1024 - 2; // 4 GB memory
 				TCPromise<void> Promise;
 				TCVector<TCPromise<void>> Promises;
 				Promises.f_Reserve(nToTest + 1);
-				for (mint i = 0; i < nToTest; ++i)
+				for (umint i = 0; i < nToTest; ++i)
 					Promises.f_Insert(Promise);
 
 				auto fTestPromise = [&]

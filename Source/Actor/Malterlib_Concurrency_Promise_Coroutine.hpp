@@ -76,7 +76,7 @@ namespace NMib::NConcurrency::NPrivate
 			union
 			{
 				void (*m_fDestroy)(CCoroutineFrame_Cpp20 *);
-				mint m_DestroyBits;
+				umint m_DestroyBits;
 			};
 		};
 

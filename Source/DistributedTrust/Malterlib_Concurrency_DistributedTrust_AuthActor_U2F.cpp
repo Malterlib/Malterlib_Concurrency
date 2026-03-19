@@ -195,7 +195,7 @@ namespace NMib::NConcurrency::NPrivate
 	// The unit of data passed to and from the U2F device
 	struct CFrame
 	{
-		mint f_SetInitial(uint32 _ChannelID, uint8 _Command, uint16 _ByteCount, uint8 const *_pData, uint32 _Length)
+		umint f_SetInitial(uint32 _ChannelID, uint8 _Command, uint16 _ByteCount, uint8 const *_pData, uint32 _Length)
 		{
 			_Length = fg_Min(_Length, uint32(CHumanInterfaceDevicesActor::EReportSize - 7));
 			m_ChannelID = _ChannelID;
@@ -209,7 +209,7 @@ namespace NMib::NConcurrency::NPrivate
 			return _Length;
 		}
 
-		mint f_SetContinuation(uint32 _ChannelID, uint8 _SequenceNumber, uint8 const *_pData, uint32 _Length)
+		umint f_SetContinuation(uint32 _ChannelID, uint8 _SequenceNumber, uint8 const *_pData, uint32 _Length)
 		{
 			_Length = fg_Min(_Length, uint32(CHumanInterfaceDevicesActor::EReportSize - 5));
 			m_ChannelID = _ChannelID;
@@ -254,7 +254,7 @@ namespace NMib::NConcurrency::NPrivate
 
 		static TCFuture<CU2FDevice> DMibWorkaroundUBSanSectionErrorsDisable fs_Init(TCActor<CHumanInterfaceDeviceActor> _Device, CStr _Path)
 		{
-			static mint const c_InitNonceSize = 8;
+			static umint const c_InitNonceSize = 8;
 
 			struct CInitResponse
 			{
@@ -285,9 +285,9 @@ namespace NMib::NConcurrency::NPrivate
 
 		static TCFuture<CFrame> DMibWorkaroundUBSanSectionErrorsDisable fs_ReadFrame(TCActor<CHumanInterfaceDeviceActor> _Device)
 		{
-			constexpr static mint c_HIDTimeout = 2;
-			constexpr static mint c_HIDMaxTimeout = 4096;
-			mint Timeout = c_HIDTimeout;
+			constexpr static umint c_HIDTimeout = 2;
+			constexpr static umint c_HIDMaxTimeout = 4096;
+			umint Timeout = c_HIDTimeout;
 
 			while (true)
 			{
@@ -322,9 +322,9 @@ namespace NMib::NConcurrency::NPrivate
 		{
 			{
 				uint8 Sequence = 0;
-				mint SendLength = _Send.f_GetLen();
+				umint SendLength = _Send.f_GetLen();
 				uint8 const *pSendData = _Send.f_GetArray();
-				mint DataSent = 0;
+				umint DataSent = 0;
 
 				while (DataSent < SendLength)
 				{
@@ -385,7 +385,7 @@ namespace NMib::NConcurrency::NPrivate
 							co_return DMibErrorInstance("Invalid command reading from U2F device");
 
 						DataLength = Frame.m_InitialFrame.m_ByteCountHigh << 8 | Frame.m_InitialFrame.m_ByteCountLow;
-						auto Received = fg_Min(sizeof(Frame.m_InitialFrame.m_Data), mint(DataLength));
+						auto Received = fg_Min(sizeof(Frame.m_InitialFrame.m_Data), umint(DataLength));
 						Receive.f_Insert(Frame.m_InitialFrame.m_Data, Received);
 						nReceived = Received;
 						bFirstFrame = false;
@@ -395,7 +395,7 @@ namespace NMib::NConcurrency::NPrivate
 						if (Frame.m_ContinuationFrame.m_SequenceNumber != Sequence++)
 							co_return DMibErrorInstance("Invalid sequence number when reading from U2F device");
 
-						auto Received = fg_Min(mint(nReceived) + sizeof(Frame.m_ContinuationFrame.m_Data), mint(DataLength)) - mint(nReceived);
+						auto Received = fg_Min(umint(nReceived) + sizeof(Frame.m_ContinuationFrame.m_Data), umint(DataLength)) - umint(nReceived);
 						Receive.f_Insert(Frame.m_ContinuationFrame.m_Data, Received);
 						nReceived += Received;
 					}
@@ -709,7 +709,7 @@ namespace NMib::NConcurrency::NPrivate
 				co_return DMibErrorInstance("No U2F devices found");
 
 			TCVector<TCSet<uint32>> SkipDevice;
-			mint nIterations = 16;
+			umint nIterations = 16;
 			bool bSkippedAll = true;
 			bool bDidPrompt = false;
 
@@ -722,7 +722,7 @@ namespace NMib::NConcurrency::NPrivate
 
 				bSkippedAll = true;
 
-				for (mint iData = 0; iData < Data.f_GetLen(); ++iData)
+				for (umint iData = 0; iData < Data.f_GetLen(); ++iData)
 				{
 					for (auto &Device : U2FDevices.m_Devices)
 					{
@@ -747,7 +747,7 @@ namespace NMib::NConcurrency::NPrivate
 							SkipDevice[iData][Device.m_ChannelID];
 						else
 						{
-							mint ResponseLen = Response.f_GetLen();
+							umint ResponseLen = Response.f_GetLen();
 							uint16 StatusCode = uint16(Response[ResponseLen - 2] << 8) | uint16(Response[ResponseLen - 1]);
 
 							switch (StatusCode)
@@ -1237,10 +1237,10 @@ namespace NMib::NConcurrency
 	class CDistributedActorTrustManagerAuthenticationActorFactoryU2F : public ICDistributedActorTrustManagerAuthenticationActorFactory
 	{
 		CAuthenticationActorInfo operator () (TCActor<CDistributedActorTrustManager> const &_TrustManager) override;
-		static mint ms_MakeActive;
+		static umint ms_MakeActive;
 	};
 
-	mint CDistributedActorTrustManagerAuthenticationActorFactoryU2F::ms_MakeActive;
+	umint CDistributedActorTrustManagerAuthenticationActorFactoryU2F::ms_MakeActive;
 
 	CAuthenticationActorInfo CDistributedActorTrustManagerAuthenticationActorFactoryU2F::operator ()(TCActor<CDistributedActorTrustManager> const &_TrustManager)
 	{

@@ -60,12 +60,12 @@ namespace NMib::NConcurrency
 
 		TCMap<CStr, CMethodHandlers> m_MethodHandlers;
 
-		mint m_LastConnectionID = 0;
+		umint m_LastConnectionID = 0;
 		bool m_bStartedUp = false;
 		TCUniquePointer<CException> m_pStartupFailedException;
 		TCVector<TCPromise<void>> m_OnStartup;
 
-		TCMap<mint, CConnection> m_Connections;
+		TCMap<umint, CConnection> m_Connections;
 	};
 
 	CDistributedTrustDDPBridge::CDistributedTrustDDPBridge(TCActor<CDistributedActorTrustManager> const &_TrustManager)
@@ -203,7 +203,7 @@ namespace NMib::NConcurrency
 			, CStr const &_HostID
 		)
 	{
-		mint ConnectionID = ++m_LastConnectionID;
+		umint ConnectionID = ++m_LastConnectionID;
 		auto &NewConnection = m_Connections[ConnectionID];
 		NewConnection.m_RealHostID = _HostID;
 		NewConnection.m_UniqueHostID = fg_Format("DDPBridge_{}_{}", _HostID, ConnectionID);

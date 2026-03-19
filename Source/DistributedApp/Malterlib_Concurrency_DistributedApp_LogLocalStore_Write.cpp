@@ -339,13 +339,13 @@ namespace NMib::NConcurrency
 			TCVector<CDistributedAppLogReporter::CLogEntry> ResizedEntries;
 
 #if DMibPPtrBits < 64
-			static constexpr mint c_MaxSize = 64 * 1024; // Workaround bugs in memory mapping for overflow values in lmdb
+			static constexpr umint c_MaxSize = 64 * 1024; // Workaround bugs in memory mapping for overflow values in lmdb
 #else
-			static constexpr mint c_MaxSize = CActorDistributionManager::mc_HalfMaxMessageSize;
+			static constexpr umint c_MaxSize = CActorDistributionManager::mc_HalfMaxMessageSize;
 #endif
 
 			bool bNeedResize = false;
-			mint nEntriesProcessed = 0;
+			umint nEntriesProcessed = 0;
 			for (auto &Entry : Entries)
 			{
 				auto CountEntry = g_OnScopeExit / [&]
@@ -354,7 +354,7 @@ namespace NMib::NConcurrency
 					}
 				;
 
-				mint Size = NStream::fg_GetBinaryStreamSize(Entry);
+				umint Size = NStream::fg_GetBinaryStreamSize(Entry);
 
 				if (Entry.m_UniqueSequence != TCLimitsInt<uint64>::mc_Max)
 				{
@@ -373,7 +373,7 @@ namespace NMib::NConcurrency
 				if (!bNeedResize)
 				{
 					bNeedResize = true;
-					for (mint iEntry = 0; iEntry < nEntriesProcessed; ++iEntry)
+					for (umint iEntry = 0; iEntry < nEntriesProcessed; ++iEntry)
 						ResizedEntries.f_Insert(fg_Move(Entries[iEntry]));
 				}
 
@@ -385,7 +385,7 @@ namespace NMib::NConcurrency
 
 				for (auto Line : AllLines)
 				{
-					mint LineLen = Line.f_GetLen() + 1;
+					umint LineLen = Line.f_GetLen() + 1;
 					if ((pOutMessage->f_GetLen() + LineLen) > c_MaxSize)
 					{
 						if (LineLen > c_MaxSize)
@@ -393,7 +393,7 @@ namespace NMib::NConcurrency
 							if (!pOutMessage->f_IsEmpty())
 								*pOutMessage += "\n";
 
-							for (mint iStart = 0; iStart < LineLen; iStart += c_MaxSize)
+							for (umint iStart = 0; iStart < LineLen; iStart += c_MaxSize)
 							{
 								pOutEntry = &ResizedEntries.f_Insert(Entry);
 								pOutMessage = &pOutEntry->m_Data.m_Message;

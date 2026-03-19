@@ -102,7 +102,7 @@ namespace NMib::NConcurrency::NPrivate
 	{
 		TCRuntimeTypeRegistryEntry_MemberFunction();
 
-		template <mint... tfp_Indices, typename... tfp_CParams>
+		template <umint... tfp_Indices, typename... tfp_CParams>
 		NConcurrency::TCFuture<NContainer::CIOByteVector> fp_Call
 			(
 				t_CStreamParams &_ParamsStream
@@ -113,7 +113,7 @@ namespace NMib::NConcurrency::NPrivate
 			requires (TCIsAsyncGenerator<t_CReturn>::mc_Value)
 		;
 
-		template <mint... tfp_Indices, typename... tfp_CParams>
+		template <umint... tfp_Indices, typename... tfp_CParams>
 		NConcurrency::TCUnsafeFuture<NContainer::CIOByteVector> fp_Call
 			(
 				t_CStreamParams &_ParamsStream
@@ -153,7 +153,7 @@ namespace NMib::NConcurrency::NPrivate
 		: public CRuntimeTypeRegistryEntry_MemberFunction
 	{
 		TCRuntimeTypeRegistryEntry_MemberFunction();
-		template <mint... tfp_Indices, typename... tfp_CParams>
+		template <umint... tfp_Indices, typename... tfp_CParams>
 		NConcurrency::TCUnsafeFuture<NContainer::CIOByteVector> fp_Call
 			(
 				t_CStreamParams &_ParamsStream
@@ -194,7 +194,7 @@ namespace NMib::NConcurrency::NPrivate
 	{
 		TCRuntimeTypeRegistryEntry_MemberFunction();
 
-		template <mint... tfp_Indices, typename... tfp_CParams>
+		template <umint... tfp_Indices, typename... tfp_CParams>
 		NConcurrency::TCFuture<NContainer::CIOByteVector> fp_Call
 			(
 				t_CStreamParams &_ParamsStream

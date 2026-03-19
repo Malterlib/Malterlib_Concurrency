@@ -37,7 +37,7 @@ namespace NMib::NConcurrency
 #endif
 	}
 
-	constexpr static const mint gc_ProcessingMask = DMibBitTyped(sizeof(mint) * 8 - 1, mint);
+	constexpr static const umint gc_ProcessingMask = DMibBitTyped(sizeof(umint) * 8 - 1, umint);
 
 	CActorHolder::~CActorHolder()
 	{
@@ -75,7 +75,7 @@ namespace NMib::NConcurrency
 		return mp_pDistributedActorData;
 	}
 
-	void CActorHolder::f_SetFixedQueue(mint _iFixedQueue)
+	void CActorHolder::f_SetFixedQueue(umint _iFixedQueue)
 	{
 		mp_iFixedQueue = _iFixedQueue;
 	}
@@ -121,7 +121,7 @@ namespace NMib::NConcurrency
 		auto &ThreadLocal = fg_ConcurrencyThreadLocal();
 		bool bNeedKickstart = false;
 		{
-			mint OriginalWorking = mp_Working.f_FetchOr(gc_ProcessingMask);
+			umint OriginalWorking = mp_Working.f_FetchOr(gc_ProcessingMask);
 			DMibFastCheck((OriginalWorking & gc_ProcessingMask) == 0);
 			fp_StartQueueProcessing();
 
@@ -134,7 +134,7 @@ namespace NMib::NConcurrency
 #if DMibEnableSafeCheck > 0
 					ThreadLocal.m_pCurrentlyConstructingActor = pOldConstructing;
 #endif
- 					mint NewWorking = mp_Working.f_Exchange(0);
+ 					umint NewWorking = mp_Working.f_Exchange(0);
 					if ((NewWorking & (~gc_ProcessingMask)) != OriginalWorking)
 						fp_QueueRunProcess(ThreadLocal); // Reschedule
 				}
@@ -173,14 +173,14 @@ namespace NMib::NConcurrency
 		{
 			if (mp_ConcurrentRunQueue.f_AddToQueueLocal(fg_Move(_Entry), mp_ConcurrentRunQueueLocal))
 			{
-				mint Value = mp_Working.f_FetchAdd(1);
+				umint Value = mp_Working.f_FetchAdd(1);
 				return Value == 0;
 			}
 			return false;
 		}
 		mp_ConcurrentRunQueue.f_AddToQueue(fg_Move(_Entry));
 
-		mint Value = mp_Working.f_FetchAdd(1);
+		umint Value = mp_Working.f_FetchAdd(1);
 		return Value == 0
 #if DMibConfig_Tests_Enable && !DTests_PerfTests
 			|| _ThreadLocal.m_bForceWakeUp
@@ -199,14 +199,14 @@ namespace NMib::NConcurrency
 		{
 			if (mp_ConcurrentRunQueue.f_AddToQueueLocal(fg_Move(_Functor), mp_ConcurrentRunQueueLocal))
 			{
-				mint Value = mp_Working.f_FetchAdd(1);
+				umint Value = mp_Working.f_FetchAdd(1);
 				return Value == 0;
 			}
 			return false;
 		}
 		mp_ConcurrentRunQueue.f_AddToQueue(fg_Move(_Functor));
 
-		mint Value = mp_Working.f_FetchAdd(1);
+		umint Value = mp_Working.f_FetchAdd(1);
 		return Value == 0
 #if DMibConfig_Tests_Enable && !DTests_PerfTests
 			|| _ThreadLocal.m_bForceWakeUp
@@ -249,7 +249,7 @@ namespace NMib::NConcurrency
 			while (bDoMore)
 			{
 				bDoMore = false;
-				mint OriginalWorking = mp_Working.f_FetchOr(gc_ProcessingMask);
+				umint OriginalWorking = mp_Working.f_FetchOr(gc_ProcessingMask);
 				if ((OriginalWorking & gc_ProcessingMask) != 0)
 					break;
 
@@ -257,7 +257,7 @@ namespace NMib::NConcurrency
 					(
 						[&]
 						{
-							mint NewWorking = mp_Working.f_Exchange(0);
+							umint NewWorking = mp_Working.f_Exchange(0);
 							if ((NewWorking & (~gc_ProcessingMask)) != OriginalWorking)
 								bDoMore = true;
 						}
@@ -538,10 +538,10 @@ namespace NMib::NConcurrency
 
 			// Set destroy initiated flag before async destruction
 			// (user's fp_Destroy() could create new TCActor references that call f_Destroy())
-			[[maybe_unused]] mint OldValue = _pActorHolder->mp_DestroyInitiated.f_Exchange(1);
+			[[maybe_unused]] umint OldValue = _pActorHolder->mp_DestroyInitiated.f_Exchange(1);
 			DMibFastCheck(OldValue == 0);
 
-			mint Destroyed = _pActorHolder->mp_Destroyed.f_Exchange(0);
+			umint Destroyed = _pActorHolder->mp_Destroyed.f_Exchange(0);
 			if (Destroyed != 1)
 				DMibPDebugBreak;
 		}
@@ -849,7 +849,7 @@ namespace NMib::NConcurrency
 		}
 		mp_JobQueue.f_AddToQueue(fg_Move(pQueueEntry));
 
-		mint Value = mp_JobQueueWorking.f_FetchAdd(1);
+		umint Value = mp_JobQueueWorking.f_FetchAdd(1);
 		if (Value == 0)
 		{
 #if DMibConfig_Tests_Enable && !defined(DTests_PerfTests)
@@ -880,7 +880,7 @@ namespace NMib::NConcurrency
 			while (bDoMore)
 			{
 				bDoMore = false;
-				mint OriginalWorking = mp_JobQueueWorking.f_FetchOr(gc_ProcessingMask);
+				umint OriginalWorking = mp_JobQueueWorking.f_FetchOr(gc_ProcessingMask);
 				if ((OriginalWorking & gc_ProcessingMask) == 0)
 				{
 					auto UnLock
@@ -888,7 +888,7 @@ namespace NMib::NConcurrency
 						(
 							[&]
 							{
-								mint NewWorking = mp_JobQueueWorking.f_Exchange(0);
+								umint NewWorking = mp_JobQueueWorking.f_Exchange(0);
 								if ((NewWorking & (~gc_ProcessingMask)) != OriginalWorking)
 									bDoMore = true;
 							}

@@ -167,7 +167,7 @@ namespace NMib::NConcurrency
 
 	void CDistributedAppLogDestination::operator()
 		(
-			mint _ThreadID
+			umint _ThreadID
 			, NTime::CTime const &_Time
 			, NLog::ESeverity _Severity
 			, NLog::CLogStr const &_Message

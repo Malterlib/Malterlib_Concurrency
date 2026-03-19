@@ -86,11 +86,11 @@ namespace NMib::NConcurrency
 			OutHost.m_LastError = Host.m_LastError;
 			OutHost.m_LastErrorTime = Host.m_LastErrorTime;
 
-			TCFutureMap<mint, NWeb::CWebSocketActor::CDebugStats> WebsocketDebugStats;
+			TCFutureMap<umint, NWeb::CWebSocketActor::CDebugStats> WebsocketDebugStats;
 
 			auto fAddConnection = [&](CConnection const &_Connection) -> CActorDistributionManager::CConnectionDebugStats &
 				{
-					mint iConnection = OutHost.m_Connections.f_GetLen();
+					umint iConnection = OutHost.m_Connections.f_GetLen();
 					auto &OutConnection = OutHost.m_Connections.f_Insert();
 					OutConnection.m_bIncoming = _Connection.m_bIncoming;
 					OutConnection.m_bIdentified = _Connection.m_bIdentified;

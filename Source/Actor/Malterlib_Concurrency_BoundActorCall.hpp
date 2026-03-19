@@ -289,7 +289,7 @@ namespace NMib::NConcurrency
 	}
 
 	template <typename t_CReturn, typename t_CActor, typename t_FFunctionPointer, CBindActorOptions t_BindOptions, bool t_bByValue, typename ...tp_CParams>
-	template <mint ...tfp_Indices>
+	template <umint ...tfp_Indices>
 	void TCBoundActorCall<TCFuture<t_CReturn>, t_CActor, t_FFunctionPointer, t_BindOptions, t_bByValue, tp_CParams...>::fp_CallDiscard(NMeta::TCIndices<tfp_Indices...> _Indices) &&
 	{
 		if constexpr (t_bByValue)
@@ -317,7 +317,7 @@ namespace NMib::NConcurrency
 	}
 
 	template <typename t_CReturn, typename t_CActor, typename t_FFunctionPointer, CBindActorOptions t_BindOptions, bool t_bByValue, typename ...tp_CParams>
-	template <mint ...tfp_Indices>
+	template <umint ...tfp_Indices>
 	TCFuture<t_CReturn> TCBoundActorCall<TCFuture<t_CReturn>, t_CActor, t_FFunctionPointer, t_BindOptions, t_bByValue, tp_CParams...>::fp_Call(NMeta::TCIndices<tfp_Indices...> _Indices) &&
 	{
 		if constexpr (t_bByValue)
@@ -345,7 +345,7 @@ namespace NMib::NConcurrency
 	}
 
 	template <typename t_CReturn, typename t_CActor, typename t_FFunctionPointer, CBindActorOptions t_BindOptions, bool t_bByValue, typename ...tp_CParams>
-	template <typename tf_FOnResult, mint ...tfp_Indices>
+	template <typename tf_FOnResult, umint ...tfp_Indices>
 	void TCBoundActorCall<TCFuture<t_CReturn>, t_CActor, t_FFunctionPointer, t_BindOptions, t_bByValue, tp_CParams...>::fp_CallOnResult
 		(
 			tf_FOnResult &&_fOnResult

@@ -115,8 +115,8 @@ namespace NMib::NConcurrency
 			CNamespace m_Namespace;
 			CActorSubscription m_Subscription;
 			NContainer::TCMap<uint32, CNamespaceTypeState> m_Types;
-			mint m_nSubscriptions = 0;
-			mint m_SubscriptionSequence = 0;
+			umint m_nSubscriptions = 0;
+			umint m_SubscriptionSequence = 0;
 			bool m_bExistsInDatabase = false;
 			bool m_bSubscribing = false;
 			NContainer::TCVector<NFunction::TCFunctionMovable<void (TCAsyncResult<void> const &_Result, CNamespaceState &_NamespaceState)>> m_OnSubscribe;
@@ -270,7 +270,7 @@ namespace NMib::NConcurrency
 		NContainer::TCMap<NStr::CStr, CTicketState> m_Tickets;
 
 		NContainer::TCMap<NStr::CStr, CNamespaceState> m_Namespaces;
-		mint m_NamespaceSubscriptionSequence = 0;
+		umint m_NamespaceSubscriptionSequence = 0;
 
 		NContainer::TCSet<NStr::CStr> m_RegisteredPermissions;
 		NContainer::TCMap<CPermissionIdentifiers, CPermissionState> m_Permissions;

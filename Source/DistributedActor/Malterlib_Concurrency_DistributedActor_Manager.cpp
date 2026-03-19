@@ -282,7 +282,7 @@ namespace NMib::NConcurrency
 		}
 	}
 
-	CServerConnection::CServerConnection(mint _ConnectionID)
+	CServerConnection::CServerConnection(umint _ConnectionID)
 		: m_ConnectionID(_ConnectionID)
 	{
 	}

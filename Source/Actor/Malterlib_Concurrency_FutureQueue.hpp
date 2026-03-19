@@ -6,7 +6,7 @@
 namespace NMib::NConcurrency
 {
 	template <typename t_CType>
-	TCFutureQueue<t_CType>::TCFutureQueue(mint _nMaxQueued)
+	TCFutureQueue<t_CType>::TCFutureQueue(umint _nMaxQueued)
 		: mp_nMaxQueued(_nMaxQueued)
 	{
 	}

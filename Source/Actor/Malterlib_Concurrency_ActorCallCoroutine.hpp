@@ -45,7 +45,7 @@ namespace NMib::NConcurrency
 	template
 	<
 		typename tf_CResultFunctor
-		, mint... tfp_Indices
+		, umint... tfp_Indices
 	>
 	void TCFuturePackAwaiter<t_bUnwrap, t_FExceptionTransform, tp_CFutures...>::fp_ActorCall
 		(
@@ -79,14 +79,14 @@ namespace NMib::NConcurrency
 	}
 
 	template <bool t_bUnwrap, typename t_FExceptionTransform, typename... tp_CFutures>
-	template <mint... tfp_Indices>
+	template <umint... tfp_Indices>
 	auto TCFuturePackAwaiter<t_bUnwrap, t_FExceptionTransform, tp_CFutures...>::fp_Unwrap(NMeta::TCIndices<tfp_Indices...>) -> CUnwrappedType
 	{
 		return {fg_Move(*fg_Get<tfp_Indices>(mp_Results))...};
 	}
 
 	template <bool t_bUnwrap, typename t_FExceptionTransform, typename... tp_CFutures>
-	template <mint... tfp_Indices>
+	template <umint... tfp_Indices>
 	NException::CExceptionPointer TCFuturePackAwaiter<t_bUnwrap, t_FExceptionTransform, tp_CFutures...>::fp_HasException(NMeta::TCIndices<tfp_Indices...>)
 	{
 		NException::CExceptionExceptionVectorData::CErrorCollector ErrorCollector;
@@ -113,7 +113,7 @@ namespace NMib::NConcurrency
 	}
 
 	template <bool t_bUnwrap, typename t_FExceptionTransform, typename... tp_CFutures>
-	template <mint... tfp_Indices>
+	template <umint... tfp_Indices>
 	void TCFuturePackAwaiter<t_bUnwrap, t_FExceptionTransform, tp_CFutures...>::fp_TransformExceptions(CWrappedType &o_Results, NMeta::TCIndices<tfp_Indices...>)
 	{
 		(

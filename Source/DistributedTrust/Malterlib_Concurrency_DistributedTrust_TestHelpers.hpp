@@ -47,7 +47,7 @@ namespace NMib::NConcurrency
 	NContainer::TCVector<TCDistributedActor<tf_CActor>> CTrustedSubscriptionTestHelper::f_SubscribeMultiple
 		(
 			CActorRunLoopTestHelper &_RunLoopHelper
-			, mint _nActors
+			, umint _nActors
 			, NStr::CStr const &_Namespace
 			, NStr::CStr const &_HostID
 		)
@@ -56,7 +56,7 @@ namespace NMib::NConcurrency
 	}
 
 	template <typename tf_CActor>
-	auto CTrustedSubscriptionTestHelper::f_SubscribeMultipleAsync(mint _nActors, NStr::CStr _Namespace, NStr::CStr _HostID)
+	auto CTrustedSubscriptionTestHelper::f_SubscribeMultipleAsync(umint _nActors, NStr::CStr _Namespace, NStr::CStr _HostID)
 		-> TCFuture<NContainer::TCVector<TCDistributedActor<tf_CActor>>>
 	{
 		using namespace NStr;
@@ -66,7 +66,7 @@ namespace NMib::NConcurrency
 	}
 
 	template <typename tf_CActor>
-	auto CTrustedSubscriptionTestHelper::CInternal::f_Subscribe(mint _nActors, NStr::CStr _Namespace, NStr::CStr _HostID)
+	auto CTrustedSubscriptionTestHelper::CInternal::f_Subscribe(umint _nActors, NStr::CStr _Namespace, NStr::CStr _HostID)
 		-> TCFuture<NContainer::TCVector<TCDistributedActor<tf_CActor>>>
 	{
 		TCPromiseFuturePair<NContainer::TCVector<TCDistributedActor<tf_CActor>>> Promise;

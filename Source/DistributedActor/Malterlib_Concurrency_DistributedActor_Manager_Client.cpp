@@ -122,7 +122,7 @@ namespace NMib::NConcurrency
 		(
 			NStorage::TCSharedPointer<CClientConnection, NStorage::CSupportWeakTag> const &_pConnection
 			, bool _bRetry
-			, mint _Sequence
+			, umint _Sequence
 			, NStr::CStr const &_ConnectionError
 			, bool _bResetHost
 		)
@@ -215,7 +215,7 @@ namespace NMib::NConcurrency
 		if (!_pConnection->m_pSSLContext || !m_WebsocketClientConnector || m_pThis->f_IsDestroyed())
 			return;
 
-		mint Sequence = ++_pConnection->m_ConnectionSequence;
+		umint Sequence = ++_pConnection->m_ConnectionSequence;
 		NWeb::NHTTP::CRequest Request;
 		auto &EntityFields = Request.f_GetEntityFields();
 		EntityFields.f_SetUnknownField("MalterlibDistributedActors_Enclave", m_Enclave);

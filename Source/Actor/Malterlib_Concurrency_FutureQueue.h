@@ -8,7 +8,7 @@ namespace NMib::NConcurrency
 	template <typename t_CType>
 	struct TCFutureQueue
 	{
-		TCFutureQueue(mint _nMaxQueued);
+		TCFutureQueue(umint _nMaxQueued);
 
 		TCFuture<t_CType> f_Insert(TCFuture<t_CType> &&_Future);
 
@@ -19,8 +19,8 @@ namespace NMib::NConcurrency
 
 	private:
 		NContainer::TCLinkedList<TCFuture<t_CType>> mp_QueuedWrites;
-		mint mp_nQueuedWrites = 0;
-		mint mp_nMaxQueued = 0;
+		umint mp_nQueuedWrites = 0;
+		umint mp_nMaxQueued = 0;
 	};
 }
 

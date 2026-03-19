@@ -41,17 +41,17 @@ namespace NMib::NConcurrency
 		if (!m_ControlActor)
 			return g_Void;
 
-		mint OutputLen = _Output.f_GetLen();
+		umint OutputLen = _Output.f_GetLen();
 		if (OutputLen <= CActorDistributionManager::mc_HalfMaxMessageSize)
 			return m_ControlActor.f_CallActor(&ICCommandLineControl::f_StdOut)(_Output);
 
 		TCFutureVector<void> Results;
 		NMisc::fg_ChunkRange
 			(
-				mint(0)
+				umint(0)
 				, OutputLen
 				, CActorDistributionManager::mc_HalfMaxMessageSize
-				, [&](mint _Start, mint _Len)
+				, [&](umint _Start, umint _Len)
 				{
 					m_ControlActor.f_CallActor(&ICCommandLineControl::f_StdOut)(_Output.f_Extract(_Start, _Len)) > Results;
 				}
@@ -63,15 +63,15 @@ namespace NMib::NConcurrency
 		return fg_Move(Promise.m_Future);
 	}
 
-	TCFuture<void> CCommandLineControl::fsp_SendStdOutBinary(CCommandLineControl const &_This, uint8 const *_pData, mint _DataLen)
+	TCFuture<void> CCommandLineControl::fsp_SendStdOutBinary(CCommandLineControl const &_This, uint8 const *_pData, umint _DataLen)
 	{
 		TCFutureVector<void> Results;
 		NMisc::fg_ChunkRange
 			(
-				mint(0)
+				umint(0)
 				, _DataLen
 				, CActorDistributionManager::mc_HalfMaxMessageSize
-				, [&](mint _Start, mint _Len)
+				, [&](umint _Start, umint _Len)
 				{
 					CIOByteVector ToSend;
 					ToSend.f_Insert(_pData + _Start, _Len);
@@ -91,7 +91,7 @@ namespace NMib::NConcurrency
 		if (!m_ControlActor)
 			return g_Void;
 
-		mint OutputLen = _Output.f_GetLen();
+		umint OutputLen = _Output.f_GetLen();
 		if (OutputLen <= CActorDistributionManager::mc_HalfMaxMessageSize)
 			return m_ControlActor.f_CallActor(&ICCommandLineControl::f_StdOutBinary)(CIOByteVector::fs_AllowInsecureConversion(_Output));
 
@@ -103,7 +103,7 @@ namespace NMib::NConcurrency
 		if (!m_ControlActor)
 			return g_Void;
 
-		mint OutputLen = _Output.f_GetLen();
+		umint OutputLen = _Output.f_GetLen();
 		if (OutputLen <= CActorDistributionManager::mc_HalfMaxMessageSize)
 			return m_ControlActor.f_CallActor(&ICCommandLineControl::f_StdOutBinary)(CIOByteVector::fs_AllowInsecureConversion(_Output));
 
@@ -115,17 +115,17 @@ namespace NMib::NConcurrency
 		if (!m_ControlActor)
 			return g_Void;
 
-		mint OutputLen = _Output.f_GetLen();
+		umint OutputLen = _Output.f_GetLen();
 		if (OutputLen <= CActorDistributionManager::mc_HalfMaxMessageSize)
 			return m_ControlActor.f_CallActor(&ICCommandLineControl::f_StdErr)(_Output);
 
 		TCFutureVector<void> Results;
 		NMisc::fg_ChunkRange
 			(
-				mint(0)
+				umint(0)
 				, OutputLen
 				, CActorDistributionManager::mc_HalfMaxMessageSize
-				, [&](mint _Start, mint _Len)
+				, [&](umint _Start, umint _Len)
 				{
 					m_ControlActor.f_CallActor(&ICCommandLineControl::f_StdErr)(_Output.f_Extract(_Start, _Len)) > Results;
 				}

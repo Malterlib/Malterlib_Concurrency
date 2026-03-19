@@ -1791,7 +1791,7 @@ namespace NMib::NConcurrency::NPrivate
 	void fg_DeleteObject(tf_CAllocator &&_Allocator, TCPromiseData<tf_CType> *_pObject)
 	{
 		_pObject->~TCPromiseData<tf_CType>();
-		mint Size = sizeof(TCPromiseData<tf_CType>);
+		umint Size = sizeof(TCPromiseData<tf_CType>);
 		if (_pObject->m_BeforeSuspend.m_bAllocatedInCoroutineContext)
 		{
 			uint8 *pEndMemory = (uint8 *)_pObject->m_Coroutine.address();

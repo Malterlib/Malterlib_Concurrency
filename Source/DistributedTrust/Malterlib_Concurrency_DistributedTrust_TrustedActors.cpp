@@ -447,7 +447,7 @@ namespace NMib::NConcurrency
 		}
 
 		Namespace.m_bSubscribing = true;
-		mint SubscriptionSequence = ++Internal.m_NamespaceSubscriptionSequence;
+		umint SubscriptionSequence = ++Internal.m_NamespaceSubscriptionSequence;
 		Namespace.m_SubscriptionSequence = SubscriptionSequence;
 
 		auto DistributionManagerSubscription = co_await

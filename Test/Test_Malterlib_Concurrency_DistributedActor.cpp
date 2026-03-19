@@ -163,7 +163,7 @@ public:
 	}
 };
 
-constinit TCAtomic<mint> g_TestValueGetSubscription{0};
+constinit TCAtomic<umint> g_TestValueGetSubscription{0};
 
 struct CMultipleSubscriptions
 {
@@ -525,7 +525,7 @@ public:
 		CMultipleSubscriptionsVector Subscriptions;
 
 		m_ActorFunctors.f_Clear();
-		mint iFunctor = 0;
+		umint iFunctor = 0;
 		for (auto &Callback : _Callbacks)
 		{
 			Subscriptions.m_Subscriptions.f_Insert
@@ -1118,7 +1118,7 @@ class CDistributedActor_Tests : public NMib::NTest::CTest
 			DMibTestPath("SetSubscription");
 			TCDistributedActor<CDistributedActor> Actor = pState->f_CreateActor();
 			auto TestActor = fg_ConcurrentActor();
-			TCSharedPointer<TCAtomic<mint>> pTestValue = fg_Construct();
+			TCSharedPointer<TCAtomic<umint>> pTestValue = fg_Construct();
 			auto &TestValue = *pTestValue;
 
 			auto fSubscription = [&]() -> CActorSubscription
@@ -1198,8 +1198,8 @@ class CDistributedActor_Tests : public NMib::NTest::CTest
 			(
 				TCDistributedActor<CDistributedActor> const &_Actor
 				, TCActor<> const &_TestActor
-				, TCSharedPointer<TCAtomic<mint>> const &_pSubscription0Called
-				, TCSharedPointer<TCAtomic<mint>> const &_pSubscription1Called
+				, TCSharedPointer<TCAtomic<umint>> const &_pSubscription0Called
+				, TCSharedPointer<TCAtomic<umint>> const &_pSubscription1Called
 			)
 			{
 				return _Actor.f_CallActor(&CDistributedActor::f_RegisterActorFunctors)
@@ -1238,8 +1238,8 @@ class CDistributedActor_Tests : public NMib::NTest::CTest
 			(
 				TCDistributedActor<CDistributedActor> const &_Actor
 				, TCActor<> const &_TestActor
-				, TCSharedPointer<TCAtomic<mint>> const &_pSubscription0Called
-				, TCSharedPointer<TCAtomic<mint>> const &_pSubscription1Called
+				, TCSharedPointer<TCAtomic<umint>> const &_pSubscription0Called
+				, TCSharedPointer<TCAtomic<umint>> const &_pSubscription1Called
 			)
 			{
 				TCVector<TCActorFunctorWithID<TCFuture<CStr> (CStr _Test)>> Functors;
@@ -1282,22 +1282,22 @@ class CDistributedActor_Tests : public NMib::NTest::CTest
 				TCDistributedActor<CDistributedActor> Actor = pState->f_CreateActor();
 				auto TestActor = fg_ConcurrentActor();
 
-				TCSharedPointer<TCAtomic<mint>> pSubscription0Called = fg_Construct();
-				TCSharedPointer<TCAtomic<mint>> pSubscription1Called = fg_Construct();
+				TCSharedPointer<TCAtomic<umint>> pSubscription0Called = fg_Construct();
+				TCSharedPointer<TCAtomic<umint>> pSubscription1Called = fg_Construct();
 
 				auto Subscriptions = _fRegister(Actor, TestActor, pSubscription0Called, pSubscription1Called);
 
-				auto fCallFunctor = [&](mint _iFunctor)
+				auto fCallFunctor = [&](umint _iFunctor)
 					{
 						return Actor.f_CallActor(&CDistributedActor::f_CallActorFunctor)(_iFunctor, "Test").f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
 					}
 				;
-				auto fGetCleared = [&](mint _iFunctor)
+				auto fGetCleared = [&](umint _iFunctor)
 					{
 						return Actor.f_CallActor(&CDistributedActor::f_GetClearedActorFunctors)(_iFunctor).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
 					}
 				;
-				auto fClearActorFunctor = [&](mint _iFunctor)
+				auto fClearActorFunctor = [&](umint _iFunctor)
 					{
 						return Actor.f_CallActor(&CDistributedActor::f_ClearActorFunctor)(_iFunctor).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
 					}
@@ -1364,7 +1364,7 @@ class CDistributedActor_Tests : public NMib::NTest::CTest
 			DMibTestPath("GetActorFunctor");
 			TCDistributedActor<CDistributedActor> Actor = pState->f_CreateActor();
 			auto TestActor = fg_ConcurrentActor();
-			TCSharedPointer<TCAtomic<mint>> pTestValue = fg_Construct();
+			TCSharedPointer<TCAtomic<umint>> pTestValue = fg_Construct();
 			[[maybe_unused]] auto &TestValue = *pTestValue;
 
 			[[maybe_unused]] auto fSubscription = [&]() -> CActorSubscription
@@ -1439,7 +1439,7 @@ class CDistributedActor_Tests : public NMib::NTest::CTest
 			TCDistributedActor<CDistributedActor> Actor = pState->f_CreateActor();
 			auto Functor = Actor.f_CallActor(&CDistributedActor::f_TestAsyncGeneratorFunctor)().f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
 
-			for (mint i = 0; i < 2; ++i)
+			for (umint i = 0; i < 2; ++i)
 			{
 				DMibTestPath("Iteration {}"_f << i);
 				auto Generator = Functor(i).f_CallSync();
@@ -1487,7 +1487,7 @@ class CDistributedActor_Tests : public NMib::NTest::CTest
 			TCDistributedActor<CDistributedActor> Actor = pState->f_CreateActor();
 			auto Functor = Actor.f_CallActor(&CDistributedActor::f_TestAsyncGeneratorFunctor)().f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
 
-			for (mint i = 0; i < 2; ++i)
+			for (umint i = 0; i < 2; ++i)
 			{
 				DMibTestPath("Iteration {}"_f << i);
 				auto Generator = Functor(i).f_CallSync();
@@ -1630,7 +1630,7 @@ class CDistributedActor_Tests : public NMib::NTest::CTest
 
 			auto InterfaceActor = fg_ConstructDistributedActor<CDistributedActorInterface>(fg_GetDistributionManager());
 
-			TCSharedPointer<TCAtomic<mint>> pSubscriptionCalled = fg_Construct();
+			TCSharedPointer<TCAtomic<umint>> pSubscriptionCalled = fg_Construct();
 			TCDistributedActorInterfaceWithID<CDistributedActorInterface> Interface
 				{
 					InterfaceActor->f_ShareInterface<CDistributedActorInterface>()
@@ -1928,7 +1928,7 @@ class CDistributedActor_Tests : public NMib::NTest::CTest
 		NThread::CEventAutoReset RemoteEvent;
 		TCDistributedActor<CDistributedActorBase> RemoteActor;
 		CActorSubscription RemoteActorsSubscription;
-		mint RemoteEvents = 0;
+		umint RemoteEvents = 0;
 		bool bRemoved = false;
 
 		auto &ConcurrentActor = fg_ConcurrentActor();
@@ -2214,8 +2214,8 @@ class CDistributedActor_Tests : public NMib::NTest::CTest
 			CStr SubscriptionID = TestState.f_Subscribe("Test");
 			auto Actor = TestState.f_GetRemoteActor<CDistributedActor>(SubscriptionID);
 
-			mint CallOverhead = CActorDistributionManager::mc_RemoteCallOverhead + 4;
-			mint ReturnOverhead = CActorDistributionManager::mc_RemoteCallReturnOverhead + 4;
+			umint CallOverhead = CActorDistributionManager::mc_RemoteCallOverhead + 4;
+			umint ReturnOverhead = CActorDistributionManager::mc_RemoteCallReturnOverhead + 4;
 
 			{
 				CByteVector BigData;
@@ -2274,7 +2274,7 @@ class CDistributedActor_Tests : public NMib::NTest::CTest
 		struct CState
 		{
 			NThread::CMutual m_Lock;
-			mint m_nRemoteEvents = 0;
+			umint m_nRemoteEvents = 0;
 			bool m_bRemoved = false;
 			bool m_bAdded = false;
 		};
@@ -2362,7 +2362,7 @@ class CDistributedActor_Tests : public NMib::NTest::CTest
 			NThread::CMutual m_Lock;
 			NThread::CEventAutoReset m_RemoteEvent;
 			NThread::CEvent m_AllowCallbacksEvent;
-			mint m_nRemoteEvents = 0;
+			umint m_nRemoteEvents = 0;
 			bool m_bRemoved = false;
 			bool m_bAdded = false;
 		};

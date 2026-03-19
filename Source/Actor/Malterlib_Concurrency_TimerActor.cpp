@@ -60,7 +60,7 @@ namespace NMib::NConcurrency
 			COrdering_Strong operator <=> (CTimeMeasure const &_Right) const noexcept;
 
 			NIntrusive::TCAVLLink<> m_TreeLink;
-			mint m_NextCallbackID = 0;
+			umint m_NextCallbackID = 0;
 			NContainer::TCLinkedList<CTimerSubscriptionState> m_Callbacks;
 			TCActorFunctorWeak<TCFuture<void> ()> m_fOneshotCallback;
 
@@ -91,7 +91,7 @@ namespace NMib::NConcurrency
 		NTime::CStopwatch m_Stopwatch{true};
 
 #if DMibEnableSafeCheck > 0
-		mint m_ProcessingThread = 0;
+		umint m_ProcessingThread = 0;
 #endif
 		align_cacheline NAtomic::TCAtomic<smint> m_WaitTime;
 	};

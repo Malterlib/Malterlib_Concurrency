@@ -489,7 +489,7 @@ namespace NMib::NConcurrency
 
 	namespace NPrivate
 	{
-		template <typename tf_CActor, typename tf_CHolderType, typename... tfp_CHolderParams, typename... tfp_CParams, mint... tfp_Indidies>
+		template <typename tf_CActor, typename tf_CHolderType, typename... tfp_CHolderParams, typename... tfp_CParams, umint... tfp_Indidies>
 		TCActor<TCDistributedActorWrapper<tf_CActor>> fg_ConstructDistributedActorHelper
 			(
 				TCActor<CActorDistributionManager> const &_DistributionManager

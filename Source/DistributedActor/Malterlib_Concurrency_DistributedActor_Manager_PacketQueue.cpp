@@ -17,7 +17,7 @@ namespace NMib::NConcurrency
 
 			uint8 const *pDataBase = m_pData->f_GetArray();
 			uint8 Command = pDataBase[0];
-			mint Offset = 1;
+			umint Offset = 1;
 			// Priority commands have format: [cmd:1][priority:1][packetID:8]
 			if
 			(
@@ -135,7 +135,7 @@ namespace NMib::NConcurrency
 		uint8 Command = pDataBase[0];
 
 		uint8 Priority = 128;
-		mint PacketIDOffset = 1;
+		umint PacketIDOffset = 1;
 		if
 		(
 			Command == EDistributedActorCommand_RemoteCallWithPriority

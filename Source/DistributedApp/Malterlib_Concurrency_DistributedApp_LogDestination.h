@@ -25,7 +25,7 @@ namespace NMib::NConcurrency
 
 		void operator()
 			(
-				mint _ThreadID
+				umint _ThreadID
 				, NTime::CTime const &_Time
 				, NLog::ESeverity _Sev
 				, NLog::CLogStr const &_Message

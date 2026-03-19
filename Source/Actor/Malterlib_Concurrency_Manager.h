@@ -100,8 +100,8 @@ namespace NMib::NConcurrency
 
 		bool f_DestroyingAlwaysAliveActors() const;
 
-		mint f_GetConcurrency() const;
-		mint f_GetQueue() const;
+		umint f_GetConcurrency() const;
+		umint f_GetQueue() const;
 
 #if DMibConfig_Concurrency_DebugFutures
 		NThread::CLowLevelLock m_FutureListLock;
@@ -127,9 +127,9 @@ namespace NMib::NConcurrency
 		struct CQueue
 		{
 			align_cacheline CConcurrentRunQueueNonVirtualNoAlloc m_JobQueue;
-			NAtomic::TCAtomic<mint> m_Working;
+			NAtomic::TCAtomic<umint> m_Working;
 			align_cacheline CConcurrentRunQueueNonVirtualNoAlloc::CLocalQueueData m_JobQueueLocal;
-			mint m_iQueue;
+			umint m_iQueue;
 			EPriority m_Priority;
 			NThread::CEventAutoReset m_Event;
 			NStorage::TCUniquePointer<NThread::CThreadObjectNonTracked, NMemory::CAllocator_NonTrackedHeap> m_pThread;
@@ -141,17 +141,17 @@ namespace NMib::NConcurrency
 		};
 
 		void fp_RunThread(CQueue &_Queue, NThread::CThreadObjectNonTracked *_pThread);
-		void fp_QueueJob(EPriority _Priority, mint _iFixedCore, mint _iLastCore, FActorQueueDispatchNoAlloc &&_ToQueue, CConcurrencyThreadLocal &_ThreadLocal);
+		void fp_QueueJob(EPriority _Priority, umint _iFixedCore, umint _iLastCore, FActorQueueDispatchNoAlloc &&_ToQueue, CConcurrencyThreadLocal &_ThreadLocal);
 		bool fp_AddToQueue(CQueue &_Queue, FActorQueueDispatchNoAlloc &&_Functor, CConcurrencyThreadLocal &_ThreadLocal);
 		bool fp_AddToQueue(CQueue &_Queue, NStorage::TCUniquePointer<CConcurrentRunQueueEntry_FunctorNonVirtualNoAlloc> &&_pQueueEntry, CConcurrencyThreadLocal &_ThreadLocal);
 
-		inline_never mint fp_InitConcurrentActors();
+		inline_never umint fp_InitConcurrentActors();
 		void fp_DispatchOnCurrentThreadOrConcurrent(EPriority _Priority, FActorQueueDispatchNoAlloc &&_ToQueue, CConcurrencyThreadLocal &_ThreadLocal);
 		void fp_DispatchOnCurrentThreadOrConcurrentFirst(EPriority _Priority, FActorQueueDispatchNoAlloc &&_ToQueue, CConcurrencyThreadLocal &_ThreadLocal);
 
 		void fp_AddedActor();
 		void fp_RemovedActor();
-		mint fp_NumActors();
+		umint fp_NumActors();
 
 		struct align_cacheline CNumActorsPerQueue
 		{
@@ -166,14 +166,14 @@ namespace NMib::NConcurrency
 		NContainer::TCVector<CNumActorsPerQueue> m_nActorsPerQueue[EPriority_Max];
 		CNumActorsPerQueue *m_nActorsPerQueueArray[EPriority_Max];
 		NContainer::TCVector<CNumActorsOther> m_nActorsOther;
-		mint m_ActorsOtherMask;
+		umint m_ActorsOtherMask;
 
 #if DMibConfig_Concurrency_DebugBlockDestroy
 		NThread::CLowLevelLock m_ActorListLock;
 		DMibListLinkDS_List(CActorHolder, m_ActorLink) m_Actors;
 #endif
 
-		mint m_nThreads = 0;
+		umint m_nThreads = 0;
 		NContainer::TCVector<CQueue> m_Queues[EPriority_Max];
 
 		bool m_bDestroyed = false;
@@ -181,7 +181,7 @@ namespace NMib::NConcurrency
 		bool m_bStopped = false;
 		bool m_bShutdownLogging = false;
 
-		align_cacheline NAtomic::TCAtomic<mint> m_nConcurrentActors;
+		align_cacheline NAtomic::TCAtomic<umint> m_nConcurrentActors;
 		NThread::CLowLevelLock m_pConcurrentActorLock;
 
 		NContainer::TCVector<TCActor<CConcurrentActorImpl>> m_ConcurrentActors[EPriority_Max];
@@ -190,7 +190,7 @@ namespace NMib::NConcurrency
 		NThread::CLowLevelLock m_BlockingActorsLock;
 		NContainer::TCVector<NStorage::TCSharedPointer<CBlockingActorStorage>> m_BlockingActors;
 		DMibListLinkDS_List(CBlockingActorStorage, m_Link) m_FreeBlockingActors;
-		mint m_nBlockingActors = 0;
+		umint m_nBlockingActors = 0;
 
 		NAtomic::TCAtomic<bool> m_bTimerActorInit;
 		NThread::CLowLevelLock m_TimerActorLock;
@@ -238,9 +238,9 @@ namespace NMib::NConcurrency
 		CActorHolder *m_pCurrentlyDestructingActorHolder = nullptr;
 		CConcurrencyManager::CQueue *m_pThisQueue = nullptr;
 		CSystemThreadLocal &m_SystemThreadLocal;
-		mint m_iConcurrentActor[EPriority_Max];
-		mint m_JobQueueIndex[EPriority_Max];
-		mint m_nActorsIndex = NMisc::fg_GetRandomUnsigned();
+		umint m_iConcurrentActor[EPriority_Max];
+		umint m_JobQueueIndex[EPriority_Max];
+		umint m_nActorsIndex = NMisc::fg_GetRandomUnsigned();
 
 		NException::CExceptionPointer m_pNoResultException;
 		NException::CExceptionPointer m_pResultWasNotSetException;
@@ -262,10 +262,10 @@ namespace NMib::NConcurrency
 #if DMibEnableSafeCheck > 0
 		CActor *m_pCurrentlyConstructingActor = nullptr;
 		CActor *m_pCurrentlyDestructingActor = nullptr;
-		mint m_AllowWrongThreadDestroySequence = 0;
+		umint m_AllowWrongThreadDestroySequence = 0;
 #endif
 #if DMibConfig_Tests_Enable && !defined(DTests_PerfTests)
-		mint m_nWaits = 0;
+		umint m_nWaits = 0;
 		bool m_bForceWakeUp = false;
 		bool m_bForceBusyWait = false;
 #endif

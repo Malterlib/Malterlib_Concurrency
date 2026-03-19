@@ -19,7 +19,7 @@ namespace NMib::NConcurrency
 	template <typename t_CParams>
 	using TCSafeCallParamsToFunctionPointer = typename TCSafeCallParamsToFunctionPointerImpl<t_CParams>::CType;
 
-	template <typename tf_CReturn, typename ...tfp_CStorageParams, typename tf_CFunction, typename ...tfp_CParams, mint... tfp_Indices>
+	template <typename tf_CReturn, typename ...tfp_CStorageParams, typename tf_CFunction, typename ...tfp_CParams, umint... tfp_Indices>
 	auto fg_CallSafeImpl(tf_CFunction &&_Function, NMeta::TCIndices<tfp_Indices...> const &_Indices, tfp_CParams &&...p_Params)
 		requires NTraits::cIsCallableWith
 		<

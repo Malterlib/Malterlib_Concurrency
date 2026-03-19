@@ -250,10 +250,10 @@ namespace NMib::NConcurrency
 	class CDistributedActorTrustManagerAuthenticationActorFactoryPassword : public ICDistributedActorTrustManagerAuthenticationActorFactory
 	{
 		CAuthenticationActorInfo operator () (TCActor<CDistributedActorTrustManager> const &_TrustManager) override;
-		static mint ms_MakeActive;
+		static umint ms_MakeActive;
 	};
 
-	mint CDistributedActorTrustManagerAuthenticationActorFactoryPassword::ms_MakeActive;
+	umint CDistributedActorTrustManagerAuthenticationActorFactoryPassword::ms_MakeActive;
 
 	CAuthenticationActorInfo CDistributedActorTrustManagerAuthenticationActorFactoryPassword::operator ()(TCActor<CDistributedActorTrustManager> const &_TrustManager)
 	{

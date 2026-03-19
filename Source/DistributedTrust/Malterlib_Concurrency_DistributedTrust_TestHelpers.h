@@ -103,7 +103,7 @@ namespace NMib::NConcurrency
 		NContainer::TCVector<TCDistributedActor<tf_CActor>> f_SubscribeMultiple
 			(
 				CActorRunLoopTestHelper &_RunLoopHelper
-				, mint _nActors
+				, umint _nActors
 				, NStr::CStr const &_Namespace = tf_CActor::mc_pDefaultNamespace
 				, NStr::CStr const &_HostID = {}
 			)
@@ -112,7 +112,7 @@ namespace NMib::NConcurrency
 		template <typename tf_CActor>
 		TCFuture<NContainer::TCVector<TCDistributedActor<tf_CActor>>> f_SubscribeMultipleAsync
 			(
-				mint _nActors
+				umint _nActors
 				, NStr::CStr _Namespace = tf_CActor::mc_pDefaultNamespace
 				, NStr::CStr _HostID = {}
 			)
@@ -129,7 +129,7 @@ namespace NMib::NConcurrency
 			CInternal(TCActor<CDistributedActorTrustManager> const &_TrustManager);
 
 			template <typename tf_CActor>
-			TCFuture<NContainer::TCVector<TCDistributedActor<tf_CActor>>> f_Subscribe(mint _nActors, NStr::CStr _Namespace, NStr::CStr _HostID);
+			TCFuture<NContainer::TCVector<TCDistributedActor<tf_CActor>>> f_Subscribe(umint _nActors, NStr::CStr _Namespace, NStr::CStr _HostID);
 
 		private:
 			TCActor<CDistributedActorTrustManager> mp_TrustManager;

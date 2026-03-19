@@ -90,13 +90,13 @@ namespace NMib::NConcurrency
 		CParamsType mp_Params;
 
 	private:
-		template <mint ...tfp_Indices>
+		template <umint ...tfp_Indices>
 		inline_always void fp_CallDiscard(NMeta::TCIndices<tfp_Indices...> _Indices) &&;
 
-		template <mint ...tfp_Indices>
+		template <umint ...tfp_Indices>
 		inline_always TCFuture<t_CReturn> fp_Call(NMeta::TCIndices<tfp_Indices...> _Indices) &&;
 
-		template <typename tf_FOnResult, mint ...tfp_Indices>
+		template <typename tf_FOnResult, umint ...tfp_Indices>
 		inline_always void fp_CallOnResult(tf_FOnResult &&_fOnResult, NMeta::TCIndices<tfp_Indices...> _Indices) &&;
 	};
 

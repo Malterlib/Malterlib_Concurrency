@@ -19,7 +19,7 @@ namespace NMib::NConcurrency
 
 	class CActorHolder;
 
-	constexpr static mint gc_FutureOnResultStorage = sizeof(void *) * 3;
+	constexpr static umint gc_FutureOnResultStorage = sizeof(void *) * 3;
 
 //#define DMibCheckOnResultSizes
 #ifdef DMibCheckOnResultSizes
@@ -311,7 +311,7 @@ namespace NMib::NConcurrency
 	template <typename t_CHolder>
 	using TCActorHolderWeakPointer = NStorage::TCWeakPointer<t_CHolder, CInternalActorAllocator>;
 
-	enum EPriority : mint
+	enum EPriority : umint
 	{
 		EPriority_Low
 		, EPriority_NormalHighCPU
@@ -454,7 +454,7 @@ namespace NMib::NConcurrency
 			uint8 m_Dummy[sizeof(TCActorHolderWeakPointer<CActorInternal>)];
 		};
 
-		template <typename tf_CType, typename ...tfp_CParams, typename ...tfp_CHolderParams, mint... tfp_Indidies>
+		template <typename tf_CType, typename ...tfp_CParams, typename ...tfp_CHolderParams, umint... tfp_Indidies>
 		void fp_Construct(TCConstruct<void, TCConstruct<tf_CType, tfp_CParams...>, tfp_CHolderParams...> &&_Construct, NMeta::TCIndices<tfp_Indidies...> const&);
 
 	public:
@@ -717,13 +717,13 @@ namespace NMib::NConcurrency
 
 	struct CRoundRobinBlockingActors
 	{
-		CRoundRobinBlockingActors(mint _Capacity);
+		CRoundRobinBlockingActors(umint _Capacity);
 
 		CBlockingActorCheckout &operator *();
 
 		NContainer::TCVector<CBlockingActorCheckout> m_Checkouts;
-		mint m_Capacity = 1;
-		mint m_iCheckout = 0;
+		umint m_Capacity = 1;
+		umint m_iCheckout = 0;
 	};
 
 	TCFuture<void> fg_DestroySubscription(CActorSubscription &_Subscription);

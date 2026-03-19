@@ -277,7 +277,7 @@ namespace NMib::NConcurrency
 			co_return {};
 		}
 
-		mint ConnectionID = m_NextConnectionID++;
+		umint ConnectionID = m_NextConnectionID++;
 
 		NStorage::TCSharedPointer<CServerConnection, NStorage::CSupportWeakTag> pConnection = fg_Construct(ConnectionID);
 
@@ -497,7 +497,7 @@ namespace NMib::NConcurrency
 
 		NContainer::TCVector<NNetwork::CNetAddress> Addresses;
 
-		mint iResult = 0;
+		umint iResult = 0;
 		for (auto &Address : ResolveResults)
 		{
 			auto Port = _Settings.m_ListenAddresses[iResult].f_GetPortFromScheme();

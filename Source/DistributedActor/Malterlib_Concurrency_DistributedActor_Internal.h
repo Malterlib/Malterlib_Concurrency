@@ -83,7 +83,7 @@ namespace NMib::NConcurrency::NActorDistributionManagerInternal
 
 		NStr::CStr m_ConnectionID;
 		NWeb::NHTTP::CURL m_ServerURL;
-		mint m_ConnectionSequence = 0;
+		umint m_ConnectionSequence = 0;
 		bool m_bConnected = false;
 		bool m_bAnonymous = false;
 		bool m_bRetryConnectOnFailure = false;
@@ -96,10 +96,10 @@ namespace NMib::NConcurrency::NActorDistributionManagerInternal
 
 	struct CServerConnection : public CConnection
 	{
-		CServerConnection(mint _ConnectionID);
+		CServerConnection(umint _ConnectionID);
 		NStr::CStr f_GetConnectionID() const override;
 
-		mint const m_ConnectionID;
+		umint const m_ConnectionID;
 		NStr::CStr m_ListenID;
 	};
 
@@ -352,9 +352,9 @@ namespace NMib::NConcurrency::NActorDistributionManagerInternal
 
 	struct CActorPublicationSubscriptionInstance
 	{
-		mint f_GetID() const
+		umint f_GetID() const
 		{
-			return NContainer::TCMap<mint, CActorPublicationSubscriptionInstance>::fs_GetKey(this);
+			return NContainer::TCMap<umint, CActorPublicationSubscriptionInstance>::fs_GetKey(this);
 		}
 
 		TCActor<CActor> m_DispatchActor;
@@ -367,7 +367,7 @@ namespace NMib::NConcurrency::NActorDistributionManagerInternal
 		CActorPublicationSubscription();
 		~CActorPublicationSubscription();
 
-		NContainer::TCMap<mint, CActorPublicationSubscriptionInstance> m_Instances;
+		NContainer::TCMap<umint, CActorPublicationSubscriptionInstance> m_Instances;
 	};
 
 	struct CListen
@@ -432,8 +432,8 @@ namespace NMib::NConcurrency
 		~CActorDistributionManagerInternal();
 
 		NContainer::TCMap<NStr::CStr, NStorage::TCSharedPointer<CClientConnection, NStorage::CSupportWeakTag>> m_ClientConnections;
-		NContainer::TCMap<mint, NStorage::TCSharedPointer<CServerConnection, NStorage::CSupportWeakTag>> m_ServerConnections;
-		mint m_NextConnectionID = 0;
+		NContainer::TCMap<umint, NStorage::TCSharedPointer<CServerConnection, NStorage::CSupportWeakTag>> m_ServerConnections;
+		umint m_NextConnectionID = 0;
 
 		NContainer::TCMap<NStr::CStr, NStorage::TCSharedPointerSupportWeak<CHost>> m_Hosts;
 		NContainer::TCMap<NStr::CStr, DMibListLinkDS_List(CHost, m_RealHostsLink)> m_HostsByRealHostID;
@@ -453,7 +453,7 @@ namespace NMib::NConcurrency
 		NContainer::TCLinkedList<COnHostInfoChanged> m_OnHostInfoChanged;
 
 		NContainer::TCMap<NStr::CStr, CActorPublicationSubscription> m_SubscribedActors;
-		mint m_SubscribedActorsNextInstanceID = 0;
+		umint m_SubscribedActorsNextInstanceID = 0;
 
 		NWeb::CWebsocketSettings m_WebsocketSettings{.m_MaxMessageSize = CActorDistributionManager::mc_MaxMessageSize};
 
@@ -497,7 +497,7 @@ namespace NMib::NConcurrency
 			(
 				NStorage::TCSharedPointer<CClientConnection, NStorage::CSupportWeakTag> const &_pConnection
 				, bool _bRetry
-				, mint _Sequence
+				, umint _Sequence
 				, NStr::CStr const &_ConnectionError
 				, bool _bResetHost = false
 			)

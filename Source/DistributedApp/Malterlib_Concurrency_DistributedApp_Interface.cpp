@@ -388,7 +388,7 @@ namespace NMib::NConcurrency
 					co_return {};
 				}
 				, EStdInReaderFlag_None
-				, TCLimitsInt<mint>::mc_Max
+				, TCLimitsInt<umint>::mc_Max
 			)
 		;
 		DMibConErrOut("{}\n", _RequestMagic);

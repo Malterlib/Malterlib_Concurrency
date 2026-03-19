@@ -151,7 +151,7 @@ namespace NMib::NConcurrency
 		uint32 m_CommandLineHeight = 0;
 		NCommandLine::EAnsiEncodingFlag m_AnsiFlags = NCommandLine::EAnsiEncodingFlag_None;
 	private:
-		static TCFuture<void> fsp_SendStdOutBinary(CCommandLineControl const &_This, uint8 const *_pData, mint _DataLen);
+		static TCFuture<void> fsp_SendStdOutBinary(CCommandLineControl const &_This, uint8 const *_pData, umint _DataLen);
 	};
 
 	struct ICCommandLine : public CActor

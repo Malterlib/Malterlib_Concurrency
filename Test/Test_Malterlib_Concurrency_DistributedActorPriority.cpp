@@ -421,7 +421,7 @@ namespace NDistributedActorPriorityTests
 					// Get call order and verify priorities are correct
 					auto CallOrder = Actor.f_CallActor(&CPriorityTestActor::f_GetCallOrder)().f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
 
-					DMibExpect(CallOrder.f_GetLen(), ==, mint(6));
+					DMibExpect(CallOrder.f_GetLen(), ==, umint(6));
 
 					// Verify each call recorded the correct priority
 					for (auto const &Call : CallOrder)
@@ -512,7 +512,7 @@ namespace NDistributedActorPriorityTests
 					auto Actor = TestState.f_GetRemoteActor<CPriorityTestActor>(SubscriptionID);
 
 					// Rapid switching between priorities
-					for (mint i = 0; i < 5; ++i)
+					for (umint i = 0; i < 5; ++i)
 					{
 						uint8 PriorityHigh, PriorityLow;
 						{

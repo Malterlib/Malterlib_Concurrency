@@ -145,7 +145,7 @@ namespace NMib::NConcurrency::NTest
 		{
 		}
 
-		mint m_Test = 0;
+		umint m_Test = 0;
 	};
 
 	struct CTestDestruction
@@ -168,7 +168,7 @@ namespace NMib::NConcurrency::NTest
 			}
 		}
 
-		mint m_Test = 20;
+		umint m_Test = 20;
 	};
 
 	struct CTestActor : public CActor
@@ -946,7 +946,7 @@ namespace NMib::NConcurrency::NTest
 			auto fResultContainer = [&]
 				{
 					TCFutureVector<uint32> Results;
-					for (mint i = 0; i < 10; ++i)
+					for (umint i = 0; i < 10; ++i)
 						m_TestActor(&CTestActor2::f_Test) > Results;
 					return Results;
 				}
@@ -968,7 +968,7 @@ namespace NMib::NConcurrency::NTest
 			auto fResultContainer = [&]
 				{
 					TCFutureVector<void> Results;
-					for (mint i = 0; i < 10; ++i)
+					for (umint i = 0; i < 10; ++i)
 						m_TestActor(&CTestActor2::f_TestVoid) > Results;
 					return Results;
 				}
@@ -1569,19 +1569,19 @@ namespace NMib::NConcurrency::NTest
 			co_return _pValue->f_ToInt();
 		}
 
-		mint m_DummyMember0 = 0;
-		mint m_DummyMember1 = 1;
+		umint m_DummyMember0 = 0;
+		umint m_DummyMember1 = 1;
 	};
 
 	class CCoroutines_Tests : public NMib::NTest::CTest
 	{
 		TCFuture<void> fp_BlockOnAllThreads()
 		{
-			mint nThreads = NSys::fg_Thread_GetVirtualCores();
+			umint nThreads = NSys::fg_Thread_GetVirtualCores();
 
 			TCFutureVector<void> Results;
 
-			for (mint i = 0; i < nThreads; ++i)
+			for (umint i = 0; i < nThreads; ++i)
 				fg_ConcurrentDispatch([]{}) > Results;
 
 			co_await fg_AllDone(Results);
@@ -2802,7 +2802,7 @@ namespace NMib::NConcurrency::NTest
 						(
 							[pTestState]() -> TCFuture<void>
 							{
-								for (mint i = 0; i < 10; ++i)
+								for (umint i = 0; i < 10; ++i)
 								{
 									CToAsyncDestroy Variable(pTestState);
 									auto AsyncDestroy = co_await fg_AsyncDestroy(Variable);
@@ -2834,7 +2834,7 @@ namespace NMib::NConcurrency::NTest
 						(
 							[pTestState]() -> TCFuture<void>
 							{
-								for (mint i = 0; i < 10; ++i)
+								for (umint i = 0; i < 10; ++i)
 								{
 									{
 										CToAsyncDestroy Variable(pTestState);

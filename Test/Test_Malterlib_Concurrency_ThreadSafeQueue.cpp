@@ -10,12 +10,12 @@ namespace NMib
 		{
 			struct CNode
 			{
-				mint m_Next;
-				mint m_Prev;
+				umint m_Next;
+				umint m_Prev;
 			};
 
-			NAtomic::TCAtomic<mint> m_First;
-			NAtomic::TCAtomic<mint> m_Last;
+			NAtomic::TCAtomic<umint> m_First;
+			NAtomic::TCAtomic<umint> m_Last;
 
 			void f_Push(CNode *_pData)
 			{

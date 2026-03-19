@@ -810,8 +810,8 @@ namespace NTestTrustManager
 				TCActor<CSeparateThreadActor> DispatchActor = fg_ConstructActor<CSeparateThreadActor>(fg_Construct("Dispatch"));
 
 				CStr DispatchError;
-				TCAtomic<mint> nCalls = 0;
-				TCAtomic<mint> nPriorityCalls = 0;
+				TCAtomic<umint> nCalls = 0;
+				TCAtomic<umint> nPriorityCalls = 0;
 				TCAtomic<bool> bPriorityError = false;
 				TCAtomic<bool> bAbort = false;
 				auto Cleanup = g_OnScopeExit / [&]
@@ -862,7 +862,7 @@ namespace NTestTrustManager
 				;
 
 				{
-					mint ExpectedCalls = nCalls.f_Load() + 10;
+					umint ExpectedCalls = nCalls.f_Load() + 10;
 					bool bTimedOutPreDisconnect = fp_WaitForCondition
 						(
 							[&]
@@ -878,11 +878,11 @@ namespace NTestTrustManager
 
 				bool bTimedOut = false;
 
-				for (mint i = 0; i < 4 && !bTimedOut; ++i)
+				for (umint i = 0; i < 4 && !bTimedOut; ++i)
 				{
 					ClientTrustManager(&CDistributedActorTrustManager::f_RemoveClientConnection, ServerAddress, true).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
 
-					mint ExpectedCalls = nCalls.f_Load() + 10;
+					umint ExpectedCalls = nCalls.f_Load() + 10;
 
 					auto TrustTicket = ServerTrustManager(&CDistributedActorTrustManager::f_GenerateConnectionTicket, ServerAddress, nullptr, nullptr)
 						.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
@@ -950,8 +950,8 @@ namespace NTestTrustManager
 				;
 
 				CStr DispatchError;
-				TCAtomic<mint> nCalls = 0;
-				TCAtomic<mint> nPriorityCalls = 0;
+				TCAtomic<umint> nCalls = 0;
+				TCAtomic<umint> nPriorityCalls = 0;
 				TCAtomic<bool> bPriorityError = false;
 				TCAtomic<bool> bAbort = false;
 				auto Cleanup = g_OnScopeExit / [&]
@@ -1003,7 +1003,7 @@ namespace NTestTrustManager
 
 				bool bTimedOut = false;
 
-				for (mint i = 0; i < 2 && !bTimedOut; ++i)
+				for (umint i = 0; i < 2 && !bTimedOut; ++i)
 				{
 					ClientTrustManager
 						(
@@ -1021,7 +1021,7 @@ namespace NTestTrustManager
 						).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
 					;
 
-					mint ExpectedCalls = nCalls.f_Load() + 2;
+					umint ExpectedCalls = nCalls.f_Load() + 2;
 					bTimedOut = fp_WaitForCondition
 						(
 							[&]
@@ -1046,7 +1046,7 @@ namespace NTestTrustManager
 			}
 			{
 				DMibTestPath("Host Cleanup");
-				for (mint i = 0; i < 2; ++i)
+				for (umint i = 0; i < 2; ++i)
 				{
 					DMibTestPath(i == 0 ? "Server" : "Client");
 
@@ -1090,8 +1090,8 @@ namespace NTestTrustManager
 					TCActor<CSeparateThreadActor> DispatchActor = fg_ConstructActor<CSeparateThreadActor>(fg_Construct("Dispatch"));
 
 					CStr DispatchError;
-					TCAtomic<mint> nCalls = 0;
-					TCAtomic<mint> nPriorityCalls = 0;
+					TCAtomic<umint> nCalls = 0;
+					TCAtomic<umint> nPriorityCalls = 0;
 					TCAtomic<bool> bPriorityError = false;
 					TCAtomic<bool> bAbort = false;
 					TCAtomic<bool> bHasError = false;
@@ -1143,7 +1143,7 @@ namespace NTestTrustManager
 						.f_DiscardResult()
 					;
 
-					mint ExpectedCalls = nCalls.f_Load() + 2;
+					umint ExpectedCalls = nCalls.f_Load() + 2;
 					bool bTimedOut = fp_WaitForCondition
 						(
 							[&]
@@ -1341,12 +1341,12 @@ namespace NTestTrustManager
 				TCDistributedActor<CTestActor> Actor = ClientHelper.f_GetRemoteActor<CTestActor>(Subscription);
 
 #if defined(DMibSanitizerEnabled_Thread)
-				mint nEnclaves = 8;
+				umint nEnclaves = 8;
 #else
-				mint nEnclaves = 128;
+				umint nEnclaves = 128;
 #endif
 				TCVector<TCActor<CDistributedActorTrustManager>> ClientTrustManagers;
-				for (mint i = 0; i < nEnclaves; ++i)
+				for (umint i = 0; i < nEnclaves; ++i)
 				{
 					CDistributedActorTrustManager::COptions Options{.m_ReconnectDelay = 1_ms};
 					Options.m_Enclave = NCryptography::fg_RandomID();
@@ -1640,10 +1640,10 @@ namespace NTestTrustManager
 					TrustedSubscription0.f_Destroy().f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
 					TrustedSubscription1.f_Destroy().f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
 				}
-				auto fWaitForSubscribed = [&](auto &_Subscription, mint _nSubScribed)
+				auto fWaitForSubscribed = [&](auto &_Subscription, umint _nSubScribed)
 					{
 						NTime::CStopwatch Stopwatch{true};
-						mint nSubscribed = 0;
+						umint nSubscribed = 0;
 						while (Stopwatch.f_GetTime() < 10.0)
 						{
 							nSubscribed = fg_Dispatch
@@ -1884,18 +1884,18 @@ namespace NTestTrustManager
 					TCFutureVector<TCOptional<TCFuture<TCTrustedActorSubscription<CTestActor>>>> Dispatches;
 					TCFutureVector<TCTrustedActorSubscription<CTestActor>> SubscribesFutures;
 #if DMibConfig_RefCountDebugging || defined(DMibSanitizerEnabled_Thread)
-					constexpr mint c_nLoops = 100;
+					constexpr umint c_nLoops = 100;
 #elif DMibConfig_Concurrency_DebugSubscriptions
-					constexpr mint c_nLoops = 10000;
+					constexpr umint c_nLoops = 10000;
 #else
-					constexpr mint c_nLoops = 100000;
+					constexpr umint c_nLoops = 100000;
 #endif
 					SubscribesFutures.f_SetLen(c_nLoops);
 					Dispatches.f_SetLen(c_nLoops);
 
 					DMibLog(Info, "Starting Stress {}", c_nLoops);
 
-					for (mint i = 0; i < c_nLoops; ++i)
+					for (umint i = 0; i < c_nLoops; ++i)
 					{
 						fg_ConcurrentDispatch
 							(
@@ -1936,7 +1936,7 @@ namespace NTestTrustManager
 				}
 				{
 					DMibTestPath("Notifications");
-					NAtomic::TCAtomic<mint> nActors{0};
+					NAtomic::TCAtomic<umint> nActors{0};
 					CStr Published = ServerHelper.f_Publish<CTestActor>(ServerHelper.f_GetManager()->f_ConstructActor<CTestActor>(), "com.malterlib/Test");
 					CStr Subscription0 = ClientHelper.f_Subscribe("com.malterlib/Test");
 					auto TrustedSubscription0 = ClientTrustManager
@@ -2190,7 +2190,7 @@ namespace NTestTrustManager
 						).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
 					;
 
-					NAtomic::TCAtomic<mint> nPermissions{0};
+					NAtomic::TCAtomic<umint> nPermissions{0};
 					TrustedSubscription.f_OnPermissionsAdded
 						(
 							g_ActorFunctorWeak / [&](CPermissionIdentifiers, TCMap<CStr, CPermissionRequirements> _PermissionsAdded) -> TCFuture<void>
@@ -3649,7 +3649,7 @@ namespace NTestTrustManager
 							}
 							, [BaseDirectory]
 							{
-								for (mint i = 0; i < 5; ++i)
+								for (umint i = 0; i < 5; ++i)
 								{
 									try
 									{

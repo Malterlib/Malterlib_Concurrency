@@ -240,7 +240,7 @@ namespace NMib::NConcurrency
 
 	void CDistributedActorTrustManager::CInternal::f_ApplyConnectionConcurrency(CConnectionState &_ConnectionState)
 	{
-		mint ConnectionConcurrency = _ConnectionState.m_ClientConnection.f_GetEffectiveConnectionConcurrency(m_DefaultConnectionConcurrency);
+		umint ConnectionConcurrency = _ConnectionState.m_ClientConnection.f_GetEffectiveConnectionConcurrency(m_DefaultConnectionConcurrency);
 		if (ConnectionConcurrency == _ConnectionState.m_ConnectionReferences.f_GetLen())
 			return;
 
@@ -279,7 +279,7 @@ namespace NMib::NConcurrency
 						return;
 					}
 
-					mint ConnectionConcurrency = pConnectionState->m_ClientConnection.f_GetEffectiveConnectionConcurrency(m_DefaultConnectionConcurrency);
+					umint ConnectionConcurrency = pConnectionState->m_ClientConnection.f_GetEffectiveConnectionConcurrency(m_DefaultConnectionConcurrency);
 					if (pConnectionState->m_ConnectionReferences.f_GetLen() >= ConnectionConcurrency)
 						return; // Settings changed asynchronously
 

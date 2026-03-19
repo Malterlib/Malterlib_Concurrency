@@ -210,7 +210,7 @@ namespace NMib::NConcurrency
 
 		m_SystemThreadLocal.m_PromiseThreadLocal.m_pConcurrencyThreadLocal = this;
 
-		for (mint iQueue = 0; iQueue < EPriority_Max; ++iQueue)
+		for (umint iQueue = 0; iQueue < EPriority_Max; ++iQueue)
 		{
 			NMisc::CRandomShiftRNG RandomGenerator
 				{
@@ -220,9 +220,9 @@ namespace NMib::NConcurrency
 				}
 			;
 #ifdef DMibConcurrency
-			mint nThreads = DMibConcurrency;
+			umint nThreads = DMibConcurrency;
 #else
-			mint nThreads = NSys::fg_Thread_GetVirtualCores();
+			umint nThreads = NSys::fg_Thread_GetVirtualCores();
 #endif
 			m_JobQueueIndex[iQueue] = RandomGenerator.f_GetValue<uint32>(0, nThreads);
 			m_iConcurrentActor[iQueue] = RandomGenerator.f_GetValue<uint32>(0, nThreads);
@@ -267,9 +267,9 @@ namespace NMib::NConcurrency
 		NTime::CSystem_Time::fs_TimeInitDone();
 
 #ifdef DMibConcurrency
-		mint nThreads = DMibConcurrency;
+		umint nThreads = DMibConcurrency;
 #else
-		mint nThreads = NSys::fg_Thread_GetVirtualCores();
+		umint nThreads = NSys::fg_Thread_GetVirtualCores();
 #endif
 		m_nThreads = nThreads;
 		for (EPriority Priority = EPriority_Low; Priority < EPriority_Max; Priority = static_cast<EPriority>(Priority + 1))
@@ -281,7 +281,7 @@ namespace NMib::NConcurrency
 			auto &nActors = (m_nActorsPerQueue[Priority] = NContainer::TCVector<CNumActorsPerQueue>(nThreads));
 			m_nActorsPerQueueArray[Priority] = nActors.f_GetArray();
 
-			for (mint i = 0; i < nThreads; ++i)
+			for (umint i = 0; i < nThreads; ++i)
 			{
 				auto *pQueue = &Queues[i];
 				pQueue->m_iQueue = i;
@@ -354,7 +354,7 @@ namespace NMib::NConcurrency
 		f_BlockOnDestroy();
 		m_bStopped = true;
 		// Signal thread quit
-		for (mint Prio = 0; Prio < EPriority_Max; ++Prio)
+		for (umint Prio = 0; Prio < EPriority_Max; ++Prio)
 		{
 			auto &Queue = m_Queues[Prio];
 			for (auto &Queue : Queue)
@@ -367,7 +367,7 @@ namespace NMib::NConcurrency
 			}
 		}
 
-		for (mint Prio = 0; Prio < EPriority_Max; ++Prio)
+		for (umint Prio = 0; Prio < EPriority_Max; ++Prio)
 		{
 			auto &Queue = m_Queues[Prio];
 			for (auto &Queue : Queue)
@@ -395,7 +395,7 @@ namespace NMib::NConcurrency
 				while (bDoneSomething)
 				{
 					bDoneSomething = false;
-					for (mint Prio = 0; Prio < EPriority_Max; ++Prio)
+					for (umint Prio = 0; Prio < EPriority_Max; ++Prio)
 					{
 						auto &Queue = m_Queues[Prio];
 						for (auto &Queue : Queue)
@@ -420,12 +420,12 @@ namespace NMib::NConcurrency
 		// Finally delete the concurrent actor
 		{
 			DMibLock(m_pConcurrentActorLock);
-			for (mint Prio = EPriority_Low; Prio < EPriority_Max; ++Prio)
+			for (umint Prio = EPriority_Low; Prio < EPriority_Max; ++Prio)
 			{
 				for (auto &Actor : m_ConcurrentActors[Prio])
 					Actor->fp_Terminate();
 			}
-			for (mint Prio = EPriority_Low; Prio < EPriority_Max; ++Prio)
+			for (umint Prio = EPriority_Low; Prio < EPriority_Max; ++Prio)
 				m_ConcurrentActors[Prio].f_Clear();
 
 			m_nThreads = 0;
@@ -439,7 +439,7 @@ namespace NMib::NConcurrency
 		if (!m_bStopped)
 			f_Stop();
 
-		for (mint i = 0; i < EPriority_Max; ++i)
+		for (umint i = 0; i < EPriority_Max; ++i)
 		{
 			for (auto &Queue : m_Queues[i])
 			{
@@ -459,7 +459,7 @@ namespace NMib::NConcurrency
 					DMibTrace("    TCFuture<{}>   RefCount {}{\n}", Future.m_FutureTypeName, Future.m_RefCount.f_Get());
 
 	#if DMibConfig_RefCountDebugging
-					[[maybe_unused]] mint iCallstack = 0;
+					[[maybe_unused]] umint iCallstack = 0;
 					DMibLock(Future.m_RefCount.m_Debug->m_Lock);
 					for (auto &Callstack : Future.m_RefCount.m_Debug->m_Callstacks)
 					{
@@ -555,7 +555,7 @@ namespace NMib::NConcurrency
 			return;
 		}
 
-		mint nActors = m_nConcurrentActors.f_Load(NAtomic::gc_MemoryOrder_Acquire);
+		umint nActors = m_nConcurrentActors.f_Load(NAtomic::gc_MemoryOrder_Acquire);
 		if (!nActors)
 			nActors = fp_InitConcurrentActors();
 
@@ -581,7 +581,7 @@ namespace NMib::NConcurrency
 			return;
 		}
 
-		mint nActors = m_nConcurrentActors.f_Load(NAtomic::gc_MemoryOrder_Acquire);
+		umint nActors = m_nConcurrentActors.f_Load(NAtomic::gc_MemoryOrder_Acquire);
 		if (!nActors)
 			nActors = fp_InitConcurrentActors();
 
@@ -599,18 +599,18 @@ namespace NMib::NConcurrency
 		fp_DispatchOnCurrentThreadOrConcurrent(_Priority, fg_Move(_ToQueue), fg_ConcurrencyThreadLocal());
 	}
 
-	void CConcurrencyManager::fp_QueueJob(EPriority _Priority, mint _iFixedQueue, mint _iLastQueue, FActorQueueDispatchNoAlloc &&_ToQueue, CConcurrencyThreadLocal &_ThreadLocal)
+	void CConcurrencyManager::fp_QueueJob(EPriority _Priority, umint _iFixedQueue, umint _iLastQueue, FActorQueueDispatchNoAlloc &&_ToQueue, CConcurrencyThreadLocal &_ThreadLocal)
 	{
 		auto pQueueEntry = CConcurrentRunQueueNonVirtualNoAlloc::fs_QueueEntry(fg_Move(_ToQueue));
 
-		mint iJobQueue;
+		umint iJobQueue;
 		if (_iFixedQueue < m_nThreads)
 			iJobQueue = _iFixedQueue;
 		else
 		{
 			do
 			{
-				mint iThisQueue = TCLimitsInt<mint>::mc_Max;
+				umint iThisQueue = TCLimitsInt<umint>::mc_Max;
 				if (_ThreadLocal.m_pThisQueue)
 				{
 					iThisQueue = _ThreadLocal.m_pThisQueue->m_iQueue;
@@ -628,7 +628,7 @@ namespace NMib::NConcurrency
 
 				if (_ThreadLocal.m_pCurrentlyProcessingActorHolder && _ThreadLocal.m_bCurrentlyProcessingInActorHolder)
 				{
-					mint iCurrentQueue = _ThreadLocal.m_pCurrentlyProcessingActorHolder->mp_iFixedQueue;
+					umint iCurrentQueue = _ThreadLocal.m_pCurrentlyProcessingActorHolder->mp_iFixedQueue;
 					if (iCurrentQueue < m_nThreads)
 					{
 						iJobQueue = iCurrentQueue;
@@ -641,7 +641,7 @@ namespace NMib::NConcurrency
 					auto &Queue = m_Queues[_Priority].f_GetArray()[_iLastQueue];
 					if (Queue.m_JobQueue.f_AddToQueueIfEmpty(fg_Move(pQueueEntry)))
 					{
-						mint Value = Queue.m_Working.f_FetchAdd(1);
+						umint Value = Queue.m_Working.f_FetchAdd(1);
 						if (Value == 0)
 							Queue.f_Signal(this);
 						return;
@@ -665,7 +665,7 @@ namespace NMib::NConcurrency
 			Queue.f_Signal(this);
 	}
 
-	constexpr static const mint gc_ProcessingMask = DMibBitTyped(sizeof(mint) * 8 - 1, mint);
+	constexpr static const umint gc_ProcessingMask = DMibBitTyped(sizeof(umint) * 8 - 1, umint);
 
 	bool CConcurrencyManager::fp_AddToQueue(CQueue &_Queue, NStorage::TCUniquePointer<CConcurrentRunQueueEntry_FunctorNonVirtualNoAlloc> &&_pQueueEntry, CConcurrencyThreadLocal &_ThreadLocal)
 	{
@@ -679,7 +679,7 @@ namespace NMib::NConcurrency
 		}
 		_Queue.m_JobQueue.f_AddToQueue(fg_Move(_pQueueEntry));
 
-		mint Value = _Queue.m_Working.f_FetchAdd(1);
+		umint Value = _Queue.m_Working.f_FetchAdd(1);
 		return Value == 0;
 	}
 
@@ -695,7 +695,7 @@ namespace NMib::NConcurrency
 		}
 		_Queue.m_JobQueue.f_AddToQueue(fg_Move(_Functor));
 
-		mint Value = _Queue.m_Working.f_FetchAdd(1);
+		umint Value = _Queue.m_Working.f_FetchAdd(1);
 		return Value == 0;
 	}
 
@@ -724,7 +724,7 @@ namespace NMib::NConcurrency
 				while (bDoMore)
 				{
 					bDoMore = false;
-					mint OriginalWorking = _Queue.m_Working.f_FetchOr(gc_ProcessingMask);
+					umint OriginalWorking = _Queue.m_Working.f_FetchOr(gc_ProcessingMask);
 					if ((OriginalWorking & gc_ProcessingMask) == 0)
 					{
 						auto UnLock
@@ -732,7 +732,7 @@ namespace NMib::NConcurrency
 							(
 								[&]
 								{
-									mint NewWorking = _Queue.m_Working.f_Exchange(0);
+									umint NewWorking = _Queue.m_Working.f_Exchange(0);
 									if ((NewWorking & (~gc_ProcessingMask)) != OriginalWorking)
 										bDoMore = true;
 								}
@@ -802,7 +802,7 @@ namespace NMib::NConcurrency
 		m_nActorsOther[(ThreadLocal.m_nActorsIndex & m_ActorsOtherMask)].m_nActors.f_FetchSub(1, NAtomic::gc_MemoryOrder_Release);
 	}
 
-	mint CConcurrencyManager::fp_NumActors()
+	umint CConcurrencyManager::fp_NumActors()
 	{
 		smint nActorsSum = 0;
 		for (auto &nActors : m_nActorsOther)
@@ -837,7 +837,7 @@ namespace NMib::NConcurrency
  		NTime::CStopwatch DebugBlockDestroyStopwatch{true};
 #endif
 
-		static constexpr mint c_nDirectDeleteActors
+		static constexpr umint c_nDirectDeleteActors
 			= sizeof(m_DirectCallActor) / sizeof(m_DirectCallActor) // NOLINT
 			+ sizeof(m_ThisConcurrentActor) / sizeof(m_ThisConcurrentActor) // NOLINT
 			+ sizeof(m_ThisConcurrentActorLowPrio) / sizeof(m_ThisConcurrentActorLowPrio) // NOLINT
@@ -861,7 +861,7 @@ namespace NMib::NConcurrency
 			auto fHasUserActors = [&]
 				{
 					DMibLock(m_BlockingActorsLock);
-					mint nExpectedActors = m_ConcurrentActors[EPriority_Normal].f_GetLen()
+					umint nExpectedActors = m_ConcurrentActors[EPriority_Normal].f_GetLen()
 						+ m_ConcurrentActors[EPriority_NormalHighCPU].f_GetLen()
 						+ m_ConcurrentActors[EPriority_Low].f_GetLen()
 						+ 1
@@ -942,7 +942,7 @@ namespace NMib::NConcurrency
 							;
 
 	#if DMibConfig_RefCountDebugging
-							[[maybe_unused]] mint iCallstack = 0;
+							[[maybe_unused]] umint iCallstack = 0;
 							DMibLock(Actor.m_RefCount.m_Debug->m_Lock);
 							for (auto &Callstack : Actor.m_RefCount.m_Debug->m_Callstacks)
 							{
@@ -972,7 +972,7 @@ namespace NMib::NConcurrency
 								DMibTrace("    TCFuture<{}>   RefCount {}{\n}", Future.m_FutureTypeName, Future.m_RefCount.f_Get());
 
 		#if DMibConfig_RefCountDebugging
-								[[maybe_unused]] mint iCallstack = 0;
+								[[maybe_unused]] umint iCallstack = 0;
 								DMibLock(Future.m_RefCount.m_Debug->m_Lock);
 								for (auto &Callstack : Future.m_RefCount.m_Debug->m_Callstacks)
 								{
@@ -1004,7 +1004,7 @@ namespace NMib::NConcurrency
 		auto fDestroyFreeBlockingActors = [&]()
 			{
 				DMibLock(m_BlockingActorsLock);
-				NContainer::TCVector<mint> ToRemove;
+				NContainer::TCVector<umint> ToRemove;
 				for (auto &pActor : m_BlockingActors)
 				{
 					if (pActor->m_Link.f_IsInList())
@@ -1042,7 +1042,7 @@ namespace NMib::NConcurrency
 
 					{
 						DMibLock(m_ThreadCreateLock);
-						for (mint Prio = EPriority_Low; Prio < EPriority_Max; ++Prio)
+						for (umint Prio = EPriority_Low; Prio < EPriority_Max; ++Prio)
 						{
 							for (auto &Actor : m_ConcurrentActors[Prio])
 							{
@@ -1086,7 +1086,7 @@ namespace NMib::NConcurrency
 				if (m_pTimerActor)
 					fg_Move(m_pTimerActor).f_Destroy().f_CallSync();
 			}
-			mint nExpectedActors = m_ConcurrentActors[EPriority_Normal].f_GetLen()
+			umint nExpectedActors = m_ConcurrentActors[EPriority_Normal].f_GetLen()
 				+ m_ConcurrentActors[EPriority_NormalHighCPU].f_GetLen()
 				+ m_ConcurrentActors[EPriority_Low].f_GetLen()
 				+ c_nDirectDeleteActors
@@ -1141,7 +1141,7 @@ namespace NMib::NConcurrency
 			TCFutureVector<void> Destroys;
 			{
 				DMibLock(m_pConcurrentActorLock);
-				for (mint Prio = EPriority_Low; Prio < EPriority_Max; ++Prio)
+				for (umint Prio = EPriority_Low; Prio < EPriority_Max; ++Prio)
 				{
 					for (auto &Actor : m_ConcurrentActors[Prio])
 					{
@@ -1157,7 +1157,7 @@ namespace NMib::NConcurrency
 					}
 				}
 
-				for (mint Prio = EPriority_Low; Prio < EPriority_Max; ++Prio)
+				for (umint Prio = EPriority_Low; Prio < EPriority_Max; ++Prio)
 					m_ConcurrentActors[Prio].f_Clear();
 
 				m_nThreads = 0;
@@ -1207,38 +1207,38 @@ namespace NMib::NConcurrency
 		return m_bDestroyingAlwaysAliveActors.f_Load();
 	}
 
-	mint CConcurrencyManager::f_GetConcurrency() const
+	umint CConcurrencyManager::f_GetConcurrency() const
 	{
 		return m_nThreads;
 	}
 
-	mint CConcurrencyManager::f_GetQueue() const
+	umint CConcurrencyManager::f_GetQueue() const
 	{
 		auto &ThreadLocal = fg_ConcurrencyThreadLocal();
 		if (ThreadLocal.m_pThisQueue)
 			return ThreadLocal.m_pThisQueue->m_iQueue;
 
-		return TCLimitsInt<mint>::mc_Max;
+		return TCLimitsInt<umint>::mc_Max;
 	}
 
-	inline_never mint CConcurrencyManager::fp_InitConcurrentActors()
+	inline_never umint CConcurrencyManager::fp_InitConcurrentActors()
 	{
 		DMibLock(m_pConcurrentActorLock);
-		mint nActors = m_nConcurrentActors.f_Load();
+		umint nActors = m_nConcurrentActors.f_Load();
 		if (nActors)
 			return nActors;
 
 		nActors = m_nThreads;
 
-		for (mint Prio = EPriority_Low; Prio < EPriority_Max; ++Prio)
+		for (umint Prio = EPriority_Low; Prio < EPriority_Max; ++Prio)
 		{
 			m_ConcurrentActors[Prio].f_SetLen(nActors);
 			m_ConcurrentActorsRef[Prio].f_SetLen(nActors);
 		}
 
-		for (mint Prio = EPriority_Low; Prio < EPriority_Max; ++Prio)
+		for (umint Prio = EPriority_Low; Prio < EPriority_Max; ++Prio)
 		{
-			mint iActor = 0;
+			umint iActor = 0;
 			for (auto &Actor : m_ConcurrentActors[Prio])
 			{
 				if (Prio == EPriority_Normal)
@@ -1259,7 +1259,7 @@ namespace NMib::NConcurrency
 
 	TCActor<CConcurrentActor> const &CConcurrencyManager::f_GetConcurrentActorForThisThread(EPriority _Priority)
 	{
-		mint nActors = m_nConcurrentActors.f_Load(NAtomic::gc_MemoryOrder_Acquire);
+		umint nActors = m_nConcurrentActors.f_Load(NAtomic::gc_MemoryOrder_Acquire);
 		if (!nActors)
 			nActors = fp_InitConcurrentActors();
 
@@ -1279,12 +1279,12 @@ namespace NMib::NConcurrency
 
 	TCActor<CConcurrentActor> const &CConcurrencyManager::f_GetConcurrentActorForOtherThread(EPriority _Priority)
 	{
-		mint nActors = m_nConcurrentActors.f_Load(NAtomic::gc_MemoryOrder_Acquire);
+		umint nActors = m_nConcurrentActors.f_Load(NAtomic::gc_MemoryOrder_Acquire);
 		if (!nActors)
 			nActors = fp_InitConcurrentActors();
 
 		auto &ThreadLocal = fg_ConcurrencyThreadLocal();
-		mint NonAllowedQueue = TCLimitsInt<mint>::mc_Max;
+		umint NonAllowedQueue = TCLimitsInt<umint>::mc_Max;
 		if (ThreadLocal.m_pThisQueue && ThreadLocal.m_pThisQueue->m_Priority == _Priority)
 			NonAllowedQueue = ThreadLocal.m_pThisQueue->m_iQueue;
 
@@ -1310,15 +1310,15 @@ namespace NMib::NConcurrency
 	{
 		// Returns a actor that is consistent based on weak pointer
 
-		mint nActors = m_nConcurrentActors.f_Load(NAtomic::gc_MemoryOrder_Acquire);
+		umint nActors = m_nConcurrentActors.f_Load(NAtomic::gc_MemoryOrder_Acquire);
 		if (!nActors)
 			nActors = fp_InitConcurrentActors();
 
 		DMibFastCheck(nActors > 0);
 
-		mint HashData = reinterpret_cast<mint>(static_cast<void const *>(_Actor.fp_Get()));
+		umint HashData = reinterpret_cast<umint>(static_cast<void const *>(_Actor.fp_Get()));
 
-		mint iActor = fg_JenkinsHash((ch8 const *)&HashData, sizeof(HashData), 0) % nActors;
+		umint iActor = fg_JenkinsHash((ch8 const *)&HashData, sizeof(HashData), 0) % nActors;
 
 		auto &ToReturn = m_ConcurrentActorsRef[EPriority_Normal].f_GetArray()[iActor];
 		return ToReturn;
@@ -1326,7 +1326,7 @@ namespace NMib::NConcurrency
 
 	TCActor<CConcurrentActor> const &CConcurrencyManager::f_GetConcurrentActor()
 	{
-		mint nActors = m_nConcurrentActors.f_Load(NAtomic::gc_MemoryOrder_Acquire);
+		umint nActors = m_nConcurrentActors.f_Load(NAtomic::gc_MemoryOrder_Acquire);
 		if (!nActors)
 			nActors = fp_InitConcurrentActors();
 
@@ -1340,7 +1340,7 @@ namespace NMib::NConcurrency
 
 	TCActor<CConcurrentActor> const &CConcurrencyManager::f_GetConcurrentActorLowPrio()
 	{
-		mint nActors = m_nConcurrentActors.f_Load(NAtomic::gc_MemoryOrder_Acquire);
+		umint nActors = m_nConcurrentActors.f_Load(NAtomic::gc_MemoryOrder_Acquire);
 		if (!nActors)
 			nActors = fp_InitConcurrentActors();
 
@@ -1354,7 +1354,7 @@ namespace NMib::NConcurrency
 
 	TCActor<CConcurrentActor> const &CConcurrencyManager::f_GetConcurrentActorHighCPU()
 	{
-		mint nActors = m_nConcurrentActors.f_Load(NAtomic::gc_MemoryOrder_Acquire);
+		umint nActors = m_nConcurrentActors.f_Load(NAtomic::gc_MemoryOrder_Acquire);
 		if (!nActors)
 			nActors = fp_InitConcurrentActors();
 
@@ -1446,7 +1446,7 @@ namespace NMib::NConcurrency
 		return !!mp_pBlockingActorStorage;
 	}
 
-	CRoundRobinBlockingActors::CRoundRobinBlockingActors(mint _Capacity)
+	CRoundRobinBlockingActors::CRoundRobinBlockingActors(umint _Capacity)
 		: m_Capacity(_Capacity)
 	{
 		m_Checkouts.f_Reserve(_Capacity);
@@ -1454,7 +1454,7 @@ namespace NMib::NConcurrency
 
 	CBlockingActorCheckout &CRoundRobinBlockingActors::operator *()
 	{
-		mint iCheckout = m_iCheckout;
+		umint iCheckout = m_iCheckout;
 		++m_iCheckout;
 		if (m_iCheckout >= m_Capacity)
 			m_iCheckout = 0;

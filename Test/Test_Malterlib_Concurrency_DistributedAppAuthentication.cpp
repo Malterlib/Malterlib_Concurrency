@@ -1206,7 +1206,7 @@ public:
 
 		CProcessLaunch::fs_KillProcessesInDirectory("*", {}, RootDirectory, 10.0);
 
-		for (mint i = 0; i < 5; ++i)
+		for (umint i = 0; i < 5; ++i)
 		{
 			try
 			{
@@ -2219,7 +2219,7 @@ public:
 
 		CProcessLaunch::fs_KillProcessesInDirectory("*", {}, RootDirectory, 10.0);
 
-		for (mint i = 0; i < 5; ++i)
+		for (umint i = 0; i < 5; ++i)
 		{
 			try
 			{

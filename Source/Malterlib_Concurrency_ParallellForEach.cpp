@@ -5,25 +5,25 @@
 
 namespace NMib::NConcurrency
 {
-	CThreadPool::CThreadPool(mint _nThreads)
+	CThreadPool::CThreadPool(umint _nThreads)
 		: m_Semaphore(_nThreads)
 	{
 #if 1
-		mint nNumaNodes = NSys::fg_Mem_GetNumNumaNodes();
+		umint nNumaNodes = NSys::fg_Mem_GetNumNumaNodes();
 		NContainer::TCVector<ENumaNode> NumaNodes;
 		if (nNumaNodes > 1)
 		{
 			NumaNodes.f_SetLen(nNumaNodes);
 			NSys::fg_Mem_GetNumaNodes(NumaNodes.f_GetArray(), nNumaNodes);
 
-			mint iNode = NMisc::fg_GetRandomUnsigned() % NumaNodes.f_GetLen(); // Randomize
+			umint iNode = NMisc::fg_GetRandomUnsigned() % NumaNodes.f_GetLen(); // Randomize
 			fg_GetSys()->f_MemoryManager_SetNumaNode(NumaNodes[iNode]); // Set main thread to one specific numa node
 			NSys::fg_Thread_SetNumaAffinity(NSys::fg_Thread_GetCurrent(), NumaNodes[iNode]);
 		}
 		//NumaNodes.f_SetLen(1);
 #else
 
-		mint nNumaNodes;
+		umint nNumaNodes;
 #endif
 
 		if (NumaNodes.f_IsEmpty())

@@ -48,7 +48,7 @@ namespace NMib::NConcurrency
 
 		struct CQueuedResult final
 		{
-			mint m_iResult;
+			umint m_iResult;
 			TCAsyncResult<t_CType> m_Result;
 			CQueuedResult *m_pNext;
 		};
@@ -68,25 +68,25 @@ namespace NMib::NConcurrency
 			TCPromise<NContainer::TCVector<TCAsyncResult<t_CType>>> mp_GetResultsPromise;
 			NAtomic::TCAtomic<bool> mp_bLazyResultsGotten = false;
 			bool mp_bDefinedSize = false;
-			align_cacheline mint mp_nAdded = 0;
+			align_cacheline umint mp_nAdded = 0;
 			align_cacheline NStorage::CIntrusiveRefCount m_RefCount;
 			NAtomic::TCAtomic<CQueuedResult *> mp_pFirstResult;
 		};
 
 		class CResultReceived final
 		{
-			mint mp_iResult;
+			umint mp_iResult;
 			NStorage::TCSharedPointer<CInternal> mp_pInternal;
 		public:
-			CResultReceived(mint _iResult, NStorage::TCSharedPointer<CInternal> const &_pInternal);
+			CResultReceived(umint _iResult, NStorage::TCSharedPointer<CInternal> const &_pInternal);
 			void operator ()(TCAsyncResult<t_CType> &&_Result) const;
 		};
 
 	public:
-		TCFutureVector(mint _DefinedSize);
+		TCFutureVector(umint _DefinedSize);
 		TCFutureVector();
 		~TCFutureVector();
-		void f_SetLen(mint _DefinedSize);
+		void f_SetLen(umint _DefinedSize);
 		bool f_IsEmpty() const;
 
 	private:

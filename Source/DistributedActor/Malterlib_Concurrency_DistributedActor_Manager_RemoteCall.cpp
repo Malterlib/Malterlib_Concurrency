@@ -38,7 +38,7 @@ namespace NMib::NConcurrency
 	{
 #if DMibEnableSafeCheck > 0
 		auto &ThreadLocal = fg_ConcurrencyThreadLocal();
-		mint DestroySequence = ThreadLocal.m_AllowWrongThreadDestroySequence;
+		umint DestroySequence = ThreadLocal.m_AllowWrongThreadDestroySequence;
 
 		CMibCodeAddress volatile pFunctionPointer = (CMibCodeAddress)o_pFunction->f_GetFunctionPointer();
 		(void)pFunctionPointer;
@@ -297,7 +297,7 @@ namespace NMib::NConcurrency
 		if (!pCall)
 			return false;
 
-		mint nBytes = _Stream.f_GetLength() - _Stream.f_GetPosition();
+		umint nBytes = _Stream.f_GetLength() - _Stream.f_GetPosition();
 
 		NContainer::CIOByteVector Data;
 		if (nBytes != 0)
@@ -379,7 +379,7 @@ namespace NMib::NConcurrency
 			Stream << Result;
 		}
 
-		mint DataLen = _Data.f_GetLen();
+		umint DataLen = _Data.f_GetLen();
 		if (DataLen != 0)
 			Stream.f_FeedBytes(_Data.f_GetArray(), DataLen);
 
@@ -612,7 +612,7 @@ namespace NMib::NConcurrency
 
 		NContainer::CIOByteVector ParamData;
 		{
-			mint nBytes = _Stream.f_GetLength() - _Stream.f_GetPosition();
+			umint nBytes = _Stream.f_GetLength() - _Stream.f_GetPosition();
 			if (nBytes != 0)
 			{
 				ParamData.f_SetLen(nBytes);

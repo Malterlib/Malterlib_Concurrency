@@ -11,7 +11,7 @@ namespace NMib::NConcurrency
 {
 	struct CThreadPool
 	{
-		CThreadPool(mint _nThreads = fg_Max(aint(NSys::fg_Thread_GetVirtualCores()) - 3, 0));
+		CThreadPool(umint _nThreads = fg_Max(aint(NSys::fg_Thread_GetVirtualCores()) - 3, 0));
 		~CThreadPool();
 
 		void f_Dispatch(NFunction::TCFunction<void ()> && _Functor);

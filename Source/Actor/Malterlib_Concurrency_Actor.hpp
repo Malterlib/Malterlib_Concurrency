@@ -26,7 +26,7 @@ namespace NMib::NConcurrency
 	}
 
 	template <typename t_CActor>
-	template <typename tf_CType, typename ...tfp_CParams, typename ...tfp_CHolderParams, mint... tfp_Indidies>
+	template <typename tf_CType, typename ...tfp_CParams, typename ...tfp_CHolderParams, umint... tfp_Indidies>
 	void TCActor<t_CActor>::fp_Construct(TCConstruct<void, TCConstruct<tf_CType, tfp_CParams...>, tfp_CHolderParams...> &&_Construct, NMeta::TCIndices<tfp_Indidies...> const&)
 	{
 		*this = fg_CurrentConcurrencyManager().f_ConstructActor
@@ -952,7 +952,7 @@ namespace NMib::NConcurrency
 	}
 
 	template <typename t_CActor>
-	TCRoundRobinActors<t_CActor>::TCRoundRobinActors(mint _nActors)
+	TCRoundRobinActors<t_CActor>::TCRoundRobinActors(umint _nActors)
 	{
 		DMibFastCheck(_nActors > 0);
 		mp_Actors.f_SetLen(_nActors);
@@ -1004,7 +1004,7 @@ namespace NMib::NConcurrency
 	template <typename t_CActor>
 	mark_nodebug TCActor<t_CActor> const &TCRoundRobinActors<t_CActor>::operator *() const
 	{
-		mint iCurrentActor = mp_iCurrentActor;
+		umint iCurrentActor = mp_iCurrentActor;
 		mp_iCurrentActor = (mp_iCurrentActor + 1) % fg_Max(mp_Actors.f_GetLen(), 1u);
 		DMibFastCheck(mp_Actors[iCurrentActor]);
 		return mp_Actors[iCurrentActor];

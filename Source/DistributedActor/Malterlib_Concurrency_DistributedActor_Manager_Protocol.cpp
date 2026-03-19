@@ -118,7 +118,7 @@ namespace NMib::NConcurrency
 			, NStorage::TCSharedPointer<NContainer::CIOByteVector> const &_pMessage
 		)
 	{
-		mint Length = _pMessage->f_GetLen();
+		umint Length = _pMessage->f_GetLen();
 		if (Length < 1)
 		{
 			DMibLog(DebugVerbose2, " ---- {} {} Too small", _pConnection->m_pHost ? _pConnection->m_pHost->m_bIncoming : false, _pConnection->f_GetConnectionID());

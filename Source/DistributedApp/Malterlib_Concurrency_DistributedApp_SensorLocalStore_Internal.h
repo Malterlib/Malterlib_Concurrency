@@ -52,7 +52,7 @@ namespace NMib::NConcurrency
 
 			CDistributedAppSensorReporter::CSensorInfo m_Info;
 			uint64 m_LastSeenUniqueSequence = 0;
-			mint m_ActiveRefCount = 0;
+			umint m_ActiveRefCount = 0;
 
 			CSequencer m_SensorSequencer{"DistributedAppSensorStoreLocal Sensor SensorSequencer {}"_f << m_Info.f_Key()};
 			TCMap<TCWeakDistributedActor<CActor>, CSensorReporter> m_SensorReporters;

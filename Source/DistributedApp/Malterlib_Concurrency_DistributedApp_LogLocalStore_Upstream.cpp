@@ -113,10 +113,10 @@ namespace NMib::NConcurrency
 			;
 			ReadTransaction = fg_Move(ReadTransactionMove);
 
-			static constexpr mint c_BatchSize = 32768;
-			static constexpr mint c_MaxMessageSize = CActorDistributionManager::mc_MaxMessageSize - (CActorDistributionManager::mc_RemoteCallOverhead + 4 + 128);
+			static constexpr umint c_BatchSize = 32768;
+			static constexpr umint c_MaxMessageSize = CActorDistributionManager::mc_MaxMessageSize - (CActorDistributionManager::mc_RemoteCallOverhead + 4 + 128);
 
-			auto fGetBatch = [iLogEntry = fg_Move(iLogEntry), nBytesInBatch = mint(0)]() mutable -> TCFuture<TCOptional<NContainer::TCVector<CDistributedAppLogReporter::CLogEntry>>>
+			auto fGetBatch = [iLogEntry = fg_Move(iLogEntry), nBytesInBatch = umint(0)]() mutable -> TCFuture<TCOptional<NContainer::TCVector<CDistributedAppLogReporter::CLogEntry>>>
 				{
 					if (!iLogEntry)
 						co_return {};
@@ -133,7 +133,7 @@ namespace NMib::NConcurrency
 
 						auto NewEntry = fg_Move(Value).f_Entry(Key);
 
-						mint ThisTime = NStream::fg_GetBinaryStreamSize(NewEntry);
+						umint ThisTime = NStream::fg_GetBinaryStreamSize(NewEntry);
 
 						if (ThisTime > c_MaxMessageSize)
 						{
@@ -351,11 +351,11 @@ namespace NMib::NConcurrency
 				}
 
 				TCVector<CDistributedAppLogReporter::CLogEntry> NewEntries;
-				mint nBytesInChunk = 0;
+				umint nBytesInChunk = 0;
 
 				for (auto &Entry : *_pEntries)
 				{
-					mint ThisTime = NStream::fg_GetBinaryStreamSize(Entry);
+					umint ThisTime = NStream::fg_GetBinaryStreamSize(Entry);
 					DMibFastCheck(ThisTime <= (CActorDistributionManager::mc_MaxMessageSize - 4));
 
 					if (nBytesInChunk + ThisTime > CActorDistributionManager::mc_HalfMaxMessageSize && !NewEntries.f_IsEmpty())
@@ -373,17 +373,17 @@ namespace NMib::NConcurrency
 			}
 		;
 
-		static constexpr mint c_ChunkSize = 32768;
+		static constexpr umint c_ChunkSize = 32768;
 
-		mint nEntries = Entries.f_GetLen();
+		umint nEntries = Entries.f_GetLen();
 
 		if (nEntries < c_ChunkSize)
 			fAddEntriesToChunks(_pEntries);
 		else
 		{
-			for (mint iStartEntry = 0; iStartEntry < nEntries;)
+			for (umint iStartEntry = 0; iStartEntry < nEntries;)
 			{
-				mint ThisTime = fg_Min(nEntries - iStartEntry, c_ChunkSize);
+				umint ThisTime = fg_Min(nEntries - iStartEntry, c_ChunkSize);
 				fAddEntriesToChunks(fg_Construct(TCVector<CDistributedAppLogReporter::CLogEntry>(Entries.f_GetArray() + iStartEntry, ThisTime)));
 				iStartEntry += ThisTime;
 			}

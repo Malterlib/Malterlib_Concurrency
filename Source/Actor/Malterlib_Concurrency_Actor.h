@@ -179,7 +179,7 @@ namespace NMib::NConcurrency
 	template <typename t_CActor>
 	struct TCRoundRobinActors
 	{
-		TCRoundRobinActors(mint _nActors);
+		TCRoundRobinActors(umint _nActors);
 
 		bool f_IsConstructed() const;
 
@@ -197,6 +197,6 @@ namespace NMib::NConcurrency
 
 	private:
 		NContainer::TCVector<TCActor<t_CActor>> mp_Actors;
-		mutable mint mp_iCurrentActor = 0;
+		mutable umint mp_iCurrentActor = 0;
 	};
 }

@@ -33,7 +33,7 @@ namespace NMib::NConcurrency::NPrivate
 	{
 	}
 
-	template <typename tf_CStream, mint... tfp_Indices, typename... tfp_CParams>
+	template <typename tf_CStream, umint... tfp_Indices, typename... tfp_CParams>
 	auto fg_DecodeParams
 		(
 			tf_CStream &_ParamsStream
@@ -64,7 +64,7 @@ namespace NMib::NConcurrency::NPrivate
 		, typename t_CStreamResult
 		, typename t_CReturn
 	>
-	template <mint... tfp_Indices, typename... tfp_CParams>
+	template <umint... tfp_Indices, typename... tfp_CParams>
 	auto TCRuntimeTypeRegistryEntry_MemberFunction
 		<
 			t_pMemberFunction
@@ -112,7 +112,7 @@ namespace NMib::NConcurrency::NPrivate
 		, typename t_CStreamResult
 		, typename t_CReturn
 	>
-	template <mint... tfp_Indices, typename... tfp_CParams>
+	template <umint... tfp_Indices, typename... tfp_CParams>
 	auto TCRuntimeTypeRegistryEntry_MemberFunction
 		<
 			t_pMemberFunction
@@ -220,7 +220,7 @@ namespace NMib::NConcurrency::NPrivate
 		, typename t_CStreamParams
 		, typename t_CStreamResult
 	>
-	template <mint... tfp_Indices, typename... tfp_CParams>
+	template <umint... tfp_Indices, typename... tfp_CParams>
 	auto TCRuntimeTypeRegistryEntry_MemberFunction
 		<
 			t_pMemberFunction
@@ -331,7 +331,7 @@ namespace NMib::NConcurrency::NPrivate
 		, typename t_CStreamResult
 		, typename t_CResult
 	>
-	template <mint... tfp_Indices, typename... tfp_CParams>
+	template <umint... tfp_Indices, typename... tfp_CParams>
 	auto TCRuntimeTypeRegistryEntry_MemberFunction
 		<
 			t_pMemberFunction

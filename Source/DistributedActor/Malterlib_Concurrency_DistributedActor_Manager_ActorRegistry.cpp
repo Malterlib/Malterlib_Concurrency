@@ -974,7 +974,7 @@ namespace NMib::NConcurrency
 		NStorage::TCSharedPointer<NFunction::TCFunctionMovable<TCFuture<void> (CAbstractDistributedActor &&_NewActor)>> pOnNewActor = fg_Construct(fg_Move(_fOnNewActor));
 		NStorage::TCSharedPointer<NFunction::TCFunctionMovable<TCFuture<void> (CDistributedActorIdentifier &&_RemovedActor)>> pOnRemovedActor = fg_Construct(fg_Move(_fOnRemovedActor));
 
-		mint SubscriptionID = Internal.m_SubscribedActorsNextInstanceID++;
+		umint SubscriptionID = Internal.m_SubscribedActorsNextInstanceID++;
 
 		if (_Namespace && !CActorDistributionManager::fs_IsValidNamespaceName(_Namespace))
 			co_return DMibErrorInstance("Invalid namespace name");

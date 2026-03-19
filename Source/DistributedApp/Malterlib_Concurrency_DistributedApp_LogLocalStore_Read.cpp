@@ -198,7 +198,7 @@ namespace NMib::NConcurrency
 			)
 		;
 
-		mint nBytesInBatch = 0;
+		umint nBytesInBatch = 0;
 
 		NLogStore::CFilterLogKeyContext FilterContext{.m_pTransaction = &ReadTransaction.m_Transaction, .m_ThisHostID = ThisHostID, .m_Prefix = Prefix};
 
@@ -286,7 +286,7 @@ namespace NMib::NConcurrency
 
 			CDistributedAppLogReader_LogKeyAndEntry LogKeyAndEntry{fg_Move(Key).f_LogInfoKey(), fg_Move(Value).f_Entry(Key)};
 
-			mint ThisTime = NStream::fg_GetBinaryStreamSize(LogKeyAndEntry);
+			umint ThisTime = NStream::fg_GetBinaryStreamSize(LogKeyAndEntry);
 
 			if ((nBytesInBatch + ThisTime > CActorDistributionManager::mc_HalfMaxMessageSize) && !Batch.f_IsEmpty())
 			{

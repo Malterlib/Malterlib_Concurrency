@@ -83,7 +83,7 @@ namespace NMib::NConcurrency
 
 	namespace NPrivate
 	{
-		template <typename tf_CActor, typename tf_CHolderType, typename... tfp_CHolderParams, typename... tfp_CParams, mint... tfp_Indidies>
+		template <typename tf_CActor, typename tf_CHolderType, typename... tfp_CHolderParams, typename... tfp_CParams, umint... tfp_Indidies>
 		TCActor<tf_CActor> fg_ConstructActorHelper(TCConstruct<tf_CHolderType, tfp_CHolderParams...> &&_HolderParams, NMeta::TCIndices<tfp_Indidies...> const&, tfp_CParams &&...p_Params)
 		{
 			return fg_ConcurrencyManager().f_ConstructActor

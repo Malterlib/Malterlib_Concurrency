@@ -8,14 +8,14 @@
 namespace NMib::NConcurrency
 {
 	template <typename t_CReturnType>
-	TCActorSequencerActor<t_CReturnType>::TCActorSequencerActor(NStr::CStr const &_Name, mint _MaxConcurrency)
+	TCActorSequencerActor<t_CReturnType>::TCActorSequencerActor(NStr::CStr const &_Name, umint _MaxConcurrency)
 		: m_MaxConcurrency(_MaxConcurrency)
 		, m_Name(_Name)
 	{
 	}
 
 	template <typename t_CReturnType>
-	mint TCActorSequencerActor<t_CReturnType>::f_NumWaiting() const
+	umint TCActorSequencerActor<t_CReturnType>::f_NumWaiting() const
 	{
 		return m_ToSequence.f_GetLen();
 	}
@@ -155,7 +155,7 @@ namespace NMib::NConcurrency
 	}
 
 	template <typename t_CReturnType>
-	TCSequencer<t_CReturnType>::TCSequencer(NStr::CStr const &_Name, mint _MaxConcurrency)
+	TCSequencer<t_CReturnType>::TCSequencer(NStr::CStr const &_Name, umint _MaxConcurrency)
 		: mp_Actor(fg_Construct(_Name, _MaxConcurrency))
 		, mp_Name(_Name)
 	{
@@ -206,7 +206,7 @@ namespace NMib::NConcurrency
 	}
 
 	template <typename t_CReturnType>
-	TCFuture<mint> TCSequencer<t_CReturnType>::f_NumWaiting() const
+	TCFuture<umint> TCSequencer<t_CReturnType>::f_NumWaiting() const
 	{
 		using namespace NStr;
 

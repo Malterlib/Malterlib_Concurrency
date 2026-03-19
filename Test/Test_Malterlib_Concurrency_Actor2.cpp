@@ -18,7 +18,7 @@ namespace NTestActor2
 
 	fp64 g_Timeout = 60.0 * NMib::NTest::gc_TimeoutMultiplier;
 
-	constinit static NAtomic::TCAtomic<mint> g_nDestroyedActors{0};
+	constinit static NAtomic::TCAtomic<umint> g_nDestroyedActors{0};
 
 	class CTestActor : public CActor
 	{
@@ -139,8 +139,8 @@ namespace NTestActor2
 		{
 			TCFutureVector<void> Results;
 
-			mint nThreads = NSys::fg_Thread_GetVirtualCores();
-			for (mint i = 0; i < nThreads; ++i)
+			umint nThreads = NSys::fg_Thread_GetVirtualCores();
+			for (umint i = 0; i < nThreads; ++i)
 			{
 				fg_ConcurrentDispatch
 					(
@@ -238,13 +238,13 @@ namespace NTestActor2
 				using namespace NMib::NConcurrency;
 				using namespace NMib::NStorage;
 
-				mint nDestroyedStart = g_nDestroyedActors.f_Load();
+				umint nDestroyedStart = g_nDestroyedActors.f_Load();
 
 				TCFutureVector<void> Results;
 
-				mint nDestructions = 10;
+				umint nDestructions = 10;
 
-				for (mint i = 0; i < nDestructions; ++i)
+				for (umint i = 0; i < nDestructions; ++i)
 				{
 					TCActor<CTestActorWithDestroy> Actor(fg_Construct());
 					g_ConcurrentDispatch / [WeakActor = Actor.f_Weak()]() mutable -> TCFuture<void>
@@ -284,7 +284,7 @@ namespace NTestActor2
 						break;
 					NSys::fg_Thread_Sleep(0.001f);
 				}
-				mint nDestroyed = g_nDestroyedActors.f_Load() - nDestroyedStart;
+				umint nDestroyed = g_nDestroyedActors.f_Load() - nDestroyedStart;
 
 				DMibExpect(nDestroyed, ==, nDestructions);
 			};
@@ -294,13 +294,13 @@ namespace NTestActor2
 				using namespace NMib::NConcurrency;
 				using namespace NMib::NStorage;
 
-				mint nDestroyedStart = g_nDestroyedActors.f_Load();
+				umint nDestroyedStart = g_nDestroyedActors.f_Load();
 
 				TCFutureVector<void> Results;
 
-				mint nDestructions = 10;
+				umint nDestructions = 10;
 
-				for (mint i = 0; i < nDestructions; ++i)
+				for (umint i = 0; i < nDestructions; ++i)
 				{
 #if DMibConfig_Tests_Enable && !defined(DTests_PerfTests)
 					auto &ConcurrencyThreadLocal = fg_ConcurrencyThreadLocal();
@@ -332,7 +332,7 @@ namespace NTestActor2
 						break;
 					NSys::fg_Thread_Sleep(0.001f);
 				}
-				mint nDestroyed = g_nDestroyedActors.f_Load() - nDestroyedStart;
+				umint nDestroyed = g_nDestroyedActors.f_Load() - nDestroyedStart;
 
 				DMibExpect(nDestroyed, ==, nDestructions);
 			};
@@ -400,7 +400,7 @@ namespace NTestActor2
 					CActorSubscription OneshotAbortableTimer;
 					CActorSubscription ExactTimer;
 					CActorSubscription NormalTimer;
-					NAtomic::TCAtomic<mint> nExpectedHandlers(1);
+					NAtomic::TCAtomic<umint> nExpectedHandlers(1);
 					NAtomic::TCAtomic<bool> bHandledTimer0;
 					NAtomic::TCAtomic<bool> bHandledTimer1;
 					NAtomic::TCAtomic<bool> bHandledTimer2;
@@ -862,7 +862,7 @@ namespace NTestActor2
 					fg_AllDoneWrapped(VectorResults)
 						> pActor / [&, pActor](NMib::NConcurrency::TCAsyncResult<NMib::NContainer::TCVector<NMib::NConcurrency::TCAsyncResult<int>>> &&_Result)
 						{
-							[[maybe_unused]] mint Results = 0;
+							[[maybe_unused]] umint Results = 0;
 							for (auto Iter = (*_Result).f_GetIterator(); Iter; ++Iter)
 							{
 								Results += **Iter;
@@ -872,7 +872,7 @@ namespace NTestActor2
 						}
 					;
 
-					mint nWorkObjects = ((fp64(NSys::fg_Thread_GetVirtualCores()) * fp64(5.0)) / g_SecondsToWait).f_ToInt();
+					umint nWorkObjects = ((fp64(NSys::fg_Thread_GetVirtualCores()) * fp64(5.0)) / g_SecondsToWait).f_ToInt();
 					try
 					{
 						NSys::fg_Thread_SetPriority(NSys::fg_Thread_GetCurrent(), EExecutionPriority_High);
@@ -882,7 +882,7 @@ namespace NTestActor2
 						// Because on linux EExecutionPriority_High requires root.
 					}
 
-					for (mint i = 0; i < nWorkObjects; ++i)
+					for (umint i = 0; i < nWorkObjects; ++i)
 					{
 						fg_ConcurrentActor()
 							(
@@ -926,7 +926,7 @@ namespace NTestActor2
 			};
 		}
 
-		template <mint t_Align>
+		template <umint t_Align>
 		struct TCOverAlignResult
 		{
 			uint32 m_Value0;

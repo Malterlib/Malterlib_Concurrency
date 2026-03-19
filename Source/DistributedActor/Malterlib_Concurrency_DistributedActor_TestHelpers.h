@@ -29,7 +29,7 @@ namespace NMib::NConcurrency
 		NStr::CStr f_Publish(TCDistributedActor<tf_CActor> const &_Actor, NStr::CStr const &_Namespace);
 		void f_Unpublish(NStr::CStr const &_Publication);
 		void f_Republish(NStr::CStr const &_Publication, NStr::CStr const &_HostID, fp32 _Timeout = 10.0);
-		NStr::CStr f_Subscribe(NStr::CStr const &_Namespace, mint _nExpected = 1);
+		NStr::CStr f_Subscribe(NStr::CStr const &_Namespace, umint _nExpected = 1);
 		void f_SubscribeExpectFailure(NStr::CStr const &_Namespace);
 		void f_Unsubscribe(NStr::CStr const &_Subscription);
 		NStr::CStr const &f_GetHostID() const;
@@ -60,7 +60,7 @@ namespace NMib::NConcurrency
 			NContainer::TCVector<CAbstractDistributedActor> m_RemoteActors;
 		};
 
-		NStr::CStr fp_Subscribe(NStr::CStr const &_Namespace, bool _bExpectFailure, mint _nExpected);
+		NStr::CStr fp_Subscribe(NStr::CStr const &_Namespace, bool _bExpectFailure, umint _nExpected);
 
 		NStorage::TCSharedPointer<NAtomic::TCAtomic<bool>> mp_pDeleted = fg_Construct(false);
 		NStorage::TCSharedPointer<CRunLoop> mp_pRunLoop;

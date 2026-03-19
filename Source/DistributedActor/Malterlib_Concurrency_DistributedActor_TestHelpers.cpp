@@ -287,7 +287,7 @@ namespace NMib::NConcurrency
 		mp_pDeleted->f_Exchange(true);
 	}
 
-	NStr::CStr CDistributedActorTestHelper::fp_Subscribe(NStr::CStr const &_Namespace, bool _bExpectFailure, mint _nExpected)
+	NStr::CStr CDistributedActorTestHelper::fp_Subscribe(NStr::CStr const &_Namespace, bool _bExpectFailure, umint _nExpected)
 	{
 		TCActor<CActorDistributionManager> &ClientManager = mp_Manager;
 
@@ -342,8 +342,8 @@ namespace NMib::NConcurrency
 						co_return {};
 					if (pDeleted->f_Load())
 						co_return {};
-					mint nActors = pSubscription->m_RemoteActors.f_GetLen();
-					for (mint iActor = 0; iActor < nActors; )
+					umint nActors = pSubscription->m_RemoteActors.f_GetLen();
+					for (umint iActor = 0; iActor < nActors; )
 					{
 						auto &RemoteActor = pSubscription->m_RemoteActors[iActor];
 						if (RemoteActor.f_GetIdentifier() == _RemovedActor)
@@ -390,7 +390,7 @@ namespace NMib::NConcurrency
 		return SubscriptionID;
 	}
 
-	NStr::CStr CDistributedActorTestHelper::f_Subscribe(NStr::CStr const &_Namespace, mint _nExpected)
+	NStr::CStr CDistributedActorTestHelper::f_Subscribe(NStr::CStr const &_Namespace, umint _nExpected)
 	{
 		return fp_Subscribe(_Namespace, false, _nExpected);
 	}

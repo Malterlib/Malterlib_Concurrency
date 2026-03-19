@@ -21,7 +21,7 @@ namespace NMib::NConcurrency
 		}
 
 		NThread::CEventAutoReset DoneEvent;
-		align_cacheline NAtomic::TCAtomic<mint> nDispatched;
+		align_cacheline NAtomic::TCAtomic<umint> nDispatched;
 
 		NStorage::TCSharedPointer<NContainer::TCThreadSafeQueue<NFunction::TCFunction<void ()>>> pDispatchQueue = fg_Construct();
 
@@ -71,7 +71,7 @@ namespace NMib::NConcurrency
 			DoneEvent.f_Wait();
 
 #ifdef DMibContractConfigure_CheckEnabled
-		mint Dispatched = nDispatched.f_Load();
+		umint Dispatched = nDispatched.f_Load();
 		DMibCheck(Dispatched == 0)(Dispatched);
 #endif
 

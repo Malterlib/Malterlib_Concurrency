@@ -271,8 +271,8 @@ namespace NMib::NConcurrency
 
 		void unhandled_exception();
 
-		static void *fs_New(mint _Size, mint _Alignment, mint _PromiseDataSize, mint _PromiseDataAlignment);
-		static void fs_Delete(void *_pMemory, mint _Size, mint _Alignment);
+		static void *fs_New(umint _Size, umint _Alignment, umint _PromiseDataSize, umint _PromiseDataAlignment);
+		static void fs_Delete(void *_pMemory, umint _Size, umint _Alignment);
 
 		void f_HandleAwaitedResult(CConcurrencyThreadLocal &_ThreadLocal, FKeepaliveSetResult *_fSetResult, NStorage::TCUniquePointer<ICOnResumeResult> &&_pResult);
 		TCFuture<void> f_AsyncDestroy(CConcurrencyThreadLocal &_ThreadLocal);
@@ -572,12 +572,12 @@ namespace NMib::NConcurrency::NPrivate
 
 		inline_always void *operator new(size_t _Size)
 		{
-			return CFutureCoroutineContext::fs_New(_Size, mint(1) << NMib::fg_GetLowestBitSetNoZero(_Size), sizeof(TCPromiseData<t_CReturnType>), alignof(TCPromiseData<t_CReturnType>));
+			return CFutureCoroutineContext::fs_New(_Size, umint(1) << NMib::fg_GetLowestBitSetNoZero(_Size), sizeof(TCPromiseData<t_CReturnType>), alignof(TCPromiseData<t_CReturnType>));
 		}
 
 		inline_always void operator delete(void *_pMemory, size_t _Size)
 		{
-			return CFutureCoroutineContext::fs_Delete(_pMemory, _Size, mint(1) << NMib::fg_GetLowestBitSetNoZero(_Size));
+			return CFutureCoroutineContext::fs_Delete(_pMemory, _Size, umint(1) << NMib::fg_GetLowestBitSetNoZero(_Size));
 		}
 	};
 
@@ -676,13 +676,13 @@ namespace NMib::NConcurrency::NPrivate
 	template <typename t_CType>
 	struct TCAlignOfWithVoid
 	{
-		static constexpr mint mc_Value = alignof(t_CType);
+		static constexpr umint mc_Value = alignof(t_CType);
 	};
 
 	template <>
 	struct TCAlignOfWithVoid<void>
 	{
-		static constexpr mint mc_Value = 0;
+		static constexpr umint mc_Value = 0;
 	};
 
 	struct CPromiseDataBaseRefCount : public NStorage::TCIntrusiveRefCount<NStorage::ESharedPointerOption_None, int32>

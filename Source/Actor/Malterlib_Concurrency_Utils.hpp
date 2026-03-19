@@ -8,8 +8,8 @@ namespace NMib::NConcurrency
 {
 	namespace NPrivate
 	{
-		constexpr static mint const gc_ActorResultFinishedMask = DMibBitRangeTyped(0, sizeof(mint)*8-2, mint);
-		constexpr static mint const gc_ActorResultResultsGottenMask = DMibBitRangeTyped(sizeof(mint)*8-1, sizeof(mint)*8-1, mint);
+		constexpr static umint const gc_ActorResultFinishedMask = DMibBitRangeTyped(0, sizeof(umint)*8-2, umint);
+		constexpr static umint const gc_ActorResultResultsGottenMask = DMibBitRangeTyped(sizeof(umint)*8-1, sizeof(umint)*8-1, umint);
 	}
 
 	template <typename tf_CType>
@@ -1365,8 +1365,8 @@ namespace NMib::NConcurrency
 		Result.f_SetLen(nFutures);
 		auto pResultArray = Result.f_GetArray();
 
-		mint iFuture = 0;
-		mint nDirectFutures = 0;
+		umint iFuture = 0;
+		umint nDirectFutures = 0;
 		for (auto &Future : _Futures)
 		{
 			DMibFastCheck(Future.f_IsValid());
@@ -1442,8 +1442,8 @@ namespace NMib::NConcurrency
 		auto &PromiseData = *State.m_Promise.f_Unsafe_PromiseData();
 		auto &ResultMap = PromiseData.m_Result.f_PrepareResult();
 
-		mint PrecachedCount = 0;
-		mint nDirectFutures = 0;
+		umint PrecachedCount = 0;
+		umint nDirectFutures = 0;
 
 		for (auto &FutureEntry : _Futures.f_Entries())
 		{

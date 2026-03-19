@@ -384,16 +384,16 @@ namespace NMib::NConcurrency
 		fDeliverResult(fg_Move(_pResult));
 	}
 
-	void *CFutureCoroutineContext::fs_New(mint _Size, mint _Alignment, mint _PromiseDataSize, mint _PromiseDataAlignment)
+	void *CFutureCoroutineContext::fs_New(umint _Size, umint _Alignment, umint _PromiseDataSize, umint _PromiseDataAlignment)
 	{
 		auto &ThreadLocal = fg_SystemThreadLocal();
 		auto &PromiseThreadLocal = ThreadLocal.m_PromiseThreadLocal;
 
 		if (!PromiseThreadLocal.m_pUsePromise)
 		{
-			mint Alignment = fg_Max(_PromiseDataAlignment, mint(_Alignment));
-			mint PromiseSize = fg_AlignUp(_PromiseDataSize, mint(_Alignment));
-			mint Size = PromiseSize + fg_AlignUp(_Size, mint(_Alignment));
+			umint Alignment = fg_Max(_PromiseDataAlignment, umint(_Alignment));
+			umint PromiseSize = fg_AlignUp(_PromiseDataSize, umint(_Alignment));
+			umint Size = PromiseSize + fg_AlignUp(_Size, umint(_Alignment));
 
 			uint8 *pMemory = (uint8 *)NMib::NMemory::fg_AllocAligned(Size, Alignment);
 			uint8 *pReturn = pMemory + PromiseSize;
@@ -403,10 +403,10 @@ namespace NMib::NConcurrency
 			return pReturn;
 		}
 
-		return NMib::NMemory::fg_AllocAligned(_Size, (mint)_Alignment);
+		return NMib::NMemory::fg_AllocAligned(_Size, (umint)_Alignment);
 	}
 
-	void CFutureCoroutineContext::fs_Delete(void *_pMemory, mint _Size, mint _Alignment)
+	void CFutureCoroutineContext::fs_Delete(void *_pMemory, umint _Size, umint _Alignment)
 	{
 		auto &ThreadLocal = fg_SystemThreadLocal();
 		auto &PromiseThreadLocal = ThreadLocal.m_PromiseThreadLocal;
@@ -421,7 +421,7 @@ namespace NMib::NConcurrency
 				pPromiseData->m_Coroutine = std::coroutine_handle<CFutureCoroutineContext>::from_address
 					(
 						(uint8 *)_pMemory
-						+ fg_AlignUp(_Size, mint(_Alignment))
+						+ fg_AlignUp(_Size, umint(_Alignment))
 					)
 				;
 
@@ -543,9 +543,9 @@ namespace NMib::NConcurrency::NPrivate
 
 	inline_always_lto CAsyncResult &CPromiseDataBase::f_GetAsyncResult()
 	{
-		constexpr static mint gc_DefaultAlignment = fg_GetHighestBitSet(sizeof(void *));
+		constexpr static umint gc_DefaultAlignment = fg_GetHighestBitSet(sizeof(void *));
 		uint8 *pNextClass = (uint8 *)(void *)(this + 1) + sizeof(TCFutureOnResult<void>);
-		uint8 *pAlignedStart = fg_AlignUp(pNextClass, mint(1) << (m_BeforeSuspend.m_OverAlignment + gc_DefaultAlignment));
+		uint8 *pAlignedStart = fg_AlignUp(pNextClass, umint(1) << (m_BeforeSuspend.m_OverAlignment + gc_DefaultAlignment));
 
 		return *((CAsyncResult *)pAlignedStart);
 	}

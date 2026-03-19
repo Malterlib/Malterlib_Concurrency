@@ -26,7 +26,7 @@ namespace NMib::NConcurrency
 			CStr m_UserID;
 			TCMap<CStr, CChallenge> m_Challenges;
 			TCMap<CStr, TCPromise<TCVector<CResponse>>> m_Promises;
-			mint m_nHosts = 1;
+			umint m_nHosts = 1;
 			bool m_bInitialized = false;
 			bool m_bTimerIsSet = false;
 			bool m_bAuthenticationCompleted = false;
@@ -231,19 +231,19 @@ namespace NMib::NConcurrency
 
 		DMibFastCheck(!SourceSetArray.f_IsEmpty());
 
-		mint nSubSets = _SourceSet.f_GetLen();
-		mint nElements = mint(1) << nSubSets;
+		umint nSubSets = _SourceSet.f_GetLen();
+		umint nElements = umint(1) << nSubSets;
 
-		for (mint Set = 1; Set < nElements; ++Set)
+		for (umint Set = 1; Set < nElements; ++Set)
 		{
-			mint iBit = 0;
+			umint iBit = 0;
 
 			TCSet<tf_CValue> SubSet;
 
-			mint SetBits = Set;
+			umint SetBits = Set;
 			while (SetBits)
 			{
-				mint iLowestSet = fg_GetLowestBitSetNoZero(SetBits);
+				umint iLowestSet = fg_GetLowestBitSetNoZero(SetBits);
 				iBit += iLowestSet;
 
 				SubSet[SourceSetArray[iBit]];
@@ -340,7 +340,7 @@ namespace NMib::NConcurrency
 		for (auto &Members : State.m_Fulfills)
 		{
 			auto const &Factors = State.m_Fulfills.fs_GetKey(Members);
-			mint nFactors = Factors.f_GetLen();
+			umint nFactors = Factors.f_GetLen();
 			if (nFactors > 1)
 			{
 				if (nFactors > 16)

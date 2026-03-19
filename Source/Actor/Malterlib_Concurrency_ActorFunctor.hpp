@@ -155,7 +155,7 @@ namespace NMib::NConcurrency
 
 #ifdef DCompiler_MSVC_Workaround
 		using CIndices = typename NPrivate::TCDecayedTupleHelper<typename NTraits::TCFunctionTraits<t_CFunction>::CParams>::CIndices;
-		return [&]<typename ...tfp_CParams2, mint ...tfp_iParam>(NMeta::TCTypeList<tfp_CParams2...> &&, NMeta::TCIndices<tfp_iParam...> &&) -> TCFuture<CStripedReturn>
+		return [&]<typename ...tfp_CParams2, umint ...tfp_iParam>(NMeta::TCTypeList<tfp_CParams2...> &&, NMeta::TCIndices<tfp_iParam...> &&) -> TCFuture<CStripedReturn>
 			{
 				return fg_Dispatch
 					(

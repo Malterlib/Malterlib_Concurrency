@@ -54,7 +54,7 @@ namespace NMib::NConcurrency
 		{
 			using CMemberPointerTypes = typename NTraits::TCMemberFunctionPointerTraits<t_FMemberFunctionPointer>::CParams;
 
-			static constexpr mint mc_nParams = NMeta::gc_TypeList_Len<CMemberPointerTypes>;
+			static constexpr umint mc_nParams = NMeta::gc_TypeList_Len<CMemberPointerTypes>;
 			using CReturnType = typename NTraits::TCMemberFunctionPointerTraits<t_FMemberFunctionPointer>::CReturn;
 			using CClass = typename NTraits::TCMemberFunctionPointerTraits<t_FMemberFunctionPointer>::CClass;
 			using CIndices = NMeta::TCConsecutiveIndices<mc_nParams>;
@@ -72,7 +72,7 @@ namespace NMib::NConcurrency
 			{
 			}
 
-			template <typename tf_CActor, mint ...tfp_Indices>
+			template <typename tf_CActor, umint ...tfp_Indices>
 			mark_artificial inline_always CReturnType operator() (tf_CActor &_Actor, NMeta::TCIndices<tfp_Indices...>)
 			{
 				return (_Actor.*m_pMemberPointer)(fg_Move(fg_Get<tfp_Indices>(m_Params))...);
@@ -93,7 +93,7 @@ namespace NMib::NConcurrency
 			using CTraits = NTraits::TCFunctionTraits<t_FFunctionType>;
 			using CMemberPointerTypes = typename CTraits::CParams;
 
-			static constexpr mint mc_nParams = NMeta::gc_TypeList_Len<CMemberPointerTypes>;
+			static constexpr umint mc_nParams = NMeta::gc_TypeList_Len<CMemberPointerTypes>;
 			using CReturnType = typename CTraits::CReturn;
 			using CIndices = NMeta::TCConsecutiveIndices<mc_nParams>;
 
@@ -110,7 +110,7 @@ namespace NMib::NConcurrency
 			{
 			}
 
-			template <typename tf_CActor, mint ...tfp_Indices>
+			template <typename tf_CActor, umint ...tfp_Indices>
 			mark_artificial inline_always CReturnType operator() (tf_CActor &_Actor, NMeta::TCIndices<tfp_Indices...>)
 			{
 				return m_pFunctionPointer(fg_Move(fg_Get<tfp_Indices>(m_Params))...);
@@ -131,7 +131,7 @@ namespace NMib::NConcurrency
 			return fg_Move(_Params);
 		}
 
-		template <typename... tfp_CParams, mint... tfp_Indicies>
+		template <typename... tfp_CParams, umint... tfp_Indicies>
 		auto fg_ToTupleByValueHelper(TCConstruct<void, tfp_CParams...> &&_Params, NMeta::TCIndices<tfp_Indicies...>)
 		{
 			return NStorage::fg_Tuple
@@ -301,7 +301,7 @@ namespace NMib::NConcurrency
 				m_RunLoop.f_Finished();
 			}
 
-			template <mint ...tfp_Indices, typename ...tfp_CResults>
+			template <umint ...tfp_Indices, typename ...tfp_CResults>
 			void f_TransferResults(NMeta::TCIndices<tfp_Indices...> const &_Indicies, tfp_CResults && ...p_Results)
 			{
 				t_CReturnType Result;
@@ -373,17 +373,17 @@ namespace NMib::NConcurrency
 		template
 		<
 			typename tf_CResultFunctor
-			, mint... tfp_Indices
+			, umint... tfp_Indices
 		>
 		void fp_ActorCall(tf_CResultFunctor &&_ResultFunctor, TCActor<> &&_ResultActor, NMeta::TCIndices<tfp_Indices...>);
 
-		template <mint... tfp_Indices>
+		template <umint... tfp_Indices>
 		CUnwrappedType fp_Unwrap(NMeta::TCIndices<tfp_Indices...>);
 
-		template <mint... tfp_Indices>
+		template <umint... tfp_Indices>
 		NException::CExceptionPointer fp_HasException(NMeta::TCIndices<tfp_Indices...>);
 
-		template <mint... tfp_Indices>
+		template <umint... tfp_Indices>
 		void fp_TransformExceptions(CWrappedType &o_Results, NMeta::TCIndices<tfp_Indices...>);
 
 		bool await_ready() const noexcept;
@@ -394,7 +394,7 @@ namespace NMib::NConcurrency
 	private:
 		CWrappedType mp_Results;
 		NStorage::TCTuple<tp_CFutures...> mp_Futures;
-		NAtomic::TCAtomic<mint> mp_ResultAvailable;
+		NAtomic::TCAtomic<umint> mp_ResultAvailable;
 		DMibNoUniqueAddress t_FExceptionTransform mp_fExceptionTransform;
 	};
 
@@ -496,7 +496,7 @@ namespace NMib::NConcurrency
 		}
 
 	private:
-		template <typename tf_CRunLoop, typename ...tfp_CParams, mint... tfp_Indices>
+		template <typename tf_CRunLoop, typename ...tfp_CParams, umint... tfp_Indices>
 		NStorage::TCTuple<typename NPrivate::TCConvertResultTypeVoid<typename tp_CFutures::CValue>::CType...> fp_CallSync
 			(
 				fp64 _Timeout
@@ -536,12 +536,12 @@ namespace NMib::NConcurrency
 			return pResult->m_Result.f_Move();
 		}
 
-		template <typename tf_CResultActor, typename tf_CResultFunctor, mint... tfp_Indices>
+		template <typename tf_CResultActor, typename tf_CResultFunctor, umint... tfp_Indices>
 		void fp_ActorCall(TCActorResultCall<tf_CResultActor, tf_CResultFunctor> &&_ResultCall, NMeta::TCIndices<tfp_Indices...>) &&
 			requires (NTraits::cIsCallableWith<tf_CResultFunctor, void (TCAsyncResult<typename tp_CFutures::CValue> && ...)>) // Incorrect types in result call
 		;
 
-		template <mint... tfp_Indices>
+		template <umint... tfp_Indices>
 		TCFuture<NStorage::TCTuple<TCAsyncResult<typename tp_CFutures::CValue>...>> fp_ActorFutureCall(NMeta::TCIndices<tfp_Indices...>) &&;
 	};
 
@@ -571,7 +571,7 @@ namespace NMib::NConcurrency
 			, typename t_CHandler
 			, typename t_CActor
 			, typename... tp_CResultTypes
-			, mint... tp_ResultIndices
+			, umint... tp_ResultIndices
 		>
 		struct TCCallMutipleActorStorage<t_bUnwrapTuple, t_CHandler, t_CActor, NMeta::TCTypeList<tp_CResultTypes...>, NMeta::TCIndices<tp_ResultIndices...>>
 		{
@@ -581,7 +581,7 @@ namespace NMib::NConcurrency
 			};
 			NStorage::CIntrusiveRefCount m_RefCount;
 			NStorage::TCTuple<TCAsyncResult<tp_CResultTypes>...> m_Results;
-			NAtomic::TCAtomic<mint> m_nFinished;
+			NAtomic::TCAtomic<umint> m_nFinished;
 			t_CActor m_Actor;
 			t_CHandler m_Handler;
 
@@ -632,7 +632,7 @@ namespace NMib::NConcurrency
 		template
 		<
 			typename... tp_CResultTypes
-			, mint... tp_ResultIndices
+			, umint... tp_ResultIndices
 		>
 		struct TCCallMutipleFutureStorage<NMeta::TCTypeList<tp_CResultTypes...>, NMeta::TCIndices<tp_ResultIndices...>>
 		{
@@ -643,7 +643,7 @@ namespace NMib::NConcurrency
 
 			NStorage::CIntrusiveRefCount m_RefCount;
 			NStorage::TCTuple<TCAsyncResult<tp_CResultTypes>...> m_Results;
-			NAtomic::TCAtomic<mint> m_nFinished;
+			NAtomic::TCAtomic<umint> m_nFinished;
 			TCPromiseFuturePair<NStorage::TCTuple<TCAsyncResult<tp_CResultTypes>...>> m_Promise;
 
 			TCCallMutipleFutureStorage() = default;
@@ -673,7 +673,7 @@ namespace NMib::NConcurrency
 	<
 		typename tf_CResultActor
 		, typename tf_CResultFunctor
-		, mint... tfp_Indices
+		, umint... tfp_Indices
 	>
 	void TCFuturePack<tp_CFutures...>::fp_ActorCall(TCActorResultCall<tf_CResultActor, tf_CResultFunctor> &&_ResultCall, NMeta::TCIndices<tfp_Indices...>) &&
 		requires (NTraits::cIsCallableWith<tf_CResultFunctor, void (TCAsyncResult<typename tp_CFutures::CValue> && ...)>) // Incorrect types in result call
@@ -703,7 +703,7 @@ namespace NMib::NConcurrency
 	}
 
 	template <typename... tp_CFutures>
-	template <mint... tfp_Indices>
+	template <umint... tfp_Indices>
 	TCFuture<NStorage::TCTuple<TCAsyncResult<typename tp_CFutures::CValue>...>> TCFuturePack<tp_CFutures...>::fp_ActorFutureCall(NMeta::TCIndices<tfp_Indices...>) &&
 	{
 		using CTypeList = NMeta::TCTypeList<typename tp_CFutures::CValue...>;
@@ -965,7 +965,7 @@ namespace NMib::NConcurrency
 	template <typename t_CReturnType>
 	void NPrivate::TCFutureCoroutineContextShared<t_CReturnType>::CConcurrentRunQueueEntryImpl::f_Call(CConcurrencyThreadLocal &_ThreadLocal)
 	{
-		static constexpr mint c_Offset = DMibPOffsetOf(CFutureCoroutineContext, m_RunQueueImplStorage);
+		static constexpr umint c_Offset = DMibPOffsetOf(CFutureCoroutineContext, m_RunQueueImplStorage);
 
 		CFutureCoroutineContext *pCoroutineContext = (CFutureCoroutineContext *)((uint8 *)this - c_Offset);
 		auto &CoroutineContext = *pCoroutineContext;
@@ -1000,7 +1000,7 @@ namespace NMib::NConcurrency
 	template <typename t_CReturnType>
 	void NPrivate::TCFutureCoroutineContextShared<t_CReturnType>::CConcurrentRunQueueEntryImpl::f_Cleanup()
 	{
-		static constexpr mint c_Offset = DMibPOffsetOf(CFutureCoroutineContext, m_RunQueueImplStorage);
+		static constexpr umint c_Offset = DMibPOffsetOf(CFutureCoroutineContext, m_RunQueueImplStorage);
 
 		CFutureCoroutineContext *pCoroutineContext = (CFutureCoroutineContext *)((uint8 *)this - c_Offset);
 		auto &CoroutineContext = *pCoroutineContext;
@@ -1621,7 +1621,7 @@ namespace NMib::NConcurrency
 			return fg_Forward<tf_CParam>(_Param).f_Future();
 		}
 
-		template <typename ...tfp_CParams, mint ...tfp_Indidies>
+		template <typename ...tfp_CParams, umint ...tfp_Indidies>
 		auto fg_AnyDoneImpl(NMeta::TCIndices<tfp_Indidies...> const &, TCFuture<tfp_CParams> && ...p_Futures)
 			-> TCFuture<NStorage::TCTuple<NStorage::TCOptional<typename TCConvertResultTypeVoid<tfp_CParams>::CType>...>>
 		{
@@ -1665,18 +1665,18 @@ namespace NMib::NConcurrency
 			return fg_Move(pState->m_Promise.m_Future);
 		}
 
-		template <typename ...tfp_CParams, mint ...tfp_Indidies>
+		template <typename ...tfp_CParams, umint ...tfp_Indidies>
 		auto fg_AnySuccessImpl(NMeta::TCIndices<tfp_Indidies...> const &, TCFuture<tfp_CParams> && ...p_Futures)
 			-> TCFuture<NStorage::TCTuple<NStorage::TCOptional<typename TCConvertResultTypeVoid<tfp_CParams>::CType>...>>
 		{
-			static constexpr mint c_nParams = sizeof...(tfp_CParams);
+			static constexpr umint c_nParams = sizeof...(tfp_CParams);
 
 			struct CState
 			{
 				TCPromiseFuturePair<NStorage::TCTuple<NStorage::TCOptional<typename TCConvertResultTypeVoid<tfp_CParams>::CType>...>> m_Promise;
 				NException::CExceptionPointer m_Errors[c_nParams];
 				NAtomic::CAtomicFlag m_bReplied;
-				NAtomic::TCAtomic<mint> m_nErrors;
+				NAtomic::TCAtomic<umint> m_nErrors;
 			};
 
 			NStorage::TCSharedPointer<CState> pState = fg_Construct();

@@ -52,7 +52,7 @@ namespace NMib::NConcurrency
 
 			CDistributedAppLogReporter::CLogInfo m_Info;
 			uint64 m_LastSeenUniqueSequence = 0;
-			mint m_ActiveRefCount = 0;
+			umint m_ActiveRefCount = 0;
 
 			CSequencer m_LogSequencer{"DistributedAppLogStoreLocal Log LogSequencer {}"_f << m_Info.f_Key()};
 			TCMap<TCWeakDistributedActor<CActor>, CLogReporter> m_LogReporters;

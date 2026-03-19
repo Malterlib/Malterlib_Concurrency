@@ -41,7 +41,7 @@ namespace NMib::NConcurrency
 			CDataUnion &operator = (CDataUnion &&_Other);
 
 			NException::CExceptionPointer m_pException;
-			mint m_DataType;
+			umint m_DataType;
 		};
 
 		CDataUnion mp_Data;
@@ -65,7 +65,7 @@ namespace NMib::NConcurrency
 
 		void f_Access() const; ///< Try to access the contained value. Useful to throw the contained exception in case you want to catch and handle it.
 		NStr::CStr f_GetExceptionStr() const noexcept; ///< Returns a string for the contained exception.
-		NStr::CStr f_GetExceptionCallstackStr(mint _Indent) const; ///< Returns a string for the contained exception.
+		NStr::CStr f_GetExceptionCallstackStr(umint _Indent) const; ///< Returns a string for the contained exception.
 		NException::CExceptionPointer f_GetException() const & noexcept; ///< Returns the contained exception as an exception pointer
 		NException::CExceptionPointer f_GetException() && noexcept; ///< Returns the contained exception as an exception pointer
 		template <typename tf_CException>

@@ -821,10 +821,10 @@ namespace NMib::NConcurrency
 		TCFuture<CConnectionsDebugStats> f_GetConnectionsDebugStats();
 		TCFuture<NStr::CStr> f_GetHostFriendlyName(NStr::CStr _HostID);
 
-		static constexpr mint mc_RemoteCallOverhead = 38;
-		static constexpr mint mc_RemoteCallReturnOverhead = 19;
-		static constexpr mint mc_MaxMessageSize = 24 * 1024 * 1024;
-		static constexpr mint mc_HalfMaxMessageSize = mc_MaxMessageSize / 2;
+		static constexpr umint mc_RemoteCallOverhead = 38;
+		static constexpr umint mc_RemoteCallReturnOverhead = 19;
+		static constexpr umint mc_MaxMessageSize = 24 * 1024 * 1024;
+		static constexpr umint mc_HalfMaxMessageSize = mc_MaxMessageSize / 2;
 
 		static_assert(mc_HalfMaxMessageSize > (mc_RemoteCallOverhead + 512));
 

@@ -1230,6 +1230,21 @@ namespace NMib::NConcurrency
 		NStorage::TCSharedPointer<NPrivate::TCPromiseData<t_CReturnValue>> mp_pData;
 	};
 
+	// Deduction guides for TCFuture
+	template <typename t_CType>
+		requires
+		(
+			!NTraits::cIsSame<t_CType, CVoidTag>
+			&& !NTraits::cIsSame<t_CType, NException::CExceptionPointer>
+			&& !NTraits::cIsBaseOf<t_CType, NException::CExceptionBase>
+		)
+	TCFuture(t_CType) -> TCFuture<t_CType>;
+
+	TCFuture(CVoidTag) -> TCFuture<void>;
+
+	template <typename t_CType>
+	TCFuture(TCAsyncResult<t_CType>) -> TCFuture<t_CType>;
+
 	template <typename t_CReturnValue, ECoroutineFlag t_Flags>
 	struct [[nodiscard("You need to co_await or forward the result to a functor with > operator")]] TCFutureWithFlags : public TCFuture<t_CReturnValue>
 	{

@@ -4,6 +4,7 @@
 #pragma once
 
 #include <Mib/Memory/Allocators/Secure>
+#include <Mib/Intrusive/AVLTree>
 
 namespace NMib::NException
 {

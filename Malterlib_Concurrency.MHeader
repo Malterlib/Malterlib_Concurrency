@@ -19,6 +19,9 @@ Repository
 	{
 		Type "External"
 		Remotes =+ {Name: "upstream", URL: "https://github.com/libusb/hidapi.git"}
+		{
+			!!MalterlibAddUpstreams true
+		}
 	}
 }
 
@@ -94,6 +97,9 @@ Repository
 		Type "External"
 		DefaultUpstreamBranch "main"
 		Remotes =+ {Name: "upstream", URL: "https://github.com/bernardosulzbach/cppcoro.git"}
+		{
+			!!MalterlibAddUpstreams true
+		}
 	}
 }
 

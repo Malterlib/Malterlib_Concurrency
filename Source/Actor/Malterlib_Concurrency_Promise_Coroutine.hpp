@@ -139,6 +139,26 @@ namespace NMib::NConcurrency::NPrivate
 		using CReturnNoReference = NTraits::TCRemoveReferenceAndQualifiers<tf_CReturnType>;
 		if constexpr (NTraits::cIsSame<CReturnNoReference, TCAsyncResult<t_CReturnType>>)
 			pPromiseData->f_SetResultNoReport(fg_Forward<tf_CReturnType>(_Value));
+		else if constexpr
+			(
+				NPrivate::TCIsAsyncResult<CReturnNoReference>::mc_Value
+				&& NTraits::cIsConstructibleWith<TCWrapped<t_CReturnType>, tf_CReturnType &&>
+			)
+		{
+			TCWrapped<t_CReturnType> Converted(fg_Forward<tf_CReturnType>(_Value));
+			pPromiseData->f_SetResultNoReport(static_cast<TCAsyncResult<t_CReturnType> &&>(Converted));
+		}
+		else if constexpr (NTraits::cIsSame<CReturnNoReference, TCWrapped<t_CReturnType>>)
+			pPromiseData->f_SetResultNoReport(fg_ForwardAs<tf_CReturnType>(static_cast<TCAsyncResult<t_CReturnType> &>(_Value)));
+		else if constexpr
+			(
+				NPrivate::TCIsWrapped<CReturnNoReference>::mc_Value
+				&& NTraits::cIsConstructibleWith<TCWrapped<t_CReturnType>, tf_CReturnType &&>
+			)
+		{
+			TCWrapped<t_CReturnType> Converted(fg_Forward<tf_CReturnType>(_Value));
+			pPromiseData->f_SetResultNoReport(static_cast<TCAsyncResult<t_CReturnType> &&>(Converted));
+		}
 		else if constexpr (NException::cIsException<CReturnNoReference>)
 		{
 			static_assert
@@ -165,6 +185,7 @@ namespace NMib::NConcurrency::NPrivate
 		static_assert
 			(
 				NTraits::cIsSame<CReturnNoReference, TCAsyncResult<void>>
+				|| NTraits::cIsSame<CReturnNoReference, TCWrapped<void>>
 				|| NTraits::cIsSame<CReturnNoReference, TCPromise<void>>
 				|| NException::cIsException<CReturnNoReference>
 				|| NTraits::cIsSame<CReturnNoReference, NException::CExceptionPointer>
@@ -176,6 +197,8 @@ namespace NMib::NConcurrency::NPrivate
 
 		if constexpr (NTraits::cIsSame<CReturnNoReference, TCAsyncResult<void>>)
 			PromiseData->f_SetResultNoReport(fg_Forward<tf_CReturnType>(_Value));
+		else if constexpr (NTraits::cIsSame<CReturnNoReference, TCWrapped<void>>)
+			PromiseData->f_SetResultNoReport(fg_ForwardAs<tf_CReturnType>(static_cast<TCAsyncResult<void> &>(_Value)));
 		else if constexpr (NTraits::cIsSame<CReturnNoReference, TCPromise<void>>)
 			PromiseData->f_SetResultNoReport(fg_Forward<tf_CReturnType>(_Value));
 		else

@@ -288,7 +288,6 @@ namespace NMib::NConcurrency::NUnwrap
 		DMibNoUniqueAddress t_FExceptionTransform mp_fExceptionTransform;
 	};
 
-
 	inline_always CUnwrapHelper::operator CUnwrapHelperWithTransformer const &()
 	{
 		return CUnwrapHelperWithTransformer::ms_EmptyTransformer;
@@ -328,5 +327,37 @@ namespace NMib::NConcurrency::NUnwrap
 	CUnwrapHelperWithTransformer operator % (CUnwrapHelperWithTransformer &&_Helper, tf_CTransformerParam &&_Param)
 	{
 		return CUnwrapHelperWithTransformer(fg_ExceptionTransformer(fg_Move(_Helper.m_fTransformer), fg_Forward<tf_CTransformerParam>(_Param)));
+	}
+}
+
+namespace NMib::NConcurrency
+{
+	template <typename t_CReturnType>
+	auto operator co_await(TCAsyncResult<t_CReturnType> &&_Result)
+	{
+		return NUnwrap::TCUnwrapAwaiter<TCAsyncResult<t_CReturnType>>(fg_Move(_Result));
+	}
+
+	template <typename t_CReturnType>
+	auto operator co_await(TCWrapped<t_CReturnType> &&_Result)
+	{
+		return operator co_await(static_cast<TCAsyncResult<t_CReturnType> &&>(_Result));
+	}
+
+	template <typename t_CReturnType, typename tf_CTransformerParam>
+	auto operator % (TCAsyncResult<t_CReturnType> &&_Result, tf_CTransformerParam &&_Param)
+	{
+		return NUnwrap::TCUnwrapAwaiter<TCAsyncResult<t_CReturnType>, FExceptionTransformer>
+			(
+				fg_Move(_Result)
+				, fg_ExceptionTransformer(nullptr, fg_Forward<tf_CTransformerParam>(_Param))
+			)
+		;
+	}
+
+	template <typename t_CReturnType, typename tf_CTransformerParam>
+	auto operator % (TCWrapped<t_CReturnType> &&_Result, tf_CTransformerParam &&_Param)
+	{
+		return static_cast<TCAsyncResult<t_CReturnType> &&>(_Result) % fg_Forward<tf_CTransformerParam>(_Param);
 	}
 }

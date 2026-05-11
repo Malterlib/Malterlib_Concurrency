@@ -215,6 +215,31 @@ namespace NMib::NConcurrency
 
 	TCAsyncResult<void>::~TCAsyncResult() = default;
 
+	TCWrapped<void>::TCWrapped()
+	{
+		f_SetResult();
+	}
+
+	TCWrapped<void>::TCWrapped(CBase const &_Other)
+		: CBase(_Other)
+	{
+	}
+
+	TCWrapped<void>::TCWrapped(CBase &&_Other)
+		: CBase(fg_Move(_Other))
+	{
+	}
+
+	TCWrapped<void>::TCWrapped(NException::CExceptionPointer const &_pException)
+	{
+		f_SetException(_pException);
+	}
+
+	TCWrapped<void>::TCWrapped(NException::CExceptionPointer &&_pException)
+	{
+		f_SetException(fg_Move(_pException));
+	}
+
 	void TCAsyncResult<void>::f_Clear()
 	{
 		using namespace NException;

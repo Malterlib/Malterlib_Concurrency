@@ -7,6 +7,9 @@
 
 namespace NMib::NConcurrency
 {
+	struct CConcurrencyThreadLocal;
+	CConcurrencyThreadLocal &fg_ConcurrencyThreadLocal();
+
 	DMibImpErrorClassDefine(CExceptionActorResultWasNotSet, NMib::NException::CException);
 #		define DMibErrorActorResultWasNotSet(_Description) DMibImpError(NMib::NConcurrency::CExceptionActorResultWasNotSet, _Description, false)
 
@@ -177,6 +180,118 @@ namespace NMib::NConcurrency
 		template <typename tf_CStr>
 		void f_Format(tf_CStr &o_Str) const;
 	};
+
+	namespace NPrivate
+	{
+		template <typename t_CType>
+		struct TCIsAsyncResult
+		{
+			static constexpr bool mc_Value = false;
+			using CValue = void;
+		};
+
+		template <typename t_CType>
+		struct TCIsAsyncResult<TCAsyncResult<t_CType>>
+		{
+			static constexpr bool mc_Value = true;
+			using CValue = t_CType;
+		};
+
+		template <typename t_CType>
+		struct TCIsWrapped
+		{
+			static constexpr bool mc_Value = false;
+			using CValue = void;
+		};
+	}
+
+	template <typename t_CType = void>
+	struct [[nodiscard]] TCWrapped : public TCAsyncResult<t_CType>
+	{
+		using CBase = TCAsyncResult<t_CType>;
+		using CBase::CBase;
+
+		TCWrapped() = default;
+		TCWrapped(CBase const &_Other);
+		TCWrapped(CBase &&_Other);
+		template <typename tf_CResult>
+		TCWrapped(tf_CResult &&_Result)
+			requires
+			(
+				!NTraits::cIsSame<NTraits::TCRemoveReferenceAndQualifiers<tf_CResult>, TCWrapped>
+				&& !NPrivate::TCIsAsyncResult<NTraits::TCRemoveReferenceAndQualifiers<tf_CResult>>::mc_Value
+				&& !NPrivate::TCIsWrapped<NTraits::TCRemoveReferenceAndQualifiers<tf_CResult>>::mc_Value
+				&& !NException::cIsException<NTraits::TCRemoveReferenceAndQualifiers<tf_CResult>>
+				&& !NTraits::cIsSame<NTraits::TCRemoveReferenceAndQualifiers<tf_CResult>, NException::CExceptionPointer>
+				&& NTraits::cIsConstructibleWith<t_CType, tf_CResult &&>
+			)
+		;
+		template <typename tf_CAsyncResultType>
+		TCWrapped(TCAsyncResult<tf_CAsyncResultType> const &_Other)
+			requires
+			(
+				!NTraits::cIsSame<t_CType, tf_CAsyncResultType>
+				&& NTraits::cIsConvertible<tf_CAsyncResultType const &, t_CType>
+			)
+		;
+		template <typename tf_CAsyncResultType>
+		TCWrapped(TCAsyncResult<tf_CAsyncResultType> &&_Other)
+			requires
+			(
+				!NTraits::cIsSame<t_CType, tf_CAsyncResultType>
+				&& NTraits::cIsConvertible<tf_CAsyncResultType &&, t_CType>
+			)
+		;
+		template <typename tf_CWrappedType>
+		TCWrapped(TCWrapped<tf_CWrappedType> const &_Other)
+			requires
+			(
+				!NTraits::cIsSame<t_CType, tf_CWrappedType>
+				&& NTraits::cIsConvertible<tf_CWrappedType const &, t_CType>
+			)
+		;
+		template <typename tf_CWrappedType>
+		TCWrapped(TCWrapped<tf_CWrappedType> &&_Other)
+			requires
+			(
+				!NTraits::cIsSame<t_CType, tf_CWrappedType>
+				&& NTraits::cIsConvertible<tf_CWrappedType &&, t_CType>
+			)
+		;
+		template <typename tf_CException>
+		TCWrapped(tf_CException &&_Exception)
+			requires(NException::cIsException<NTraits::TCRemoveReferenceAndQualifiers<tf_CException>>)
+		;
+		TCWrapped(NException::CExceptionPointer const &_pException);
+		TCWrapped(NException::CExceptionPointer &&_pException);
+	};
+
+	template <>
+	struct [[nodiscard]] TCWrapped<void> : public TCAsyncResult<void>
+	{
+		using CBase = TCAsyncResult<void>;
+		using CBase::CBase;
+
+		TCWrapped();
+		TCWrapped(CBase const &_Other);
+		TCWrapped(CBase &&_Other);
+		template <typename tf_CException>
+		TCWrapped(tf_CException &&_Exception)
+			requires(NException::cIsException<NTraits::TCRemoveReferenceAndQualifiers<tf_CException>>)
+		;
+		TCWrapped(NException::CExceptionPointer const &_pException);
+		TCWrapped(NException::CExceptionPointer &&_pException);
+	};
+
+	namespace NPrivate
+	{
+		template <typename t_CType>
+		struct TCIsWrapped<TCWrapped<t_CType>>
+		{
+			static constexpr bool mc_Value = true;
+			using CValue = t_CType;
+		};
+	}
 #if !DMibConfig_Concurrency_DebugActorCallstacks
 
 #ifdef DPlatformFamily_Windows
@@ -230,6 +345,7 @@ namespace NMib::NFunction
 }
 
 #include "Malterlib_Concurrency_AsyncResult.hpp"
+#include "Malterlib_Concurrency_WrappedCoroutine.h"
 
 #ifndef DMibPNoShortCuts
 	using namespace NMib::NConcurrency;

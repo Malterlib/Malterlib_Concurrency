@@ -5,11 +5,14 @@
 #include "Malterlib_Concurrency_DistributedApp_Internal.h"
 #include "../DistributedTrust/Malterlib_Concurrency_DistributedTrust_AuthActor_U2F.h"
 
+#include <Mib/Concurrency/AsyncDestroy>
 #include <Mib/Concurrency/ConcurrencyManager>
 #include <Mib/Concurrency/DistributedActorTrustManagerDatabases/JsonDirectory>
 #include <Mib/Process/StdInActor>
 #include <Mib/Process/Platform>
 #include <Mib/CommandLine/CommandLineImplementation>
+#include <Mib/File/File>
+#include <Mib/File/ChangeNotificationActor>
 
 namespace NMib::NCommandLine
 {
@@ -249,6 +252,84 @@ namespace NMib::NConcurrency
 		};
 	}
 
+	namespace
+	{
+		// Waits for the daemon to write its command line connection ticket into the command line
+		// trust database before this client reads that database. On a cold first install the daemon
+		// starts and writes the ticket (CommandLineTrustDatabase/ClientConnections/*.json)
+		// asynchronously, while a client invocation (e.g. --trust-generate-ticket) may start and read
+		// the trust database before the ticket exists. The client reads the trust database only once
+		// (when constructing its trust manager), so without this wait it would build an empty trust
+		// manager, never connect to the daemon, and time out waiting for the command line actor.
+
+		TCFuture<void> fg_WaitForConnection(NStr::CStr _ClientConnectionsGlob, NStr::CStr _WatchPath, fp64 _Timeout)
+		{
+			auto Capture = co_await g_CaptureExceptions;
+
+			auto fHasConnection = [_ClientConnectionsGlob]() -> bool
+				{
+					return !NMib::NFile::CFile::fs_FindFiles(_ClientConnectionsGlob).f_IsEmpty();
+				}
+			;
+
+			// Fast path: the ticket is already present (warm daemon / subsequent runs).
+			if (fHasConnection())
+				co_return {};
+
+			TCActor<NMib::NFile::CFileChangeNotificationActor> WatchActor = fg_ConstructActor<NMib::NFile::CFileChangeNotificationActor>();
+
+			auto CleanupWatchActor = co_await fg_AsyncDestroy(WatchActor);
+
+			TCPromiseFuturePair<void> Pair;
+
+			// Watch the (always-existing) root directory recursively (EFileChange_All includes
+			// EFileChange_Recursive) so we are notified when the daemon creates the ticket below it.
+			auto RegisterResult = co_await WatchActor
+				(
+					&NMib::NFile::CFileChangeNotificationActor::f_RegisterForChanges
+					, _WatchPath
+					, NMib::NFile::EFileChange_All
+					, g_ActorFunctor / [fHasConnection, Promise = Pair.m_Promise, bSet = false]
+					(NContainer::TCVector<NMib::NFile::CFileChangeNotification::CNotification>) mutable -> TCFuture<void>
+					{
+						auto Capture = co_await g_CaptureExceptions;
+
+						if (!bSet && fHasConnection())
+						{
+							bSet = true;
+							Promise.f_SetResult();
+						}
+
+						co_return {};
+					}
+					, NMib::NFile::CFileChangeNotificationActor::CCoalesceSettings{.m_Delay = 0.0}
+				).f_Wrap()
+			;
+
+			if (!RegisterResult)
+			{
+				DMibLogWithCategory(Mib/Concurrency/App, Warning, "Failed to watch for command line connection ticket; proceeding without waiting: {}", RegisterResult.f_GetExceptionStr());
+				co_return {};
+			}
+
+			CActorSubscription Subscription = fg_Move(*RegisterResult);
+
+			// Re-check after registering: the ticket may have appeared between the fast-path check
+			// and the watch being established.
+			if (!fHasConnection())
+			{
+				auto WaitResult = co_await fg_Move(Pair.m_Future).f_Timeout(_Timeout, "Timed out waiting for command line connection ticket").f_Wrap();
+				if (!WaitResult)
+					DMibLogWithCategory(Mib/Concurrency/App, Warning, "Proceeding without command line connection ticket: {}", WaitResult.f_GetExceptionStr());
+			}
+
+			if (Subscription)
+				co_await fg_Exchange(Subscription, nullptr)->f_Destroy();
+
+			co_return {};
+		}
+	}
+
 	uint32 CDistributedAppCommandLineClient::fp_RunCommand
 		(
 			void const *_pCommand
@@ -461,7 +542,25 @@ namespace NMib::NConcurrency
 					RemoteCommandLineHostID = pValue->f_String();
 			}
 			else
+			{
 				TrustDatabase = Internal.m_Settings.m_RootDirectory / ("CommandLineTrustDatabase.{}"_f << Internal.m_Settings.m_AppName);
+
+				// The trust database below is read only once (when the trust manager is constructed),
+				// so on a cold first install we must not read it before the daemon has written its
+				// command line connection ticket. Wait (via file change notifications) for the ticket
+				// to appear; best-effort, so a missing daemon still falls through after the timeout.
+				auto BlockingActor = fg_BlockingActor();
+				(
+					g_Dispatch(BlockingActor) / [TrustDatabase, RootDir = Internal.m_Settings.m_RootDirectory] -> TCFuture<void>
+					{
+						CStr ClientConnectionsGlob = TrustDatabase / "ClientConnections/*.json";
+
+						co_await fg_WaitForConnection(ClientConnectionsGlob, RootDir, 10.0);
+
+						co_return {};
+					}
+				).f_CallSync(Internal.m_pRunLoop, 60.0);
+			}
 
 			Internal.m_TrustManager = fg_ConstructActor<CDistributedActorTrustManager>
 				(

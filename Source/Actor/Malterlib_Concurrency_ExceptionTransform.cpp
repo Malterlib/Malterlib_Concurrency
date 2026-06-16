@@ -39,16 +39,16 @@ namespace NMib::NConcurrency
 					if (!pException)
 						return nullptr;
 
-					if (NException::fg_ExceptionIsOfType<NException::CExceptionBase>(_pException))
+					if (NException::fg_ExceptionIsOfType<NException::CExceptionBase>(pException))
 					{
-						auto ExceptionString = NException::fg_ExceptionString(_pException);
+						auto ExceptionString = NException::fg_ExceptionString(pException);
 						return NException::fg_MakeException
 							(
 								DMibErrorInstanceWrapped(NStr::fg_Format("{}: {}", Message, ExceptionString), fg_Move(pException), false)
 							)
 						;
 					}
-					return fg_Move(_pException);
+					return fg_Move(pException);
 				}
 			;
 		}

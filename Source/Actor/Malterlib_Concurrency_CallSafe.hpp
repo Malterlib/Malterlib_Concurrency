@@ -19,6 +19,28 @@ namespace NMib::NConcurrency
 	template <typename t_CParams>
 	using TCSafeCallParamsToFunctionPointer = typename TCSafeCallParamsToFunctionPointerImpl<t_CParams>::CType;
 
+	namespace NPrivate
+	{
+		template <typename t_CFunction>
+		using TCCallSafeFunctionParams = typename NTraits::TCMemberFunctionPointerTraits<decltype(&t_CFunction::operator ())>::CParams;
+
+		template <typename t_CFunction, typename ...tp_CParams>
+		struct TCCallSafeIsValidFunction
+		{
+			static constexpr bool mc_Value = NTraits::cIsCallableWith
+			<
+				TCSafeCallParamsToFunctionPointer<TCCallSafeFunctionParams<t_CFunction>>
+				, void (tp_CParams...)
+			>;
+		};
+
+		template <typename t_CType, typename ...tp_COptions, typename ...tp_CParams>
+		struct TCCallSafeIsValidFunction<NStorage::TCSharedPointer<t_CType, tp_COptions...>, tp_CParams...>
+		{
+			static constexpr bool mc_Value = false;
+		};
+	}
+
 	template <typename tf_CReturn, typename ...tfp_CStorageParams, typename tf_CFunction, typename ...tfp_CParams, umint... tfp_Indices>
 	auto fg_CallSafeImpl(tf_CFunction &&_Function, NMeta::TCIndices<tfp_Indices...> const &_Indices, tfp_CParams &&...p_Params)
 		requires NTraits::cIsCallableWith
@@ -122,16 +144,12 @@ namespace NMib::NConcurrency
 
 	template <typename tf_CFunction, typename ...tfp_CParams>
 	mark_artificial inline_always auto fg_CallSafe(tf_CFunction &&_fFunction, tfp_CParams &&...p_Params)
-		requires NTraits::cIsCallableWith
-		<
-			TCSafeCallParamsToFunctionPointer<typename NTraits::TCMemberFunctionPointerTraits<decltype(&NTraits::TCRemoveReference<tf_CFunction>::operator ())>::CParams>
-			, void (tfp_CParams...)
-		>
+		requires (NPrivate::TCCallSafeIsValidFunction<NTraits::TCRemoveReferenceAndQualifiers<tf_CFunction>, tfp_CParams...>::mc_Value)
 	{
-		using CFunctionType = NTraits::TCRemoveReference<tf_CFunction>;
+		using CFunctionType = NTraits::TCRemoveReferenceAndQualifiers<tf_CFunction>;
 		return fg_CallSafeGenericImpl<tf_CFunction>
 			(
-				typename NTraits::TCMemberFunctionPointerTraits<decltype(&CFunctionType::operator ())>::CParams()
+				typename NPrivate::TCCallSafeFunctionParams<CFunctionType>()
 				, fg_Forward<tf_CFunction>(_fFunction)
 				, fg_Forward<tfp_CParams>(p_Params)...
 			)
@@ -140,16 +158,12 @@ namespace NMib::NConcurrency
 
 	template <typename tf_CFunction, typename ...tfp_CParams>
 	mark_artificial inline_always auto fg_CallSafe(NStorage::TCSharedPointer<tf_CFunction> const &_fFunction, tfp_CParams &&...p_Params)
-		requires NTraits::cIsCallableWith
-		<
-			TCSafeCallParamsToFunctionPointer<typename NTraits::TCMemberFunctionPointerTraits<decltype(&NTraits::TCRemoveReference<tf_CFunction>::operator ())>::CParams>
-			, void (tfp_CParams...)
-		>
+		requires (NPrivate::TCCallSafeIsValidFunction<NTraits::TCRemoveReferenceAndQualifiers<tf_CFunction>, tfp_CParams...>::mc_Value)
 	{
-		using CFunctionType = NTraits::TCRemoveReference<tf_CFunction>;
+		using CFunctionType = NTraits::TCRemoveReferenceAndQualifiers<tf_CFunction>;
 		return fg_CallSafeGenericImpl<tf_CFunction>
 			(
-				typename NTraits::TCMemberFunctionPointerTraits<decltype(&CFunctionType::operator ())>::CParams()
+				typename NPrivate::TCCallSafeFunctionParams<CFunctionType>()
 				, _fFunction
 				, fg_Forward<tfp_CParams>(p_Params)...
 			)

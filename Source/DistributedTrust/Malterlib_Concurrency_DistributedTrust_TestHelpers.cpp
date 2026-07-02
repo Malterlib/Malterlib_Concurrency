@@ -460,6 +460,16 @@ namespace NMib::NConcurrency
 			m_Database->f_BlockDestroy();
 	}
 
+	TCFuture<void> CTrustManagerTestHelper::f_Destroy()
+	{
+		// Not a coroutine: return the database actor's destroy future directly so this (non-actor) helper never suspends
+		// with a `this` pointer. Moving m_Database out leaves the destructor's f_BlockDestroy() a no-op.
+		if (!m_Database)
+			return g_Void;
+
+		return fg_Move(m_Database).f_Destroy();
+	}
+
 	CTrustedSubscriptionTestHelper::CTrustedSubscriptionTestHelper(TCActor<CDistributedActorTrustManager> const &_TrustManager, fp64 _Timeout)
 		: mp_Internal(fg_ConstructActor<CInternal>(_TrustManager))
 		, mp_Timeout(_Timeout)

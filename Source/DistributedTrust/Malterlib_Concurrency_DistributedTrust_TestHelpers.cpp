@@ -477,6 +477,16 @@ namespace NMib::NConcurrency
 			m_Database->f_BlockDestroy();
 	}
 
+	// Await before destroying an actor-owned helper to avoid blocking its actor thread in the destructor.
+	TCFuture<void> CTrustManagerTestHelper::f_Destroy()
+	{
+		// Returning the future directly avoids retaining this helper across suspension.
+		if (!m_Database)
+			return g_Void;
+
+		return fg_Move(m_Database).f_Destroy();
+	}
+
 	CTrustedSubscriptionTestHelper::CTrustedSubscriptionTestHelper(TCActor<CDistributedActorTrustManager> const &_TrustManager, fp64 _Timeout)
 		: mp_Internal(fg_ConstructActor<CInternal>(_TrustManager))
 		, mp_Timeout(_Timeout)

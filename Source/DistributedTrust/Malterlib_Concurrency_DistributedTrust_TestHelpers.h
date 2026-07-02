@@ -91,6 +91,8 @@ namespace NMib::NConcurrency
 		CTrustManagerTestHelper();
 		~CTrustManagerTestHelper();
 
+		TCFuture<void> f_Destroy();
+
 		uint64 m_DefaultSendWindowBytes = 0; // Zero preserves the transport default.
 
 		TCActor<CTrustManagerDatabaseTestHelper> m_Database;

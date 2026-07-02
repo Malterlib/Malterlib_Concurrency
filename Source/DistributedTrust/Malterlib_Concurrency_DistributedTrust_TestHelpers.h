@@ -91,6 +91,11 @@ namespace NMib::NConcurrency
 		CTrustManagerTestHelper();
 		~CTrustManagerTestHelper();
 
+		// Asynchronously tear down the database actor. Prefer this when the helper is owned by an actor: the destructor
+		// falls back to a blocking f_BlockDestroy(), which pumps a run loop and only works on the main thread, not the
+		// pool thread an owning actor's destructor runs on. After f_Destroy() the destructor is a no-op.
+		TCFuture<void> f_Destroy();
+		
 		uint64 m_DefaultSendWindowBytes = 0; // Zero preserves the transport default.
 
 		TCActor<CTrustManagerDatabaseTestHelper> m_Database;

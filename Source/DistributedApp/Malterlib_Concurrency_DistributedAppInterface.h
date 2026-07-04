@@ -102,6 +102,7 @@ namespace NMib::NConcurrency
 			, EMonitorConfigType_GeneralBinary
 			, EMonitorConfigType_Registry
 			, EMonitorConfigType_Json
+			, EMonitorConfigType_Yaml
 		};
 
 		struct CConfigFile

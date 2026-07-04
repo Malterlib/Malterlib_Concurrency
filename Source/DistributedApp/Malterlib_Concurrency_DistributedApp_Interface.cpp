@@ -162,7 +162,13 @@ namespace NMib::NConcurrency
 	{
 		DMibCheck(!mp_State.m_ConfigDatabase.f_GetFileName().f_IsEmpty()); // Is currently guaranteed to be initialized in constructor, make sure this doesn't change
 
-		o_ConfigFiles.m_Files[mp_State.m_ConfigDatabase.f_GetFileName()].m_Type = CDistributedAppInterfaceServer::EMonitorConfigType_Json;
+		auto const &ConfigFileName = mp_State.m_ConfigDatabase.f_GetFileName();
+		bool bYamlConfig = ConfigFileName.f_EndsWith(".yaml") || ConfigFileName.f_EndsWith(".yml");
+		o_ConfigFiles.m_Files[ConfigFileName].m_Type =
+			bYamlConfig
+			? CDistributedAppInterfaceServer::EMonitorConfigType_Yaml
+			: CDistributedAppInterfaceServer::EMonitorConfigType_Json
+		;
 	}
 
 	TCFuture<CActorSubscription> CDistributedAppActor::fp_RegisterForAppInterfaceServerChanges

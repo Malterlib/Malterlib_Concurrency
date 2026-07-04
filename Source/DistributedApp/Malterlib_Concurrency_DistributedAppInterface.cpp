@@ -74,6 +74,7 @@ namespace NMib::NConcurrency
 		case EMonitorConfigType_GeneralBinary: return NStr::gc_Str<"General Binary">;
 		case EMonitorConfigType_Registry: return NStr::gc_Str<"Registry">;
 		case EMonitorConfigType_Json: return NStr::gc_Str<"JSON">;
+		case EMonitorConfigType_Yaml: return NStr::gc_Str<"YAML">;
 		}
 
 		return NStr::gc_Str<"Unknown">;

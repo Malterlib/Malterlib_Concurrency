@@ -51,9 +51,21 @@ namespace NMib::NConcurrency
 
 	CDistributedAppState::~CDistributedAppState() = default;
 
+	namespace
+	{
+		NStr::CStr fg_ResolveConfigDatabaseFileName(CDistributedAppActor_Settings const &_Settings)
+		{
+			NStr::CStr YamlFileName = _Settings.m_RootDirectory / ("{}Config.yaml"_f << _Settings.m_AppName);
+			if (NFile::CFile::fs_FileExists(YamlFileName))
+				return YamlFileName;
+
+			return _Settings.m_RootDirectory / ("{}Config.json"_f << _Settings.m_AppName);
+		}
+	}
+
 	CDistributedAppState::CDistributedAppState(CDistributedAppActor_Settings const &_Settings)
 		: m_StateDatabase(_Settings.m_RootDirectory / ("{}State.json"_f << _Settings.m_AppName))
-		, m_ConfigDatabase(_Settings.m_RootDirectory / ("{}Config.json"_f << _Settings.m_AppName))
+		, m_ConfigDatabase(fg_ResolveConfigDatabaseFileName(_Settings))
 		, m_RootDirectory(_Settings.m_RootDirectory)
 	{
 	}

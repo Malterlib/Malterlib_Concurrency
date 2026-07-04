@@ -495,7 +495,7 @@ namespace NMib::NConcurrency
 			)
 		;
 
-		CStr OverwriteWarning = fg_Format("WARNING: This will overwrite the '{}' config file and strip any comments.\n", mp_State.m_ConfigDatabase.f_GetFileName());
+		CStr OverwriteWarning = fg_Format("WARNING: This will rewrite the '{}' config file.\n", mp_State.m_ConfigDatabase.f_GetFileName());
 
 		Distributed.f_RegisterCommand
 			(

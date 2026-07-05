@@ -101,6 +101,44 @@ namespace NMib::NConcurrency::NPrivate
 		pEntry->f_Feed(_Stream, _Exception);
 	}
 
+	NException::CExceptionPointer fg_ConsumeUnknownException(NStream::CBinaryStreamDefault &_Stream, uint32 _TypeHash, uint64 _ExceptionStreamSize)
+	{
+		NStream::CFilePos EndPosition = _Stream.f_GetPosition() + NStream::CFilePos(_ExceptionStreamSize);
+
+		// Every exception type feeds the base-exception error string first (CExceptionBase::f_Feed), so decode that
+		// prefix as a generic exception to keep the original message; the concrete type's extra payload is skipped.
+		// The recovered message notes that it did not arrive as its correct exception type.
+		auto &TypeRegistry = fg_RuntimeTypeRegistry();
+		auto pBaseEntry = TypeRegistry.m_EntryByHash_Exception.f_FindEqual(NException::CException::ms_TypeHash);
+		if (pBaseEntry)
+		{
+			try
+			{
+				NException::CExceptionPointer pException = pBaseEntry->f_Consume(_Stream);
+				if (_Stream.f_GetPosition() <= EndPosition)
+				{
+					_Stream.f_SetPosition(EndPosition);
+					return DMibErrorInstance
+						(
+							NStr::fg_Format
+								(
+									"{} (received as unregistered exception type {nh})"
+									, NException::fg_ExceptionString(pException)
+									, _TypeHash
+								)
+						).f_ExceptionPointer()
+					;
+				}
+			}
+			catch (...)
+			{
+			}
+		}
+
+		_Stream.f_SetPosition(EndPosition);
+		return DMibErrorInstance(NStr::fg_Format("Unknown exception type received (type hash {nh})", _TypeHash)).f_ExceptionPointer();
+	}
+
 	NException::CExceptionPointer fg_ConsumeException(NStream::CBinaryStreamDefault &_Stream)
 	{
 		uint32 TypeHash;
@@ -113,11 +151,8 @@ namespace NMib::NConcurrency::NPrivate
 		auto pEntry = TypeRegistry.m_EntryByHash_Exception.f_FindEqual(TypeHash);
 		if (pEntry)
 			return pEntry->f_Consume(_Stream);
-		else
-		{
-			_Stream.f_AddPosition(ExceptionStreamSize);
-			return DMibErrorInstance("Unknown exception type received").f_ExceptionPointer();
-		}
+
+		return fg_ConsumeUnknownException(_Stream, TypeHash, ExceptionStreamSize);
 	}
 
 	void fg_FeedException(NStream::CBinaryStreamDefault &_Stream, NException::CExceptionPointer const &_pException)

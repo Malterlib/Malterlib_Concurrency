@@ -66,6 +66,13 @@ namespace NMib::NConcurrency::NPrivate
 	void fg_FeedException(NStream::CBinaryStreamDefault &_Stream, NException::CExceptionBase const &_pException);
 	NException::CExceptionPointer fg_ConsumeException(NStream::CBinaryStreamDefault &_Stream);
 
+	// Consumes an exception payload whose type hash is not registered in this binary. The base-exception prefix (the
+	// error string every exception type feeds first) is decoded as a generic exception so the original message
+	// survives — annotated with the unregistered type hash so the mismatch stays visible — and the rest of the
+	// payload is skipped. Falls back to a generic error naming the type hash when the payload cannot be decoded that
+	// way. The stream is left positioned directly after the payload either way.
+	NException::CExceptionPointer fg_ConsumeUnknownException(NStream::CBinaryStreamDefault &_Stream, uint32 _TypeHash, uint64 _ExceptionStreamSize);
+
 	void fg_StreamAsyncResultException
 		(
 			NStream::CBinaryStreamMemory<NStream::CBinaryStreamDefault, NContainer::CIOByteVector> &_Stream

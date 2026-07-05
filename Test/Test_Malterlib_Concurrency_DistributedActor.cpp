@@ -2464,6 +2464,53 @@ class CDistributedActor_Tests : public NMib::NTest::CTest
 public:
 	void f_FunctionalTests()
 	{
+		// The wire format of an exception whose concrete type is not registered on the receiving side still starts
+		// with the base-exception error string, so consuming it recovers the original message instead of dropping the
+		// payload with a bare "Unknown exception type received".
+		DMibTestSuite("Unknown exception type")
+		{
+			auto Exception = DMibErrorInstance("The real failure message");
+
+			NStream::CBinaryStreamMemory<NStream::CBinaryStreamDefault, NContainer::CIOByteVector> FeedStream;
+			NConcurrency::NPrivate::fg_FeedException(FeedStream, Exception);
+			NContainer::CIOByteVector Data = FeedStream.f_MoveVector();
+
+			// Corrupt the leading type hash so the receiving-side type lookup fails.
+			Data[0] = uint8(0xde);
+			Data[1] = uint8(0xc0);
+			Data[2] = uint8(0xad);
+			Data[3] = uint8(0x0b);
+
+			{
+				NStream::CBinaryStreamMemoryPtr<NStream::CBinaryStreamDefault> ConsumeStream;
+				ConsumeStream.f_OpenRead(Data);
+
+				NException::CExceptionPointer pException = NConcurrency::NPrivate::fg_ConsumeException(ConsumeStream);
+				CStr Message = NException::fg_ExceptionString(pException);
+				DMibExpectTrue(Message.f_Find("The real failure message") >= 0);
+				DMibExpectTrue(Message.f_Find("received as unregistered exception type") >= 0);
+				DMibExpect(ConsumeStream.f_GetPosition(), ==, NStream::CFilePos(Data.f_GetLen()));
+			}
+
+			// A payload that cannot be decoded as a base exception still lands the stream directly after the payload
+			// and yields a generic error.
+			{
+				NStream::CBinaryStreamMemory<NStream::CBinaryStreamDefault, NContainer::CIOByteVector> GarbageStream;
+				GarbageStream << uint32(0x0badc0de);
+				uint64 PayloadSize = 4;
+				NStream::fg_FeedLenToStream(GarbageStream, PayloadSize);
+				GarbageStream << uint32(0xffffffff);
+				NContainer::CIOByteVector GarbageData = GarbageStream.f_MoveVector();
+
+				NStream::CBinaryStreamMemoryPtr<NStream::CBinaryStreamDefault> ConsumeStream;
+				ConsumeStream.f_OpenRead(GarbageData);
+
+				NException::CExceptionPointer pException = NConcurrency::NPrivate::fg_ConsumeException(ConsumeStream);
+				DMibExpectTrue(bool(pException));
+				DMibExpect(ConsumeStream.f_GetPosition(), ==, NStream::CFilePos(GarbageData.f_GetLen()));
+			}
+		};
+
 		DMibTestSuite("Local")
 		{
 			struct CState : public CRunTestsState

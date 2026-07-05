@@ -58,6 +58,14 @@ namespace NMib::NConcurrency::NPrivate
 
 			if (!pEntry)
 			{
+				// With the payload size known, the base-exception prefix still carries the original message; without
+				// it (an old peer) nothing can be salvaged.
+				if (_ActorProtocolVersion >= NConcurrency::EDistributedActorProtocolVersion_GeneralExceptionsSupported)
+				{
+					_PromiseOrAsyncResult.f_SetException(fg_ConsumeUnknownException(_Stream, TypeHash, ExceptionStreamSize));
+					return true;
+				}
+
 				_Stream.f_AddPosition(ExceptionStreamSize);
 				_PromiseOrAsyncResult.f_SetException(DMibErrorInstance("Unknown exception type received"));
 				return true;

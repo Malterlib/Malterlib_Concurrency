@@ -66,6 +66,8 @@ namespace NMib::NConcurrency::NPrivate
 	void fg_FeedException(NStream::CBinaryStreamDefault &_Stream, NException::CExceptionBase const &_pException);
 	NException::CExceptionPointer fg_ConsumeException(NStream::CBinaryStreamDefault &_Stream);
 
+	NException::CExceptionPointer fg_ConsumeUnknownException(NStream::CBinaryStreamDefault &_Stream, uint32 _TypeHash, uint64 _ExceptionStreamSize);
+
 	void fg_StreamAsyncResultException
 		(
 			NStream::TCBinaryStreamStorage<NStream::CBinaryStreamDefault> &_Stream

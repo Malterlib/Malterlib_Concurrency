@@ -58,6 +58,13 @@ namespace NMib::NConcurrency::NPrivate
 
 			if (!pEntry)
 			{
+				// Older protocols omit the payload size needed to skip an unknown exception's remaining fields.
+				if (_ActorProtocolVersion >= NConcurrency::EDistributedActorProtocolVersion_GeneralExceptionsSupported)
+				{
+					_PromiseOrAsyncResult.f_SetException(fg_ConsumeUnknownException(_Stream, TypeHash, ExceptionStreamSize));
+					return true;
+				}
+
 				_Stream.f_AddPosition(ExceptionStreamSize);
 				_PromiseOrAsyncResult.f_SetException(DMibErrorInstance("Unknown exception type received"));
 				return true;

@@ -32,6 +32,7 @@ namespace NMib::NConcurrency
 				, NStr::CStr const &_Description
 				, NStr::CStr const &_LaunchID
 				, bool _bDelegateTrust
+				, NStr::CStr const &_RequestTicketMagic = {} /// Fixed request ticket magic for relaunching environments with a frozen process environment; empty generates a random one
 			)
 		;
 		~CDistributedAppInterfaceLaunchActor();

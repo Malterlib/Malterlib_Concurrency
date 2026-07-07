@@ -19,12 +19,13 @@ namespace NMib::NConcurrency
 			, NStr::CStr const &_Description
 			, NStr::CStr const &_LaunchID
 			, bool _bDelegateTrust
+			, NStr::CStr const &_RequestTicketMagic
 		)
 		: mp_Address(_Address)
 		, mp_TrustManager(_TrustManager)
 		, mp_fOnUseTicket(fg_Move(_fOnUseTicket))
 		, mp_fOnLaunchError(fg_Move(_fOnLaunchError))
-		, mp_RequestTicketMagic(NCryptography::fg_RandomID())
+		, mp_RequestTicketMagic(_RequestTicketMagic.f_IsEmpty() ? NCryptography::fg_RandomID() : _RequestTicketMagic)
 		, mp_Description(_Description)
 		, mp_LaunchID(_LaunchID)
 		, mp_bDelegateTrust(_bDelegateTrust)

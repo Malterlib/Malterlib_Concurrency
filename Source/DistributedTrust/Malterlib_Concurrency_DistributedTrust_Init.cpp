@@ -408,7 +408,23 @@ namespace NMib::NConcurrency
 					}
 
 					auto ConnectionMapped = m_ClientConnections(Address);
-					DMibFastCheck(!ConnectionMapped.f_WasCreated());
+					if (ConnectionMapped.f_WasCreated())
+					{
+						// The client connection was removed while connecting during init, for
+						// example because the app interface address changed during startup.
+						DMibLogWithCategory
+							(
+								Mib/Concurrency/Trust
+								, Info
+								, "Dropping connection to '{}' that was removed while connecting in init"
+								, Address
+							)
+						;
+						m_ClientConnections.f_Remove(Address);
+
+						ConnectPromise.f_SetResult();
+						return;
+					}
 					auto &ClientConnection = *ConnectionMapped;
 
 					ClientConnection.m_ConnectionReferences.f_Insert(fg_Move(_ConnectionResult->m_ConnectionReference));

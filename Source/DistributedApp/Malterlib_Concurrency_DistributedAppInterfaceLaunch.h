@@ -23,6 +23,7 @@ namespace NMib::NConcurrency
 				, NStr::CStr const &_Description
 				, NStr::CStr const &_LaunchID
 				, bool _bDelegateTrust
+				, NStr::CStr const &_RequestTicketMagic = {}
 			)
 		;
 		~CDistributedAppInterfaceLaunchActor();

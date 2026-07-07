@@ -399,9 +399,15 @@ namespace NMib::NConcurrency
 						return;
 					}
 
-					auto ConnectionMapped = m_ClientConnections(Address);
-					DMibFastCheck(!ConnectionMapped.f_WasCreated());
-					auto &ClientConnection = *ConnectionMapped;
+					auto *pClientConnection = m_ClientConnections.f_FindEqual(Address);
+					if (!pClientConnection)
+					{
+						DMibLogWithCategory(Mib/Concurrency/Trust, Info, "Dropping connection to '{}' that was removed while connecting in init", Address);
+
+						ConnectPromise.f_SetResult();
+						return;
+					}
+					auto &ClientConnection = *pClientConnection;
 
 					ClientConnection.m_ConnectionReferences.f_Insert(fg_Move(_ConnectionResult->m_ConnectionReference));
 					f_ApplyConnectionConcurrency(ClientConnection);

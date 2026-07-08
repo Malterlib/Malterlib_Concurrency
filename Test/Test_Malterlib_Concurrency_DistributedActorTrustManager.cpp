@@ -4021,6 +4021,110 @@ namespace NTestTrustManager
 
 			ServerTrustManager->f_BlockDestroy(RunLoopHelper.m_pRunLoop->f_ActorDestroyLoop());
 		}
+		{
+			DMibTestPath("Tickets for a wildcard listen");
+			CActorRunLoopTestHelper RunLoopHelper;
+
+			CState State{RunLoopHelper.m_pRunLoop, _fDatabaseFactory, _fCleanup, {}, _RootDir};
+
+			TCActor<CDistributedActorTrustManager> ServerTrustManager = State.f_CreateServerTrustManager();
+
+			CDistributedActorTrustManager_Address WildcardAddress;
+			WildcardAddress.m_URL = CStr("wss://[IPv4:0.0.0.0]:0/");
+			ServerTrustManager(&CDistributedActorTrustManager::f_AddListen, WildcardAddress, 0).f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout);
+
+			uint16 Port = ServerTrustManager(&CDistributedActorTrustManager::f_GetListenAddress, WildcardAddress).f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout).m_URL.f_GetPort();
+			DMibAssert(Port, !=, 0);
+
+			auto fGenerateTicket = [&](CStr const &_URL)
+				{
+					CDistributedActorTrustManager_Address Address;
+					Address.m_URL = _URL;
+					return ServerTrustManager(&CDistributedActorTrustManager::f_GenerateConnectionTicket, Address, nullptr, nullptr).f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout);
+				}
+			;
+
+			auto fExpectTicket = [&](CStr const &_Name, CStr const &_URL, CStr const &_ExpectedURL)
+				{
+					DMibTestPath(_Name);
+					auto TrustTicket = fGenerateTicket(_URL);
+					DMibExpect(TrustTicket.m_Ticket.m_ServerAddress.m_URL.f_Encode(), ==, NWeb::NHTTP::CURL(_ExpectedURL).f_Encode());
+				}
+			;
+
+			CStr Plain = "wss://192.0.2.10:{}/"_f << Port;
+			CStr Prefixed = "wss://[IPv4:192.0.2.10]:{}/"_f << Port;
+
+			fExpectTicket("IPv4 address", Plain, Plain);
+			fExpectTicket("IPv4 address with prefix", Prefixed, Prefixed);
+
+			auto fExpectNoTicket = [&](CStr const &_Name, CStr const &_URL)
+				{
+					DMibTestPath(_Name);
+					DMibExpectExceptionType(fGenerateTicket(_URL), NException::CException);
+				}
+			;
+
+			fExpectNoTicket("Other port", "wss://192.0.2.10:{}/"_f << uint16(Port == 1 ? 2 : 1));
+			fExpectNoTicket("No port", "wss://192.0.2.10/");
+			fExpectNoTicket("Port in host", "wss://[IPv4:192.0.2.10:{}]/"_f << Port);
+			fExpectNoTicket("Host name", "wss://host.test:{}/"_f << Port);
+			fExpectNoTicket("Loopback", "wss://127.0.0.1:{}/"_f << Port);
+			fExpectNoTicket("IPv6", "wss://[IPv6:2001:db8::10]:{}/"_f << Port);
+			fExpectNoTicket("Not an IPv4 address", "wss://192.0.2.256:{}/"_f << Port);
+
+			ServerTrustManager->f_BlockDestroy(RunLoopHelper.m_pRunLoop->f_ActorDestroyLoop());
+		}
+		{
+			DMibTestPath("Tickets for a translated wildcard listen");
+			CActorRunLoopTestHelper RunLoopHelper;
+
+			CState State{RunLoopHelper.m_pRunLoop, _fDatabaseFactory, _fCleanup, {}, _RootDir};
+
+			TCActor<CDistributedActorTrustManager> ServerTrustManager = State.f_CreateServerTrustManager
+				(
+					{
+						.m_TranslateHostnames = {{"wildcard.test", "IPv4:0.0.0.0"}, {"IPv4:0.0.0.0", "IPv4:127.0.0.1"}}
+						, .m_ReconnectDelay = 1_ms
+					}
+				)
+			;
+
+			auto fAddListen = [&](CStr const &_URL)
+				{
+					DMibTestPath(_URL);
+					CDistributedActorTrustManager_Address Address;
+					Address.m_URL = _URL;
+					ServerTrustManager(&CDistributedActorTrustManager::f_AddListen, Address, 0).f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout);
+
+					uint16 Port = ServerTrustManager(&CDistributedActorTrustManager::f_GetListenAddress, Address).f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout).m_URL.f_GetPort();
+					DMibAssert(Port, !=, 0);
+					return Port;
+				}
+			;
+
+			uint16 TranslatedToWildcardPort = fAddListen("wss://wildcard.test:0/");
+			uint16 TranslatedFromWildcardPort = fAddListen("wss://[IPv4:0.0.0.0]:0/");
+
+			auto fGenerateTicket = [&](uint16 _Port)
+				{
+					CDistributedActorTrustManager_Address Address;
+					Address.m_URL = "wss://[IPv4:192.0.2.10]:{}/"_f << _Port;
+					return ServerTrustManager(&CDistributedActorTrustManager::f_GenerateConnectionTicket, Address, nullptr, nullptr).f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout);
+				}
+			;
+
+			{
+				DMibTestPath("Host translated to the wildcard address");
+				DMibExpect(fGenerateTicket(TranslatedToWildcardPort).m_Ticket.m_ServerAddress.m_URL.f_GetPort(), ==, TranslatedToWildcardPort);
+			}
+			{
+				DMibTestPath("Wildcard address translated to a specific address");
+				DMibExpectExceptionType(fGenerateTicket(TranslatedFromWildcardPort), NException::CException);
+			}
+
+			ServerTrustManager->f_BlockDestroy(RunLoopHelper.m_pRunLoop->f_ActorDestroyLoop());
+		}
 	}
 
 	void CDistributedActorTrustManager_Tests::fp_DoDatabaseConversionTests()

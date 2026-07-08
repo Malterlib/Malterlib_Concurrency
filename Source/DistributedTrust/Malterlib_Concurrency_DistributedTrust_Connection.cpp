@@ -11,6 +11,38 @@
 
 namespace NMib::NConcurrency
 {
+	namespace
+	{
+		// Only a dotted decimal IPv4 address with four parts, each at most 255
+		bool fg_IsIPv4AddressLiteral(NStr::CStr const &_Host)
+		{
+			umint nParts = 0;
+			umint nDigits = 0;
+			uint32 Value = 0;
+			for (ch8 const *pParse = _Host.f_GetStr();; ++pParse)
+			{
+				if (*pParse >= '0' && *pParse <= '9')
+				{
+					Value = Value * 10 + uint32(*pParse - '0');
+					if (++nDigits > 3 || Value > 255)
+						return false;
+
+					continue;
+				}
+
+				if (nDigits == 0 || (*pParse != '.' && *pParse != 0))
+					return false;
+
+				++nParts;
+				if (*pParse == 0)
+					return nParts == 4;
+
+				nDigits = 0;
+				Value = 0;
+			}
+		}
+	}
+
 	CDistributedActorTrustManager::CInternal::CTicketInterface::CTicketInterface
 		(
 			CDistributedActorTrustManager::CInternal *_pInternal
@@ -166,11 +198,57 @@ namespace NMib::NConcurrency
 		auto &Internal = *mp_pInternal;
 		co_await Internal.f_WaitForInit();
 
-		// The ticket sends the client to the port the listen is bound to, which for a listen
-		// that asked for any port is not the one in its address
-		auto ServerAddress = co_await Internal.f_GetBoundListenAddress(_Address);
+		NStr::CStr CertificateHost = _Address.m_URL.f_GetHost();
+		CDistributedActorTrustManager_Address ServerAddress = _Address;
+		if (Internal.m_Listen.f_FindEqual(_Address))
+		{
+			// Port zero is not a port the ticket holder can connect to; a bound listen has the port the OS assigned
+			ServerAddress = co_await Internal.f_GetBoundListenAddress(_Address);
+		}
+		else
+		{
+			// A listen on the wildcard IPv4 address with the same scheme and port serves a ticket for an IPv4 address of the host, like the gateway
+			// address through which the guests of AppManager environments reach it. Any other host needs a listen with that host
+			NStr::CStr RequestedHost = _Address.m_URL.f_GetHost();
+			if (RequestedHost.f_StartsWith("IPv4:"))
+				RequestedHost = RequestedHost.f_Extract(NStr::fg_StrLen("IPv4:"));
 
-		auto *pServerCertificate = Internal.m_ServerCertificates.f_FindEqual(_Address.m_URL.f_GetHost());
+			// A client of a loopback host uses the local frame sizes, which a wildcard listen rejects. The port is explicit, so that the ticket names the
+			// address as given, which the client connection keeps and the app interface finds it by
+			if (!fg_IsIPv4AddressLiteral(RequestedHost) || NNetwork::fg_IsLoopbackHostString(RequestedHost) || !_Address.m_URL.f_HasPort())
+				co_return DMibErrorInstance("Could not find listen with this address");
+
+			uint16 RequestedPort = _Address.m_URL.f_GetPort();
+
+			NContainer::TCVector<CDistributedActorTrustManager_Address> WildcardListens;
+			for (auto &Listen : Internal.m_Listen)
+			{
+				auto &ListenAddress = Internal.m_Listen.fs_GetKey(Listen);
+
+				// The listen binds its translated host
+				NStr::CStr ListenHost = Internal.f_TranslateHostname(ListenAddress.m_URL.f_GetHost());
+				if ((ListenHost == "0.0.0.0" || ListenHost == "IPv4:0.0.0.0") && ListenAddress.m_URL.f_GetScheme() == _Address.m_URL.f_GetScheme())
+					WildcardListens.f_Insert(ListenAddress);
+			}
+
+			bool bFoundListen = false;
+			for (auto &ListenAddress : WildcardListens)
+			{
+				// A listen can be removed while an earlier lookup is suspended. A listen on any port is matched by the port it is bound to
+				auto BoundAddress = co_await Internal.f_GetBoundListenAddress(ListenAddress).f_Wrap();
+				if (!BoundAddress || BoundAddress->m_URL.f_GetPortFromScheme() != RequestedPort)
+					continue;
+
+				bFoundListen = true;
+				CertificateHost = ListenAddress.m_URL.f_GetHost();
+				break;
+			}
+
+			if (!bFoundListen)
+				co_return DMibErrorInstance("Could not find listen with this address");
+		}
+
+		auto *pServerCertificate = Internal.m_ServerCertificates.f_FindEqual(CertificateHost);
 		if (!pServerCertificate)
 			co_return DMibErrorInstance("Could not find and server certificate for this address");
 

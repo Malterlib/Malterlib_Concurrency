@@ -196,11 +196,45 @@ namespace NMib::NConcurrency
 		auto &Internal = *mp_pInternal;
 		co_await Internal.f_WaitForInit();
 
-		// The ticket sends the client to the port the listen is bound to, which for a listen
-		// that asked for any port is not the one in its address
-		auto ServerAddress = co_await Internal.f_GetBoundListenAddress(_Address);
+		NStr::CStr CertificateHost = _Address.m_URL.f_GetHost();
+		CDistributedActorTrustManager_Address ServerAddress = _Address;
+		if (Internal.m_Listen.f_FindEqual(_Address))
+		{
+			// The ticket sends the client to the port the listen is bound to, which for a listen
+			// that asked for any port is not the one in its address
+			ServerAddress = co_await Internal.f_GetBoundListenAddress(_Address);
+		}
+		else
+		{
+			// A listen bound to the wildcard address serves every address the host is
+			// reachable through, so it matches a ticket for a specific address; the
+			// ticket keeps the specific address for the client to connect to
+			bool bFoundListen = false;
+			for (auto &Listen : Internal.m_Listen)
+			{
+				auto &ListenURL = Internal.m_Listen.fs_GetKey(Listen).m_URL;
 
-		auto *pServerCertificate = Internal.m_ServerCertificates.f_FindEqual(_Address.m_URL.f_GetHost());
+				auto &ListenHost = ListenURL.f_GetHost();
+				if (ListenHost != "0.0.0.0" && ListenHost != "::")
+					continue;
+
+				if (ListenURL.f_GetScheme() != _Address.m_URL.f_GetScheme())
+					continue;
+
+				if (ListenURL.f_GetPortFromScheme() != _Address.m_URL.f_GetPortFromScheme())
+					continue;
+
+				bFoundListen = true;
+				CertificateHost = ListenHost;
+
+				break;
+			}
+
+			if (!bFoundListen)
+				co_return DMibErrorInstance("Could not find listen with this address");
+		}
+
+		auto *pServerCertificate = Internal.m_ServerCertificates.f_FindEqual(CertificateHost);
 		if (!pServerCertificate)
 			co_return DMibErrorInstance("Could not find and server certificate for this address");
 

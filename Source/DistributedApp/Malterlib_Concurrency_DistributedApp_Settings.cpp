@@ -45,6 +45,7 @@ namespace NMib::NConcurrency
 	namespace
 	{
 		CUniversallyUniqueIdentifier g_HostnameRootUUID("8ED61926-AC8A-4793-92C5-DE05547999E7", EUniversallyUniqueIdentifierFormat_Bare);
+		constexpr ch8 const *gc_pLocalSocketHostnamePrefix = "UNIX(666):";
 	}
 
 	auto CDistributedAppActor_InterfaceSettings::fs_ParseEnvironmentOptions(CStr const &_Options) -> EOption
@@ -110,6 +111,151 @@ namespace NMib::NConcurrency
 			return fg_Format("{}/{}{}.socket", _Prefix, m_AppName, TransportSuffix);
 	}
 
+	// The same relative spelling of distinct roots must not share a socket directory
+	NStr::CStr CDistributedAppActor_Settings::fp_GetExpandedRootDirectoryHash() const
+	{
+		return fg_GetHashedUuidString(CFile::fs_GetExpandedPath(m_RootDirectory), g_HostnameRootUUID, EUniversallyUniqueIdentifierFormat_AlphaNum);
+	}
+
+	// The directory for this root under MalterlibDistributedAppLocalSocketPrefix, or empty if the variable is unset or empty. The app saves the base address, not
+	// the enclave socket path, so a client that uses the saved address needs a hostname map to reach the enclave socket. The client builds that map
+	// from its own environment, so the app and its command lines run with the same prefix
+	NStr::CStr CDistributedAppActor_Settings::f_GetLocalSocketPrefixDirectory() const
+	{
+		CStr SocketPrefix = fg_GetSys()->f_GetEnvironmentVariable("MalterlibDistributedAppLocalSocketPrefix");
+		if (SocketPrefix.f_IsEmpty())
+			return {};
+
+		return CFile::fs_GetExpandedPath(SocketPrefix / fp_GetExpandedRootDirectoryHash());
+	}
+
+	// Whether _FileName has the base socket name for _Flags, without enclave, in the root directory, by expanded path or by identity, or in a directory
+	// named by a hash of the root, as the directories under a prefix and the fallback directories are. Blocking, since the identity check reads the filesystem
+	bool CDistributedAppActor_Settings::f_IsLocalSocketFileNameOfRoot(NStr::CStr const &_FileName, ELocalSocketFlag _Flags) const
+	{
+		if (CFile::fs_GetFile(_FileName) != CFile::fs_GetFile(fp_GetLocalSocketPath({}, _Flags & ~ELocalSocketFlag::mc_EnclaveSpecific, {})))
+			return false;
+
+		CStr RootDirectory = m_RootDirectory;
+#ifdef DPlatformFamily_Windows
+		RootDirectory = CFile::fs_GetExpandedPath(RootDirectory);
+#endif
+		// The earlier run can have spelled the same root differently, relative or absolute, or reached it through a link, as /tmp is on macOS
+		CStr Directory = CFile::fs_GetPath(_FileName);
+		if (CFile::fs_GetExpandedPath(Directory) == CFile::fs_GetExpandedPath(RootDirectory))
+			return true;
+
+		if
+		(
+			CFile::fs_FileExists(Directory, EFileAttrib_Directory)
+			&& CFile::fs_FileExists(RootDirectory, EFileAttrib_Directory)
+			&& CFile::fs_GetUniqueIdentifier(Directory) == CFile::fs_GetUniqueIdentifier(RootDirectory)
+		)
+		{
+			return true;
+		}
+
+		// A fallback directory is named by a hash of the root, so only those of the current spelling and of the expanded root are known as this
+		// root's: the hash of another spelling an earlier run used can't be told apart from a directory of another root, so the app's state records the
+		// listen it made outside the root directory
+		CStr DirectoryName = CFile::fs_GetFile(Directory);
+		return DirectoryName == fg_GetHashedUuidString(RootDirectory, g_HostnameRootUUID, EUniversallyUniqueIdentifierFormat_AlphaNum) || DirectoryName == fp_GetExpandedRootDirectoryHash();
+	}
+
+	// Whether _Hostname is one f_GetLocalSocketHostname gives for _Flags, without enclave, at a location f_IsLocalSocketFileNameOfRoot accepts.
+	// A unix host with other permissions is a listen configured explicitly, not one the command line setup creates
+	bool CDistributedAppActor_Settings::f_IsLocalSocketHostnameOfRoot(NStr::CStr const &_Hostname, ELocalSocketFlag _Flags) const
+	{
+		if (!fs_IsLocalSocketHostname(_Hostname))
+			return false;
+
+		return f_IsLocalSocketFileNameOfRoot(_Hostname.f_Extract(fg_StrLen(gc_pLocalSocketHostnamePrefix)), _Flags);
+	}
+
+	// Whether _Hostname has the UNIX(666): prefix that f_GetLocalSocketHostname gives. Doesn't access the filesystem
+	bool CDistributedAppActor_Settings::fs_IsLocalSocketHostname(NStr::CStr const &_Hostname)
+	{
+		return _Hostname.f_StartsWith(gc_pLocalSocketHostnamePrefix);
+	}
+
+	// The URL of the listen the command line setup creates for _Flags at _Hostname
+	NWeb::NHTTP::CURL CDistributedAppActor_Settings::fs_GetLocalSocketURL(NStr::CStr const &_Hostname, ELocalSocketFlag _Flags)
+	{
+		// The socket path comes from the root directory or the prefix, and can contain characters the URL reserves
+		CStr EncodedHostname = NWeb::NHTTP::CURL::fs_PercentEncode(_Hostname, "[]%@");
+		return NWeb::NHTTP::CURL{fg_Format("{}://[{}]/", fg_IsSet(_Flags, ELocalSocketFlag::mc_AuthenticatedUnix) ? "wsa" : "wss", EncodedHostname)};
+	}
+
+	// Whether _URL has a host f_IsLocalSocketHostnameOfRoot accepts and equals the URL fs_GetLocalSocketURL gives for that host and _Flags. A listen
+	// configured explicitly with the same URL can't be told apart
+	bool CDistributedAppActor_Settings::f_IsLocalSocketListenOfRoot(NWeb::NHTTP::CURL const &_URL, ELocalSocketFlag _Flags) const
+	{
+		if (!f_IsLocalSocketHostnameOfRoot(_URL.f_GetHost(), _Flags))
+			return false;
+
+		return _URL == fs_GetLocalSocketURL(_URL.f_GetHost(), _Flags);
+	}
+
+	// Blocking; a server calls it before it listens. Throws for a link, a non-directory and, on POSIX, a directory owned by another user, who could
+	// replace its sockets. Only the directory itself and the ancestors it creates are checked: untrusted users must not be able to replace it or
+	// any of its existing ancestors
+	void CDistributedAppActor_Settings::fs_PrepareLocalSocketDirectory(NStr::CStr const &_Directory)
+	{
+		if (_Directory.f_IsEmpty())
+			return;
+
+		auto fExists = [](CStr const &_Path)
+			{
+				return CFile::fs_FileExists(_Path, EFileAttrib_Directory | EFileAttrib_File | EFileAttrib_Link);
+			}
+		;
+
+		// Ordered from the outermost, so that on POSIX each one is restricted before the ones below it are checked
+		TCVector<CStr> CreatedDirectories;
+		for (CStr Directory = _Directory; !Directory.f_IsEmpty() && !fExists(Directory); Directory = CFile::fs_GetPath(Directory))
+			CreatedDirectories.f_InsertFirst(Directory);
+
+		// An owner-only Unix mode keeps other users from adding entries before the checks below. Inherited ACL entries still apply, and Windows ignores the mode
+		if (!CreatedDirectories.f_IsEmpty())
+		{
+			constexpr EFileAttrib c_OwnerOnly = NFile::EFileAttrib_UnixAttributesValid | NFile::EFileAttrib_UserExecute | NFile::EFileAttrib_UserRead | NFile::EFileAttrib_UserWrite;
+			CFile::fs_CreateDirectory(_Directory, c_OwnerOnly, c_OwnerOnly);
+		}
+		else
+			CreatedDirectories.f_Insert(_Directory);
+
+#ifndef DPlatformFamily_Windows
+		CStr User = NSys::fg_UserManagement_GetProcessEffectiveUserName();
+#endif
+		for (auto &Directory : CreatedDirectories)
+		{
+			EFileAttrib DirectoryAttributes = CFile::fs_GetAttributesOnLink(Directory);
+			if ((DirectoryAttributes & EFileAttrib_Link) || !(DirectoryAttributes & EFileAttrib_Directory))
+				DMibError("Local socket directory '{}' is not a directory"_f << Directory);
+
+#ifndef DPlatformFamily_Windows
+			CStr Owner = CFile::fs_GetOwnerOnLink(Directory);
+			if (Owner != User)
+				DMibError("Local socket directory '{}' is owned by '{}' instead of '{}'"_f << Directory << Owner << User);
+
+			// An existing directory can be writable by the group. Other users only get search permission from the mode, so that they can reach the known
+			// socket path without listing or changing the directories
+			CFile::fs_SetAttributes
+				(
+					Directory
+					, NFile::EFileAttrib_UnixAttributesValid
+					| NFile::EFileAttrib_UserExecute
+					| NFile::EFileAttrib_UserRead
+					| NFile::EFileAttrib_UserWrite
+					| NFile::EFileAttrib_GroupExecute
+					| NFile::EFileAttrib_EveryoneExecute
+				)
+			;
+#endif
+		}
+	}
+
+	// Resolves the path only, without creating or preparing its directory
 	NStr::CStr CDistributedAppActor_Settings::f_GetLocalSocketFileName(ELocalSocketFlag _Flags, NStr::CStr const &_Enclave) const
 	{
 		// Fallback directory selection belongs to this instance's m_Enclave; another instance needs its own settings.
@@ -118,19 +264,33 @@ namespace NMib::NConcurrency
 #ifdef DPlatformFamily_Windows
 		RootDirectory = CFile::fs_GetExpandedPath(RootDirectory);
 #endif
-		if (fp_GetLocalSocketPath(RootDirectory, _Flags | ELocalSocketFlag::mc_EnclaveSpecific, m_Enclave).f_GetLen() <= aint(MaxLength))
-			return fp_GetLocalSocketPath(RootDirectory, _Flags, _Enclave);
-
 		CStr ConfigHash = fg_GetHashedUuidString(RootDirectory, g_HostnameRootUUID, EUniversallyUniqueIdentifierFormat_AlphaNum);
-		CStr TempDir = CFile::fs_GetRawTemporaryDirectory();
-#ifdef DPlatformFamily_Windows
-		TempDir = CFile::fs_GetExpandedPath(TempDir);
-#endif
-		CStr Prefix = TempDir / ConfigHash;
-		if (fp_GetLocalSocketPath(Prefix, _Flags | ELocalSocketFlag::mc_EnclaveSpecific, m_Enclave).f_GetLen() <= aint(MaxLength))
-			return fp_GetLocalSocketPath(Prefix, _Flags, _Enclave);
 
-		Prefix = fg_Format("/tmp/{}", ConfigHash);
+		CStr PrefixDirectory = f_GetLocalSocketPrefixDirectory();
+
+		// A prefix means the root's filesystem may not host sockets, and the environment's temporary directory can be on it
+		if (!PrefixDirectory.f_IsEmpty())
+		{
+			if (fp_GetLocalSocketPath(PrefixDirectory, _Flags | ELocalSocketFlag::mc_EnclaveSpecific, m_Enclave).f_GetLen() <= aint(MaxLength))
+				return fp_GetLocalSocketPath(PrefixDirectory, _Flags, _Enclave);
+
+			ConfigHash = fp_GetExpandedRootDirectoryHash();
+		}
+		else
+		{
+			if (fp_GetLocalSocketPath(RootDirectory, _Flags | ELocalSocketFlag::mc_EnclaveSpecific, m_Enclave).f_GetLen() <= aint(MaxLength))
+				return fp_GetLocalSocketPath(RootDirectory, _Flags, _Enclave);
+
+			CStr TempDir = CFile::fs_GetRawTemporaryDirectory();
+#ifdef DPlatformFamily_Windows
+			TempDir = CFile::fs_GetExpandedPath(TempDir);
+#endif
+			CStr Prefix = TempDir / ConfigHash;
+			if (fp_GetLocalSocketPath(Prefix, _Flags | ELocalSocketFlag::mc_EnclaveSpecific, m_Enclave).f_GetLen() <= aint(MaxLength))
+				return fp_GetLocalSocketPath(Prefix, _Flags, _Enclave);
+		}
+
+		CStr Prefix = fg_Format("/tmp/{}", ConfigHash);
 #ifdef DPlatformFamily_Windows
 		Prefix = CFile::fs_GetExpandedPath(Prefix);
 #endif
@@ -145,9 +305,19 @@ namespace NMib::NConcurrency
 		return f_GetLocalSocketFileName(_Flags, "*");
 	}
 
+	// A wildcard for the temporary paths, from fg_GetStagedUnixSocketPath, that listeners bind before they rename them to the sockets f_GetLocalSocketWildcard
+	// matches. Needs a nonempty m_Enclave and mc_EnclaveSpecific in _Flags. Only the file name becomes a pattern, since the directory can contain '*' on POSIX
+	NStr::CStr CDistributedAppActor_Settings::f_GetStagedLocalSocketWildcard(ELocalSocketFlag _Flags) const
+	{
+		CStr Wildcard = f_GetLocalSocketWildcard(_Flags);
+		CStr FileName = CFile::fs_GetFile(Wildcard);
+
+		return CFile::fs_GetPath(Wildcard) / (FileName.f_Extract(0, FileName.f_FindChar('*')) + "*~*");
+	}
+
 	NStr::CStr CDistributedAppActor_Settings::f_GetLocalSocketHostname(ELocalSocketFlag _Flags) const
 	{
-		return fg_Format("UNIX(666):{}", f_GetLocalSocketFileName(_Flags, m_Enclave));
+		return fg_Format("{}{}", gc_pLocalSocketHostnamePrefix, f_GetLocalSocketFileName(_Flags, m_Enclave));
 	}
 
 	CDistributedAppActor_Settings &&CDistributedAppActor_Settings::f_RootDirectory(CStr const &_RootDirectory) &&

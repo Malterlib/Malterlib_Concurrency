@@ -8,6 +8,11 @@
 
 namespace NMib::NConcurrency
 {
+	// State database key of an object that maps a URL scheme to the pending send window of a command line listen removed from an earlier socket location
+	inline constexpr auto &gc_RelocatedCommandLineListenSendWindow = NStr::gc_Str<"RelocatedCommandLineListenSendWindow">.m_Str;
+	// State database key of an object that maps a URL scheme to the address of the command line listen whose socket is outside the root directory
+	inline constexpr auto &gc_CommandLineListenOutsideRoot = NStr::gc_Str<"CommandLineListenOutsideRoot">.m_Str;
+
 	struct CDistributedAppActor::CDistributedAppInterfaceClientImplementation : public CDistributedAppInterfaceClient
 	{
 		NConcurrency::TCFuture<void> f_GetAppStartResult() override;

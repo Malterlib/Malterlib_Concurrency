@@ -365,11 +365,158 @@ namespace NMib::NConcurrency
 	NWeb::NHTTP::CURL CDistributedAppActor::fp_GetLocalAddressForTransport(bool _bAuthenticatedUnix) const
 	{
 		// Include .wsa before the socket-name length check and hashed fallback.
-		return NWeb::NHTTP::CURL
+		auto Flags = _bAuthenticatedUnix ? ELocalSocketFlag::mc_AuthenticatedUnix : ELocalSocketFlag::mc_None;
+		return CDistributedAppActor_Settings::fs_GetLocalSocketURL(fp_GetLocalHostname(Flags), Flags);
+	}
+
+	// Trust initialization calls this before it reopens the saved listens. Only listens with the UNIX(666): host prefix reach the app's check, which reads
+	// the filesystem
+	CDistributedActorTrustManager::FListensToRemove CDistributedAppActor::fp_GetListensToRemove()
+	{
+		return [LocalAddress = mp_State.m_LocalAddress, bInProcessCommandLineOnly = mp_Settings.m_bInProcessCommandLineOnly, AppActor = TCWeakActor<CDistributedAppActor>(fg_ThisActor(this))]
+			(NContainer::TCMap<CDistributedActorTrustManager_Address, ICDistributedActorTrustManagerDatabase::CListenConfig> const &_ListenConfigs)
+			-> TCFuture<NContainer::TCVector<CDistributedActorTrustManager_Address>>
 			{
-				fg_Format("{}://[{}]/", _bAuthenticatedUnix ? "wsa" : "wss", fp_GetLocalHostname(_bAuthenticatedUnix ? ELocalSocketFlag::mc_AuthenticatedUnix : ELocalSocketFlag::mc_None))
+				NContainer::TCMap<CDistributedActorTrustManager_Address, ICDistributedActorTrustManagerDatabase::CListenConfig> Candidates;
+				for (auto &ListenConfig : _ListenConfigs)
+				{
+					auto &Address = _ListenConfigs.fs_GetKey(ListenConfig);
+					if (Address.m_URL == LocalAddress && !bInProcessCommandLineOnly)
+						continue;
+
+					if (!CDistributedAppActor_Settings::fs_IsLocalSocketHostname(Address.m_URL.f_GetHost()))
+						continue;
+
+					Candidates[Address] = ListenConfig;
+				}
+
+				if (Candidates.f_IsEmpty())
+					return NContainer::TCVector<CDistributedActorTrustManager_Address>();
+
+				auto App = AppActor.f_Lock();
+				if (!App)
+					return DMibErrorInstance("Distributed app destroyed");
+
+				return App.f_Bind<&CDistributedAppActor::fp_FindUnusedLocalListens>(fg_Move(Candidates)).f_Call();
 			}
 		;
+	}
+
+	// Returns the listens of _Candidates that match a command line listen of this root at an earlier socket location, or also at the current one when
+	// command-line sockets are disabled. Saves their nonzero send windows by scheme in the app state, for the command line setup to give the listen it adds
+	auto CDistributedAppActor::fp_FindUnusedLocalListens(NContainer::TCMap<CDistributedActorTrustManager_Address, ICDistributedActorTrustManagerDatabase::CListenConfig> _Candidates)
+		-> TCFuture<NContainer::TCVector<CDistributedActorTrustManager_Address>>
+	{
+		auto &Internal = *mp_pInternal;
+
+		CDistributedActorTrustManager_Address CurrentAddresses[2];
+		for (bool bAuthenticatedUnix : {false, true})
+		{
+			CurrentAddresses[bAuthenticatedUnix].m_URL = fp_GetLocalAddressForTransport(bAuthenticatedUnix);
+			if (!mp_Settings.m_bInProcessCommandLineOnly)
+				_Candidates.f_Remove(CurrentAddresses[bAuthenticatedUnix]);
+		}
+
+		if (_Candidates.f_IsEmpty())
+			co_return {};
+
+		using CListenConfigs = NContainer::TCMap<CDistributedActorTrustManager_Address, ICDistributedActorTrustManagerDatabase::CListenConfig>;
+
+		struct CUnusedListens
+		{
+			CListenConfigs m_OfRoot;
+			CListenConfigs m_ElsewhereWithSocketName; // The command line socket name and URL, in a directory not known to belong to this root
+		};
+
+		// Matching an earlier location compares directory identities, which reads the filesystem
+		auto BlockingActorCheckout = fg_BlockingActor();
+		auto [ListensOfRoot, ListensElsewhere] = co_await
+			(
+				g_Dispatch(BlockingActorCheckout) / [Settings = mp_Settings, Candidates = fg_Move(_Candidates)]() -> CUnusedListens
+				{
+					CUnusedListens UnusedListens;
+					for (bool bAuthenticatedUnix : {false, true})
+					{
+						auto Flags = bAuthenticatedUnix ? ELocalSocketFlag::mc_AuthenticatedUnix : ELocalSocketFlag::mc_None;
+						CStr SocketName = CFile::fs_GetFile(Settings.f_GetLocalSocketFileName(Flags, {}));
+
+						for (auto &ListenConfig : Candidates)
+						{
+							auto &Address = Candidates.fs_GetKey(ListenConfig);
+
+							// Instances that share a root remove each other's base listens when their settings place them in different directories,
+							// as a different enclave length can. Every process of a root runs with the same MalterlibDistributedAppLocalSocketPrefix, so
+							// a listen under another prefix is one that an earlier run left
+							if (Settings.f_IsLocalSocketListenOfRoot(Address.m_URL, Flags))
+								UnusedListens.m_OfRoot[Address] = ListenConfig;
+							else if
+							(
+								CFile::fs_GetFile(Address.m_URL.f_GetHost()) == SocketName
+								&& Address.m_URL == CDistributedAppActor_Settings::fs_GetLocalSocketURL(Address.m_URL.f_GetHost(), Flags)
+							)
+							{
+								UnusedListens.m_ElsewhereWithSocketName[Address] = ListenConfig;
+							}
+						}
+					}
+
+					return UnusedListens;
+				}
+				% "Failed to find local listens left at an earlier socket location"
+			)
+		;
+
+		// Another spelling of this root hashes to another socket directory, which can't be told apart from the directory of another root, so these
+		// are compared with the address the app state recorded for the listen outside the root
+		if (!ListensElsewhere.f_IsEmpty())
+		{
+			if (Internal.m_StateLoad.f_IsValid())
+				co_await fg_Move(Internal.m_StateLoad);
+
+			if (auto const *pOutsideRoot = mp_State.m_StateDatabase.m_Data.f_GetMember(gc_CommandLineListenOutsideRoot, EJsonType_Object))
+			{
+				for (auto &ListenConfig : ListensElsewhere)
+				{
+					auto &Address = ListensElsewhere.fs_GetKey(ListenConfig);
+					auto const *pRecorded = pOutsideRoot->f_GetMember(Address.m_URL.f_GetScheme(), EJsonType_String);
+					if (pRecorded && pRecorded->f_String() == Address.m_URL.f_Encode())
+						ListensOfRoot[Address] = ListenConfig;
+				}
+			}
+		}
+
+		NContainer::TCMap<CStr, uint64> RelocatedSendWindowBytes; // By scheme
+		NContainer::TCVector<CDistributedActorTrustManager_Address> AddressesToRemove;
+		for (auto &ListenConfig : ListensOfRoot)
+		{
+			auto &Address = ListensOfRoot.fs_GetKey(ListenConfig);
+			if (ListenConfig.m_SendWindowBytes)
+				RelocatedSendWindowBytes[Address.m_URL.f_GetScheme()] = ListenConfig.m_SendWindowBytes;
+
+			AddressesToRemove.f_Insert(Address);
+		}
+
+		if (!RelocatedSendWindowBytes.f_IsEmpty())
+		{
+			// Saving needs the loaded state; a state that fails to load fails the startup before any listen is removed. The send window can't be saved with
+			// the replacement listen in the trust database, since its host may have no server certificate yet and trust initialization refuses such a listen
+			if (Internal.m_StateLoad.f_IsValid())
+				co_await fg_Move(Internal.m_StateLoad);
+
+			auto &SendWindows = mp_State.m_StateDatabase.m_Data[gc_RelocatedCommandLineListenSendWindow];
+			if (!SendWindows.f_IsObject())
+				SendWindows = EJsonType_Object;
+
+			for (auto &SendWindowBytes : RelocatedSendWindowBytes)
+				SendWindows[RelocatedSendWindowBytes.fs_GetKey(SendWindowBytes)] = int64(SendWindowBytes);
+
+			co_await (mp_State.m_StateDatabase.f_Save() % "Failed to save the send window of a relocated command line listen");
+		}
+
+		for (auto &Address : AddressesToRemove)
+			DMibLogWithCategory(Mib/Concurrency/App, Info, "Removing local listen '{}' left at an earlier socket location", Address.m_URL.f_Encode());
+
+		co_return fg_Move(AddressesToRemove);
 	}
 
 	NContainer::TCMap<NStr::CStr, NStr::CStr> CDistributedAppActor::fp_GetTranslateHostnames() const
@@ -477,8 +624,12 @@ namespace NMib::NConcurrency
 
 		// The .wsa suffix can change the fallback directory; scan both transports.
 		NContainer::TCVector<NStr::CStr> WildcardPaths;
-		WildcardPaths.f_Insert(mp_Settings.f_GetLocalSocketWildcard(ELocalSocketFlag::mc_EnclaveSpecific));
-		WildcardPaths.f_Insert(mp_Settings.f_GetLocalSocketWildcard(ELocalSocketFlag::mc_EnclaveSpecific | ELocalSocketFlag::mc_AuthenticatedUnix));
+		NContainer::TCVector<NStr::CStr> StagedWildcardPaths;
+		for (auto Flags : {ELocalSocketFlag::mc_EnclaveSpecific, ELocalSocketFlag::mc_EnclaveSpecific | ELocalSocketFlag::mc_AuthenticatedUnix})
+		{
+			WildcardPaths.f_Insert(mp_Settings.f_GetLocalSocketWildcard(Flags));
+			StagedWildcardPaths.f_Insert(mp_Settings.f_GetStagedLocalSocketWildcard(Flags));
+		}
 
 		NContainer::TCSet<NStr::CStr> OwnSocketPaths;
 		auto fExcludeSocket = [&OwnSocketPaths](CStr const &_Path)
@@ -497,7 +648,7 @@ namespace NMib::NConcurrency
 		fExcludeSocket(BaseSettings.f_GetLocalSocketFileName(ELocalSocketFlag::mc_AuthenticatedUnix, NStr::CStr()));
 
 		(
-			g_Dispatch(BlockingActor) / [WildcardPaths = fg_Move(WildcardPaths), OwnSocketPaths = fg_Move(OwnSocketPaths)]
+			g_Dispatch(BlockingActor) / [WildcardPaths = fg_Move(WildcardPaths), StagedWildcardPaths = fg_Move(StagedWildcardPaths), OwnSocketPaths = fg_Move(OwnSocketPaths)]
 			{
 				try
 				{
@@ -510,9 +661,10 @@ namespace NMib::NConcurrency
 							if (!Files.f_FindEqual(File))
 								Files.f_Insert(File);
 						}
+					}
 
-						// A staged path keeps the start of the file name, see fg_GetStagedUnixSocketPath
-						CStr StagedWildcardPath = WildcardPath.f_Extract(0, WildcardPath.f_FindChar('*')) + "*~*";
+					for (auto &StagedWildcardPath : StagedWildcardPaths)
+					{
 						for (auto &File : CFile::fs_FindFiles(StagedWildcardPath, EFileAttrib_File))
 						{
 							if (NSys::NNetwork::fg_IsStagedUnixSocketPath(File) && !StagedFiles.f_FindEqual(File))
@@ -623,7 +775,11 @@ namespace NMib::NConcurrency
 
 		DMibLogWithCategory(Mib/Concurrency/App, Debug, "Loading config file and state");
 
-		fp_CleanupEnclaveSockets();
+		// With a socket prefix, the socket directories are validated before the enclave socket sweep deletes files in them, and on POSIX created with
+		// traversal permissions before trust initialization reopens the persisted local listens, which create a missing directory owner-only
+		bool bPrepareSocketDirectories = !mp_Settings.m_bInProcessCommandLineOnly && !mp_Settings.f_GetLocalSocketPrefixDirectory().f_IsEmpty();
+		if (!bPrepareSocketDirectories)
+			fp_CleanupEnclaveSockets();
 #ifdef DPlatformFamily_Windows
 		fp_CleanupOldExecutables();
 #endif
@@ -644,7 +800,30 @@ namespace NMib::NConcurrency
 			)
 		;
 
-		// Config must be loaded before trust initialization. State is first read by command-line setup, so await it at the end.
+		if (bPrepareSocketDirectories)
+		{
+			NContainer::TCSet<NStr::CStr> Directories;
+			for (auto Flags : {ELocalSocketFlag::mc_None, ELocalSocketFlag::mc_AuthenticatedUnix})
+				Directories.f_Insert(CFile::fs_GetPath(mp_Settings.f_GetLocalSocketFileName(Flags, mp_Settings.m_Enclave)));
+
+			auto BlockingActorCheckout = fg_BlockingActor();
+			co_await
+				(
+					g_Dispatch(BlockingActorCheckout)
+					/ [Directories = fg_Move(Directories)]
+					{
+						for (auto &Directory : Directories)
+							CDistributedAppActor_Settings::fs_PrepareLocalSocketDirectory(Directory);
+					}
+					% "Failed to prepare the local socket directory"
+				)
+			;
+
+			fp_CleanupEnclaveSockets();
+		}
+
+		// A config that fails to load fails the startup before it changes the trust database. The state load is awaited after trust initialization,
+		// before the command line setup reads the state, unless the check for relocated listens awaits it first
 		co_await fg_Move(Internal.m_ConfigLoad);
 
 		DMibLogWithCategory(Mib/Concurrency/App, Debug, "Initializing trust manager");
@@ -698,6 +877,7 @@ namespace NMib::NConcurrency
 			Options.m_FriendlyName = mp_Settings.f_GetCompositeFriendlyName(co_await fg_GetLocalHostIdentity());
 		Options.m_Enclave = mp_Settings.m_Enclave;
 		Options.m_TranslateHostnames = fp_GetTranslateHostnames();
+		Options.m_fListensToRemove = fp_GetListensToRemove();
 		Options.m_InitialConnectionTimeout = InitialConnectionTimeout;
 		Options.m_bWaitForConnectionsDuringInit = mp_Settings.m_bWaitForRemotes;
 		Options.m_DefaultConnectionConcurrency = DefaultConcurrency;
@@ -720,7 +900,9 @@ namespace NMib::NConcurrency
 		mp_State.m_DistributionManager = fg_Move(DistributionManager);
 		mp_State.m_HostID = fg_Move(HostID);
 
-		co_await fg_Move(Internal.m_StateLoad);
+		// The check for relocated listens may already have awaited m_StateLoad
+		if (Internal.m_StateLoad.f_IsValid())
+			co_await fg_Move(Internal.m_StateLoad);
 
 		co_return {};
 	}

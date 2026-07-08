@@ -793,7 +793,9 @@ namespace NMib::NConcurrency
 				// command line connection ticket. Wait (via file change notifications) for the ticket
 				// to appear; best-effort, so a missing daemon still falls through after the timeout.
 				// A command that fails when the app is not running does not wait: an app that has not
-				// written its ticket yet counts as not running.
+				// written its ticket yet counts as not running. A command that reads the database while
+				// the app restarts with its socket in another directory keeps the earlier address, so it
+				// times out and the next command uses the new one.
 				if (!_bFailIfNotRunning)
 				{
 					auto BlockingActor = fg_BlockingActor();

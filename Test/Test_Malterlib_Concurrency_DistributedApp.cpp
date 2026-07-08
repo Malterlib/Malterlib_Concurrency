@@ -7,6 +7,7 @@
 #include <Mib/Encoding/JsonShortcuts>
 #include <Mib/Concurrency/DistributedApp>
 #include <Mib/Concurrency/DistributedActorTestHelpers>
+#include <Mib/Concurrency/DistributedActorTrustManagerDatabases/JsonDirectory>
 #include <Mib/Concurrency/AsyncDestroy>
 #include <Mib/Cryptography/RandomID>
 #include <Mib/Process/ProcessLaunch>
@@ -40,7 +41,7 @@ namespace
 
 	struct CTestDistributedApp : public CDistributedAppActor
 	{
-		CTestDistributedApp(CStr const &_Name, bool _bInProcessOnly = false, CStr const &_Enclave = {});
+		CTestDistributedApp(CStr const &_Name, bool _bInProcessOnly = false, CStr const &_Enclave = {}, CStr const &_RootDirectory = {});
 
 		void fp_BuildCommandLine(CDistributedAppCommandLineSpecification &o_CommandLine) override;
 
@@ -49,11 +50,11 @@ namespace
 		TCFuture<void> fp_StopApp() override;
 	};
 
-	CTestDistributedApp::CTestDistributedApp(CStr const &_Name, bool _bInProcessOnly, CStr const &_Enclave)
+	CTestDistributedApp::CTestDistributedApp(CStr const &_Name, bool _bInProcessOnly, CStr const &_Enclave, CStr const &_RootDirectory)
 		: CDistributedAppActor
 		(
 			CDistributedAppActor_Settings(_Name)
-			.f_RootDirectory(NFile::CFile::fs_GetProgramDirectory() / _Name)
+			.f_RootDirectory(_RootDirectory.f_IsEmpty() ? NFile::CFile::fs_GetProgramDirectory() / _Name : _RootDirectory)
 			.f_Enclave(_Enclave)
 			.f_SeparateDistributionManager(true)
 			.f_InProcessCommandLineOnly(_bInProcessOnly)
@@ -235,6 +236,158 @@ namespace
 				OtherApp.m_AppName += "Other";
 				DMibExpect(OtherApp.f_GetLocalSocketFileName(Flags, OtherApp.m_Enclave), !=, Path);
 			}
+
+			for (bool bAuthenticated : {false, true})
+			{
+				DMibTestPath(bAuthenticated ? "Earlier location authenticated" : "Earlier location plain");
+				auto Flags = bAuthenticated ? ELocalSocketFlag::mc_AuthenticatedUnix : ELocalSocketFlag::mc_None;
+				auto OtherFlags = bAuthenticated ? ELocalSocketFlag::mc_None : ELocalSocketFlag::mc_AuthenticatedUnix;
+
+				// The long root directory puts the socket outside the root, in a directory named for the root
+				CStr Path = Settings.f_GetLocalSocketFileName(Flags, Settings.m_Enclave);
+				CStr FileName = CFile::fs_GetFile(Path);
+				DMibExpectTrue(Settings.f_IsLocalSocketFileNameOfRoot(Path, Flags));
+				DMibExpectTrue(Settings.f_IsLocalSocketFileNameOfRoot(Settings.m_RootDirectory / FileName, Flags));
+				DMibExpectFalse(Settings.f_IsLocalSocketFileNameOfRoot(CFile::fs_GetProgramDirectory() / "Elsewhere" / FileName, Flags));
+				DMibExpectFalse(Settings.f_IsLocalSocketFileNameOfRoot(Path, OtherFlags));
+
+				DMibExpectTrue(Settings.f_IsLocalSocketHostnameOfRoot(Settings.f_GetLocalSocketHostname(Flags), Flags));
+				DMibExpectTrue(Settings.f_IsLocalSocketHostnameOfRoot("UNIX(666):" + Settings.m_RootDirectory / FileName, Flags));
+				DMibExpectFalse(Settings.f_IsLocalSocketHostnameOfRoot("UNIX(660):" + Settings.m_RootDirectory / FileName, Flags));
+				DMibExpectFalse(Settings.f_IsLocalSocketHostnameOfRoot("UNIX:" + Path, Flags));
+
+				CStr EarlierHostname = "UNIX(666):" + Settings.m_RootDirectory / FileName;
+				auto EarlierURL = CDistributedAppActor_Settings::fs_GetLocalSocketURL(EarlierHostname, Flags);
+				DMibExpectTrue(Settings.f_IsLocalSocketListenOfRoot(EarlierURL, Flags));
+				DMibExpectFalse(Settings.f_IsLocalSocketListenOfRoot(CDistributedAppActor_Settings::fs_GetLocalSocketURL(EarlierHostname, OtherFlags), Flags));
+
+				auto CustomPathURL = EarlierURL;
+				CustomPathURL.f_SetPath(fg_CreateVector<CStr>("Custom"));
+				DMibExpectFalse(Settings.f_IsLocalSocketListenOfRoot(CustomPathURL, Flags));
+
+				CStr RelativeRoot = CFile::fs_MakePathRelative(Settings.m_RootDirectory, CFile::fs_GetCurrentDirectory());
+				DMibExpectTrue(Settings.f_IsLocalSocketFileNameOfRoot(RelativeRoot / FileName, Flags));
+				DMibExpectTrue(Settings.f_IsLocalSocketFileNameOfRoot(Settings.m_RootDirectory / "." / FileName, Flags));
+
+				CDistributedAppActor_Settings RelativeSettings = Settings;
+				RelativeSettings.m_RootDirectory = RelativeRoot;
+				DMibExpectTrue(RelativeSettings.f_IsLocalSocketFileNameOfRoot(Settings.m_RootDirectory / FileName, Flags));
+			}
+
+#ifndef DPlatformFamily_Windows
+			{
+				DMibTestPath("Earlier location through a link");
+
+				CStr Base = CFile::fs_GetProgramDirectory() / "TestDistAppSocketRootLink";
+				fg_TestAddCleanupPath(Base);
+				if (CFile::fs_FileExists(Base, NFile::EFileAttrib_Directory | NFile::EFileAttrib_File | NFile::EFileAttrib_Link))
+					CFile::fs_DeleteDirectoryRecursive(Base);
+
+				CFile::fs_CreateDirectory(Base / "Root");
+				CFile::fs_CreateSymbolicLink(Base / "Root", Base / "Link", NFile::EFileAttrib_Directory, NFile::ESymbolicLinkFlag_None);
+
+				CDistributedAppActor_Settings LinkSettings("SocketPaths");
+				CDistributedAppActor_Settings RootSettings("SocketPaths");
+				LinkSettings.m_RootDirectory = Base / "Link";
+				RootSettings.m_RootDirectory = Base / "Root";
+
+				for (bool bAuthenticated : {false, true})
+				{
+					DMibTestPath(bAuthenticated ? "Authenticated" : "Plain");
+					auto Flags = bAuthenticated ? ELocalSocketFlag::mc_AuthenticatedUnix : ELocalSocketFlag::mc_None;
+					CStr FileName = bAuthenticated ? "SocketPaths.wsa.socket" : "SocketPaths.socket";
+
+					DMibExpectTrue(LinkSettings.f_IsLocalSocketFileNameOfRoot(Base / "Root" / FileName, Flags));
+					DMibExpectTrue(RootSettings.f_IsLocalSocketFileNameOfRoot(Base / "Link" / FileName, Flags));
+					DMibExpectFalse(LinkSettings.f_IsLocalSocketFileNameOfRoot(Base / FileName, Flags));
+					DMibExpectFalse(LinkSettings.f_IsLocalSocketFileNameOfRoot(Base / "Missing" / FileName, Flags));
+				}
+
+				CFile::fs_DeleteFile(Base / "Link");
+				CFile::fs_DeleteDirectoryRecursive(Base);
+			}
+
+			for (bool bAuthenticated : {false, true})
+			{
+				DMibTestPath(bAuthenticated ? "Staged wildcard below a directory with a wildcard authenticated" : "Staged wildcard below a directory with a wildcard plain");
+				auto Flags = ELocalSocketFlag::mc_EnclaveSpecific;
+				if (bAuthenticated)
+					Flags |= ELocalSocketFlag::mc_AuthenticatedUnix;
+
+				// The paths are only resolved, so the root doesn't exist. It is short, so that the socket stays in it wherever the test is deployed
+				CDistributedAppActor_Settings WildcardSettings("SocketPaths");
+				WildcardSettings.m_Enclave = Settings.m_Enclave;
+				WildcardSettings.m_RootDirectory = "/tmp/TestDistApp*Root";
+
+				CStr Path = WildcardSettings.f_GetLocalSocketFileName(Flags, WildcardSettings.m_Enclave);
+				CStr Directory = CFile::fs_GetPath(Path);
+
+				// A socket prefix moves the socket to a directory under the prefix, which the test doesn't choose
+				if (WildcardSettings.f_GetLocalSocketPrefixDirectory().f_IsEmpty())
+					DMibAssert(Directory, ==, WildcardSettings.m_RootDirectory);
+
+				CStr StagedWildcard = WildcardSettings.f_GetStagedLocalSocketWildcard(Flags);
+				DMibExpect(CFile::fs_GetPath(StagedWildcard), ==, Directory);
+				DMibExpect
+					(
+						NStr::fg_StrMatchWildcard(CFile::fs_GetFile(NSys::NNetwork::fg_GetStagedUnixSocketPath(Path)).f_GetStr(), CFile::fs_GetFile(StagedWildcard).f_GetStr())
+						, ==
+						, NStr::EMatchWildcardResult_WholeStringMatchedAndPatternExhausted
+					)
+				;
+			}
+#endif
+
+			for (bool bAuthenticated : {false, true})
+			{
+				DMibTestPath(bAuthenticated ? "Reserved URL characters authenticated" : "Reserved URL characters plain");
+				auto Flags = bAuthenticated ? ELocalSocketFlag::mc_AuthenticatedUnix : ELocalSocketFlag::mc_None;
+
+				CDistributedAppActor_Settings ReservedSettings("SocketPaths");
+				ReservedSettings.m_RootDirectory = CFile::fs_GetProgramDirectory() / "a@b%41[c]";
+
+				DMibExpect(ReservedSettings.f_GetLocalSocketHostname(Flags), ==, "UNIX(666):" + ReservedSettings.f_GetLocalSocketFileName(Flags, {}));
+
+				// Build the host in the root directory, so that the test covers the reserved characters even where a socket prefix or a long root would place
+				// the socket elsewhere
+				CStr Hostname = "UNIX(666):" + ReservedSettings.m_RootDirectory / (bAuthenticated ? "SocketPaths.wsa.socket" : "SocketPaths.socket");
+				DMibExpectTrue(ReservedSettings.f_IsLocalSocketHostnameOfRoot(Hostname, Flags));
+
+				auto URL = CDistributedAppActor_Settings::fs_GetLocalSocketURL(Hostname, Flags);
+				DMibExpectTrue(URL.f_IsValid());
+				DMibExpectFalse(URL.f_HasUsername());
+				DMibExpect(URL.f_GetHost(), ==, Hostname);
+				DMibExpectTrue(ReservedSettings.f_IsLocalSocketListenOfRoot(URL, Flags));
+
+				NWeb::NHTTP::CURL Stored(URL.f_Encode());
+				DMibExpect(Stored, ==, URL);
+				DMibExpectTrue(ReservedSettings.f_IsLocalSocketListenOfRoot(Stored, Flags));
+			}
+
+#ifndef DPlatformFamily_Windows
+			DMibTestCategory("Prepare missing prefix")
+			{
+				CStr Prefix = CFile::fs_GetProgramDirectory() / "TestDistAppSocketPrefix";
+				fg_TestAddCleanupPath(Prefix);
+				if (CFile::fs_FileExists(Prefix))
+					CFile::fs_DeleteDirectoryRecursive(Prefix);
+
+				CStr Directory = Prefix / "Nested" / "Root";
+				CDistributedAppActor_Settings::fs_PrepareLocalSocketDirectory(Directory);
+
+				for (auto &Path : {Prefix, Prefix / "Nested", Directory})
+				{
+					DMibTestPath(CFile::fs_MakePathRelative(Path, CFile::fs_GetProgramDirectory()));
+					auto Attributes = CFile::fs_GetAttributesOnLink(Path);
+					DMibExpectTrue(Attributes & NFile::EFileAttrib_Directory);
+					DMibExpectFalse(Attributes & (NFile::EFileAttrib_GroupWrite | NFile::EFileAttrib_EveryoneWrite));
+					DMibExpectFalse(Attributes & (NFile::EFileAttrib_GroupRead | NFile::EFileAttrib_EveryoneRead));
+					DMibExpectTrue(Attributes & NFile::EFileAttrib_EveryoneExecute);
+				}
+
+				CFile::fs_DeleteDirectoryRecursive(Prefix);
+			};
+#endif
 		};
 
 		DMibTestSuite("Enclave socket sweep")
@@ -290,6 +443,333 @@ namespace
 			AppActor->f_BlockDestroy(RunLoopHelper.m_pRunLoop->f_ActorDestroyLoop());
 			Live.f_Close();
 		};
+
+		DMibTestSuite("Relocated listen send window")
+		{
+			using NFile::CFile;
+
+			CStr Name = "TestDistAppRelocatedSendWindow";
+			CStr TestDirectory = CFile::fs_GetProgramDirectory() / Name;
+			fg_TestAddCleanupPath(TestDirectory);
+			if (CFile::fs_FileExists(TestDirectory))
+				CFile::fs_DeleteDirectoryRecursive(TestDirectory);
+
+			// A root too long to hold the socket puts it outside the root, which makes the socket in the root an earlier location
+			CStr RootDirectory = TestDirectory;
+			while (RootDirectory.f_GetLen() < 200)
+				RootDirectory /= "LongDeploymentDirectory";
+
+			CActorRunLoopTestHelper RunLoopHelper;
+
+			auto fStartAndStopApp = [&]() -> bool
+				{
+					auto AppActor = fg_ConstructActor<CTestDistributedApp>(Name, false, CStr(), RootDirectory);
+					bool bStarted = true;
+					try
+					{
+						AppActor(&CDistributedAppActor::f_StartApp, NEncoding::CEJsonSorted{}, TCActor<CDistiributedAppLogActor>{}, EDistributedAppType_InProcess)
+							.f_CallSync(RunLoopHelper.m_pRunLoop)
+						;
+					}
+					catch (NException::CException const &)
+					{
+						bStarted = false;
+					}
+
+					AppActor->f_BlockDestroy(RunLoopHelper.m_pRunLoop->f_ActorDestroyLoop());
+					return bStarted;
+				}
+			;
+
+			using CListenConfigs = TCMap<CDistributedActorTrustManager_Address, ICDistributedActorTrustManagerDatabase::CListenConfig>;
+
+			// Call only after the app is destroyed, so that this database actor doesn't race the app's
+			auto fUpdateListens = [&](TCFunction<void (TCActor<ICDistributedActorTrustManagerDatabase> const &_Database)> const &_fUpdate) -> CListenConfigs
+				{
+					TCActor<ICDistributedActorTrustManagerDatabase> Database = fg_ConstructActor<CDistributedActorTrustManagerDatabase_JsonDirectory>
+						(
+							RootDirectory / fg_Format("TrustDatabase.{}", Name)
+						)
+					;
+
+					// The JSON directory database rejects other operations until f_GetBasicConfig has run
+					Database(&ICDistributedActorTrustManagerDatabase::f_GetBasicConfig).f_CallSync(RunLoopHelper.m_pRunLoop);
+
+					if (_fUpdate)
+						_fUpdate(Database);
+
+					auto Listens = Database(&ICDistributedActorTrustManagerDatabase::f_EnumListenConfigs).f_CallSync(RunLoopHelper.m_pRunLoop);
+
+					Database->f_BlockDestroy(RunLoopHelper.m_pRunLoop->f_ActorDestroyLoop());
+					return Listens;
+				}
+			;
+
+			DMibAssertTrue(fStartAndStopApp());
+
+			CDistributedAppActor_Settings Settings(Name);
+			Settings.m_RootDirectory = RootDirectory;
+
+			auto Listens = fUpdateListens({});
+
+			auto Flags = ELocalSocketFlag::mc_None;
+			CDistributedActorTrustManager_Address CurrentAddress;
+			for (auto TransportFlags : {ELocalSocketFlag::mc_None, ELocalSocketFlag::mc_AuthenticatedUnix})
+			{
+				CDistributedActorTrustManager_Address Address;
+				Address.m_URL = CDistributedAppActor_Settings::fs_GetLocalSocketURL(Settings.f_GetLocalSocketHostname(TransportFlags), TransportFlags);
+				if (!Listens.f_FindEqual(Address))
+					continue;
+
+				Flags = TransportFlags;
+				CurrentAddress = Address;
+			}
+
+			DMibAssertTrue(Listens.f_FindEqual(CurrentAddress) != nullptr);
+
+			CStr SocketPath = Settings.f_GetLocalSocketFileName(Flags, {});
+			CStr SocketDirectory = CFile::fs_GetPath(SocketPath);
+			DMibAssert(SocketDirectory, !=, RootDirectory);
+			fg_TestAddCleanupPath(SocketDirectory);
+
+			CDistributedActorTrustManager_Address EarlierAddress;
+			EarlierAddress.m_URL = CDistributedAppActor_Settings::fs_GetLocalSocketURL("UNIX(666):" + RootDirectory / CFile::fs_GetFile(SocketPath), Flags);
+
+			// An earlier listen of the unused transport is removed too, and its send window stays pending
+			auto OtherFlags = Flags == ELocalSocketFlag::mc_None ? ELocalSocketFlag::mc_AuthenticatedUnix : ELocalSocketFlag::mc_None;
+			CDistributedActorTrustManager_Address EarlierOtherAddress;
+			EarlierOtherAddress.m_URL = CDistributedAppActor_Settings::fs_GetLocalSocketURL
+				(
+					"UNIX(666):" + RootDirectory / CFile::fs_GetFile(Settings.f_GetLocalSocketFileName(OtherFlags, {}))
+					, OtherFlags
+				)
+			;
+
+			constexpr uint64 c_SendWindowBytes = uint64(3) << 20;
+			constexpr uint64 c_OtherSendWindowBytes = uint64(5) << 20;
+
+			ICDistributedActorTrustManagerDatabase::CListenConfig EarlierConfig;
+			EarlierConfig.m_SendWindowBytes = c_SendWindowBytes;
+
+			ICDistributedActorTrustManagerDatabase::CListenConfig EarlierOtherConfig;
+			EarlierOtherConfig.m_SendWindowBytes = c_OtherSendWindowBytes;
+
+			fUpdateListens
+				(
+					[&](TCActor<ICDistributedActorTrustManagerDatabase> const &_Database)
+					{
+						_Database(&ICDistributedActorTrustManagerDatabase::f_RemoveListenConfig, CurrentAddress).f_CallSync(RunLoopHelper.m_pRunLoop);
+						_Database(&ICDistributedActorTrustManagerDatabase::f_AddListenConfig, EarlierAddress, EarlierConfig).f_CallSync(RunLoopHelper.m_pRunLoop);
+						_Database(&ICDistributedActorTrustManagerDatabase::f_AddListenConfig, EarlierOtherAddress, EarlierOtherConfig).f_CallSync(RunLoopHelper.m_pRunLoop);
+					}
+				)
+			;
+
+			CStr StatePath = RootDirectory / fg_Format("{}State.json", Name);
+			CStr OtherScheme = CurrentAddress.m_URL.f_GetScheme() == "wsa" ? "wss" : "wsa";
+
+			{
+				DMibTestPath("Replacement fails to listen");
+
+				if (CFile::fs_FileExists(SocketPath))
+					CFile::fs_DeleteFile(SocketPath);
+				CFile::fs_CreateDirectory(SocketPath);
+
+				DMibExpectFalse(fStartAndStopApp());
+
+				CFile::fs_DeleteDirectory(SocketPath);
+
+				auto ListensAfterFailure = fUpdateListens({});
+				DMibExpectFalse(ListensAfterFailure.f_FindEqual(EarlierAddress));
+				DMibExpectFalse(ListensAfterFailure.f_FindEqual(EarlierOtherAddress));
+				DMibExpectFalse(ListensAfterFailure.f_FindEqual(CurrentAddress));
+			}
+
+			auto fGetPendingSendWindow = [&](CStr const &_Scheme) -> uint64
+				{
+					auto State = NEncoding::CEJsonSorted::fs_FromString(CFile::fs_ReadStringFromFile(StatePath), StatePath);
+					auto const *pSendWindows = State.f_GetMember("RelocatedCommandLineListenSendWindow", NEncoding::EJsonType_Object);
+					if (!pSendWindows)
+						return 0;
+
+					auto const *pSendWindow = pSendWindows->f_GetMember(_Scheme, NEncoding::EJsonType_Integer);
+					if (!pSendWindow)
+						return 0;
+
+					return uint64(pSendWindow->f_Integer());
+				}
+			;
+
+			{
+				DMibTestPath("Pending windows of both transports");
+
+				DMibExpect(fGetPendingSendWindow(CurrentAddress.m_URL.f_GetScheme()), ==, c_SendWindowBytes);
+				DMibExpect(fGetPendingSendWindow(OtherScheme), ==, c_OtherSendWindowBytes);
+			}
+
+			{
+				DMibTestPath("Replacement listens");
+
+				DMibAssertTrue(fStartAndStopApp());
+
+				auto ListensAfterStart = fUpdateListens({});
+				DMibExpectFalse(ListensAfterStart.f_FindEqual(EarlierAddress));
+
+				auto *pCurrent = ListensAfterStart.f_FindEqual(CurrentAddress);
+				DMibAssertTrue(pCurrent != nullptr);
+				DMibExpect(pCurrent->m_SendWindowBytes, ==, c_SendWindowBytes);
+			}
+
+			{
+				DMibTestPath("Pending window of the other transport");
+
+				auto State = NEncoding::CEJsonSorted::fs_FromString(CFile::fs_ReadStringFromFile(StatePath), StatePath);
+				State["RelocatedCommandLineListenSendWindow"] = NEncoding::CEJsonSorted(NEncoding::EJsonType_Object);
+				State["RelocatedCommandLineListenSendWindow"][OtherScheme] = int64(c_SendWindowBytes);
+				CFile::fs_WriteStringToFile(StatePath, State.f_ToString(), false);
+
+				fUpdateListens
+					(
+						[&](TCActor<ICDistributedActorTrustManagerDatabase> const &_Database)
+						{
+							_Database(&ICDistributedActorTrustManagerDatabase::f_RemoveListenConfig, CurrentAddress).f_CallSync(RunLoopHelper.m_pRunLoop);
+						}
+					)
+				;
+
+				DMibAssertTrue(fStartAndStopApp());
+
+				auto ListensAfterStart = fUpdateListens({});
+				auto *pCurrent = ListensAfterStart.f_FindEqual(CurrentAddress);
+				DMibAssertTrue(pCurrent != nullptr);
+				DMibExpect(pCurrent->m_SendWindowBytes, ==, uint64(0));
+
+				auto StateAfterStart = NEncoding::CEJsonSorted::fs_FromString(CFile::fs_ReadStringFromFile(StatePath), StatePath);
+				auto const *pSendWindows = StateAfterStart.f_GetMember("RelocatedCommandLineListenSendWindow", NEncoding::EJsonType_Object);
+				DMibAssertTrue(pSendWindows != nullptr);
+				auto const *pOtherWindow = pSendWindows->f_GetMember(OtherScheme, NEncoding::EJsonType_Integer);
+				DMibAssertTrue(pOtherWindow != nullptr);
+				DMibExpect(uint64(pOtherWindow->f_Integer()), ==, c_SendWindowBytes);
+			}
+
+			CFile::fs_DeleteDirectoryRecursive(SocketDirectory);
+			CFile::fs_DeleteDirectoryRecursive(TestDirectory);
+		};
+
+#ifndef DPlatformFamily_Windows
+		DMibTestSuite("Relocated listen through another root spelling")
+		{
+			using NFile::CFile;
+
+			CStr Name = "TestDistAppRelocatedSpelling";
+			CStr TestDirectory = CFile::fs_GetProgramDirectory() / Name;
+			fg_TestAddCleanupPath(TestDirectory);
+			if (CFile::fs_FileExists(TestDirectory, NFile::EFileAttrib_Directory | NFile::EFileAttrib_File | NFile::EFileAttrib_Link))
+				CFile::fs_DeleteDirectoryRecursive(TestDirectory);
+
+			// Long roots put the sockets in directories named for the spelling of the root, in a fallback or under a socket prefix
+			CStr SubPath = "LongDeploymentDirectory";
+			while (SubPath.f_GetLen() < 200)
+				SubPath /= "LongDeploymentDirectory";
+
+			CStr RealRoot = TestDirectory / "Root" / SubPath;
+			CStr LinkRoot = TestDirectory / "Link" / SubPath;
+			CFile::fs_CreateDirectory(RealRoot);
+			CFile::fs_CreateSymbolicLink(TestDirectory / "Root", TestDirectory / "Link", NFile::EFileAttrib_Directory, NFile::ESymbolicLinkFlag_None);
+
+			CActorRunLoopTestHelper RunLoopHelper;
+
+			auto fStartAndStopApp = [&](CStr const &_RootDirectory)
+				{
+					auto AppActor = fg_ConstructActor<CTestDistributedApp>(Name, false, CStr(), _RootDirectory);
+					auto Destroy = g_OnScopeExit / [&]
+						{
+							AppActor->f_BlockDestroy(RunLoopHelper.m_pRunLoop->f_ActorDestroyLoop());
+						}
+					;
+
+					AppActor(&CDistributedAppActor::f_StartApp, NEncoding::CEJsonSorted{}, TCActor<CDistiributedAppLogActor>{}, EDistributedAppType_InProcess)
+						.f_CallSync(RunLoopHelper.m_pRunLoop)
+					;
+				}
+			;
+
+			// Call only after the app is destroyed, so that this database actor doesn't race the app's
+			auto fGetListens = [&]
+				{
+					TCActor<ICDistributedActorTrustManagerDatabase> Database = fg_ConstructActor<CDistributedActorTrustManagerDatabase_JsonDirectory>
+						(
+							RealRoot / fg_Format("TrustDatabase.{}", Name)
+						)
+					;
+
+					Database(&ICDistributedActorTrustManagerDatabase::f_GetBasicConfig).f_CallSync(RunLoopHelper.m_pRunLoop);
+					auto Listens = Database(&ICDistributedActorTrustManagerDatabase::f_EnumListenConfigs).f_CallSync(RunLoopHelper.m_pRunLoop);
+
+					Database->f_BlockDestroy(RunLoopHelper.m_pRunLoop->f_ActorDestroyLoop());
+					return Listens;
+				}
+			;
+
+			CDistributedAppActor_Settings LinkSettings(Name);
+			LinkSettings.m_RootDirectory = LinkRoot;
+			CDistributedAppActor_Settings RealSettings(Name);
+			RealSettings.m_RootDirectory = RealRoot;
+
+			for (auto Flags : {ELocalSocketFlag::mc_None, ELocalSocketFlag::mc_AuthenticatedUnix})
+			{
+				for (auto *pSettings : {&LinkSettings, &RealSettings})
+				{
+					DMibTestPath(fg_Format("{} {}", Flags == ELocalSocketFlag::mc_None ? "Plain" : "Authenticated", pSettings == &LinkSettings ? "link" : "real path"));
+					CStr SocketDirectory = CFile::fs_GetPath(pSettings->f_GetLocalSocketFileName(Flags, {}));
+					DMibAssert(SocketDirectory, !=, pSettings->m_RootDirectory);
+					fg_TestAddCleanupPath(SocketDirectory);
+				}
+			}
+
+			fStartAndStopApp(LinkRoot);
+
+			auto Listens = fGetListens();
+
+			auto Flags = ELocalSocketFlag::mc_None;
+			CDistributedActorTrustManager_Address LinkAddress;
+			for (auto TransportFlags : {ELocalSocketFlag::mc_None, ELocalSocketFlag::mc_AuthenticatedUnix})
+			{
+				CDistributedActorTrustManager_Address Address;
+				Address.m_URL = CDistributedAppActor_Settings::fs_GetLocalSocketURL(LinkSettings.f_GetLocalSocketHostname(TransportFlags), TransportFlags);
+				if (!Listens.f_FindEqual(Address))
+					continue;
+
+				Flags = TransportFlags;
+				LinkAddress = Address;
+			}
+
+			DMibAssertTrue(Listens.f_FindEqual(LinkAddress) != nullptr);
+
+			CDistributedActorTrustManager_Address RealAddress;
+			RealAddress.m_URL = CDistributedAppActor_Settings::fs_GetLocalSocketURL(RealSettings.f_GetLocalSocketHostname(Flags), Flags);
+			DMibAssertFalse(RealAddress == LinkAddress);
+
+			fStartAndStopApp(RealRoot);
+
+			auto ListensAfterRealStart = fGetListens();
+			DMibExpectFalse(ListensAfterRealStart.f_FindEqual(LinkAddress));
+			DMibExpectTrue(ListensAfterRealStart.f_FindEqual(RealAddress));
+
+			for (auto TransportFlags : {ELocalSocketFlag::mc_None, ELocalSocketFlag::mc_AuthenticatedUnix})
+			{
+				for (auto *pSettings : {&LinkSettings, &RealSettings})
+				{
+					CStr SocketDirectory = CFile::fs_GetPath(pSettings->f_GetLocalSocketFileName(TransportFlags, {}));
+					if (CFile::fs_FileExists(SocketDirectory, NFile::EFileAttrib_Directory))
+						CFile::fs_DeleteDirectoryRecursive(SocketDirectory);
+				}
+			}
+
+			CFile::fs_DeleteFile(TestDirectory / "Link");
+			CFile::fs_DeleteDirectoryRecursive(TestDirectory);
+		};
+#endif
 
 		DMibTestCategory("Send window")
 		{

@@ -258,6 +258,7 @@ namespace NMib::NConcurrency
 		NCryptography::ECryptoStrength const m_MinimumCryptoStrength;
 		NNetwork::ENetFlag const m_ListenFlags;
 		NContainer::TCMap<NStr::CStr, NStr::CStr> m_TranslateHostnames;
+		FListensToRemove m_fListensToRemove;
 
 		EInitialize m_Initialize = EInitialize_None;
 		NException::CExceptionPointer m_pInitializeException;

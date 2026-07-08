@@ -100,6 +100,16 @@ namespace NMib::NConcurrency
 
 	NStr::CStr CDistributedAppActor_Settings::f_GetLocalSocketFileName(bool _bEnclaveSpecific, NStr::CStr const &_Enclave) const
 	{
+		// The root directory can be on a filesystem that cannot host unix domain sockets,
+		// for example a virtiofs share inside a container; the prefix moves the socket to
+		// a native filesystem while keeping it derivable from the root directory
+		CStr SocketPrefix = fg_GetSys()->f_GetEnvironmentVariable("MalterlibDistributedAppLocalSocketPrefix");
+		if (!SocketPrefix.f_IsEmpty())
+		{
+			CStr ConfigHash = fg_GetHashedUuidString(m_RootDirectory, g_HostnameRootUUID, EUniversallyUniqueIdentifierFormat_AlphaNum);
+			return fp_GetLocalSocketPath(SocketPrefix / ConfigHash, _bEnclaveSpecific, _Enclave);
+		}
+
 		umint MaxLength = NSys::NNetwork::fg_GetMaxUnixSocketNameLength();
 		if (fp_GetLocalSocketPath(m_RootDirectory, true, m_Enclave).f_GetLen() <= aint(MaxLength))
 			return fp_GetLocalSocketPath(m_RootDirectory, _bEnclaveSpecific, _Enclave);

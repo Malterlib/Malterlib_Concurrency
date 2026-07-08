@@ -371,6 +371,57 @@ namespace NMib::NConcurrency
 		;
 	}
 
+	// Runs before trust initialization reopens the persisted listens. A local listen persisted at an earlier location, at
+	// the root directory or under another socket prefix, would bind there without the enclave translation, which only
+	// covers the current addresses. A unix listen with the scheme and socket file name of a transport's current address
+	// is taken for one. Its config is removed from the database, clearing a primary role it had, and the command line
+	// setup adds the current listen, which takes the primary role when none is set. The listen cannot be moved in the
+	// database, as the trust manager creates the server certificate for a new listen host. An in-process-only command
+	// line has no local listen, so the current addresses are removed too
+	TCFuture<void> CDistributedAppActor::fp_RetireEarlierLocalListens()
+	{
+		auto &Internal = *mp_pInternal;
+
+		// The database must read its basic config, converting an older layout, before any other operation
+		co_await Internal.m_TrustManagerDatabase(&ICDistributedActorTrustManagerDatabase::f_GetBasicConfig);
+
+		auto ListenConfigs = co_await Internal.m_TrustManagerDatabase(&ICDistributedActorTrustManagerDatabase::f_EnumListenConfigs);
+
+		NContainer::TCVector<CDistributedActorTrustManager_Address> EarlierAddresses;
+		for (bool bAuthenticatedUnix : {false, true})
+		{
+			CDistributedActorTrustManager_Address CurrentAddress;
+			CurrentAddress.m_URL = fp_GetLocalAddressForTransport(bAuthenticatedUnix);
+
+			NStr::CStr FileNameSuffix = fg_Format("/{}", CFile::fs_GetFile(CurrentAddress.m_URL.f_GetHost()));
+
+			for (auto &ListenConfig : ListenConfigs)
+			{
+				auto &Address = ListenConfigs.fs_GetKey(ListenConfig);
+				auto &Host = Address.m_URL.f_GetHost();
+
+				if (Address.m_URL.f_GetScheme() != CurrentAddress.m_URL.f_GetScheme())
+					continue;
+
+				if (Address == CurrentAddress && !mp_Settings.m_bInProcessCommandLineOnly)
+					continue;
+
+				if (!NNetwork::fg_IsUnixSocketAddressString(Host) || !Host.f_EndsWith(FileNameSuffix))
+					continue;
+
+				EarlierAddresses.f_Insert(Address);
+			}
+		}
+
+		for (auto &Address : EarlierAddresses)
+		{
+			DMibLogWithCategory(Mib/Concurrency/App, Info, "Removing local listen '{}' left at an earlier socket location", Address.m_URL.f_Encode());
+			co_await Internal.m_TrustManagerDatabase(&ICDistributedActorTrustManagerDatabase::f_RemoveListenConfig, Address);
+		}
+
+		co_return {};
+	}
+
 	NContainer::TCMap<NStr::CStr, NStr::CStr> CDistributedAppActor::fp_GetTranslateHostnames() const
 	{
 		NContainer::TCMap<NStr::CStr, NStr::CStr> TranslateHostnames;
@@ -617,10 +668,6 @@ namespace NMib::NConcurrency
 
 		DMibLogWithCategory(Mib/Concurrency/App, Debug, "Loading config file and state");
 
-		fp_CleanupEnclaveSockets();
-#ifdef DPlatformFamily_Windows
-		fp_CleanupOldExecutables();
-#endif
 		auto OnResume = co_await fg_OnResume
 			(
 				[&]() -> NException::CExceptionPointer
@@ -637,6 +684,35 @@ namespace NMib::NConcurrency
 				}
 			)
 		;
+
+		// Persisted local listens reopen during trust initialization, and the socket cleanup works in the same directories.
+		// A transport whose path is too long for the prefix uses the /tmp fallback, which is prepared the same way. An
+		// in-process-only command line has no local listen, as its persisted ones are removed before trust initialization
+		if (!mp_Settings.m_bInProcessCommandLineOnly && !mp_Settings.f_GetLocalSocketPrefixDirectory().f_IsEmpty())
+		{
+			NContainer::TCSet<NStr::CStr> Directories;
+			for (auto Flags : {ELocalSocketFlag::mc_None, ELocalSocketFlag::mc_AuthenticatedUnix})
+				Directories.f_Insert(CFile::fs_GetPath(mp_Settings.f_GetLocalSocketFileName(Flags, mp_Settings.m_Enclave)));
+
+			auto BlockingActorCheckout = fg_BlockingActor();
+			co_await
+				(
+					g_Dispatch(BlockingActorCheckout) / [Directories = fg_Move(Directories)]
+					{
+						for (auto &Directory : Directories)
+							CDistributedAppActor_Settings::fs_PrepareLocalSocketDirectory(Directory);
+					}
+					% "Failed to prepare the local socket directory"
+				)
+			;
+		}
+
+		co_await (fp_RetireEarlierLocalListens() % "Failed to remove local listens left at an earlier socket location");
+
+		fp_CleanupEnclaveSockets();
+#ifdef DPlatformFamily_Windows
+		fp_CleanupOldExecutables();
+#endif
 
 		// Config must be loaded before trust initialization. State is first read by command-line setup, so await it at the end.
 		co_await fg_Move(Internal.m_ConfigLoad);

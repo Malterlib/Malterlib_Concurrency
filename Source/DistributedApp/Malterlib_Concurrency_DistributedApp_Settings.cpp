@@ -109,6 +109,67 @@ namespace NMib::NConcurrency
 			return fg_Format("{}/{}{}.socket", _Prefix, m_AppName, TransportSuffix);
 	}
 
+	// A relative root directory resolves against the working directory, so instances started from different working
+	// directories get different hashes, as their sockets in the relative root directory differ
+	NStr::CStr CDistributedAppActor_Settings::fp_GetPrefixedRootDirectoryHash() const
+	{
+		return fg_GetHashedUuidString(CFile::fs_GetExpandedPath(m_RootDirectory), g_HostnameRootUUID, EUniversallyUniqueIdentifierFormat_AlphaNum);
+	}
+
+	// The prefix moves the socket off a root directory on a filesystem that cannot host unix domain sockets, such as a
+	// virtiofs share in a container, while keeping it derivable from the root directory. Empty when the prefix is not set
+	NStr::CStr CDistributedAppActor_Settings::f_GetLocalSocketPrefixDirectory() const
+	{
+		CStr SocketPrefix = fg_GetSys()->f_GetEnvironmentVariable("MalterlibDistributedAppLocalSocketPrefix");
+		if (SocketPrefix.f_IsEmpty())
+			return {};
+
+		CStr Directory = SocketPrefix / fp_GetPrefixedRootDirectoryHash();
+#ifdef DPlatformFamily_Windows
+		Directory = CFile::fs_GetExpandedPath(Directory);
+#endif
+		return Directory;
+	}
+
+	// Blocking; a server calls it before it listens. Throws unless the directory is a real one owned by this user: in a
+	// shared prefix like /tmp other users can pre-create it, and its owner can replace the sockets in it. The prefix must
+	// be sticky or writable only by trusted users, so the checked directory cannot be swapped before it is changed
+	void CDistributedAppActor_Settings::fs_PrepareLocalSocketDirectory(NStr::CStr const &_Directory)
+	{
+		if (_Directory.f_IsEmpty())
+			return;
+
+		if (!CFile::fs_FileExists(_Directory, EFileAttrib_Directory | EFileAttrib_File | EFileAttrib_Link))
+			CFile::fs_CreateDirectory(_Directory);
+
+		EFileAttrib DirectoryAttributes = CFile::fs_GetAttributesOnLink(_Directory);
+		if ((DirectoryAttributes & EFileAttrib_Link) || !(DirectoryAttributes & EFileAttrib_Directory))
+			DMibError("Local socket directory '{}' is not a directory"_f << _Directory);
+
+#ifndef DPlatformFamily_Windows
+		CStr Owner = CFile::fs_GetOwnerOnLink(_Directory);
+		CStr User = NProcess::NPlatform::fg_Process_GetUserName();
+		if (Owner != User)
+			DMibError("Local socket directory '{}' is owned by '{}' instead of '{}'"_f << _Directory << Owner << User);
+
+		// The listen setup creates a missing socket directory without permissions for other users, so it is
+		// prepared here instead: other local users can traverse but not list it, keeping the socket file mode
+		// in control of access
+		CFile::fs_SetAttributes
+			(
+				_Directory
+				, NFile::EFileAttrib_UnixAttributesValid
+				| NFile::EFileAttrib_UserExecute
+				| NFile::EFileAttrib_UserRead
+				| NFile::EFileAttrib_UserWrite
+				| NFile::EFileAttrib_GroupExecute
+				| NFile::EFileAttrib_EveryoneExecute
+			)
+		;
+#endif
+	}
+
+	// Resolves the path only: clients of a daemon running as another user resolve the directory of that user
 	NStr::CStr CDistributedAppActor_Settings::f_GetLocalSocketFileName(ELocalSocketFlag _Flags, NStr::CStr const &_Enclave) const
 	{
 		// Fallback directory selection belongs to this instance's m_Enclave; another instance needs its own settings.
@@ -117,19 +178,34 @@ namespace NMib::NConcurrency
 #ifdef DPlatformFamily_Windows
 		RootDirectory = CFile::fs_GetExpandedPath(RootDirectory);
 #endif
-		if (fp_GetLocalSocketPath(RootDirectory, _Flags | ELocalSocketFlag::mc_EnclaveSpecific, m_Enclave).f_GetLen() <= aint(MaxLength))
-			return fp_GetLocalSocketPath(RootDirectory, _Flags, _Enclave);
-
 		CStr ConfigHash = fg_GetHashedUuidString(RootDirectory, g_HostnameRootUUID, EUniversallyUniqueIdentifierFormat_AlphaNum);
-		CStr TempDir = CFile::fs_GetRawTemporaryDirectory();
-#ifdef DPlatformFamily_Windows
-		TempDir = CFile::fs_GetExpandedPath(TempDir);
-#endif
-		CStr Prefix = TempDir / ConfigHash;
-		if (fp_GetLocalSocketPath(Prefix, _Flags | ELocalSocketFlag::mc_EnclaveSpecific, m_Enclave).f_GetLen() <= aint(MaxLength))
-			return fp_GetLocalSocketPath(Prefix, _Flags, _Enclave);
 
-		Prefix = fg_Format("/tmp/{}", ConfigHash);
+		CStr PrefixDirectory = f_GetLocalSocketPrefixDirectory();
+
+		// With a prefix, the root directory and the temporary directory can both be on the filesystem the prefix avoids,
+		// as TMPDIR is in a container environment, so a path too long for the prefix falls back to /tmp only
+		if (!PrefixDirectory.f_IsEmpty())
+		{
+			if (fp_GetLocalSocketPath(PrefixDirectory, _Flags | ELocalSocketFlag::mc_EnclaveSpecific, m_Enclave).f_GetLen() <= aint(MaxLength))
+				return fp_GetLocalSocketPath(PrefixDirectory, _Flags, _Enclave);
+
+			ConfigHash = fp_GetPrefixedRootDirectoryHash();
+		}
+		else
+		{
+			if (fp_GetLocalSocketPath(RootDirectory, _Flags | ELocalSocketFlag::mc_EnclaveSpecific, m_Enclave).f_GetLen() <= aint(MaxLength))
+				return fp_GetLocalSocketPath(RootDirectory, _Flags, _Enclave);
+
+			CStr TempDir = CFile::fs_GetRawTemporaryDirectory();
+#ifdef DPlatformFamily_Windows
+			TempDir = CFile::fs_GetExpandedPath(TempDir);
+#endif
+			CStr Prefix = TempDir / ConfigHash;
+			if (fp_GetLocalSocketPath(Prefix, _Flags | ELocalSocketFlag::mc_EnclaveSpecific, m_Enclave).f_GetLen() <= aint(MaxLength))
+				return fp_GetLocalSocketPath(Prefix, _Flags, _Enclave);
+		}
+
+		CStr Prefix = fg_Format("/tmp/{}", ConfigHash);
 #ifdef DPlatformFamily_Windows
 		Prefix = CFile::fs_GetExpandedPath(Prefix);
 #endif

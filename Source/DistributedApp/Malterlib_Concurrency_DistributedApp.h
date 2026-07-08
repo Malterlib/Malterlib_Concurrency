@@ -625,6 +625,7 @@ namespace NMib::NConcurrency
 
 		TCFuture<void> fp_PublishCommandLine();
 		TCFuture<void> fp_RemoveCommandLineListen();
+		TCFuture<void> fp_RetireEarlierLocalListens();
 
 		bool fp_HasCommandLineAccess(NStr::CStr const &_HostID);
 

@@ -30,6 +30,9 @@ namespace NMib::NConcurrency
 		NStr::CStr f_GetLocalSocketHostname(ELocalSocketFlag _Flags) const;
 		NStr::CStr f_GetLocalSocketFileName(ELocalSocketFlag _Flags, NStr::CStr const &_Enclave) const;
 		NStr::CStr f_GetLocalSocketWildcard(ELocalSocketFlag _Flags) const;
+		NStr::CStr f_GetLocalSocketPrefixDirectory() const;
+
+		static void fs_PrepareLocalSocketDirectory(NStr::CStr const &_Directory);
 
 		CDistributedAppActor_Settings &&f_RootDirectory(NStr::CStr const &_RootDirectory) &&;
 		CDistributedAppActor_Settings &&f_FriendlyName(NStr::CStr const &_FriendlyName) &&;
@@ -57,5 +60,6 @@ namespace NMib::NConcurrency
 		CDistributedAppActor_Settings &&f_MaxShutdownTime(fp64 _MaxShutdownTime) &&;
 	private:
 		NStr::CStr fp_GetLocalSocketPath(NStr::CStr const &_Prefix, ELocalSocketFlag _Flags, NStr::CStr const &_Enclave) const;
+		NStr::CStr fp_GetPrefixedRootDirectoryHash() const;
 	};
 }

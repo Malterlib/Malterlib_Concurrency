@@ -111,6 +111,35 @@ namespace NMib::NConcurrency
 
 	NStr::CStr CDistributedAppActor_Settings::f_GetLocalSocketFileName(ELocalSocketFlag _Flags, NStr::CStr const &_Enclave) const
 	{
+		// The root directory can be on a filesystem that cannot host unix domain sockets,
+		// for example a virtiofs share inside a container; the prefix moves the socket to
+		// a native filesystem while keeping it derivable from the root directory
+		CStr SocketPrefix = fg_GetSys()->f_GetEnvironmentVariable("MalterlibDistributedAppLocalSocketPrefix");
+		if (!SocketPrefix.f_IsEmpty())
+		{
+			CStr ConfigHash = fg_GetHashedUuidString(m_RootDirectory, g_HostnameRootUUID, EUniversallyUniqueIdentifierFormat_AlphaNum);
+			CStr Directory = SocketPrefix / ConfigHash;
+
+			// The listen setup creates a missing socket directory without permissions for
+			// other users, so it is created here instead: other local users can traverse
+			// but not list it, keeping the socket file mode in control of access
+			if (!CFile::fs_FileExists(Directory))
+				CFile::fs_CreateDirectory(Directory);
+			CFile::fs_SetAttributes
+				(
+					Directory
+					, NFile::EFileAttrib_UnixAttributesValid
+					| NFile::EFileAttrib_UserExecute
+					| NFile::EFileAttrib_UserRead
+					| NFile::EFileAttrib_UserWrite
+					| NFile::EFileAttrib_GroupExecute
+					| NFile::EFileAttrib_EveryoneExecute
+				)
+			;
+
+			return fp_GetLocalSocketPath(Directory, _Flags, _Enclave);
+		}
+
 		// Fallback directory selection belongs to this instance's m_Enclave; another instance needs its own settings.
 		umint MaxLength = NSys::NNetwork::fg_GetMaxUnixSocketNameLength();
 		CStr RootDirectory = m_RootDirectory;

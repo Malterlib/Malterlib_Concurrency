@@ -13,6 +13,7 @@ namespace NMib::NConcurrency
 	struct CDistributedAppInterfaceLaunchActor : public NProcess::CProcessLaunchActor
 	{
 		using FOnUseTicket = TCActorFunctor<TCFuture<void> (NStr::CStr _HostID, CCallingHostInfo _HostInfo, NContainer::CByteVector _CertificateRequest)>;
+		using FRequestTicket = TCActorFunctor<TCFuture<NStr::CStr> ()>;
 
 		CDistributedAppInterfaceLaunchActor
 			(
@@ -24,6 +25,16 @@ namespace NMib::NConcurrency
 				, NStr::CStr const &_LaunchID
 				, bool _bDelegateTrust
 				, NStr::CStr const &_RequestTicketMagic = {}
+			)
+		;
+
+		CDistributedAppInterfaceLaunchActor
+			(
+				NWeb::NHTTP::CURL const &_Address
+				, FRequestTicket &&_fRequestTicket
+				, TCActorFunctor<TCFuture<void> (NStr::CStr _Error)> &&_fOnLaunchError
+				, NStr::CStr const &_Description
+				, NStr::CStr const &_LaunchID
 			)
 		;
 		~CDistributedAppInterfaceLaunchActor();
@@ -46,6 +57,7 @@ namespace NMib::NConcurrency
 		NStr::CStr mp_Description;
 		NStr::CStr mp_LaunchID;
 		FOnUseTicket mp_fOnUseTicket;
+		FRequestTicket mp_fRequestTicket;
 		TCActorFunctor<TCFuture<void> (NStr::CStr _Error)> mp_fOnLaunchError;
 		NContainer::TCMap<NStr::CStr, CHandleRequest> mp_HandleRequests;
 		bool mp_bDelegateTrust = false;

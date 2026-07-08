@@ -33,6 +33,24 @@ namespace NMib::NConcurrency
 	{
 	}
 
+	// With no trust manager, _fRequestTicket must be set and return a ticket serialized with CTrustTicket::f_ToStringTicket
+	CDistributedAppInterfaceLaunchActor::CDistributedAppInterfaceLaunchActor
+		(
+			NWeb::NHTTP::CURL const &_Address
+			, FRequestTicket &&_fRequestTicket
+			, TCActorFunctor<TCFuture<void> (NStr::CStr _Error)> &&_fOnLaunchError
+			, NStr::CStr const &_Description
+			, NStr::CStr const &_LaunchID
+		)
+		: mp_Address(_Address)
+		, mp_fOnLaunchError(fg_Move(_fOnLaunchError))
+		, mp_fRequestTicket(fg_Move(_fRequestTicket))
+		, mp_RequestTicketMagic(NCryptography::fg_RandomID())
+		, mp_Description(_Description)
+		, mp_LaunchID(_LaunchID)
+	{
+	}
+
 	CDistributedAppInterfaceLaunchActor::~CDistributedAppInterfaceLaunchActor()
 	{
 	}
@@ -119,6 +137,31 @@ namespace NMib::NConcurrency
 
 	void CDistributedAppInterfaceLaunchActor::fp_HandleTicketRequest()
 	{
+		if (mp_fRequestTicket)
+		{
+			DMibLogWithCategory(Malterlib/Concurrency, Info, "Requesting ticket for '{}'", mp_Description);
+
+			mp_fRequestTicket() > [this](TCAsyncResult<NStr::CStr> &&_Ticket)
+				{
+					if (!_Ticket)
+					{
+						DMibLogWithCategory(Malterlib/Concurrency, Error, "Failed to request ticket for '{}': {}", mp_Description, _Ticket.f_GetExceptionStr());
+						return;
+					}
+
+					DMibLogWithCategory(Malterlib/Concurrency, Info, "Sending ticket to '{}'", mp_Description);
+					CProcessLaunchActor::f_SendStdIn(mp_RequestTicketMagic + ":" + *_Ticket + "\n") > [this](TCAsyncResult<void> &&_Result)
+						{
+							(void)this;
+							if (!_Result)
+								DMibLogWithCategory(Malterlib/Concurrency, Error, "Failed to send ticket to '{}'", mp_Description);
+						}
+					;
+				}
+			;
+			return;
+		}
+
 		DMibLogWithCategory(Malterlib/Concurrency, Info, "Generating ticket for '{}'", mp_Description);
 
 		NStr::CStr HandleRequestID = NCryptography::fg_RandomID(mp_HandleRequests);

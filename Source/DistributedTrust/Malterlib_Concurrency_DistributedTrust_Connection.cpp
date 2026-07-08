@@ -179,10 +179,38 @@ namespace NMib::NConcurrency
 		CListenConfig ListenConfig;
 		ListenConfig.m_Address = _Address;
 		auto *pListen = Internal.m_Listen.f_FindEqual(ListenConfig);
+
+		NStr::CStr CertificateHost = _Address.m_URL.f_GetHost();
+		if (!pListen)
+		{
+			// A listen bound to the wildcard address serves every address the host is
+			// reachable through, so it matches a ticket for a specific address; the
+			// ticket keeps the specific address for the client to connect to
+			for (auto &Listen : Internal.m_Listen)
+			{
+				auto &ListenURL = Internal.m_Listen.fs_GetKey(Listen).m_Address.m_URL;
+
+				auto &ListenHost = ListenURL.f_GetHost();
+				if (ListenHost != "0.0.0.0" && ListenHost != "::")
+					continue;
+
+				if (ListenURL.f_GetScheme() != _Address.m_URL.f_GetScheme())
+					continue;
+
+				if (ListenURL.f_GetPortFromScheme() != _Address.m_URL.f_GetPortFromScheme())
+					continue;
+
+				pListen = &Listen;
+				CertificateHost = ListenHost;
+
+				break;
+			}
+		}
+
 		if (!pListen)
 			co_return DMibErrorInstance("Could not find listen with this address");
 
-		auto *pServerCertificate = Internal.m_ServerCertificates.f_FindEqual(_Address.m_URL.f_GetHost());
+		auto *pServerCertificate = Internal.m_ServerCertificates.f_FindEqual(CertificateHost);
 		if (!pServerCertificate)
 			co_return DMibErrorInstance("Could not find and server certificate for this address");
 

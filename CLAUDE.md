@@ -561,6 +561,15 @@ TCFuture<void> f_Process(CStr _Key)
 
 ## Local Command Sessions
 
+`MalterlibDistributedAppLocalSocketPrefix` moves the local sockets of a distributed app from
+its root directory to a directory under the prefix derived from the root directory, for a root
+on a filesystem that cannot host unix domain sockets, such as a virtiofs share in a container.
+Socket paths too long for that directory fall back to a directory under `/tmp`. Untrusted
+users must not be able to replace the prefix or any of its ancestors. On POSIX the prefix must
+be owned by a trusted user and be sticky or writable only by trusted users. Windows doesn't
+check the owner or permissions of the socket directory, so only trusted users may write to the
+prefix and to the socket directory, also when it falls back under `/tmp`.
+
 For local command-line control, register for standard input before calling
 `f_RegisterForScreenChange`. Keep a stdin subscription alive while resize notifications
 are needed: Windows delivers resize events through the console input queue. Releasing

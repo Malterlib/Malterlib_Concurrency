@@ -282,6 +282,15 @@ namespace NMib::NConcurrency
 			NContainer::TCMap<NStr::CStr, CHostConnectionState> m_Hosts;
 		};
 
+		using FListensToRemove = NFunction::TCFunctionMovable
+			<
+				TCFuture<NContainer::TCVector<CDistributedActorTrustManager_Address>>
+				(
+					NContainer::TCMap<CDistributedActorTrustManager_Address, ICDistributedActorTrustManagerDatabase::CListenConfig> const &_ListenConfigs
+				)
+			>
+		;
+
 		struct COptions
 		{
 			NFunction::TCFunctionMovable<NConcurrency::TCActor<NConcurrency::CActorDistributionManager> (CActorDistributionManagerInitSettings const &_Settings)> m_fConstructManager
@@ -295,6 +304,7 @@ namespace NMib::NConcurrency
 			NFunction::TCFunction<NStr::CStr ()> m_fGetFriendlyName; // Asked for the name on first use when m_FriendlyName is empty
 			NStr::CStr m_Enclave;
 			NContainer::TCMap<NStr::CStr, NStr::CStr> m_TranslateHostnames;
+			FListensToRemove m_fListensToRemove;                     // Asked once at initialization, before the persisted listens are opened
 			fp64 m_InitialConnectionTimeout = fg_DefaultInitialConnectionTimeout();
 			fp64 m_HostTimeout = 10_minutes;
 			fp64 m_HostDaemonTimeout = 4_hours;

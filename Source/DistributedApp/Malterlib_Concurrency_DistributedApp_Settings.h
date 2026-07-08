@@ -7,6 +7,11 @@
 #include "Malterlib_Concurrency_DistributedApp_SettingsProperties.h"
 #include "Malterlib_Concurrency_DistributedApp_ThreadLocal.h"
 
+namespace NMib::NWeb::NHTTP
+{
+	struct CURL;
+}
+
 namespace NMib::NConcurrency
 {
 	struct CLocalHostIdentity;
@@ -30,6 +35,15 @@ namespace NMib::NConcurrency
 		NStr::CStr f_GetLocalSocketHostname(ELocalSocketFlag _Flags) const;
 		NStr::CStr f_GetLocalSocketFileName(ELocalSocketFlag _Flags, NStr::CStr const &_Enclave) const;
 		NStr::CStr f_GetLocalSocketWildcard(ELocalSocketFlag _Flags) const;
+		NStr::CStr f_GetStagedLocalSocketWildcard(ELocalSocketFlag _Flags) const;
+		NStr::CStr f_GetLocalSocketPrefixDirectory() const;
+		bool f_IsLocalSocketFileNameOfRoot(NStr::CStr const &_FileName, ELocalSocketFlag _Flags) const;
+		bool f_IsLocalSocketHostnameOfRoot(NStr::CStr const &_Hostname, ELocalSocketFlag _Flags) const;
+		bool f_IsLocalSocketListenOfRoot(NWeb::NHTTP::CURL const &_URL, ELocalSocketFlag _Flags) const;
+
+		static NWeb::NHTTP::CURL fs_GetLocalSocketURL(NStr::CStr const &_Hostname, ELocalSocketFlag _Flags);
+		static bool fs_IsLocalSocketHostname(NStr::CStr const &_Hostname);
+		static void fs_PrepareLocalSocketDirectory(NStr::CStr const &_Directory);
 
 		CDistributedAppActor_Settings &&f_RootDirectory(NStr::CStr const &_RootDirectory) &&;
 		CDistributedAppActor_Settings &&f_FriendlyName(NStr::CStr const &_FriendlyName) &&;
@@ -58,5 +72,6 @@ namespace NMib::NConcurrency
 
 	private:
 		NStr::CStr fp_GetLocalSocketPath(NStr::CStr const &_Prefix, ELocalSocketFlag _Flags, NStr::CStr const &_Enclave) const;
+		NStr::CStr fp_GetExpandedRootDirectoryHash() const;
 	};
 }

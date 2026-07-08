@@ -110,6 +110,27 @@ namespace NMib::NConcurrency
 			)
 		;
 
+		// An invalid future means none. The removals are saved before any listen is opened
+		if (auto fListensToRemove = fg_Move(m_fListensToRemove))
+		{
+			// A function that isn't a coroutine can throw before it returns its future
+			TCFuture<NContainer::TCVector<CDistributedActorTrustManager_Address>> ListensToRemoveFuture;
+			{
+				auto CaptureScope = co_await (g_CaptureExceptions % "Failed to find the persisted listens to remove");
+				ListensToRemoveFuture = fListensToRemove(ListenConfigs);
+			}
+
+			if (ListensToRemoveFuture.f_IsValid())
+			{
+				auto ListensToRemove = co_await (fg_Move(ListensToRemoveFuture) % "Failed to find the persisted listens to remove");
+				for (auto &Address : ListensToRemove)
+				{
+					co_await (m_Database(&ICDistributedActorTrustManagerDatabase::f_RemoveListenConfig, Address) % "Failed to remove listen config from database");
+					ListenConfigs.f_Remove(Address);
+				}
+			}
+		}
+
 		auto Cleanup = fg_OnScopeExitShared
 			(
 				[this, pDestroyed = m_pDestroyed]

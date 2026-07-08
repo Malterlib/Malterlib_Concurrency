@@ -179,11 +179,64 @@ namespace NMib::NConcurrency
 		CDistributedActorTrustManager_Address LocalListenAddress;
 		LocalListenAddress.m_URL = fp_GetLocalAddressForTransport(bAuthenticatedUnix);
 
+		CStr Scheme = LocalListenAddress.m_URL.f_GetScheme();
+		bool bSocketOutsideRoot
+			= CFile::fs_GetPath(mp_Settings.f_GetLocalSocketFileName(bAuthenticatedUnix ? ELocalSocketFlag::mc_AuthenticatedUnix : ELocalSocketFlag::mc_None, {}))
+			!= mp_Settings.m_RootDirectory
+		;
+
+		// Once the listen is saved: its transport's pending send window is taken, and a socket outside the root directory, whose directory is named for
+		// the root's spelling, is recorded so that a start with another spelling of the root knows the listen as its own. Returns whether the state changed
+		auto fUpdateStateForSavedListen = [&]() -> bool
+			{
+				auto &StateData = mp_State.m_StateDatabase.m_Data;
+				bool bChanged = false;
+
+				if (auto *pSendWindows = StateData.f_GetMember(gc_RelocatedCommandLineListenSendWindow))
+				{
+					if (!pSendWindows->f_IsObject())
+					{
+						StateData.f_RemoveMember(gc_RelocatedCommandLineListenSendWindow);
+						bChanged = true;
+					}
+					else if (pSendWindows->f_RemoveMember(Scheme))
+					{
+						if (pSendWindows->f_Object().f_IsEmpty())
+							StateData.f_RemoveMember(gc_RelocatedCommandLineListenSendWindow);
+
+						bChanged = true;
+					}
+				}
+
+				if (bSocketOutsideRoot)
+				{
+					CStr Address = LocalListenAddress.m_URL.f_Encode();
+					auto &OutsideRoot = StateData[gc_CommandLineListenOutsideRoot];
+					if (!OutsideRoot.f_IsObject())
+						OutsideRoot = EJsonType_Object;
+
+					auto const *pRecorded = OutsideRoot.f_GetMember(Scheme, EJsonType_String);
+					if (!pRecorded || pRecorded->f_String() != Address)
+					{
+						OutsideRoot[Scheme] = Address;
+						bChanged = true;
+					}
+				}
+
+				return bChanged;
+			}
+		;
+
 		auto CurrentPrimary = co_await mp_State.m_TrustManager(&CDistributedActorTrustManager::f_GetPrimaryListen);
 
 		// Removing a primary listen clears the primary, so equality guarantees the listen exists.
 		if (CurrentPrimary && *CurrentPrimary == LocalListenAddress)
+		{
+			if (fUpdateStateForSavedListen())
+				co_await (mp_State.m_StateDatabase.f_Save() % "Failed to save state database");
+
 			co_return {};
+		}
 
 		// A listen registered under the other transport keeps serving clients that still use it and
 		// is left in place; it only loses the primary role
@@ -196,7 +249,20 @@ namespace NMib::NConcurrency
 		bool bTakePrimary = !CurrentPrimary || *CurrentPrimary == AlternateListenAddress;
 
 		if (!Listens.f_FindEqual(LocalListenAddress))
-			co_await mp_State.m_TrustManager(&CDistributedActorTrustManager::f_AddListen, LocalListenAddress, 0);
+		{
+			uint64 SendWindowBytes = 0;
+			if (auto *pSendWindows = mp_State.m_StateDatabase.m_Data.f_GetMember(gc_RelocatedCommandLineListenSendWindow, EJsonType_Object))
+			{
+				if (auto *pSendWindow = pSendWindows->f_GetMember(Scheme, EJsonType_Integer))
+					SendWindowBytes = uint64(pSendWindow->f_Integer());
+			}
+
+			co_await mp_State.m_TrustManager(&CDistributedActorTrustManager::f_AddListen, LocalListenAddress, SendWindowBytes);
+		}
+
+		// The pending send window is kept until the replacement listen is saved
+		if (fUpdateStateForSavedListen())
+			co_await (mp_State.m_StateDatabase.f_Save() % "Failed to save state database");
 
 		if (bTakePrimary)
 			co_await mp_State.m_TrustManager(&CDistributedActorTrustManager::f_SetPrimaryListen, LocalListenAddress);

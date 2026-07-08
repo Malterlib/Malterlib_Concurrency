@@ -840,6 +840,23 @@ namespace NTestTrustManager
 			DMibExpectTrue(Client->f_IsHolderDestroyed());
 		}
 		{
+			DMibTestPath("Listens to remove that throws");
+			CActorRunLoopTestHelper RunLoopHelper;
+
+			CState State{RunLoopHelper.m_pRunLoop, _fDatabaseFactory, _fCleanup, {}, _RootDir};
+
+			CDistributedActorTrustManager::COptions Options{.m_ReconnectDelay = 1_ms};
+			Options.m_fListensToRemove = [](TCMap<CDistributedActorTrustManager_Address, ICDistributedActorTrustManagerDatabase::CListenConfig> const &_ListenConfigs)
+				-> TCFuture<TCVector<CDistributedActorTrustManager_Address>>
+				{
+					DMibError("Listens to remove failed");
+				}
+			;
+
+			TCActor<CDistributedActorTrustManager> ServerTrustManager = State.f_CreateServerTrustManager(fg_Move(Options));
+			DMibExpectExceptionType(ServerTrustManager(&CDistributedActorTrustManager::f_Initialize).f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout), NException::CException);
+		}
+		{
 			DMibTestPath("Basic");
 			CActorRunLoopTestHelper RunLoopHelper;
 

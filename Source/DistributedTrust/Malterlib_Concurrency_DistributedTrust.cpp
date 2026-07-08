@@ -45,6 +45,7 @@ namespace NMib::NConcurrency
 		, m_fGetFriendlyName(fg_Move(_Options.m_fGetFriendlyName))
 		, m_Enclave(_Options.m_Enclave)
 		, m_TranslateHostnames(_Options.m_TranslateHostnames)
+		, m_fListensToRemove(fg_Move(_Options.m_fListensToRemove))
 		, m_InitialConnectionTimeout(_Options.m_InitialConnectionTimeout)
 		, m_DefaultConnectionConcurrency(_Options.m_DefaultConnectionConcurrency)
 		, m_DefaultSendWindowBytes(_Options.m_DefaultSendWindowBytes)

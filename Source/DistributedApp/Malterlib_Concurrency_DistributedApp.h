@@ -554,6 +554,10 @@ namespace NMib::NConcurrency
 
 		TCFuture<void> fp_PublishCommandLine();
 		TCFuture<void> fp_RemoveCommandLineListen();
+		CDistributedActorTrustManager::FListensToRemove fp_GetListensToRemove();
+		auto fp_FindUnusedLocalListens(NContainer::TCMap<CDistributedActorTrustManager_Address, ICDistributedActorTrustManagerDatabase::CListenConfig> _Candidates)
+			-> TCFuture<NContainer::TCVector<CDistributedActorTrustManager_Address>>
+		;
 
 		bool fp_HasCommandLineAccess(NStr::CStr const &_HostID);
 

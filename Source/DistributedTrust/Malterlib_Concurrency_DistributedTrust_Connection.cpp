@@ -196,11 +196,175 @@ namespace NMib::NConcurrency
 		auto &Internal = *mp_pInternal;
 		co_await Internal.f_WaitForInit();
 
-		// The ticket sends the client to the port the listen is bound to, which for a listen
-		// that asked for any port is not the one in its address
-		auto ServerAddress = co_await Internal.f_GetBoundListenAddress(_Address);
+		NStr::CStr CertificateHost = _Address.m_URL.f_GetHost();
+		CDistributedActorTrustManager_Address ServerAddress = _Address;
+		if (Internal.m_Listen.f_FindEqual(_Address))
+		{
+			// The ticket sends the client to the port the listen is bound to, which for a listen
+			// that asked for any port is not the one in its address
+			ServerAddress = co_await Internal.f_GetBoundListenAddress(_Address);
+		}
+		else
+		{
+			// A listen bound to the wildcard address serves every address the host is reachable through, so it matches a
+			// ticket for a specific address on the port it is bound to; the ticket keeps the specific address for the
+			// client to connect to. A wildcard listen serves only its own family, IPv6 listens being IPv6 only, so only an
+			// address literal, with or without the IPv4: or IPv6: prefix CActorDistributionListenSettings uses, can match:
+			// the client resolves a host name to whichever family comes first. Literals are parsed without any lookup and
+			// compared by value; a host name parses to an empty address
+			auto fParseAddressLiteral = [](NStr::CStr const &_Host, NStr::CStr &o_Address) -> NNetwork::CNetAddress
+				{
+					NNetwork::ENetAddressType PrefixType = NNetwork::ENetAddressType_None;
+					o_Address = _Host;
+					if (_Host.f_StartsWith("IPv4:"))
+					{
+						PrefixType = NNetwork::ENetAddressType_TCPv4;
+						o_Address = _Host.f_Extract(NStr::fg_StrLen("IPv4:"));
+					}
+					else if (_Host.f_StartsWith("IPv6:"))
+					{
+						PrefixType = NNetwork::ENetAddressType_TCPv6;
+						o_Address = _Host.f_Extract(NStr::fg_StrLen("IPv6:")).f_RemovePrefix("[").f_RemoveSuffix("]");
+					}
 
-		auto *pServerCertificate = Internal.m_ServerCertificates.f_FindEqual(_Address.m_URL.f_GetHost());
+					if (o_Address.f_IsEmpty())
+						return {};
+
+					bool bIPv6 = PrefixType == NNetwork::ENetAddressType_TCPv6
+						|| (PrefixType == NNetwork::ENetAddressType_None && o_Address.f_Find(":") >= 0)
+					;
+
+					// The explicit port keeps the endpoint parser from taking the last part of an IPv6 address for a port
+					NSys::NNetwork::CResolveAddressParameters Parameters;
+					NNetwork::CNetAddress Address
+						(
+							NSys::NNetwork::fg_PrepareResolveAddress
+							(
+								NStr::fg_Format(bIPv6 ? "IPv6:[{}]:0" : "IPv4:{}:0", o_Address)
+								, Parameters
+							)
+						)
+					;
+
+					auto Type = Address.f_GetType();
+					if (Type != NNetwork::ENetAddressType_TCPv4 && Type != NNetwork::ENetAddressType_TCPv6)
+						return {};
+
+					// An IPv4-mapped IPv6 address is reached over IPv4, which an IPv6 listen doesn't serve
+					NNetwork::CNetAddressTCPv6 TCPv6;
+					if (Address.f_Get(TCPv6))
+					{
+						bool bIPv4Mapped = TCPv6.m_IP[10] == 0xff && TCPv6.m_IP[11] == 0xff;
+						for (umint iByte = 0; iByte < 10; ++iByte)
+							bIPv4Mapped = bIPv4Mapped && TCPv6.m_IP[iByte] == 0;
+
+						if (bIPv4Mapped)
+							return {};
+					}
+
+					return Address;
+				}
+			;
+
+			auto fIsWildcard = [](NNetwork::CNetAddress const &_Address)
+				{
+					auto fIsZero = [](auto const &_IP)
+						{
+							for (uint8 Byte : _IP)
+							{
+								if (Byte)
+									return false;
+							}
+
+							return true;
+						}
+					;
+
+					NNetwork::CNetAddressTCPv4 TCPv4;
+					if (_Address.f_Get(TCPv4))
+						return fIsZero(TCPv4.m_IP);
+
+					NNetwork::CNetAddressTCPv6 TCPv6;
+					if (_Address.f_Get(TCPv6))
+						return fIsZero(TCPv6.m_IP);
+
+					return false;
+				}
+			;
+
+			NStr::CStr const &RequestedRawHost = _Address.m_URL.f_GetHost();
+
+			// A client connecting through a unix path or a loopback host uses the local frame sizes, which a wildcard
+			// listen rejects during identify
+			if (NNetwork::fg_IsUnixSocketAddressString(RequestedRawHost))
+				co_return DMibErrorInstance("Could not find listen with this address; a unix path needs a listen with that path");
+
+			NStr::CStr RequestedHost;
+			NNetwork::CNetAddress RequestedAddress = fParseAddressLiteral(RequestedRawHost, RequestedHost);
+			if (RequestedAddress.f_IsEmpty() ? NNetwork::fg_IsLoopbackHostString(RequestedHost) : NNetwork::fg_IsLoopbackAddress(RequestedAddress))
+				co_return DMibErrorInstance("Could not find listen with this address; a loopback host needs a listen with that host");
+
+			if (RequestedAddress.f_IsEmpty())
+				co_return DMibErrorInstance("Could not find listen with this address; a wildcard listen only matches an IP address");
+
+			NContainer::TCVector<CDistributedActorTrustManager_Address> WildcardListens;
+			for (auto &Listen : Internal.m_Listen)
+			{
+				auto &ListenAddress = Internal.m_Listen.fs_GetKey(Listen);
+
+				auto &ListenRawHost = ListenAddress.m_URL.f_GetHost();
+				if (NNetwork::fg_IsUnixSocketAddressString(ListenRawHost))
+					continue;
+
+				NStr::CStr ListenHost;
+				NNetwork::CNetAddress ListenNetAddress = fParseAddressLiteral(ListenRawHost, ListenHost);
+				if (ListenNetAddress.f_IsEmpty() || ListenNetAddress.f_GetType() != RequestedAddress.f_GetType() || !fIsWildcard(ListenNetAddress))
+					continue;
+
+				if (ListenAddress.m_URL.f_GetScheme() != _Address.m_URL.f_GetScheme())
+					continue;
+
+				WildcardListens.f_Insert(ListenAddress);
+			}
+
+			// An explicit port 0 is an unassigned port, not the default port of the scheme
+			auto fGetPort = [](NWeb::NHTTP::CURL const &_URL) -> uint16
+				{
+					if (_URL.f_HasPort() && _URL.f_GetPort() == 0)
+						return 0;
+
+					return _URL.f_GetPortFromScheme();
+				}
+			;
+
+			uint16 RequestedPort = fGetPort(_Address.m_URL);
+
+			bool bFoundListen = false;
+			for (auto &ListenAddress : WildcardListens)
+			{
+				// Fails only for a listen removed during an earlier suspension, which no longer matches
+				auto BoundAddress = co_await Internal.f_GetBoundListenAddress(ListenAddress).f_Wrap();
+				if (!BoundAddress)
+					continue;
+
+				uint16 BoundPort = fGetPort(BoundAddress->m_URL);
+				if (BoundPort == 0 || BoundPort != RequestedPort)
+					continue;
+
+				bFoundListen = true;
+				CertificateHost = ListenAddress.m_URL.f_GetHost();
+
+				// The client connects to the port in the ticket as given, so an omitted one would be port 0
+				ServerAddress.m_URL.f_SetPort(RequestedPort);
+
+				break;
+			}
+
+			if (!bFoundListen)
+				co_return DMibErrorInstance("Could not find listen with this address");
+		}
+
+		auto *pServerCertificate = Internal.m_ServerCertificates.f_FindEqual(CertificateHost);
 		if (!pServerCertificate)
 			co_return DMibErrorInstance("Could not find and server certificate for this address");
 

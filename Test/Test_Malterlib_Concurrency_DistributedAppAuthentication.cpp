@@ -963,6 +963,8 @@ namespace NTestAuthentication
 
 		TCFuture<CU2FAuthenticate::CResult> f_U2F_Authenticate(CU2FAuthenticate _Authenticate) override;
 
+		TCFuture<NEncoding::CEJsonSorted> f_RunClientAction(NStr::CStr _Action, NEncoding::CEJsonSorted _Params) override;
+
 	private:
 		TCFuture<void> fp_Destroy() override;
 
@@ -1093,6 +1095,12 @@ namespace NTestAuthentication
 
 	TCFuture<ICCommandLineControl::CU2FAuthenticate::CResult> CCommandLineControlActorTest::f_U2F_Authenticate(CU2FAuthenticate _Authenticate)
 	{
+		co_return {};
+	}
+
+	TCFuture<NEncoding::CEJsonSorted> CCommandLineControlActorTest::f_RunClientAction(NStr::CStr _Action, NEncoding::CEJsonSorted _Params)
+	{
+		DMibNeverGetHere;
 		co_return {};
 	}
 

@@ -56,8 +56,9 @@ namespace NMib::NConcurrency
 			, EProtocolVersion_SupportScreenChange = 0x108
 			, EProtocolVersion_SupportClipboard    = 0x109
 			, EProtocolVersion_SupportStdErrBinary = 0x10A
+			, EProtocolVersion_RunClientAction     = 0x10B
 
-			, EProtocolVersion_Current = 0x10A
+			, EProtocolVersion_Current = 0x10B
 		};
 
 		struct CU2FAuthenticate
@@ -150,7 +151,13 @@ namespace NMib::NConcurrency
 
 		virtual NConcurrency::TCFuture<CU2FRegister::CResult> f_U2F_Register(CU2FRegister _Register) = 0;
 		virtual NConcurrency::TCFuture<CU2FAuthenticate::CResult> f_U2F_Authenticate(CU2FAuthenticate _Authenticate) = 0;
+
+		virtual NConcurrency::TCFuture<NEncoding::CEJsonSorted> f_RunClientAction(NStr::CStr _Action, NEncoding::CEJsonSorted _Params) = 0;
 	};
+
+	using FCommandLineClientAction = NFunction::TCFunction<TCFuture<NEncoding::CEJsonSorted> (NEncoding::CEJsonSorted _Params, NStorage::TCSharedPointer<CRunLoop> _pRunLoop)>;
+
+	void fg_RegisterCommandLineClientAction(NStr::CStr const &_Action, FCommandLineClientAction const &_fAction);
 
 	struct CCommandLineControl
 	{
@@ -165,6 +172,8 @@ namespace NMib::NConcurrency
 
 		NConcurrency::TCFuture<ICCommandLineControl::CU2FRegister::CResult> f_U2F_Register(ICCommandLineControl::CU2FRegister &&_Register);
 		NConcurrency::TCFuture<ICCommandLineControl::CU2FAuthenticate::CResult> f_U2F_Authenticate(ICCommandLineControl::CU2FAuthenticate &&_Authenticate);
+
+		NConcurrency::TCFuture<NEncoding::CEJsonSorted> f_RunClientAction(NStr::CStr const &_Action, NEncoding::CEJsonSorted &&_Params) const;
 
 		void operator += (ch8 const *_pStdOut) const;
 		void operator %= (ch8 const *_pStdErr) const;

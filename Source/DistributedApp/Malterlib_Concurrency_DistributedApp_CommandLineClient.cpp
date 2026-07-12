@@ -58,8 +58,35 @@ namespace NMib::NConcurrency
 
 	namespace
 	{
+		struct CClientActionRegistry
+		{
+			NThread::CMutual m_Lock;
+			NContainer::TCMap<NStr::CStr, FCommandLineClientAction> m_Actions;
+		};
+
+		CClientActionRegistry &fg_GetClientActionRegistry()
+		{
+			static CClientActionRegistry s_Registry;
+			return s_Registry;
+		}
+	}
+
+	// Registering an existing name replaces its action. The action runs on the control actor in the command line client process; _pRunLoop is
+	// the run loop the client thread pumps while it waits for the command
+	void fg_RegisterCommandLineClientAction(NStr::CStr const &_Action, FCommandLineClientAction const &_fAction)
+	{
+		auto &Registry = fg_GetClientActionRegistry();
+
+		DMibLock(Registry.m_Lock);
+		Registry.m_Actions[_Action] = _fAction;
+	}
+
+	namespace
+	{
 		struct CCommandLineControlActor : public ICCommandLineControl
 		{
+			CCommandLineControlActor(NStorage::TCSharedPointer<CRunLoop> const &_pRunLoop);
+
 			TCFuture<TCActorSubscriptionWithID<>> f_RegisterForStdInBinary(FOnBinaryInput _fOnInput, NProcess::EStdInReaderFlag _Flags) override;
 			TCFuture<TCActorSubscriptionWithID<>> f_RegisterForCancellation(FOnCancel _fOnCancel) override;
 			TCFuture<TCActorSubscriptionWithID<>> f_RegisterForScreenChange(FOnScreenChange _fOnScreenChange) override;
@@ -78,6 +105,7 @@ namespace NMib::NConcurrency
 			NConcurrency::TCFuture<CU2FRegister::CResult> f_U2F_Register(CU2FRegister _Register) override;
 			NConcurrency::TCFuture<CU2FAuthenticate::CResult> f_U2F_Authenticate(CU2FAuthenticate _Authenticate) override;
 			TCFuture<void> f_ScreenChange(CScreenChange _ScreenChange);
+			TCFuture<NEncoding::CEJsonSorted> f_RunClientAction(NStr::CStr _Action, NEncoding::CEJsonSorted _Params) override;
 
 			static constexpr EPriority mc_Priority = EPriority_NormalHighCPU;
 
@@ -103,12 +131,18 @@ namespace NMib::NConcurrency
 			TCActor<NProcess::CStdInActor> mp_InputActor;
 			NContainer::TCMap<NStr::CStr, CCancellationSubscription> mp_CancellationSubscriptions;
 			NContainer::TCMap<NStr::CStr, CScreenChangeSubscription> mp_ScreenChangeSubscriptions;
+			NStorage::TCSharedPointer<CRunLoop> mp_pRunLoop;
 
 			NContainer::TCMap<NStr::CStr, TCActorSubscriptionWithID<>> mp_StdInRegistrations; // Live input subscriptions; their presence controls whether screen notifications are available.
 
 			COnScopeExitShared mp_ScreenChangeWatcher; // Held only while both a screen subscriber and an input registration exist.
 			bool mp_bCancelled = false;
 		};
+
+		CCommandLineControlActor::CCommandLineControlActor(NStorage::TCSharedPointer<CRunLoop> const &_pRunLoop)
+			: mp_pRunLoop(_pRunLoop)
+		{
+		}
 
 		TCFuture<TCActorSubscriptionWithID<>> CCommandLineControlActor::f_RegisterForStdInBinary(FOnBinaryInput _fOnInput, NProcess::EStdInReaderFlag _Flags)
 		{
@@ -360,6 +394,35 @@ namespace NMib::NConcurrency
 			co_return {};
 		}
 
+		TCFuture<NEncoding::CEJsonSorted> CCommandLineControlActor::f_RunClientAction(NStr::CStr _Action, NEncoding::CEJsonSorted _Params)
+		{
+			if (auto pDestroyed = fp_CheckDestroyed())
+				co_return pDestroyed;
+
+			// Copying an action copies the function object it was registered with, and an action that isn't a coroutine can throw before it returns
+			// its future
+			FCommandLineClientAction fAction;
+			TCFuture<NEncoding::CEJsonSorted> ActionResult;
+			{
+				auto CaptureScope = co_await (g_CaptureExceptions % fg_Format("The '{}' client action failed", _Action));
+
+				{
+					auto &Registry = fg_GetClientActionRegistry();
+
+					DMibLock(Registry.m_Lock);
+					if (auto *pAction = Registry.m_Actions.f_FindEqual(_Action))
+						fAction = *pAction;
+				}
+
+				if (!fAction)
+					co_return DMibErrorInstance(fg_Format("The command line client does not support the '{}' client action", _Action));
+
+				ActionResult = fAction(fg_Move(_Params), mp_pRunLoop);
+			}
+
+			co_return co_await fg_Move(ActionResult);
+		}
+
 		TCFuture<void> CCommandLineControlActor::fp_Destroy()
 		{
 			// Stop notifications before tearing down the actor.
@@ -604,7 +667,7 @@ namespace NMib::NConcurrency
 				;
 			}
 
-			TCDistributedActor<CCommandLineControlActor> ControlActor = DistributionManager->f_ConstructActor<CCommandLineControlActor>();
+			TCDistributedActor<CCommandLineControlActor> ControlActor = DistributionManager->f_ConstructActor<CCommandLineControlActor>(Internal.m_pRunLoop);
 
 			CCommandLineControl CommandLineControl;
 			CommandLineControl.m_ControlActor = ControlActor->f_ShareInterface<ICCommandLineControl>();

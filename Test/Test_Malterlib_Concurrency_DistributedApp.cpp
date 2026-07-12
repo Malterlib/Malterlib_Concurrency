@@ -39,6 +39,34 @@ namespace
 
 	assure_used CInitReconnectDelay g_InitReconnectDelay;
 
+	// A client action whose copies throw once it is armed, so that registering it succeeds and running it copies it from the registry
+	struct CThrowingCopyClientAction
+	{
+		CThrowingCopyClientAction(NStorage::TCSharedPointer<bool> const &_pArmed);
+		CThrowingCopyClientAction(CThrowingCopyClientAction const &_Other);
+
+		TCFuture<CEJsonSorted> operator () (CEJsonSorted _Params, NStorage::TCSharedPointer<CRunLoop> _pRunLoop) const;
+
+		NStorage::TCSharedPointer<bool> m_pArmed;
+	};
+
+	CThrowingCopyClientAction::CThrowingCopyClientAction(NStorage::TCSharedPointer<bool> const &_pArmed)
+		: m_pArmed(_pArmed)
+	{
+	}
+
+	CThrowingCopyClientAction::CThrowingCopyClientAction(CThrowingCopyClientAction const &_Other)
+		: m_pArmed(_Other.m_pArmed)
+	{
+		if (*m_pArmed)
+			DMibError("Copying the client action failed");
+	}
+
+	TCFuture<CEJsonSorted> CThrowingCopyClientAction::operator () (CEJsonSorted _Params, NStorage::TCSharedPointer<CRunLoop> _pRunLoop) const
+	{
+		return CEJsonSorted();
+	}
+
 	struct CTestDistributedApp : public CDistributedAppActor
 	{
 		CTestDistributedApp(CStr const &_Name, bool _bInProcessOnly = false, CStr const &_Enclave = {}, CStr const &_RootDirectory = {});
@@ -111,6 +139,30 @@ namespace
 					bool bLocalName = CallingHostInfo.f_GetHostInfo().m_FriendlyName.f_EndsWith("(Local Command line)");
 
 					co_return bOwnHost && bLocalName ? 1 : 0;
+				}
+			)
+		;
+
+		Section.f_RegisterCommand
+			(
+				{"Names"_o= _o["--test-throwing-client-action"], "Description"_o= "Return 1 when a client action that throws fails the call."}
+				, [](NEncoding::CEJsonSorted const _Params, NStorage::TCSharedPointer<CCommandLineControl> _pCommandLine) -> TCFuture<uint32>
+				{
+					auto Result = co_await _pCommandLine->f_RunClientAction("TestDistAppThrowingClientAction", {}).f_Wrap();
+
+					co_return !Result && Result.f_GetExceptionStr().f_Find("Invalid client action parameters") >= 0 ? 1 : 0;
+				}
+			)
+		;
+
+		Section.f_RegisterCommand
+			(
+				{"Names"_o= _o["--test-throwing-copy-client-action"], "Description"_o= "Return 1 when a client action whose copy throws fails the call."}
+				, [](NEncoding::CEJsonSorted const _Params, NStorage::TCSharedPointer<CCommandLineControl> _pCommandLine) -> TCFuture<uint32>
+				{
+					auto Result = co_await _pCommandLine->f_RunClientAction("TestDistAppThrowingCopyClientAction", {}).f_Wrap();
+
+					co_return !Result && Result.f_GetExceptionStr().f_Find("Copying the client action failed") >= 0 ? 1 : 0;
 				}
 			)
 		;
@@ -887,6 +939,49 @@ namespace
 							DMibExpect(OwnHost, ==, 1);
 						}
 						, "TestDistAppCommandLineInProcess"
+					)
+				;
+			};
+
+			DMibTestSuite("Throwing client action")
+			{
+				// An action that isn't a coroutine can throw before it returns a future
+				fg_RegisterCommandLineClientAction
+					(
+						"TestDistAppThrowingClientAction"
+						, [](NEncoding::CEJsonSorted _Params, NStorage::TCSharedPointer<CRunLoop> _pRunLoop) -> TCFuture<NEncoding::CEJsonSorted>
+						{
+							DMibError("Invalid client action parameters");
+						}
+					)
+				;
+
+				fp_RunTests
+					(
+						[](CDistributedAppCommandLineClient &_Client)
+						{
+							aint Ret = _Client.f_RunCommandLine(fg_CreateVector<CStr>("App", "--test-throwing-client-action"));
+							DMibExpect(Ret, ==, 1);
+						}
+						, "TestDistAppThrowingClientAction"
+					)
+				;
+			};
+
+			DMibTestSuite("Throwing client action copy")
+			{
+				NStorage::TCSharedPointer<bool> pArmed = fg_Construct(false);
+				fg_RegisterCommandLineClientAction("TestDistAppThrowingCopyClientAction", CThrowingCopyClientAction(pArmed));
+				*pArmed = true;
+
+				fp_RunTests
+					(
+						[](CDistributedAppCommandLineClient &_Client)
+						{
+							aint Ret = _Client.f_RunCommandLine(fg_CreateVector<CStr>("App", "--test-throwing-copy-client-action"));
+							DMibExpect(Ret, ==, 1);
+						}
+						, "TestDistAppThrowingCopyClientAction"
 					)
 				;
 			};

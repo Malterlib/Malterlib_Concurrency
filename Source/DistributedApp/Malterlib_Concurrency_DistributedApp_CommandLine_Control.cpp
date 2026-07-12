@@ -36,6 +36,7 @@ namespace NMib::NConcurrency
 		DMibPublishActorFunction(ICCommandLineControl::f_StdErrBinary);
 		DMibPublishActorFunction(ICCommandLineControl::f_U2F_Register);
 		DMibPublishActorFunction(ICCommandLineControl::f_U2F_Authenticate);
+		DMibPublishActorFunction(ICCommandLineControl::f_RunClientAction);
 	}
 
 	ICCommandLineControl::~ICCommandLineControl() = default;
@@ -319,6 +320,15 @@ namespace NMib::NConcurrency
 		if (!m_ControlActor)
 			return DMibErrorInstance("No control actor");
 		return m_ControlActor.f_CallActor(&ICCommandLineControl::f_U2F_Authenticate)(fg_Move(_Authenticate));
+	}
+
+	// Runs an action registered with fg_RegisterCommandLineClientAction in the command line client process; fails when that client has none by that name
+	// or predates EProtocolVersion_RunClientAction
+	NConcurrency::TCFuture<NEncoding::CEJsonSorted> CCommandLineControl::f_RunClientAction(NStr::CStr const &_Action, NEncoding::CEJsonSorted &&_Params) const
+	{
+		if (!m_ControlActor)
+			return DMibErrorInstance("No control actor");
+		return m_ControlActor.f_CallActor(&ICCommandLineControl::f_RunClientAction)(_Action, fg_Move(_Params));
 	}
 
 	TCFuture<void> CCommandLineControl::f_AbortReads() const

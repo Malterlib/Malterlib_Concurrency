@@ -22,7 +22,8 @@ namespace NMib::NConcurrency
 		enum : uint32
 		{
 			EProtocolVersion_Min = 0x107
-			, EProtocolVersion_Current = 0x107
+			, EProtocolVersion_RunClientAction = 0x108
+			, EProtocolVersion_Current = EProtocolVersion_RunClientAction
 		};
 
 		struct CU2FAuthenticate
@@ -100,7 +101,25 @@ namespace NMib::NConcurrency
 
 		virtual NConcurrency::TCFuture<CU2FRegister::CResult> f_U2F_Register(CU2FRegister _Register) = 0;
 		virtual NConcurrency::TCFuture<CU2FAuthenticate::CResult> f_U2F_Authenticate(CU2FAuthenticate _Authenticate) = 0;
+
+		/// Runs an action registered with fg_RegisterCommandLineClientAction in the command line
+		/// client process, so app commands can use capabilities that only exist on the client
+		/// side, for example opening a window in the graphical session of the invoking user
+		virtual NConcurrency::TCFuture<NEncoding::CEJsonSorted> f_RunClientAction(NStr::CStr _Action, NEncoding::CEJsonSorted _Params) = 0;
 	};
+
+	/// Handler for a client action; runs in the command line client process with the run loop
+	/// the client main thread is waiting on, so work that must run on the main thread can be
+	/// dispatched to it with f_Dispatcher while the command is running
+	using FCommandLineClientAction = NFunction::TCFunction
+		<
+			TCFuture<NEncoding::CEJsonSorted> (NEncoding::CEJsonSorted _Params, NStorage::TCSharedPointer<CRunLoop> _pRunLoop)
+		>
+	;
+
+	/// Registers an action that app commands can run in the command line client process with
+	/// CCommandLineControl::f_RunClientAction; register before running the command line
+	void fg_RegisterCommandLineClientAction(NStr::CStr const &_Action, FCommandLineClientAction const &_fAction);
 
 	struct CCommandLineControl
 	{
@@ -113,6 +132,8 @@ namespace NMib::NConcurrency
 
 		NConcurrency::TCFuture<ICCommandLineControl::CU2FRegister::CResult> f_U2F_Register(ICCommandLineControl::CU2FRegister &&_Register);
 		NConcurrency::TCFuture<ICCommandLineControl::CU2FAuthenticate::CResult> f_U2F_Authenticate(ICCommandLineControl::CU2FAuthenticate &&_Authenticate);
+
+		NConcurrency::TCFuture<NEncoding::CEJsonSorted> f_RunClientAction(NStr::CStr const &_Action, NEncoding::CEJsonSorted &&_Params) const;
 
 		void operator += (ch8 const *_pStdOut) const;
 		void operator %= (ch8 const *_pStdErr) const;

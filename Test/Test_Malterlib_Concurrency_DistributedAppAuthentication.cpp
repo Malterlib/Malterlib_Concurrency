@@ -966,6 +966,12 @@ namespace NTestAuthentication
 			co_return {};
 		}
 
+		TCFuture<NEncoding::CEJsonSorted> f_RunClientAction(NStr::CStr _Action, NEncoding::CEJsonSorted _Params) override
+		{
+			DMibNeverGetHere;
+			co_return {};
+		}
+
 	private:
 		TCFuture<void> fp_Destroy() override
 		{

@@ -56,8 +56,36 @@ namespace NMib::NConcurrency
 
 	namespace
 	{
+		struct CClientActionRegistry
+		{
+			NThread::CMutual m_Lock;
+			NContainer::TCMap<NStr::CStr, FCommandLineClientAction> m_Actions;
+		};
+
+		CClientActionRegistry &fg_GetClientActionRegistry()
+		{
+			static CClientActionRegistry s_Registry;
+			return s_Registry;
+		}
+	}
+
+	void fg_RegisterCommandLineClientAction(NStr::CStr const &_Action, FCommandLineClientAction const &_fAction)
+	{
+		auto &Registry = fg_GetClientActionRegistry();
+
+		DMibLock(Registry.m_Lock);
+		Registry.m_Actions[_Action] = _fAction;
+	}
+
+	namespace
+	{
 		struct CCommandLineControlActor : public ICCommandLineControl
 		{
+			CCommandLineControlActor(NStorage::TCSharedPointer<CRunLoop> const &_pRunLoop)
+				: mp_pRunLoop(_pRunLoop)
+			{
+			}
+
 			TCFuture<TCActorSubscriptionWithID<>> f_RegisterForStdInBinary(FOnBinaryInput _fOnInput, NProcess::EStdInReaderFlag _Flags) override
 			{
 				if (auto Destroyed = fp_CheckDestroyed())
@@ -223,6 +251,26 @@ namespace NMib::NConcurrency
 				co_return {.m_AppDigest = Result.m_AppDigest, .m_Signature = fg_Move(Result.m_Signature)};
 			}
 
+			TCFuture<NEncoding::CEJsonSorted> f_RunClientAction(NStr::CStr _Action, NEncoding::CEJsonSorted _Params) override
+			{
+				if (auto Destroyed = fp_CheckDestroyed())
+					co_return Destroyed;
+
+				FCommandLineClientAction fAction;
+				{
+					auto &Registry = fg_GetClientActionRegistry();
+
+					DMibLock(Registry.m_Lock);
+					if (auto *pfAction = Registry.m_Actions.f_FindEqual(_Action))
+						fAction = *pfAction;
+				}
+
+				if (!fAction)
+					co_return DMibErrorInstance(fg_Format("The command line client does not support the '{}' client action", _Action));
+
+				co_return co_await fAction(fg_Move(_Params), mp_pRunLoop);
+			}
+
 		private:
 			struct CCancellationSubscription
 			{
@@ -231,6 +279,7 @@ namespace NMib::NConcurrency
 
 			TCActor<NProcess::CStdInActor> mp_InputActor;
 			NContainer::TCMap<NStr::CStr, CCancellationSubscription> mp_CancellationSubscriptions;
+			NStorage::TCSharedPointer<CRunLoop> mp_pRunLoop;
 			bool mp_bCancelled = false;
 
 			TCFuture<void> fp_Destroy() override
@@ -356,7 +405,7 @@ namespace NMib::NConcurrency
 
 			auto &Internal = *mp_pInternal;
 
-			TCDistributedActor<CCommandLineControlActor> pCommandLineControl = Internal.m_DistributionManager->f_ConstructActor<CCommandLineControlActor>();
+			TCDistributedActor<CCommandLineControlActor> pCommandLineControl = Internal.m_DistributionManager->f_ConstructActor<CCommandLineControlActor>(Internal.m_pRunLoop);
 
 			auto CommandLineActor = Internal.m_CommandLineSubscription(&TCDistributedActorSingleSubscription<ICCommandLine>::f_GetActor)
 				.f_Timeout(30.0, "Timed out waiting for command line actor to appear")

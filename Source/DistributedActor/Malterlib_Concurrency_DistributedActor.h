@@ -592,6 +592,17 @@ namespace NMib::NConcurrency
 		CCallingHostInfoScope *mp_pPrevScope = nullptr;
 	};
 
+	// Breaks the calling host info chain: code running while this scope is current observes an
+	// empty calling host, and actor calls made from it store no per-call restore state (an empty
+	// calling host matches the default thread state). Use around local-only call chains started
+	// from a context that carries calling host information — for example UI or worker actors
+	// created from a distributed app command — where the per-call store/replay of the calling
+	// host would otherwise be paid by every actor call forever.
+	struct CBreakCallingHostInfoScope
+	{
+		CCallingHostInfoScope m_Scope{CCallingHostInfo()};
+	};
+
 	struct CAuthenticationHandlerIDScope final : public CCrossActorCallStateScope
 	{
 		CAuthenticationHandlerIDScope(uint32 _HandlerID, bool _bAddToCoroutine = true);

@@ -197,6 +197,12 @@ namespace NMib::NConcurrency
 		if (ThreadLocal.m_pCurrentCallingHostInfoScope != this)
 			return nullptr;
 
+		// An empty calling host matches the default thread state, so there is nothing to restore on
+		// the receiving side. This is what lets CBreakCallingHostInfoScope stop the propagation of
+		// stored call states: everything called under it stores no per-call restore state.
+		if (ThreadLocal.m_CallingHostInfo.f_GetRealHostID().f_IsEmpty())
+			return nullptr;
+
 		struct CState
 		{
 			CState(CCallingHostInfo const &_CallingHostInfo)

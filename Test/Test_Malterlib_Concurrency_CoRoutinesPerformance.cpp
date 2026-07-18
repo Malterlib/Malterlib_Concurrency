@@ -32,6 +32,59 @@ namespace NMib::NConcurrency::NTest
 	static thread_local umint g_ThreadLocalCpp;
 	static thread_local umint g_ThreadLocalCpp2;
 
+	class CPingPongActor : public CActor
+	{
+	public:
+		CPingPongActor()
+		{
+		}
+
+		CPingPongActor(TCActor<CPingPongActor> &&_Next)
+			: mp_Next(fg_Move(_Next))
+		{
+		}
+
+		TCFuture<uint32> f_Echo(uint32 _Value)
+		{
+			if (mp_Next)
+				co_return co_await mp_Next(&CPingPongActor::f_Echo, _Value + 1);
+
+			co_return _Value + 1;
+		}
+
+		TCFuture<uint32> f_Run(TCActor<CPingPongActor> _Target, umint _nRoundTrips)
+		{
+			uint32 Value = 0;
+			for (umint i = 0; i < _nRoundTrips; ++i)
+				Value = co_await _Target(&CPingPongActor::f_Echo, Value);
+
+			co_return Value;
+		}
+
+		TCFuture<uint32> f_Work(umint _nIterations)
+		{
+			volatile uint32 Value = 1;
+			for (umint i = 0; i < _nIterations; ++i)
+				Value = Value * 3 + 1;
+
+			co_return Value;
+		}
+
+		TCFuture<uint32> f_FanOut(TCVector<TCActor<CPingPongActor>> _Workers, umint _nIterations)
+		{
+			TCFutureVector<uint32> Results;
+			for (auto &Worker : _Workers)
+				Worker(&CPingPongActor::f_Work, _nIterations) > Results;
+
+			co_await fg_AllDoneWrapped(Results);
+
+			co_return 0;
+		}
+
+	private:
+		TCActor<CPingPongActor> mp_Next;
+	};
+
 	class CCoroutinesPerformance_Tests : public NMib::NTest::CTest
 	{
 #if defined(DMibDebug) || defined(DMibSanitizerEnabled)
@@ -539,6 +592,173 @@ namespace NMib::NConcurrency::NTest
 				CTestPerformance PerfTest(0.015);
 				PerfTest.f_Add(MalterlibTime);
 				DMibExpectTrue(PerfTest);
+
+				co_return {};
+			};
+			DMibTestSuite(CTestCategory("ActorPingPong") << CTestGroup("Performance")) -> TCFuture<void>
+			{
+				umint nTests = 9;
+
+#if defined(DMibDebug) || defined(DMibSanitizerEnabled)
+				constexpr umint c_nRoundTrips = 1'000;
+#else
+				constexpr umint c_nRoundTrips = 50'000;
+#endif
+
+#if DMibConfig_Concurrency_SchedulerStats
+				auto fReportStats = [](NStr::CStr const &_Name, umint _nRoundTrips, CTestPerformanceMeasure &_Measure)
+					{
+						auto Stats = fg_ConcurrencyManager().f_GetSchedulerStats();
+						DMibTrace
+							(
+								"ActorPingPong {}: {} round trips, {} cycles/rt, Signals {} Sleeps {} LocalEnqueues {} AtomicEnqueues {} Handoffs {} IdleClaims {} RoundRobin {}\n"
+								, _Name
+								, _nRoundTrips
+								, _Measure.f_CyclesMedian()
+								, Stats.m_nSignals
+								, Stats.m_nSleeps
+								, Stats.m_nLocalEnqueues
+								, Stats.m_nAtomicEnqueues
+								, Stats.m_nHandoffs
+								, Stats.m_nIdleClaims
+								, Stats.m_nRoundRobinSelections
+							)
+						;
+					}
+				;
+#	define DPingPongStatsReset() fg_ConcurrencyManager().f_ResetSchedulerStats()
+#	define DPingPongStatsReport(d_Name, d_nRoundTrips, d_Measure) fReportStats(d_Name, d_nRoundTrips, d_Measure)
+#else
+#	define DPingPongStatsReset() ((void)0)
+#	define DPingPongStatsReport(d_Name, d_nRoundTrips, d_Measure) ((void)0)
+#endif
+
+				CTestPerformance PerfTest(0.015);
+
+				// A pool actor driving request/response round trips against another pool actor
+				{
+					CTestPerformanceMeasure PairTime("PoolPair");
+					TCActor<CPingPongActor> Ping = fg_ConstructActor<CPingPongActor>();
+					TCActor<CPingPongActor> Pong = fg_ConstructActor<CPingPongActor>();
+
+					DPingPongStatsReset();
+					for (umint j = 0; j < nTests; ++j)
+					{
+						PairTime.f_Start();
+						co_await Ping(&CPingPongActor::f_Run, Pong, c_nRoundTrips);
+						PairTime.f_Stop(c_nRoundTrips);
+					}
+					DPingPongStatsReport("PoolPair", c_nRoundTrips * nTests, PairTime);
+					PerfTest.f_Add(PairTime);
+				}
+
+				// The driver runs on a separate (off-pool) thread, so every call crosses into the pool
+				{
+					CTestPerformanceMeasure OffPoolTime("OffPoolDriver");
+					TCActor<CSeparateThreadActor> LaunchActor{fg_Construct(), "PingPong"};
+					TCActor<CPingPongActor> Pong = fg_ConstructActor<CPingPongActor>();
+
+					DPingPongStatsReset();
+					for (umint j = 0; j < nTests; ++j)
+					{
+						OffPoolTime.f_Start();
+						co_await
+							(
+								g_Dispatch(LaunchActor) / [Pong]() -> TCFuture<uint32>
+								{
+									TCActor<CPingPongActor> Target = Pong;
+
+									uint32 Value = 0;
+									for (umint i = 0; i < c_nRoundTrips; ++i)
+										Value = co_await Target(&CPingPongActor::f_Echo, Value);
+
+									co_return Value;
+								}
+							)
+						;
+						OffPoolTime.f_Stop(c_nRoundTrips);
+					}
+					DPingPongStatsReport("OffPoolDriver", c_nRoundTrips * nTests, OffPoolTime);
+					PerfTest.f_Add(OffPoolTime);
+				}
+
+				// A three-actor chain per round trip
+				{
+					CTestPerformanceMeasure ChainTime("Chain3");
+					TCActor<CPingPongActor> Tail = fg_ConstructActor<CPingPongActor>();
+					TCActor<CPingPongActor> Middle = fg_ConstructActor<CPingPongActor>(fg_Move(Tail));
+					TCActor<CPingPongActor> Head = fg_ConstructActor<CPingPongActor>(fg_Move(Middle));
+					TCActor<CPingPongActor> Ping = fg_ConstructActor<CPingPongActor>();
+
+					DPingPongStatsReset();
+					for (umint j = 0; j < nTests; ++j)
+					{
+						ChainTime.f_Start();
+						co_await Ping(&CPingPongActor::f_Run, Head, c_nRoundTrips);
+						ChainTime.f_Stop(c_nRoundTrips);
+					}
+					DPingPongStatsReport("Chain3", c_nRoundTrips * nTests, ChainTime);
+					PerfTest.f_Add(ChainTime);
+				}
+
+				// One independent pair per core; verifies work still spreads across the pool
+				{
+					CTestPerformanceMeasure PairsTime("ConcurrentPairs");
+					umint nPairs = fg_ConcurrencyManager().f_GetConcurrency();
+					TCVector<TCActor<CPingPongActor>> Pings;
+					TCVector<TCActor<CPingPongActor>> Pongs;
+					for (umint i = 0; i < nPairs; ++i)
+					{
+						Pings.f_InsertLast(fg_ConstructActor<CPingPongActor>());
+						Pongs.f_InsertLast(fg_ConstructActor<CPingPongActor>());
+					}
+
+					DPingPongStatsReset();
+					for (umint j = 0; j < nTests; ++j)
+					{
+						PairsTime.f_Start();
+						TCFutureVector<uint32> Results;
+						for (umint i = 0; i < nPairs; ++i)
+							Pings[i](&CPingPongActor::f_Run, Pongs[i], c_nRoundTrips) > Results;
+
+						co_await fg_AllDoneWrapped(Results);
+						PairsTime.f_Stop(c_nRoundTrips * nPairs);
+					}
+					DPingPongStatsReport("ConcurrentPairs", c_nRoundTrips * nPairs * nTests, PairsTime);
+					PerfTest.f_Add(PairsTime);
+				}
+
+				// A pool actor bursting one CPU-bound job per core; the burst lands on the driver's
+				// thread and must spread to the other cores for the measured time to scale
+				{
+#if defined(DMibDebug) || defined(DMibSanitizerEnabled)
+					constexpr umint c_nWorkIterations = 10'000;
+#else
+					constexpr umint c_nWorkIterations = 1'000'000;
+#endif
+
+					CTestPerformanceMeasure FanOutTime("FanOutBurst");
+					umint nWorkers = fg_ConcurrencyManager().f_GetConcurrency();
+					TCActor<CPingPongActor> Driver = fg_ConstructActor<CPingPongActor>();
+					TCVector<TCActor<CPingPongActor>> Workers;
+					for (umint i = 0; i < nWorkers; ++i)
+						Workers.f_InsertLast(fg_ConstructActor<CPingPongActor>());
+
+					DPingPongStatsReset();
+					for (umint j = 0; j < nTests; ++j)
+					{
+						FanOutTime.f_Start();
+						co_await Driver(&CPingPongActor::f_FanOut, Workers, c_nWorkIterations);
+						FanOutTime.f_Stop(nWorkers);
+					}
+					DPingPongStatsReport("FanOutBurst", nWorkers * nTests, FanOutTime);
+					PerfTest.f_Add(FanOutTime);
+				}
+
+				DMibExpectTrue(PerfTest);
+
+#undef DPingPongStatsReset
+#undef DPingPongStatsReport
 
 				co_return {};
 			};

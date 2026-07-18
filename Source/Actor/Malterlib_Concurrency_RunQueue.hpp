@@ -83,6 +83,31 @@ namespace NMib::NConcurrency
 	}
 
 	template <typename tf_CBaseEntry, typename tf_CEntry>
+	auto TCConcurrentRunQueue<tf_CBaseEntry, tf_CEntry>::CLocalQueueData::f_PopFirst() -> tf_CBaseEntry *
+	{
+		auto *pEntry = m_LocalQueue.f_GetFirst();
+		if (!pEntry)
+			return nullptr;
+
+		pEntry->m_Link.f_UnsafeUnlink();
+		--m_nEntries;
+
+		return pEntry;
+	}
+
+	template <typename tf_CBaseEntry, typename tf_CEntry>
+	void TCConcurrentRunQueue<tf_CBaseEntry, tf_CEntry>::f_AddChainToQueue(tf_CBaseEntry *_pFirstEntry, tf_CBaseEntry *_pLastEntry)
+	{
+		while (true)
+		{
+			auto *pFirstQueued = mp_pFirstQueued.f_Load(NAtomic::gc_MemoryOrder_Relaxed);
+			_pLastEntry->m_pNextQueued.f_Store(pFirstQueued, NAtomic::gc_MemoryOrder_Relaxed);
+			if (mp_pFirstQueued.f_CompareExchangeStrong(pFirstQueued, _pFirstEntry, NAtomic::gc_MemoryOrder_Release, NAtomic::gc_MemoryOrder_Relaxed))
+				break;
+		}
+	}
+
+	template <typename tf_CBaseEntry, typename tf_CEntry>
 	auto TCConcurrentRunQueue<tf_CBaseEntry, tf_CEntry>::fs_QueueEntry(FQueueDispatch &&_Functor) -> NStorage::TCUniquePointer<tf_CEntry>
 	{
 		return fg_Construct(fg_Move(_Functor));
@@ -128,6 +153,7 @@ namespace NMib::NConcurrency
 		auto pEntry = _pEntry.f_Detach();
 		pEntry->m_Link.f_Construct();
 		_LocalQueue.m_LocalQueue.f_Insert(pEntry);
+		++_LocalQueue.m_nEntries;
 		return bWasEmpty;
 	}
 
@@ -151,6 +177,7 @@ namespace NMib::NConcurrency
 		auto pEntry = _Entry.f_Detach();
 		pEntry->m_Link.f_Construct();
 		_LocalQueue.m_LocalQueue.f_Insert(pEntry);
+		++_LocalQueue.m_nEntries;
 		return bWasEmpty;
 	}
 
@@ -175,6 +202,7 @@ namespace NMib::NConcurrency
 		NStorage::TCUniquePointer<tf_CEntry> pNewEntryUnique = fg_Construct(fg_Move(_Functor));
 		pNewEntryUnique->m_Link.f_Construct();
 		_LocalQueue.m_LocalQueue.f_Insert(pNewEntryUnique.f_Detach());
+		++_LocalQueue.m_nEntries;
 		return bWasEmpty;
 	}
 
@@ -185,6 +213,7 @@ namespace NMib::NConcurrency
 		NStorage::TCUniquePointer<tf_CEntry> pNewEntryUnique = fg_Construct(fg_Move(_Functor));
 		pNewEntryUnique->m_Link.f_Construct();
 		_LocalQueue.m_LocalQueue.f_InsertFirst(pNewEntryUnique.f_Detach());
+		++_LocalQueue.m_nEntries;
 		return bWasEmpty;
 	}
 
@@ -200,6 +229,8 @@ namespace NMib::NConcurrency
 			pEntry->m_Link.f_UnsafeUnlink();
 			fg_DeleteObjectDefiniteType(NMemory::CDefaultAllocator(), static_cast<tf_CEntry *>(pEntry));
 		}
+
+		_LocalQueue.m_nEntries = _LocalQueue.m_LocalQueue.f_IsEmpty() ? 0 : 1;
 	}
 
 	template <typename tf_CBaseEntry, typename tf_CEntry>
@@ -212,6 +243,8 @@ namespace NMib::NConcurrency
 			pEntry->m_Link.f_UnsafeUnlink();
 			fg_DeleteObjectDefiniteType(NMemory::CDefaultAllocator(), static_cast<tf_CEntry *>(pEntry));
 		}
+
+		_LocalQueue.m_nEntries = 0;
 	}
 
 	template <typename tf_CBaseEntry, typename tf_CEntry>
@@ -227,24 +260,27 @@ namespace NMib::NConcurrency
 	}
 
 	template <typename tf_CBaseEntry, typename tf_CEntry>
-	bool TCConcurrentRunQueue<tf_CBaseEntry, tf_CEntry>::f_TransferThreadSafeQueue(CLocalQueueData &_LocalQueue)
+	umint TCConcurrentRunQueue<tf_CBaseEntry, tf_CEntry>::f_TransferThreadSafeQueue(CLocalQueueData &_LocalQueue)
 	{
 		auto *pEntry = mp_pFirstQueued.f_Exchange(nullptr, NAtomic::gc_MemoryOrder_Acquire);
 		if (!pEntry)
-			return false;
+			return 0;
 
+		umint nTransferred = 0;
 		decltype(_LocalQueue.m_LocalQueue) NewEntries;
 		while (pEntry)
 		{
 			auto *pNextEntry = pEntry->m_pNextQueued.f_Load(NAtomic::gc_MemoryOrder_Relaxed);
 
 			NewEntries.f_UnsafeInsertFirst(pEntry);
+			++nTransferred;
 
 			pEntry = pNextEntry;
 		}
 
 		_LocalQueue.m_LocalQueue.f_InsertLast(NewEntries);
+		_LocalQueue.m_nEntries += nTransferred;
 
-		return true;
+		return nTransferred;
 	}
 }

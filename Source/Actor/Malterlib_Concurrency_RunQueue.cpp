@@ -8,10 +8,22 @@ namespace NMib::NConcurrency
 	static_assert(sizeof(CConcurrentRunQueueEntry_Functor) == gc_ActorQueueDispatchFunctionMemory);
 	static_assert
 		(
-			(
-				sizeof(CConcurrentRunQueueEntry_Functor::m_Link) + sizeof(void *) + sizeof(CConcurrentRunQueueEntry_Functor::m_fToCall)
-			)
+			(sizeof(CConcurrentRunQueueEntry_Functor::m_Link) + sizeof(void *) + sizeof(CConcurrentRunQueueEntry_Functor::m_fToCall))
 			== gc_ActorQueueDispatchFunctionMemory
+		)
+	;
+	static_assert
+		(
+			sizeof(CConcurrentRunQueueEntry_FunctorNonVirtualNoAlloc)
+			== fg_AlignUpConstExpr
+			(
+				sizeof(CConcurrentRunQueueEntry_FunctorNonVirtualNoAlloc::m_Link)
+				+ sizeof(CConcurrentRunQueueEntry_FunctorNonVirtualNoAlloc::m_fToCall)
+#if DMibConfig_Concurrency_LocalFirstScheduler && DMibConfig_Concurrency_LocalFirstDistribution
+				+ sizeof(bool)
+#endif
+				, umint(sizeof(void *))
+			)
 		)
 	;
 

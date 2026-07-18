@@ -765,7 +765,18 @@ CActorSubscription Subscription = co_await MyActor.f_CallActor(&CMyActor::f_Regi
 \subsection s_Malterlib_Concurrency_DesignGoals_ScaleLinearly Scale linearly
 
  The default actor holder schedules work on a thread pool in the concurrency manager. The thread pool uses one thread per virtual core. There are
- two thread pools, one for normal priority and one for low priority work.
+ three thread pools: normal priority, normal priority high-CPU, and low priority work.
+
+ Scheduling is local-first (when DMibConfig_Concurrency_LocalFirstScheduler is enabled, the default): an actor made runnable from a pool thread is
+ scheduled on that same thread with no atomic operations and no wakeup, so call chains, request/response round trips and fan-outs of fine-grained
+ messages execute on one thread without any kernel involvement, with natural backpressure between producers and consumers. Parallelism comes from
+ explicit constructs — the per-core pinned concurrent actors, fg_ParallelForEach, blocking/separate-thread actors — and from off-pool producers
+ (run loops, network and timer threads), which are placed using last-queue affinity and round-robin selection.
+
+ Local backlogs are also distributed cooperatively (DMibConfig_Concurrency_LocalFirstDistribution, on by default): pool threads track idle threads
+ in an advisory bitmask, and a thread whose local job queue exceeds the target size (DMibConfig_Concurrency_LocalQueueTargetSize) ships the excess
+ to claimed idle threads in target-sized chunks, each published with a single atomic splice, splitting large backlogs across several cores. Every
+ signal therefore wakes a core that receives a batch of runnable work.
 
  The framework heavily relies on a concurrent memory manager. By default the \ref p_Malterlib_Memory_MemoryManager "Malterlib built-in memory manager" will be used.
  If you use another memory manager you could run into scaling issues for some usage patterns.

@@ -19,6 +19,32 @@
 #	define DMibConfig_Concurrency_DebugFutures 0
 #endif
 
+#ifndef DMibConfig_Concurrency_SchedulerStats
+#	if DMibConfig_Tests_Enable && !defined(DTests_PerfTests)
+#		define DMibConfig_Concurrency_SchedulerStats 1
+#	else
+#		define DMibConfig_Concurrency_SchedulerStats 0
+#	endif
+#endif
+
+#ifndef DMibConfig_Concurrency_LocalFirstScheduler
+#	define DMibConfig_Concurrency_LocalFirstScheduler 1
+#endif
+
+// Cooperative distribution of local backlogs to idle cores: excess jobs above the target queue
+// size are shipped in target-sized chunks to claimed idle cores, so every wakeup carries a batch
+// of runnable work. Disable to keep all locally scheduled work on the scheduling thread.
+#ifndef DMibConfig_Concurrency_LocalFirstDistribution
+#	define DMibConfig_Concurrency_LocalFirstDistribution 1
+#endif
+
+// Target number of jobs a pool thread keeps on its local queue when distributing; excess beyond
+// this is shipped to claimed idle cores in chunks of at most this size, splitting large backlogs
+// across several cores
+#ifndef DMibConfig_Concurrency_LocalQueueTargetSize
+#	define DMibConfig_Concurrency_LocalQueueTargetSize 32
+#endif
+
 #if DMibConfig_Concurrency_DebugActorCallstacks
 #include <Mib/Container/LinkedList>
 #endif

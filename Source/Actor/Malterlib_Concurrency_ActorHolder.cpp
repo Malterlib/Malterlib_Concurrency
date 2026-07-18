@@ -4,6 +4,8 @@
 #include <Mib/Core/Core>
 #include <Mib/Concurrency/ConcurrencyManager>
 
+#include "Malterlib_Concurrency_ArenaGC.h"
+
 //#define DDoWorkPolling
 
 namespace NMib::NConcurrency
@@ -219,7 +221,7 @@ namespace NMib::NConcurrency
 #if DMibEnableSafeCheck > 0
 		auto OriginalExceptions = NException::fg_UncaughtExceptions();
 #endif
-		if (auto *pJob = mp_ConcurrentRunQueueLocal.m_LocalQueue.f_GetFirst())
+		if (auto *pJob = mp_ConcurrentRunQueueLocal.f_PopFirst())
 		{
 #if DMibEnableSafeCheck > 0
 			auto Cleanup = g_OnScopeExit / [&]
@@ -228,7 +230,6 @@ namespace NMib::NConcurrency
 				}
 			;
 #endif
-			pJob->m_Link.f_UnsafeUnlink();
 			if (mp_pActorUnsafe.f_NonAtomic())
 				pJob->f_Call(_ThreadLocal);
 			else
@@ -245,6 +246,53 @@ namespace NMib::NConcurrency
 		auto &ThreadLocal = _ThreadLocal;
 		{
 			CCurrentlyProcessingActorScope ProcessingScope(ThreadLocal, this);
+			auto Checkout = fg_GetSys()->f_MemoryManager_Checkout();
+
+			umint nProcessedEntries = ThreadLocal.m_nProcessedEntries;
+			auto Cleanup = g_OnScopeExit / [&]
+				{
+					ThreadLocal.m_nProcessedEntries = nProcessedEntries;
+				}
+			;
+
+#if !DMibConfig_Concurrency_EagerArenaGC
+			// Emergency backstop for workloads whose drains never reach the in-drain collect
+			// threshold below: without any owner-side collect the arena backlog grows
+			// unboundedly (the background cleanup thread rarely wins the arena lock against a
+			// busy thread, and the allocation slow path stops at the first freed block). The
+			// threshold is high enough that the backstop stays silent whenever the in-drain
+			// collect engages at all — collects at run boundaries measure ~7x more expensive
+			// than collects placed deep inside a drain, so this must only fire as a last
+			// resort. Checked per run, not per message, which keeps the drain loop untouched
+			// and makes the bound proportional to processing activity. Eager mode needs no
+			// backstop: every processed entry collects, and a thread that processes nothing
+			// is not allocating either.
+			if (++ThreadLocal.m_nRunsSinceGarbageCollect >= 65536)
+			{
+				ThreadLocal.m_nRunsSinceGarbageCollect = 0;
+				Checkout.f_GarbageCollectLocalArenaIfPending();
+			}
+#endif
+
+#if DMibConfig_Concurrency_SchedulerStats
+			umint nStatsEntriesDrained = 0;
+			umint nStatsLongDrains = 0;
+			umint nStatsGarbageCollectCalls = 0;
+			umint nStatsGarbageCollects = 0;
+			auto StatsFlush = g_OnScopeExit / [&]
+				{
+					if (!ThreadLocal.m_pThisQueue)
+						return;
+
+					auto &QueueStats = ThreadLocal.m_pThisQueue->m_SchedulerStats;
+					QueueStats.m_nRunProcess.f_FetchAdd(1, NAtomic::gc_MemoryOrder_Relaxed);
+					QueueStats.m_nEntriesDrained.f_FetchAdd(nStatsEntriesDrained, NAtomic::gc_MemoryOrder_Relaxed);
+					QueueStats.m_nLongDrains.f_FetchAdd(nStatsLongDrains, NAtomic::gc_MemoryOrder_Relaxed);
+					QueueStats.m_nGarbageCollectCalls.f_FetchAdd(nStatsGarbageCollectCalls, NAtomic::gc_MemoryOrder_Relaxed);
+					QueueStats.m_nGarbageCollects.f_FetchAdd(nStatsGarbageCollects, NAtomic::gc_MemoryOrder_Relaxed);
+				}
+			;
+#endif
 
 			while (bDoMore)
 			{
@@ -268,13 +316,80 @@ namespace NMib::NConcurrency
 					mp_iLastQueue.f_Exchange(ThreadLocal.m_pThisQueue->m_iQueue, NAtomic::gc_MemoryOrder_Relaxed);
 
 				bool bDoneSomething = true;
+				umint nProcessedEntriesThisTime = 0;
+
 				while (bDoneSomething)
 				{
 					bDoneSomething = false;
 					if (mp_ConcurrentRunQueue.f_TransferThreadSafeQueue(mp_ConcurrentRunQueueLocal))
 						bDoneSomething = true;
 					while (fp_DequeueProcess(ThreadLocal) && !mp_bYield)
+					{
 						bDoneSomething = true;
+
+						++nProcessedEntries;
+						++nProcessedEntriesThisTime;
+#if DMibConfig_Concurrency_LocalFirstScheduler && DMibConfig_Concurrency_LocalFirstDistribution
+						// A long drain never returns to the pool thread loop, and jobs queued
+						// behind this actor are blocked for its whole duration — once this run
+						// is provably a long drain, offer all of them to idle threads, not just
+						// the excess above the batching target. Short runs keep the batching
+						// target: their job boundary is imminent, and shipping a lone peer
+						// resume would put a wakeup on the critical path of every exchange.
+						if (((nProcessedEntries & 63) == 0) && ThreadLocal.m_pThisQueue)
+						{
+							mp_pConcurrencyManager->fp_OfferExcessWork
+								(
+									*ThreadLocal.m_pThisQueue
+									, true
+									, nProcessedEntriesThisTime >= 64 ? 0 : DMibConfig_Concurrency_LocalQueueTargetSize
+								)
+							;
+						}
+#endif
+
+#if DMibConfig_Concurrency_SchedulerStats
+						++nStatsEntriesDrained;
+						if (nProcessedEntriesThisTime == 16)
+							++nStatsLongDrains;
+#endif
+
+						// Owner-side arena maintenance. Busy threads are the only effective drain
+						// for their own arena's cross-thread free backlog: the checkout is held
+						// for the whole drain and re-acquired immediately after a park, so the
+						// background cleanup thread rarely gets the arena lock, and the allocation
+						// slow path stops at the first freed block. Eager mode collects at every
+						// entry boundary — the has-pending guard makes the idle case a cheap
+						// check, and the backlog never grows past one entry's worth of frees.
+						// The lazy heuristic collects deep inside long drains only, where the
+						// arena's metadata is hot and the backlog is fresh — firing the same
+						// collect at the same rate at uniform points measures ~25% slower on
+						// UiStress.
+#if DMibConfig_Concurrency_EagerArenaGC == 3
+						if ((nProcessedEntries & (64 * 1024 - 1)) == 0)
+#elif DMibConfig_Concurrency_EagerArenaGC == 2
+						int64 NowCycles = NTime::NPlatform::fg_Timer_CyclesFast();
+						if (NowCycles - ThreadLocal.m_LastArenaCollectCycles >= int64(DMibConfig_Concurrency_ArenaGCIntervalCycles)) [[unlikely]]
+#elif DMibConfig_Concurrency_EagerArenaGC
+						if ((nProcessedEntries & 1) == 0)
+#else
+						if ((nProcessedEntriesThisTime & 63) == 0)
+#endif
+						{
+#if DMibConfig_Concurrency_EagerArenaGC == 2
+							ThreadLocal.m_LastArenaCollectCycles = NowCycles;
+#elif !DMibConfig_Concurrency_EagerArenaGC
+							ThreadLocal.m_nRunsSinceGarbageCollect = 0;
+#endif
+#if DMibConfig_Concurrency_SchedulerStats
+							++nStatsGarbageCollectCalls;
+							if (Checkout.f_GarbageCollectLocalArenaIfPending())
+								++nStatsGarbageCollects;
+#else
+							Checkout.f_GarbageCollectLocalArenaIfPending();
+#endif
+						}
+					}
 
 					if (!ThreadLocal.m_pCurrentlyProcessingActorHolder)
 					{
@@ -869,6 +984,11 @@ namespace NMib::NConcurrency
 		auto &ThreadLocal = fg_ConcurrencyThreadLocal();
 #if DMibPPtrBits > 32
 		auto Checkout = fg_GetSys()->f_MemoryManager_Checkout();
+#if DMibConfig_Concurrency_EagerArenaGC
+		// Mirror the pool thread loop: collect the backlog that accumulated while this thread
+		// slept before it starts allocating for new work
+		Checkout.f_GarbageCollectLocalArenaIfPending();
+#endif
 #endif
 #ifdef DDoWorkPolling
 		NTime::CCyclesStopwatch Stopwatch;
@@ -901,14 +1021,13 @@ namespace NMib::NConcurrency
 						bDoneSomething = false;
 						if (mp_JobQueue.f_TransferThreadSafeQueue(mp_JobQueueLocal))
 							bDoneSomething = true;
-						while (auto *pJob = mp_JobQueueLocal.m_LocalQueue.f_GetFirst())
+						while (auto *pJob = mp_JobQueueLocal.f_PopFirst())
 						{
 #if DMibPPtrBits > 32
 							if (!Checkout.f_IsCheckedOut())
 								Checkout = fg_GetSys()->f_MemoryManager_Checkout();
 #endif
 
-							pJob->m_Link.f_UnsafeUnlink();
 							pJob->f_Call(ThreadLocal);
 							bDoneSomething = true;
 						}
@@ -917,6 +1036,7 @@ namespace NMib::NConcurrency
 			}
 
 #if DMibPPtrBits > 32
+			Checkout.f_GarbageCollectLocalArenaIfPending();
 			Checkout = NMemory::CMemoryManagerCheckout(nullptr);
 #endif
 #ifdef DDoWorkPolling

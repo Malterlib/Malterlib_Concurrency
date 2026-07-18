@@ -59,9 +59,8 @@ namespace NMib::NConcurrency
 			if (m_RunQueue.f_TransferThreadSafeQueue(m_RunQueueLocal))
 				bDoneSomething = true;
 
-			while (auto pEntry = m_RunQueueLocal.m_LocalQueue.f_GetFirst())
+			while (auto pEntry = m_RunQueueLocal.f_PopFirst())
 			{
-				pEntry->m_Link.f_UnsafeUnlink();
 				pEntry->f_Call(ThreadLocal);
 				bDoneSomething = true;
 			}

@@ -115,6 +115,9 @@ namespace NMib::NConcurrency
 		DMibListLinkD_Trans(CConcurrentRunQueueEntry_FunctorNonVirtualNoAlloc, m_Link);
 
 		FActorQueueDispatchNoAlloc m_fToCall;
+#if DMibConfig_Concurrency_LocalFirstScheduler && DMibConfig_Concurrency_LocalFirstDistribution
+		bool m_bMigratable = false; ///< Entry may be handed off to another pool queue by cooperative distribution
+#endif
 	};
 
 	template <typename tf_CBaseEntry>
@@ -144,7 +147,10 @@ namespace NMib::NConcurrency
 		{
 			~CLocalQueueData();
 
+			tf_CBaseEntry *f_PopFirst();
+
 			DMibListLinkDS_List_FromTemplate(tf_CBaseEntry, m_Link) m_LocalQueue;
+			umint m_nEntries = 0;
 		};
 
 		TCConcurrentRunQueue();
@@ -162,7 +168,9 @@ namespace NMib::NConcurrency
 		void f_AddToQueue(TCConcurrentRunQueueEntryHolder<tf_CBaseEntry> &&_Entry);
 		bool f_AddToQueueLocal(TCConcurrentRunQueueEntryHolder<tf_CBaseEntry> &&_Entry, CLocalQueueData &_LocalQueue);
 
-		bool f_TransferThreadSafeQueue(CLocalQueueData &_LocalQueue);
+		void f_AddChainToQueue(tf_CBaseEntry *_pFirstEntry, tf_CBaseEntry *_pLastEntry);
+
+		umint f_TransferThreadSafeQueue(CLocalQueueData &_LocalQueue);
 		bool f_IsEmpty(CLocalQueueData &_LocalQueue);
 		bool f_OneOrLessInQueue(CLocalQueueData &_LocalQueue);
 		void f_RemoveAll(CLocalQueueData &_LocalQueue);

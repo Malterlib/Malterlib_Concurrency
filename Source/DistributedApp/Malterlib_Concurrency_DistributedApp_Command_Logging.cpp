@@ -48,7 +48,6 @@ namespace NMib::NConcurrency
 						, "Default"_o= false
 						, "Description"_o= "Log concurrency shutdown sequence."
 					}
-
 				}
 			)
 		;

@@ -184,6 +184,37 @@ Target
 			%File "Include/Mib/Concurrency/^*"
 		}
 		%File "Source/^*"
+		// Only these translation units read the eager arena GC define; the
+		// MalterlibMemoryManagerFlavor build property pairs the BlockLists flavor and the
+		// non-Malterlib memory managers with the old lazy collect heuristics
+		%File "Source/Actor/Malterlib_Concurrency_ActorHolder.cpp"
+		{
+			Compile
+			{
+				PreprocessorDefines += "DMibConfig_Concurrency_EagerArenaGC=0"
+				{
+					|
+					{
+						!MalterlibMemoryManager "Malterlib"
+						MalterlibMemoryManagerFlavor "BlockLists"
+					}
+				}
+			}
+		}
+		%File "Source/Actor/Malterlib_Concurrency_Manager.cpp"
+		{
+			Compile
+			{
+				PreprocessorDefines += "DMibConfig_Concurrency_EagerArenaGC=0"
+				{
+					|
+					{
+						!MalterlibMemoryManager "Malterlib"
+						MalterlibMemoryManagerFlavor "BlockLists"
+					}
+				}
+			}
+		}
 		%Group "DistributedApp"
 		{
 			%File "Source/DistributedApp/Malterlib_Concurrency_DistributedUIApp_MacOS.mm"

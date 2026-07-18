@@ -5,7 +5,17 @@
 #include <Mib/Concurrency/ConcurrencyManager>
 #include <Mib/Concurrency/LogError>
 
+#include "Malterlib_Concurrency_ArenaGC.h"
+
 //#define DDoWorkPolling
+
+#if DMibConfig_Concurrency_SchedulerStats
+#	define DSchedulerStat(d_Queue, d_Member) (d_Queue).m_SchedulerStats.d_Member.f_FetchAdd(1, NMib::NAtomic::gc_MemoryOrder_Relaxed)
+#	define DSchedulerStatAdd(d_Queue, d_Member, d_Count) (d_Queue).m_SchedulerStats.d_Member.f_FetchAdd(d_Count, NMib::NAtomic::gc_MemoryOrder_Relaxed)
+#else
+#	define DSchedulerStat(d_Queue, d_Member) ((void)0)
+#	define DSchedulerStatAdd(d_Queue, d_Member, d_Count) ((void)0)
+#endif
 
 namespace NMib
 {
@@ -281,6 +291,21 @@ namespace NMib::NConcurrency
 			auto &nActors = (m_nActorsPerQueue[Priority] = NContainer::TCVector<CNumActorsPerQueue>(nThreads));
 			m_nActorsPerQueueArray[Priority] = nActors.f_GetArray();
 
+#if DMibConfig_Concurrency_LocalFirstScheduler
+			{
+				// A queue whose thread was never created counts as idle so distribution can expand the pool
+				constexpr umint c_BitsPerChunk = sizeof(umint) * 8;
+				auto &Masks = (m_IdleQueueMasks[Priority] = NContainer::TCVector<CIdleQueueMask>((nThreads + c_BitsPerChunk - 1) / c_BitsPerChunk));
+				umint nChunks = Masks.f_GetLen();
+				for (umint iChunk = 0; iChunk < nChunks; ++iChunk)
+				{
+					umint nBitsInChunk = fg_Min(nThreads - iChunk * c_BitsPerChunk, c_BitsPerChunk);
+					umint Mask = nBitsInChunk == c_BitsPerChunk ? ~umint(0) : ((umint(1) << nBitsInChunk) - 1);
+					Masks[iChunk].m_Mask.f_Store(Mask, NAtomic::gc_MemoryOrder_Relaxed);
+				}
+			}
+#endif
+
 			for (umint i = 0; i < nThreads; ++i)
 			{
 				auto *pQueue = &Queues[i];
@@ -352,7 +377,24 @@ namespace NMib::NConcurrency
 	void CConcurrencyManager::f_Stop()
 	{
 		f_BlockOnDestroy();
+
+#if DMibConfig_Concurrency_SchedulerStats
+		if (m_bShutdownLogging)
+			fp_DumpSchedulerStats();
+#endif
+
 		m_bStopped = true;
+
+#if DMibConfig_Concurrency_LocalFirstScheduler
+		// Stop cooperative distribution from targeting quitting threads; any handoff that races
+		// this is drained by fProcessQueues below
+		for (umint Prio = 0; Prio < EPriority_Max; ++Prio)
+		{
+			for (auto &MaskChunk : m_IdleQueueMasks[Prio])
+				MaskChunk.m_Mask.f_Store(0);
+		}
+#endif
+
 		// Signal thread quit
 		for (umint Prio = 0; Prio < EPriority_Max; ++Prio)
 		{
@@ -404,11 +446,8 @@ namespace NMib::NConcurrency
 							if (!Queue.m_JobQueueLocal.m_LocalQueue.f_GetFirst())
 								continue;
 							bDoneSomething = true;
-							while (auto pEntry = Queue.m_JobQueueLocal.m_LocalQueue.f_GetFirst())
-							{
-								pEntry->m_Link.f_UnsafeUnlink();
+							while (auto pEntry = Queue.m_JobQueueLocal.f_PopFirst())
 								pEntry->f_Call(ThreadLocal);
-							}
 						}
 					}
 				}
@@ -527,6 +566,7 @@ namespace NMib::NConcurrency
 
 	inline_always void CConcurrencyManager::CQueue::f_Signal(CConcurrencyManager *_pThis)
 	{
+		DSchedulerStat(*this, m_nSignals);
 		m_Event.f_Signal();
 		if (!m_bThreadCreated.f_Load(NAtomic::gc_MemoryOrder_Relaxed))
 			fp_CreateThread(_pThis);
@@ -602,10 +642,16 @@ namespace NMib::NConcurrency
 	void CConcurrencyManager::fp_QueueJob(EPriority _Priority, umint _iFixedQueue, umint _iLastQueue, FActorQueueDispatchNoAlloc &&_ToQueue, CConcurrencyThreadLocal &_ThreadLocal)
 	{
 		auto pQueueEntry = CConcurrentRunQueueNonVirtualNoAlloc::fs_QueueEntry(fg_Move(_ToQueue));
+#if DMibConfig_Concurrency_LocalFirstScheduler && DMibConfig_Concurrency_LocalFirstDistribution
+		pQueueEntry->m_bMigratable = _iFixedQueue >= m_nThreads;
+#endif
 
 		umint iJobQueue;
 		if (_iFixedQueue < m_nThreads)
+		{
 			iJobQueue = _iFixedQueue;
+			DSchedulerStat(m_Queues[_Priority].f_GetArray()[iJobQueue], m_nFixedSelections);
+		}
 		else
 		{
 			do
@@ -614,16 +660,50 @@ namespace NMib::NConcurrency
 				if (_ThreadLocal.m_pThisQueue)
 				{
 					iThisQueue = _ThreadLocal.m_pThisQueue->m_iQueue;
+#if DMibConfig_Concurrency_LocalFirstScheduler
+					bool bForceNonLocal = _ThreadLocal.m_bForceNonLocal;
+#	if DMibConfig_Tests_Enable && !defined(DTests_PerfTests)
+					// Keep the perturbation tests exercising cross-thread interleavings under local-first
+					bForceNonLocal |= _ThreadLocal.m_bForceWakeUp;
+#	endif
+					if (bForceNonLocal) [[unlikely]]
+					{
+#	if DMibConfig_Concurrency_LocalFirstDistribution
+						if (_ThreadLocal.m_pThisQueue->m_Priority == _Priority)
+						{
+							umint iIdleQueue = fp_ClaimIdleQueue(_Priority, iThisQueue);
+							if (iIdleQueue != gc_InvalidQueue)
+							{
+								iJobQueue = iIdleQueue;
+								DSchedulerStat(m_Queues[_Priority].f_GetArray()[iJobQueue], m_nIdleClaims);
+								break;
+							}
+						}
+#	endif
+						iJobQueue = iThisQueue;
+						DSchedulerStat(*_ThreadLocal.m_pThisQueue, m_nForcedNonLocalSelections);
+						break;
+					}
+					if (_ThreadLocal.m_pThisQueue->m_Priority == _Priority)
+					{
+						iJobQueue = iThisQueue;
+						DSchedulerStat(*_ThreadLocal.m_pThisQueue, m_nCurrentThreadSelections);
+						break;
+					}
+#else
 					if (_ThreadLocal.m_bForceNonLocal) [[unlikely]]
 					{
 						iJobQueue = iThisQueue;
+						DSchedulerStat(*_ThreadLocal.m_pThisQueue, m_nForcedNonLocalSelections);
 						break;
 					}
 					if (_ThreadLocal.m_pThisQueue->m_Priority == _Priority && _ThreadLocal.m_pThisQueue->m_JobQueue.f_IsEmpty(_ThreadLocal.m_pThisQueue->m_JobQueueLocal))
 					{
 						iJobQueue = iThisQueue;
+						DSchedulerStat(*_ThreadLocal.m_pThisQueue, m_nCurrentThreadSelections);
 						break;
 					}
+#endif
 				}
 
 				if (_ThreadLocal.m_pCurrentlyProcessingActorHolder && _ThreadLocal.m_bCurrentlyProcessingInActorHolder)
@@ -632,6 +712,7 @@ namespace NMib::NConcurrency
 					if (iCurrentQueue < m_nThreads)
 					{
 						iJobQueue = iCurrentQueue;
+						DSchedulerStat(m_Queues[_Priority].f_GetArray()[iJobQueue], m_nFixedSelections);
 						break;
 					}
 				}
@@ -641,12 +722,27 @@ namespace NMib::NConcurrency
 					auto &Queue = m_Queues[_Priority].f_GetArray()[_iLastQueue];
 					if (Queue.m_JobQueue.f_AddToQueueIfEmpty(fg_Move(pQueueEntry)))
 					{
+						DSchedulerStat(Queue, m_nLastQueueSelections);
+						DSchedulerStat(Queue, m_nAtomicEnqueues);
+
 						umint Value = Queue.m_Working.f_FetchAdd(1);
 						if (Value == 0)
 							Queue.f_Signal(this);
 						return;
 					}
 				}
+
+#if DMibConfig_Concurrency_LocalFirstScheduler && DMibConfig_Concurrency_LocalFirstDistribution
+				{
+					umint iIdleQueue = fp_ClaimIdleQueue(_Priority, iThisQueue);
+					if (iIdleQueue != gc_InvalidQueue)
+					{
+						iJobQueue = iIdleQueue;
+						DSchedulerStat(m_Queues[_Priority].f_GetArray()[iJobQueue], m_nIdleClaims);
+						break;
+					}
+				}
+#endif
 
 				auto &iJobQueueNew = _ThreadLocal.m_JobQueueIndex[_Priority];
 				if (iJobQueueNew == iThisQueue) // Don't queue new actors on the same queue
@@ -655,6 +751,7 @@ namespace NMib::NConcurrency
 					iJobQueueNew = 0;
 				iJobQueue = iJobQueueNew;
 				++iJobQueueNew;
+				DSchedulerStat(m_Queues[_Priority].f_GetArray()[iJobQueue], m_nRoundRobinSelections);
 			}
 			while (false)
 				;
@@ -673,10 +770,19 @@ namespace NMib::NConcurrency
 		{
 			if (!_ThreadLocal.m_bForceNonLocal) [[likely]]
 			{
+				DSchedulerStat(_Queue, m_nLocalEnqueues);
 				_Queue.m_JobQueue.f_AddToQueueLocal(fg_Move(_pQueueEntry), _Queue.m_JobQueueLocal);
+#if DMibConfig_Concurrency_LocalFirstScheduler && DMibConfig_Concurrency_LocalFirstDistribution
+				// A long enqueue burst never reaches a job boundary; offer the backlog to idle
+				// cores once it exceeds twice the target size so parallelism isn't deferred until
+				// the current job finishes
+				if (_Queue.m_JobQueueLocal.m_nEntries >= DMibConfig_Concurrency_LocalQueueTargetSize * 2) [[unlikely]]
+					fp_OfferExcessWork(_Queue, true);
+#endif
 				return false;
 			}
 		}
+		DSchedulerStat(_Queue, m_nAtomicEnqueues);
 		_Queue.m_JobQueue.f_AddToQueue(fg_Move(_pQueueEntry));
 
 		umint Value = _Queue.m_Working.f_FetchAdd(1);
@@ -689,15 +795,158 @@ namespace NMib::NConcurrency
 		{
 			if (!_ThreadLocal.m_bForceNonLocal) [[likely]]
 			{
+				DSchedulerStat(_Queue, m_nLocalEnqueues);
 				_Queue.m_JobQueue.f_AddToQueueLocal(fg_Move(_Functor), _Queue.m_JobQueueLocal);
+#if DMibConfig_Concurrency_LocalFirstScheduler && DMibConfig_Concurrency_LocalFirstDistribution
+				// A long enqueue burst never reaches a job boundary; offer the backlog to idle
+				// cores once it exceeds twice the target size so parallelism isn't deferred until
+				// the current job finishes
+				if (_Queue.m_JobQueueLocal.m_nEntries >= DMibConfig_Concurrency_LocalQueueTargetSize * 2) [[unlikely]]
+					fp_OfferExcessWork(_Queue, true);
+#endif
 				return false;
 			}
 		}
+		DSchedulerStat(_Queue, m_nAtomicEnqueues);
 		_Queue.m_JobQueue.f_AddToQueue(fg_Move(_Functor));
 
 		umint Value = _Queue.m_Working.f_FetchAdd(1);
 		return Value == 0;
 	}
+
+#if DMibConfig_Concurrency_LocalFirstScheduler
+	constexpr static const umint gc_IdleMaskBitsPerChunk = sizeof(umint) * 8;
+
+	umint CConcurrencyManager::fp_ClaimIdleQueue(EPriority _Priority, umint _iExclude)
+	{
+		auto &Masks = m_IdleQueueMasks[_Priority];
+		umint nChunks = Masks.f_GetLen();
+		if (!nChunks)
+			return gc_InvalidQueue;
+
+		// Start scanning after the excluded queue so concurrent claimers spread across cores
+		// instead of converging on the lowest indices
+		umint iStart = _iExclude < m_nThreads ? _iExclude + 1 : 0;
+		umint iStartChunk = (iStart / gc_IdleMaskBitsPerChunk) % nChunks;
+		umint StartBit = iStart % gc_IdleMaskBitsPerChunk;
+
+		for (umint iPass = 0; iPass <= nChunks; ++iPass)
+		{
+			umint iChunk = (iStartChunk + iPass) % nChunks;
+			auto &Chunk = Masks.f_GetArray()[iChunk].m_Mask;
+
+			umint IgnoreMask = 0;
+			if (iPass == 0 && StartBit)
+				IgnoreMask = (umint(1) << StartBit) - 1;
+			if (_iExclude / gc_IdleMaskBitsPerChunk == iChunk)
+				IgnoreMask |= umint(1) << (_iExclude % gc_IdleMaskBitsPerChunk);
+
+			while (true)
+			{
+				umint Mask = Chunk.f_Load(NAtomic::gc_MemoryOrder_Relaxed) & ~IgnoreMask;
+				if (!Mask)
+					break;
+
+				umint Bit = Mask & (~Mask + 1);
+				umint Previous = Chunk.f_FetchAnd(~Bit);
+				if (Previous & Bit)
+					return iChunk * gc_IdleMaskBitsPerChunk + umint(fg_GetLowestBitSetNoZero(Bit));
+			}
+		}
+
+		return gc_InvalidQueue;
+	}
+
+	void CConcurrencyManager::fp_SetQueueIdle(CQueue &_Queue)
+	{
+		auto &Chunk = m_IdleQueueMasks[_Queue.m_Priority].f_GetArray()[_Queue.m_iQueue / gc_IdleMaskBitsPerChunk].m_Mask;
+		Chunk.f_FetchOr(umint(1) << (_Queue.m_iQueue % gc_IdleMaskBitsPerChunk));
+	}
+
+	void CConcurrencyManager::fp_ClearQueueIdle(CQueue &_Queue)
+	{
+		auto &Chunk = m_IdleQueueMasks[_Queue.m_Priority].f_GetArray()[_Queue.m_iQueue / gc_IdleMaskBitsPerChunk].m_Mask;
+		Chunk.f_FetchAnd(~(umint(1) << (_Queue.m_iQueue % gc_IdleMaskBitsPerChunk)));
+	}
+
+#if DMibConfig_Concurrency_LocalFirstDistribution
+	void CConcurrencyManager::fp_OfferExcessWork(CQueue &_Queue, bool _bTransfer, umint _TargetSize)
+	{
+		constexpr umint c_MaxChunkSize = DMibConfig_Concurrency_LocalQueueTargetSize;
+
+		auto &LocalQueueData = _Queue.m_JobQueueLocal;
+
+		// Include work still sitting on the atomic side in the backlog considered for distribution
+		if (_bTransfer)
+			_Queue.m_JobQueue.f_TransferThreadSafeQueue(LocalQueueData);
+
+		// The in-drain offer (_TargetSize == 0) ships the whole backlog: jobs queued behind a
+		// long drain are blocked for its entire duration, so a handful of large jobs must not
+		// stay hoarded below the batching target. Spread them evenly across the currently idle
+		// cores, down to one job per core; recipients that start their own long drains cascade
+		// the remainder further
+		umint nSpreadTargets = 1;
+		if (_TargetSize == 0)
+		{
+			for (auto &MaskChunk : m_IdleQueueMasks[_Queue.m_Priority])
+				nSpreadTargets += fg_NumBitsSet(MaskChunk.m_Mask.f_Load(NAtomic::gc_MemoryOrder_Relaxed));
+		}
+
+		// Ship the excess above the target queue size in bounded chunks, splitting large
+		// backlogs across several idle cores; every chunk goes to a claimed idle core so each
+		// signal buys parallelism
+		while (LocalQueueData.m_nEntries > _TargetSize)
+		{
+			auto *pNewest = LocalQueueData.m_LocalQueue.f_GetLast();
+			if (!pNewest || !pNewest->m_bMigratable)
+				return;
+
+			// The migratable check above guarantees at least one entry ships, so a claimed idle
+			// bit is never dropped without a signal
+			umint iTarget = fp_ClaimIdleQueue(_Queue.m_Priority, _Queue.m_iQueue);
+			if (iTarget == gc_InvalidQueue)
+				return;
+
+			if (nSpreadTargets > 1)
+				--nSpreadTargets;
+
+			// Pop the newest entries into a chain published with a single atomic splice; the
+			// consumer's transfer reverses the chain, so the oldest shipped entry still runs first
+			umint nExcess = LocalQueueData.m_nEntries - _TargetSize;
+			umint nChunk = fg_Min((nExcess + nSpreadTargets - 1) / nSpreadTargets, c_MaxChunkSize);
+			CConcurrentRunQueueEntry_FunctorNonVirtualNoAlloc *pChainFirst = nullptr;
+			CConcurrentRunQueueEntry_FunctorNonVirtualNoAlloc *pChainLast = nullptr;
+			umint nPopped = 0;
+			while (nPopped < nChunk)
+			{
+				auto *pEntry = LocalQueueData.m_LocalQueue.f_GetLast();
+				if (!pEntry || !pEntry->m_bMigratable)
+					break;
+
+				pEntry->m_Link.f_UnsafeUnlink();
+				--LocalQueueData.m_nEntries;
+
+				if (pChainLast)
+					pChainLast->m_pNextQueued.f_Store(pEntry, NAtomic::gc_MemoryOrder_Relaxed);
+				else
+					pChainFirst = pEntry;
+				pChainLast = pEntry;
+				++nPopped;
+			}
+
+			auto &Target = m_Queues[_Queue.m_Priority].f_GetArray()[iTarget];
+			DSchedulerStatAdd(_Queue, m_nHandoffs, nPopped);
+			DSchedulerStatAdd(Target, m_nAtomicEnqueues, nPopped);
+			DSchedulerStat(Target, m_nIdleClaims);
+			Target.m_JobQueue.f_AddChainToQueue(pChainFirst, pChainLast);
+
+			umint Value = Target.m_Working.f_FetchAdd(nPopped);
+			if (Value == 0)
+				Target.f_Signal(this);
+		}
+	}
+#endif
+#endif
 
 	void CConcurrencyManager::fp_RunThread(CQueue &_Queue, NThread::CThreadObjectNonTracked *_pThread)
 	{
@@ -714,10 +963,19 @@ namespace NMib::NConcurrency
 #endif
 		while (_pThread->f_GetState() != NThread::EThreadState_EventWantQuit)
 		{
+#if DMibConfig_Concurrency_LocalFirstScheduler
+			fp_ClearQueueIdle(_Queue);
+#endif
+#if DMibConfig_Concurrency_EagerArenaGC && DMibPPtrBits > 32
+			// Collect the backlog that accumulated while this thread slept before it starts
+			// allocating for new work
+			Checkout.f_GarbageCollectLocalArenaIfPending();
+#endif
 #ifdef DDoWorkPolling
 			NTime::CCyclesStopwatch Stopwatch;
 			Stopwatch.f_Start();
 #endif
+
 			while (true)
 			{
 				bool bDoMore = true;
@@ -744,16 +1002,27 @@ namespace NMib::NConcurrency
 						{
 							bDoneSomething = false;
 							if (_Queue.m_JobQueue.f_TransferThreadSafeQueue(_Queue.m_JobQueueLocal))
+							{
 								bDoneSomething = true;
-							while (auto *pJob = _Queue.m_JobQueueLocal.m_LocalQueue.f_GetFirst())
+#if DMibConfig_Concurrency_LocalFirstScheduler && DMibConfig_Concurrency_LocalFirstDistribution
+								if (_Queue.m_JobQueueLocal.m_nEntries >= DMibConfig_Concurrency_LocalQueueTargetSize * 2)
+									fp_OfferExcessWork(_Queue, false);
+#endif
+							}
+
+							while (auto *pJob = _Queue.m_JobQueueLocal.f_PopFirst())
 							{
 #if DMibPPtrBits > 32
 								if (!Checkout.f_IsCheckedOut())
 									Checkout = fg_GetSys()->f_MemoryManager_Checkout();
 #endif
-
-								pJob->m_Link.f_UnsafeUnlink();
 								pJob->f_Call(ThreadLocal);
+
+#if DMibConfig_Concurrency_LocalFirstScheduler && DMibConfig_Concurrency_LocalFirstDistribution
+								if (_Queue.m_JobQueueLocal.m_nEntries >= DMibConfig_Concurrency_LocalQueueTargetSize * 2)
+									fp_OfferExcessWork(_Queue, true);
+#endif
+
 								bDoneSomething = true;
 							}
 						}
@@ -761,6 +1030,14 @@ namespace NMib::NConcurrency
 				}
 
 #if DMibPPtrBits > 32
+#	if DMibConfig_Concurrency_EagerArenaGC
+				// Leave a clean arena behind before parking; the background cleanup thread rarely
+				// wins the arena lock, so this is the last reliable collect until the next wake
+				Checkout.f_GarbageCollectLocalArenaIfPending();
+#	endif
+
+				// Releasing the checkout registers the arena for the background cleanup thread,
+				// which handles any still-pending cross-thread frees while this thread sleeps
 				Checkout = NMemory::CMemoryManagerCheckout(nullptr);
 #endif
 #ifdef DDoWorkPolling
@@ -770,6 +1047,10 @@ namespace NMib::NConcurrency
 				break;
 #endif
 			}
+#if DMibConfig_Concurrency_LocalFirstScheduler
+			fp_SetQueueIdle(_Queue);
+#endif
+			DSchedulerStat(_Queue, m_nSleeps);
 			_Queue.m_Event.f_Wait();
 		}
 	}
@@ -1220,6 +1501,148 @@ namespace NMib::NConcurrency
 
 		return TCLimitsInt<umint>::mc_Max;
 	}
+
+#if DMibConfig_Concurrency_SchedulerStats
+	auto CConcurrencyManager::f_GetSchedulerStats(EPriority _Priority) -> CSchedulerStats
+	{
+		CSchedulerStats Stats;
+		for (auto &Queue : m_Queues[_Priority])
+		{
+			auto &QueueStats = Queue.m_SchedulerStats;
+			Stats.m_nSignals += QueueStats.m_nSignals.f_Load(NAtomic::gc_MemoryOrder_Relaxed);
+			Stats.m_nSleeps += QueueStats.m_nSleeps.f_Load(NAtomic::gc_MemoryOrder_Relaxed);
+			Stats.m_nLocalEnqueues += QueueStats.m_nLocalEnqueues.f_Load(NAtomic::gc_MemoryOrder_Relaxed);
+			Stats.m_nAtomicEnqueues += QueueStats.m_nAtomicEnqueues.f_Load(NAtomic::gc_MemoryOrder_Relaxed);
+			Stats.m_nCurrentThreadSelections += QueueStats.m_nCurrentThreadSelections.f_Load(NAtomic::gc_MemoryOrder_Relaxed);
+			Stats.m_nFixedSelections += QueueStats.m_nFixedSelections.f_Load(NAtomic::gc_MemoryOrder_Relaxed);
+			Stats.m_nForcedNonLocalSelections += QueueStats.m_nForcedNonLocalSelections.f_Load(NAtomic::gc_MemoryOrder_Relaxed);
+			Stats.m_nLastQueueSelections += QueueStats.m_nLastQueueSelections.f_Load(NAtomic::gc_MemoryOrder_Relaxed);
+			Stats.m_nRoundRobinSelections += QueueStats.m_nRoundRobinSelections.f_Load(NAtomic::gc_MemoryOrder_Relaxed);
+			Stats.m_nHandoffs += QueueStats.m_nHandoffs.f_Load(NAtomic::gc_MemoryOrder_Relaxed);
+			Stats.m_nIdleClaims += QueueStats.m_nIdleClaims.f_Load(NAtomic::gc_MemoryOrder_Relaxed);
+			Stats.m_nRunProcess += QueueStats.m_nRunProcess.f_Load(NAtomic::gc_MemoryOrder_Relaxed);
+			Stats.m_nEntriesDrained += QueueStats.m_nEntriesDrained.f_Load(NAtomic::gc_MemoryOrder_Relaxed);
+			Stats.m_nLongDrains += QueueStats.m_nLongDrains.f_Load(NAtomic::gc_MemoryOrder_Relaxed);
+			Stats.m_nGarbageCollectCalls += QueueStats.m_nGarbageCollectCalls.f_Load(NAtomic::gc_MemoryOrder_Relaxed);
+			Stats.m_nGarbageCollects += QueueStats.m_nGarbageCollects.f_Load(NAtomic::gc_MemoryOrder_Relaxed);
+		}
+
+		return Stats;
+	}
+
+	auto CConcurrencyManager::f_GetSchedulerStats() -> CSchedulerStats
+	{
+		CSchedulerStats Stats;
+		for (umint Priority = EPriority_Low; Priority < EPriority_Max; ++Priority)
+		{
+			CSchedulerStats PriorityStats = f_GetSchedulerStats(static_cast<EPriority>(Priority));
+			Stats.m_nSignals += PriorityStats.m_nSignals;
+			Stats.m_nSleeps += PriorityStats.m_nSleeps;
+			Stats.m_nLocalEnqueues += PriorityStats.m_nLocalEnqueues;
+			Stats.m_nAtomicEnqueues += PriorityStats.m_nAtomicEnqueues;
+			Stats.m_nCurrentThreadSelections += PriorityStats.m_nCurrentThreadSelections;
+			Stats.m_nFixedSelections += PriorityStats.m_nFixedSelections;
+			Stats.m_nForcedNonLocalSelections += PriorityStats.m_nForcedNonLocalSelections;
+			Stats.m_nLastQueueSelections += PriorityStats.m_nLastQueueSelections;
+			Stats.m_nRoundRobinSelections += PriorityStats.m_nRoundRobinSelections;
+			Stats.m_nHandoffs += PriorityStats.m_nHandoffs;
+			Stats.m_nIdleClaims += PriorityStats.m_nIdleClaims;
+			Stats.m_nRunProcess += PriorityStats.m_nRunProcess;
+			Stats.m_nEntriesDrained += PriorityStats.m_nEntriesDrained;
+			Stats.m_nLongDrains += PriorityStats.m_nLongDrains;
+			Stats.m_nGarbageCollectCalls += PriorityStats.m_nGarbageCollectCalls;
+			Stats.m_nGarbageCollects += PriorityStats.m_nGarbageCollects;
+		}
+
+		return Stats;
+	}
+
+	void CConcurrencyManager::f_ResetSchedulerStats()
+	{
+		for (umint Priority = EPriority_Low; Priority < EPriority_Max; ++Priority)
+		{
+			for (auto &Queue : m_Queues[Priority])
+			{
+				auto &QueueStats = Queue.m_SchedulerStats;
+				QueueStats.m_nSignals.f_Store(0, NAtomic::gc_MemoryOrder_Relaxed);
+				QueueStats.m_nSleeps.f_Store(0, NAtomic::gc_MemoryOrder_Relaxed);
+				QueueStats.m_nLocalEnqueues.f_Store(0, NAtomic::gc_MemoryOrder_Relaxed);
+				QueueStats.m_nAtomicEnqueues.f_Store(0, NAtomic::gc_MemoryOrder_Relaxed);
+				QueueStats.m_nCurrentThreadSelections.f_Store(0, NAtomic::gc_MemoryOrder_Relaxed);
+				QueueStats.m_nFixedSelections.f_Store(0, NAtomic::gc_MemoryOrder_Relaxed);
+				QueueStats.m_nForcedNonLocalSelections.f_Store(0, NAtomic::gc_MemoryOrder_Relaxed);
+				QueueStats.m_nLastQueueSelections.f_Store(0, NAtomic::gc_MemoryOrder_Relaxed);
+				QueueStats.m_nRoundRobinSelections.f_Store(0, NAtomic::gc_MemoryOrder_Relaxed);
+				QueueStats.m_nHandoffs.f_Store(0, NAtomic::gc_MemoryOrder_Relaxed);
+				QueueStats.m_nIdleClaims.f_Store(0, NAtomic::gc_MemoryOrder_Relaxed);
+				QueueStats.m_nRunProcess.f_Store(0, NAtomic::gc_MemoryOrder_Relaxed);
+				QueueStats.m_nEntriesDrained.f_Store(0, NAtomic::gc_MemoryOrder_Relaxed);
+				QueueStats.m_nLongDrains.f_Store(0, NAtomic::gc_MemoryOrder_Relaxed);
+				QueueStats.m_nGarbageCollectCalls.f_Store(0, NAtomic::gc_MemoryOrder_Relaxed);
+				QueueStats.m_nGarbageCollects.f_Store(0, NAtomic::gc_MemoryOrder_Relaxed);
+			}
+		}
+	}
+
+// The dump must also work in release builds where DMibTrace compiles out, since scheduler
+// stats can be enabled there
+#define DSchedulerStatsTrace(...) NSys::fg_DebugOutput(NStr::fg_Format<NStr::CStrNonTracked>(__VA_ARGS__))
+
+	inline_never void CConcurrencyManager::fp_DumpSchedulerStats()
+	{
+		constexpr static ch8 const *c_pPriorityNames[EPriority_Max] = {"Low", "NormalHighCPU", "Normal"};
+
+		for (umint Priority = EPriority_Low; Priority < EPriority_Max; ++Priority)
+		{
+			CSchedulerStats Stats = f_GetSchedulerStats(static_cast<EPriority>(Priority));
+			DSchedulerStatsTrace
+				(
+					"Scheduler stats {}: Signals {} Sleeps {} LocalEnqueues {} AtomicEnqueues {} CurrentThread {} Fixed {} ForcedNonLocal {} LastQueue {} RoundRobin {} Handoffs {} IdleClaims {} RunProcess {} Drained {} LongDrains {} GCCalls {} GCCollects {}\n"
+					, c_pPriorityNames[Priority]
+					, Stats.m_nSignals
+					, Stats.m_nSleeps
+					, Stats.m_nLocalEnqueues
+					, Stats.m_nAtomicEnqueues
+					, Stats.m_nCurrentThreadSelections
+					, Stats.m_nFixedSelections
+					, Stats.m_nForcedNonLocalSelections
+					, Stats.m_nLastQueueSelections
+					, Stats.m_nRoundRobinSelections
+					, Stats.m_nHandoffs
+					, Stats.m_nIdleClaims
+					, Stats.m_nRunProcess
+					, Stats.m_nEntriesDrained
+					, Stats.m_nLongDrains
+					, Stats.m_nGarbageCollectCalls
+					, Stats.m_nGarbageCollects
+				)
+			;
+
+			for (auto &Queue : m_Queues[Priority])
+			{
+				auto &QueueStats = Queue.m_SchedulerStats;
+				umint nRunProcess = QueueStats.m_nRunProcess.f_Load(NAtomic::gc_MemoryOrder_Relaxed);
+				umint nSleeps = QueueStats.m_nSleeps.f_Load(NAtomic::gc_MemoryOrder_Relaxed);
+				if (!nRunProcess && !nSleeps)
+					continue;
+
+				DSchedulerStatsTrace
+					(
+						"Scheduler stats {} queue {}: Sleeps {} RunProcess {} Drained {} LongDrains {} GCCalls {} GCCollects {}\n"
+						, c_pPriorityNames[Priority]
+						, Queue.m_iQueue
+						, nSleeps
+						, nRunProcess
+						, QueueStats.m_nEntriesDrained.f_Load(NAtomic::gc_MemoryOrder_Relaxed)
+						, QueueStats.m_nLongDrains.f_Load(NAtomic::gc_MemoryOrder_Relaxed)
+						, QueueStats.m_nGarbageCollectCalls.f_Load(NAtomic::gc_MemoryOrder_Relaxed)
+						, QueueStats.m_nGarbageCollects.f_Load(NAtomic::gc_MemoryOrder_Relaxed)
+					)
+				;
+			}
+		}
+	}
+#endif
 
 	inline_never umint CConcurrencyManager::fp_InitConcurrentActors()
 	{

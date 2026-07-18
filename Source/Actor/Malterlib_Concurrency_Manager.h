@@ -9,6 +9,7 @@
 #include <Mib/Function/Function>
 #include <Mib/Meta/Meta>
 #include <Mib/Storage/Tuple>
+#include <Mib/Time/Stopwatch>
 
 #include "Malterlib_Concurrency_Coroutine.h"
 
@@ -103,6 +104,33 @@ namespace NMib::NConcurrency
 		umint f_GetConcurrency() const;
 		umint f_GetQueue() const;
 
+#if DMibConfig_Concurrency_SchedulerStats
+		/// \brief Snapshot of aggregated scheduling statistics
+		struct CSchedulerStats
+		{
+			umint m_nSignals = 0; ///< Semaphore signals posted to pool threads
+			umint m_nSleeps = 0; ///< Times pool threads went to sleep
+			umint m_nLocalEnqueues = 0; ///< Jobs enqueued to the producing thread's own local queue
+			umint m_nAtomicEnqueues = 0; ///< Jobs enqueued through the atomic queue
+			umint m_nCurrentThreadSelections = 0; ///< Jobs targeted at the producing pool thread's queue
+			umint m_nFixedSelections = 0; ///< Jobs targeted by fixed-queue pinning
+			umint m_nForcedNonLocalSelections = 0; ///< Jobs redistributed after a yield
+			umint m_nLastQueueSelections = 0; ///< Jobs targeted by last-queue affinity
+			umint m_nRoundRobinSelections = 0; ///< Jobs targeted by round-robin selection
+			umint m_nHandoffs = 0; ///< Jobs handed off to idle threads
+			umint m_nIdleClaims = 0; ///< Successful claims of idle threads
+			umint m_nRunProcess = 0; ///< Actor drain runs executed on pool threads
+			umint m_nEntriesDrained = 0; ///< Actor messages processed by drain runs on pool threads
+			umint m_nLongDrains = 0; ///< Drain runs that processed 16 or more messages
+			umint m_nGarbageCollectCalls = 0; ///< Owner-side arena garbage collect attempts from drain runs
+			umint m_nGarbageCollects = 0; ///< Owner-side arena garbage collects that found pending messages
+		};
+
+		CSchedulerStats f_GetSchedulerStats(EPriority _Priority);
+		CSchedulerStats f_GetSchedulerStats();
+		void f_ResetSchedulerStats();
+#endif
+
 #if DMibConfig_Concurrency_DebugFutures
 		NThread::CLowLevelLock m_FutureListLock;
 		DMibListLinkDS_List(NPrivate::CPromiseDataBase, m_Link) m_Futures;
@@ -124,6 +152,29 @@ namespace NMib::NConcurrency
 #endif
 		friend struct CBlockingActorCheckout;
 
+#if DMibConfig_Concurrency_SchedulerStats
+		/// \brief Scheduling statistics for one pool queue
+		struct align_cacheline CSchedulerQueueStats
+		{
+			NAtomic::TCAtomic<umint> m_nSignals = 0; ///< Semaphore signals posted to this queue
+			NAtomic::TCAtomic<umint> m_nSleeps = 0; ///< Times this queue's thread went to sleep
+			NAtomic::TCAtomic<umint> m_nLocalEnqueues = 0; ///< Jobs enqueued from this queue's own thread
+			NAtomic::TCAtomic<umint> m_nAtomicEnqueues = 0; ///< Jobs enqueued through the atomic queue
+			NAtomic::TCAtomic<umint> m_nCurrentThreadSelections = 0; ///< Jobs targeted at this queue because the producer runs on it
+			NAtomic::TCAtomic<umint> m_nFixedSelections = 0; ///< Jobs targeted at this queue by fixed-queue pinning
+			NAtomic::TCAtomic<umint> m_nForcedNonLocalSelections = 0; ///< Jobs targeted at this queue after a yield
+			NAtomic::TCAtomic<umint> m_nLastQueueSelections = 0; ///< Jobs targeted at this queue by last-queue affinity
+			NAtomic::TCAtomic<umint> m_nRoundRobinSelections = 0; ///< Jobs targeted at this queue by round-robin selection
+			NAtomic::TCAtomic<umint> m_nHandoffs = 0; ///< Jobs handed off from this queue to an idle queue
+			NAtomic::TCAtomic<umint> m_nIdleClaims = 0; ///< Successful idle claims of this queue by producers
+			NAtomic::TCAtomic<umint> m_nRunProcess = 0; ///< Actor drain runs executed on this queue's thread
+			NAtomic::TCAtomic<umint> m_nEntriesDrained = 0; ///< Actor messages processed by drain runs on this queue's thread
+			NAtomic::TCAtomic<umint> m_nLongDrains = 0; ///< Drain runs on this queue's thread that processed 16 or more messages
+			NAtomic::TCAtomic<umint> m_nGarbageCollectCalls = 0; ///< Owner-side arena garbage collect attempts from drain runs
+			NAtomic::TCAtomic<umint> m_nGarbageCollects = 0; ///< Owner-side arena garbage collects that found pending messages
+		};
+#endif
+
 		struct CQueue
 		{
 			align_cacheline CConcurrentRunQueueNonVirtualNoAlloc m_JobQueue;
@@ -134,6 +185,11 @@ namespace NMib::NConcurrency
 			NThread::CEventAutoReset m_Event;
 			NStorage::TCUniquePointer<NThread::CThreadObjectNonTracked, NMemory::CAllocator_NonTrackedHeap> m_pThread;
 			NAtomic::TCAtomic<bool> m_bThreadCreated;
+#if DMibConfig_Concurrency_LocalFirstScheduler && DMibConfig_Concurrency_LocalFirstDistribution
+#endif
+#if DMibConfig_Concurrency_SchedulerStats
+			CSchedulerQueueStats m_SchedulerStats;
+#endif
 			CQueue(CQueue &&_Other);
 			CQueue();
 			void f_Signal(CConcurrencyManager *_pThis);
@@ -145,6 +201,15 @@ namespace NMib::NConcurrency
 		bool fp_AddToQueue(CQueue &_Queue, FActorQueueDispatchNoAlloc &&_Functor, CConcurrencyThreadLocal &_ThreadLocal);
 		bool fp_AddToQueue(CQueue &_Queue, NStorage::TCUniquePointer<CConcurrentRunQueueEntry_FunctorNonVirtualNoAlloc> &&_pQueueEntry, CConcurrencyThreadLocal &_ThreadLocal);
 
+#if DMibConfig_Concurrency_LocalFirstScheduler
+		umint fp_ClaimIdleQueue(EPriority _Priority, umint _iExclude);
+		void fp_SetQueueIdle(CQueue &_Queue);
+		void fp_ClearQueueIdle(CQueue &_Queue);
+#if DMibConfig_Concurrency_LocalFirstDistribution
+		void fp_OfferExcessWork(CQueue &_Queue, bool _bTransfer, umint _TargetSize = DMibConfig_Concurrency_LocalQueueTargetSize);
+#endif
+#endif
+
 		inline_never umint fp_InitConcurrentActors();
 		void fp_DispatchOnCurrentThreadOrConcurrent(EPriority _Priority, FActorQueueDispatchNoAlloc &&_ToQueue, CConcurrencyThreadLocal &_ThreadLocal);
 		void fp_DispatchOnCurrentThreadOrConcurrentFirst(EPriority _Priority, FActorQueueDispatchNoAlloc &&_ToQueue, CConcurrencyThreadLocal &_ThreadLocal);
@@ -152,6 +217,10 @@ namespace NMib::NConcurrency
 		void fp_AddedActor();
 		void fp_RemovedActor();
 		umint fp_NumActors();
+
+#if DMibConfig_Concurrency_SchedulerStats
+		inline_never void fp_DumpSchedulerStats();
+#endif
 
 		struct align_cacheline CNumActorsPerQueue
 		{
@@ -175,6 +244,17 @@ namespace NMib::NConcurrency
 
 		umint m_nThreads = 0;
 		NContainer::TCVector<CQueue> m_Queues[EPriority_Max];
+
+#if DMibConfig_Concurrency_LocalFirstScheduler
+		/// \brief One chunk of the advisory idle-queue bitmask; a set bit marks a queue whose thread
+		/// is asleep (or not yet created) and may be claimed as a handoff target
+		struct align_cacheline CIdleQueueMask
+		{
+			NAtomic::TCAtomic<umint> m_Mask = 0;
+		};
+
+		NContainer::TCVector<CIdleQueueMask> m_IdleQueueMasks[EPriority_Max];
+#endif
 
 		bool m_bDestroyed = false;
 		bool m_bFinishedDestroying = false;
@@ -241,6 +321,9 @@ namespace NMib::NConcurrency
 		umint m_iConcurrentActor[EPriority_Max];
 		umint m_JobQueueIndex[EPriority_Max];
 		umint m_nActorsIndex = NMisc::fg_GetRandomUnsigned();
+		umint m_nProcessedEntries = 0;
+		umint m_nRunsSinceGarbageCollect = 0;
+		int64 m_LastArenaCollectCycles = 0;
 
 		NException::CExceptionPointer m_pNoResultException;
 		NException::CExceptionPointer m_pResultWasNotSetException;

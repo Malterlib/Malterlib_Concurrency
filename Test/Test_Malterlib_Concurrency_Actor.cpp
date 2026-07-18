@@ -13,8 +13,8 @@
 #include <future>
 #endif
 
-#define DDoCheckMessages
-#define DDoGarbageCollection true
+//#define DDoCheckMessages
+#define DDoGarbageCollection false
 
 #define DDoTest_Message_DispatchVector 1
 #define DDoTest_Message_Dispatch 1
@@ -66,7 +66,7 @@ namespace
 	using namespace NMib::NFunction;
 	using namespace NMib::NStr;
 
-	constexpr static umint gc_nRepetitions = 111;
+	constexpr static umint gc_nRepetitions = 11;
 	constexpr static umint gc_YieldMask = 0xff;
 	// 0b1						742
 	// 0b1111 					270
@@ -1440,15 +1440,22 @@ namespace
 			};
 		}
 
-		static TCFuture<uint32> DMibWorkaroundUBSanSectionErrors fs_BranchedConcurrentCoroutine(uint32 _Start, uint32 _End)
+		static TCFuture<uint32> DMibWorkaroundUBSanSectionErrors fs_BranchedConcurrentCoroutine(uint32 _Start, uint32 _End, TCVector<TCActor<CActor>> *_pActors)
 		{
 			if (_End - _Start == 1)
 				co_return 1;
 
+			umint nActors = _pActors->f_GetLen();
+
+			auto Mid = _Start + (_End - _Start) / 2;
+
+			auto &LeftActor = (*_pActors)[_Start % nActors];
+			auto &RightActor = (*_pActors)[Mid % nActors];
+
 			auto [Result0, Result1] = co_await
 				(
-					fg_ConcurrentActor().f_Bind<fs_BranchedConcurrentCoroutine>(_Start, _Start + (_End - _Start) / 2)
-					+ fg_ConcurrentActor().f_Bind<fs_BranchedConcurrentCoroutine>(_Start + (_End - _Start) / 2, _End)
+					LeftActor.f_Bind<fs_BranchedConcurrentCoroutine>(_Start, Mid, _pActors)
+					+ RightActor.f_Bind<fs_BranchedConcurrentCoroutine>(Mid, _End, _pActors)
 				)
 			;
 
@@ -2613,23 +2620,35 @@ namespace
 					umint nIterations = nIterationsFull / 2;
 					DMibTestPath("Branched");
 					CTestPerformanceMeasure ActorMeasure("Branched");
-					auto fActor = [](this auto &_fThis, uint32 _Start, uint32 _End) -> TCUnsafeFuture<uint32>
+
+					TCSharedPointer<TCVector<TCActor<CActor>>> pActors = fg_Construct();
+					pActors->f_SetLen(NSys::fg_Thread_GetPhysicalCores());
+					for (auto &Actor : *pActors)
+					 	Actor = fg_Construct();
+
+					auto fActor = [&](this auto &_fThis, uint32 _Start, uint32 _End) -> TCUnsafeFuture<uint32>
 						{
 							if ((_End - _Start) == 1)
 								co_return 1;
 
+							auto Mid = _Start + (_End - _Start) / 2;
+
+							auto nActors = pActors->f_GetLen();
+							auto &LeftActor = (*pActors)[_Start % nActors];
+							auto &RightActor = (*pActors)[Mid % nActors];
+
 							auto [Result0, Result1] = co_await
 								(
-									fg_ConcurrentActor().f_Bind<&CActor::f_DispatchWithReturn<TCFuture<uint32>, uint32, uint32>>
+									LeftActor.f_Bind<&CActor::f_DispatchWithReturn<TCFuture<uint32>, uint32, uint32>>
 									(
 										_fThis
 										, _Start
-										, _Start + (_End - _Start) / 2
+										, Mid
 									)
-									+ fg_ConcurrentActor().f_Bind<&CActor::f_DispatchWithReturn<TCFuture<uint32>, uint32, uint32>>
+									+ RightActor.f_Bind<&CActor::f_DispatchWithReturn<TCFuture<uint32>, uint32, uint32>>
 									(
 										_fThis
-										, _Start + (_End - _Start) / 2
+										, Mid
 										, _End
 									)
 								)
@@ -2640,12 +2659,12 @@ namespace
 
 					uint32 Result = 0;
 
-					auto ConcurrentActor = fg_ConcurrentActor();
+					TCActor<CActor> TempActor = fg_Construct();
 
 					for (umint i = 0; i < gc_nRepetitions; ++i)
 					{
 						DMibTestScopeMeasureThreads(ActorMeasure, nIterationsFull, NSys::fg_Thread_GetPhysicalCores());
-						Result += fg_ConcurrentActor().f_Bind<&CActor::f_DispatchWithReturn<TCFuture<uint32>>>
+						Result += TempActor.f_Bind<&CActor::f_DispatchWithReturn<TCFuture<uint32>>>
 							(
 								[&]() -> TCFuture<uint32>
 								{
@@ -2671,14 +2690,19 @@ namespace
 
 					uint32 Result = 0;
 
+					TCSharedPointer<TCVector<TCActor<CActor>>> pActors = fg_Construct();
+					pActors->f_SetLen(NSys::fg_Thread_GetPhysicalCores() * 16);
+					for (auto &Actor : *pActors)
+					 	Actor = fg_Construct();
+
 					for (umint i = 0; i < gc_nRepetitions; ++i)
 					{
 						DMibTestScopeMeasureThreads(ActorMeasure, nIterationsFull, NSys::fg_Thread_GetPhysicalCores());
 						Result +=
 							(
-								g_ConcurrentDispatch / [&]() -> TCFuture<uint32>
+								g_Dispatch((*pActors)[0]) / [&]() -> TCFuture<uint32>
 								{
-									co_return co_await fs_BranchedConcurrentCoroutine(0, nIterations);
+									co_return co_await fs_BranchedConcurrentCoroutine(0, nIterations, pActors.f_Get());
 								}
 							)
 							.f_CallSync(g_Timeout / 3)

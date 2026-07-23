@@ -281,6 +281,15 @@ namespace NMib::NConcurrency
 #else
 		umint nThreads = NSys::fg_Thread_GetVirtualCores();
 #endif
+		{
+			NStr::CStrNonTracked ThreadOverride = NSys::fg_Process_GetEnvironmentVariable_NonProtected(NStr::CStrNonTracked("MibConcurrencyThreads"));
+			if (ThreadOverride != "")
+			{
+				// Parse signed so a negative override is rejected instead of wrapping to a huge count
+				if (smint nOverride = ThreadOverride.f_ToInt(smint(0)); nOverride > 0)
+					nThreads = umint(nOverride);
+			}
+		}
 		m_nThreads = nThreads;
 		for (EPriority Priority = EPriority_Low; Priority < EPriority_Max; Priority = static_cast<EPriority>(Priority + 1))
 		{

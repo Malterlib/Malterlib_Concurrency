@@ -988,6 +988,7 @@ namespace NMib::NConcurrency
 		// Mirror the pool thread loop: collect the backlog that accumulated while this thread
 		// slept before it starts allocating for new work
 		Checkout.f_GarbageCollectLocalArenaIfPending();
+		ThreadLocal.m_nRunsSinceGarbageCollect = 0;
 #endif
 #endif
 #ifdef DDoWorkPolling
@@ -1036,7 +1037,10 @@ namespace NMib::NConcurrency
 			}
 
 #if DMibPPtrBits > 32
+#if DMibConfig_Concurrency_EagerArenaGC && DMibConfig_Concurrency_EagerArenaGC != 3
 			Checkout.f_GarbageCollectLocalArenaIfPending();
+			ThreadLocal.m_nRunsSinceGarbageCollect = 0;
+#endif
 			Checkout = NMemory::CMemoryManagerCheckout(nullptr);
 #endif
 #ifdef DDoWorkPolling

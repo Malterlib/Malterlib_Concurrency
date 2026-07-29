@@ -979,6 +979,7 @@ namespace NMib::NConcurrency
 			// Collect the backlog that accumulated while this thread slept before it starts
 			// allocating for new work
 			Checkout.f_GarbageCollectLocalArenaIfPending();
+			ThreadLocal.m_nRunsSinceGarbageCollect = 0;
 #endif
 #ifdef DDoWorkPolling
 			NTime::CCyclesStopwatch Stopwatch;
@@ -1039,10 +1040,11 @@ namespace NMib::NConcurrency
 				}
 
 #if DMibPPtrBits > 32
-#	if DMibConfig_Concurrency_EagerArenaGC
+#	if DMibConfig_Concurrency_EagerArenaGC && DMibConfig_Concurrency_EagerArenaGC != 3
 				// Leave a clean arena behind before parking; the background cleanup thread rarely
 				// wins the arena lock, so this is the last reliable collect until the next wake
 				Checkout.f_GarbageCollectLocalArenaIfPending();
+				ThreadLocal.m_nRunsSinceGarbageCollect = 0;
 #	endif
 
 				// Releasing the checkout registers the arena for the background cleanup thread,

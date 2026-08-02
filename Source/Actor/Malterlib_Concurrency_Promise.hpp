@@ -1367,6 +1367,10 @@ namespace NMib::NConcurrency::NPrivate
 	void TCPromiseData<t_CReturnValue>::f_OnResult()
 	{
 		DMibFastCheck(!m_AfterSuspend.m_bPendingResult);
+		// Must be checked before publishing EFutureResultFlag_DataSet: once it is
+		// published, the observer side may move the result away on another thread
+		DMibFastCheck(m_Result.f_IsSet());
+
 		EFutureResultFlag PreviousFlags;
 #ifdef DMibConcurrencyNonAtomicOnResultSet
 		if (m_BeforeSuspend.m_bOnResultSetAtInit)
@@ -1382,7 +1386,6 @@ namespace NMib::NConcurrency::NPrivate
 #endif
 
 		DMibFastCheck(!(PreviousFlags & EFutureResultFlag_DataSet)); // You can only set result once
-		DMibFastCheck(m_Result.f_IsSet());
 
 #if DMibConfig_Concurrency_DebugActorCallstacks
 		if (!(PreviousFlags & EFutureResultFlag_DataSet))
@@ -1399,6 +1402,10 @@ namespace NMib::NConcurrency::NPrivate
 	void TCPromiseData<t_CReturnValue>::f_OnResultNoClear()
 	{
 		DMibFastCheck(!m_AfterSuspend.m_bPendingResult);
+		// Must be checked before publishing EFutureResultFlag_DataSet: once it is
+		// published, the observer side may move the result away on another thread
+		DMibFastCheck(m_Result.f_IsSet());
+
 		EFutureResultFlag PreviousFlags;
 #ifdef DMibConcurrencyNonAtomicOnResultSet
 		if (m_BeforeSuspend.m_bOnResultSetAtInit)
@@ -1414,7 +1421,6 @@ namespace NMib::NConcurrency::NPrivate
 #endif
 
 		DMibFastCheck(!(PreviousFlags & EFutureResultFlag_DataSet)); // You can only set result once
-		DMibFastCheck(m_Result.f_IsSet());
 
 #if DMibConfig_Concurrency_DebugActorCallstacks
 		if (!(PreviousFlags & EFutureResultFlag_DataSet))
@@ -1427,6 +1433,10 @@ namespace NMib::NConcurrency::NPrivate
 	template <typename t_CReturnValue>
 	void TCPromiseData<t_CReturnValue>::f_OnResultRelaxed()
 	{
+		// Must be checked before publishing EFutureResultFlag_DataSet: once it is
+		// published, the observer side may move the result away on another thread
+		DMibFastCheck(m_Result.f_IsSet());
+
 #ifdef DMibConcurrencyNonAtomicOnResultSet
 		auto &OnResultSet = m_OnResultSet.f_NonAtomic();
 		EFutureResultFlag PreviousFlags = (EFutureResultFlag)OnResultSet;
@@ -1436,7 +1446,6 @@ namespace NMib::NConcurrency::NPrivate
 #endif
 
 		DMibFastCheck(!(PreviousFlags & EFutureResultFlag_DataSet)); // You can only set result once
-		DMibFastCheck(m_Result.f_IsSet());
 		DMibFastCheck
 			(
 				m_RefCount.f_Get() == 0

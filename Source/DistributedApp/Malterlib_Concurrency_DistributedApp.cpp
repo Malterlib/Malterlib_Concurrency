@@ -387,12 +387,16 @@ namespace NMib::NConcurrency
 		auto BlockingActor = BlockingActorCheckout.f_Actor();
 
 		(
-			g_Dispatch(BlockingActor) / [WildcardPath = mp_Settings.f_GetLocalSocketWildcard(true)]
+			g_Dispatch(BlockingActor) / [WildcardPath = mp_Settings.f_GetLocalSocketWildcard(true), OwnSocketPath = mp_Settings.f_GetLocalSocketFileName(true, mp_Settings.m_Enclave)]
 			{
 				try
 				{
 					for (auto &File : CFile::fs_FindFiles(WildcardPath, EFileAttrib_File))
 					{
+						// Never touch this instance's own socket; the listen setup replaces a stale file itself and deleting it here races with bind/chmod
+						if (File == OwnSocketPath)
+							continue;
+
 						try
 						{
 							try

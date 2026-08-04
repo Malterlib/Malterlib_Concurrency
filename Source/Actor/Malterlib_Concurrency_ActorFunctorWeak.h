@@ -3,6 +3,8 @@
 
 #pragma once
 
+#include <Mib/Atomic/Atomic>
+
 #include "Malterlib_Concurrency_ActorFunctorShared.hpp"
 
 namespace NMib::NConcurrency
@@ -101,6 +103,82 @@ namespace NMib::NConcurrency
 	};
 
 	extern CActorFunctorWeakHelper const &g_ActorFunctorWeak;
+
+	namespace NPrivate
+	{
+		// Shared dispatch gate for CActorFunctorWeakCoalesced: armed from the invocation that queues
+		// a call until that call disarms on its actor right before running the target
+		struct CActorFunctorWeakCoalescedGate
+		{
+			NAtomic::TCAtomic<bool> m_bArmed = false;
+
+			// Stepped by each delivery as it disarms, so a delivery that fails afterwards can tell
+			// whether the gate it is about to reopen is still its own
+			NAtomic::TCAtomic<uint32> m_Generation = 0;
+		};
+	}
+
+	// Copyable handle over one target functor of signature TCFuture<void> (): all copies share a
+	// gate that admits at most one queued invocation at a time. An invocation that finds the gate
+	// armed resolves immediately; the in-flight call disarms on its actor before running the target,
+	// so the target still observes every conflated caller's writes
+	struct CActorFunctorWeakCoalesced
+	{
+		CActorFunctorWeakCoalesced() = default;
+		CActorFunctorWeakCoalesced(CActorFunctorWeakCoalesced const &) = default;
+		CActorFunctorWeakCoalesced(CActorFunctorWeakCoalesced &&) = default;
+		CActorFunctorWeakCoalesced &operator = (CActorFunctorWeakCoalesced const &) = default;
+		CActorFunctorWeakCoalesced &operator = (CActorFunctorWeakCoalesced &&) = default;
+
+		explicit CActorFunctorWeakCoalesced(TCActorFunctorWeak<TCFuture<void> ()> &&_fTarget);
+
+		TCFuture<void> operator ()() const;
+		TCFuture<void> f_Destroy() &&;
+
+		void f_Clear();
+		bool f_IsEmpty() const;
+		explicit operator bool () const;
+
+	private:
+		template <typename tf_FFunction>
+		friend auto fg_ActorFunctorWeakCoalesced(TCActor<> const &_Actor, tf_FFunction &&_fFunction) -> CActorFunctorWeakCoalesced;
+
+		struct CControl
+		{
+			CControl(NStorage::TCSharedPointer<NPrivate::CActorFunctorWeakCoalescedGate> &&_pGate, TCActorFunctorWeak<TCFuture<void> ()> &&_fTarget);
+
+			NStorage::TCSharedPointer<NPrivate::CActorFunctorWeakCoalescedGate> m_pGate; // Null for a plain wrap
+			TCActorFunctorWeak<TCFuture<void> ()> m_fTarget;
+		};
+
+		CActorFunctorWeakCoalesced(NStorage::TCSharedPointer<NPrivate::CActorFunctorWeakCoalescedGate> &&_pGate, TCActorFunctorWeak<TCFuture<void> ()> &&_fTarget);
+
+		NStorage::TCSharedPointer<CControl> mp_pControl;
+	};
+
+	template <typename tf_FFunction>
+	auto fg_ActorFunctorWeakCoalesced(TCActor<> const &_Actor, tf_FFunction &&_fFunction) -> CActorFunctorWeakCoalesced;
+
+	struct CActorFunctorWeakCoalescedHelperWithProperties
+	{
+		inline CActorFunctorWeakCoalescedHelperWithProperties(TCActor<> const &_Actor);
+
+		template <typename tf_FFunction>
+		inline auto operator / (tf_FFunction &&_fFunction) &&;
+		inline CActorFunctorWeakCoalescedHelperWithProperties &&operator () (TCActor<> const &_Actor) &&;
+
+	private:
+		TCActor<> mp_Actor;
+	};
+
+	struct CActorFunctorWeakCoalescedHelper
+	{
+		template <typename tf_FFunction>
+		inline auto operator / (tf_FFunction &&_fFunction) const;
+		inline CActorFunctorWeakCoalescedHelperWithProperties operator () (TCActor<> const &_Actor) const;
+	};
+
+	extern CActorFunctorWeakCoalescedHelper const &g_ActorFunctorWeakCoalesced;
 }
 
 #ifndef DMibPNoShortCuts

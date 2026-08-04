@@ -73,6 +73,22 @@ namespace NMib::NConcurrency
 					DMibExpect(bFirstTimedOut, ==, false);
 				};
 
+				// Bug: a wait through one wrapper consumed the other wrapper's wake, whose pending
+				// flag then stayed set and suppressed every later wake of it
+				DMibTestCategory("WakeConsumedThroughOtherWrapper")
+				{
+					NStorage::TCSharedPointer<COSMainRunLoop> pFirst = fg_Construct();
+					NStorage::TCSharedPointer<COSMainRunLoop> pSecond = fg_Construct();
+
+					pFirst->f_Wake();
+					bool bSecondTimedOut = pSecond->f_WaitOnceTimeout(0.0);
+					DMibExpect(bSecondTimedOut, ==, false);
+
+					pFirst->f_Wake();
+					bool bFirstTimedOut = pFirst->f_WaitOnceTimeout(0.0);
+					DMibExpect(bFirstTimedOut, ==, false);
+				};
+
 				DMibTestCategory("OSMainLoop") -> TCFuture<void>
 				{
 					auto Capture = co_await (g_CaptureExceptions % "Testing native run-loop reference release");

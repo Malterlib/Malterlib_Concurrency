@@ -11,9 +11,19 @@
 
 namespace NMib::NConcurrency
 {
+	enum class EOSMainRunLoopMode : uint8
+	{
+		mc_RunLoop // Pumps the OS run loop only
+
+		// Also dequeues and routes application events (on macOS through NSApp) once the
+		// application object exists, so windows receive input without the application run loop
+		// owning the thread
+		, mc_ApplicationEvents
+	};
+
 	struct COSMainRunLoop : public CRunLoop
 	{
-		COSMainRunLoop();
+		COSMainRunLoop(EOSMainRunLoopMode _Mode = EOSMainRunLoopMode::mc_RunLoop);
 		~COSMainRunLoop();
 
 		void f_Process() override;
@@ -24,6 +34,7 @@ namespace NMib::NConcurrency
 		NFunction::TCFunctionMovable<void (FActorQueueDispatchNoAlloc &&_Dispatch)> f_Dispatcher() override;
 
 	private:
+		EOSMainRunLoopMode mp_Mode = EOSMainRunLoopMode::mc_RunLoop;
 		align_cacheline CConcurrentRunQueueNonVirtualNoAlloc mp_RunQueue;
 		align_cacheline CConcurrentRunQueueNonVirtualNoAlloc::CLocalQueueData mp_RunQueueLocal;
 

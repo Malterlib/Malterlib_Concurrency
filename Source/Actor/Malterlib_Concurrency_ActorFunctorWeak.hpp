@@ -8,24 +8,24 @@
 
 namespace NMib::NConcurrency
 {
-	template <typename t_CFunction>
+	template <typename t_CFunction, bool t_bCoalesced>
 		requires (!NPrivate::TCAddRValueReferencesToFunctor<t_CFunction>::mc_bAnyReference)
-	TCActorFunctorWeak<t_CFunction>::TCActorFunctorWeak(TCActor<CActor> &&_Actor, CFunction &&_fFunctor)
+	TCActorFunctorWeak<t_CFunction, t_bCoalesced>::TCActorFunctorWeak(TCActor<CActor> &&_Actor, CFunction &&_fFunctor)
 		: mp_Actor(fg_Move(_Actor))
 	{
 		if (_fFunctor)
-			mp_pFunctor = fg_Construct(fg_Move(_fFunctor));
+			mp_pFunctor = NPrivate::fg_ConstructActorFunctorStorage<t_CFunction, t_bCoalesced>(fg_Move(_fFunctor));
 	}
 
-	template <typename t_CFunction>
+	template <typename t_CFunction, bool t_bCoalesced>
 		requires (!NPrivate::TCAddRValueReferencesToFunctor<t_CFunction>::mc_bAnyReference)
-	TCActorFunctorWeak<t_CFunction>::TCActorFunctorWeak(CNullPtr)
+	TCActorFunctorWeak<t_CFunction, t_bCoalesced>::TCActorFunctorWeak(CNullPtr)
 	{
 	}
 
-	template <typename t_CFunction>
+	template <typename t_CFunction, bool t_bCoalesced>
 		requires (!NPrivate::TCAddRValueReferencesToFunctor<t_CFunction>::mc_bAnyReference)
-	TCActorFunctorWeak<t_CFunction>::~TCActorFunctorWeak()
+	TCActorFunctorWeak<t_CFunction, t_bCoalesced>::~TCActorFunctorWeak()
 	{
 		auto Actor = mp_Actor.f_Lock();
 		if (!Actor || !mp_pFunctor)
@@ -36,24 +36,24 @@ namespace NMib::NConcurrency
 			fg_Dispatch(Actor, [pFunctor = fg_Move(mp_pFunctor)] {}).f_DiscardResult();
 	}
 
-	template <typename t_CFunction>
+	template <typename t_CFunction, bool t_bCoalesced>
 		requires (!NPrivate::TCAddRValueReferencesToFunctor<t_CFunction>::mc_bAnyReference)
-	bool TCActorFunctorWeak<t_CFunction>::f_IsEmpty() const
+	bool TCActorFunctorWeak<t_CFunction, t_bCoalesced>::f_IsEmpty() const
 	{
 		return !mp_pFunctor || mp_pFunctor->f_IsEmpty();
 	}
 
-	template <typename t_CFunction>
+	template <typename t_CFunction, bool t_bCoalesced>
 		requires (!NPrivate::TCAddRValueReferencesToFunctor<t_CFunction>::mc_bAnyReference)
-	TCActorFunctorWeak<t_CFunction>::operator bool () const
+	TCActorFunctorWeak<t_CFunction, t_bCoalesced>::operator bool () const
 	{
 		return mp_pFunctor && !mp_pFunctor->f_IsEmpty();
 	}
 
-	template <typename t_CFunction>
+	template <typename t_CFunction, bool t_bCoalesced>
 		requires (!NPrivate::TCAddRValueReferencesToFunctor<t_CFunction>::mc_bAnyReference)
 	template <typename ...tfp_CParams>
-	auto TCActorFunctorWeak<t_CFunction>::f_CallDirect(tfp_CParams &&...p_Params) const -> TCFuture<CStripedReturn>
+	auto TCActorFunctorWeak<t_CFunction, t_bCoalesced>::f_CallDirect(tfp_CParams &&...p_Params) const -> TCFuture<CStripedReturn>
 		requires(NPrivate::cIsActorFunctorCallableWith<t_CFunction, tfp_CParams...>)
 	{
 		auto Actor = mp_Actor.f_Lock();
@@ -63,11 +63,13 @@ namespace NMib::NConcurrency
 
 		using CMoveList = typename NPrivate::TCDecayedTupleHelper<typename NTraits::TCFunctionTraits<t_CFunction>::CParams>::CMoveList;
 
-		if (Actor->f_IsCurrentActorAndProcessing())
-		{
-			return [&]<typename ...tfp_CParams2>(NMeta::TCTypeList<tfp_CParams2...> &&) -> TCFuture<CStripedReturn>
+		constexpr CBindActorOptions c_Direct{EVirtualCall::mc_NotVirtual, EActorCallType::mc_Direct};
+
+		auto fDispatch = [&]<typename ...tfp_CParams2>(NMeta::TCTypeList<tfp_CParams2...> &&) -> TCFuture<CStripedReturn>
+			{
+				if (Actor->f_IsCurrentActorAndProcessing())
 				{
-					return Actor.template f_Bind<&CActor::f_DispatchWithReturnShared<CReturn, tfp_CParams2...>, CBindActorOptions{EVirtualCall::mc_NotVirtual, EActorCallType::mc_Direct}>
+					return Actor.template f_Bind<&CActor::f_DispatchWithReturnSharedCallable<CReturn, CStorage, tfp_CParams2...>, c_Direct>
 						(
 							fg_TempCopy(mp_pFunctor)
 							, fg_CopyOrMove<tfp_CParams2>(fg_Forward<tfp_CParams>(p_Params))...
@@ -75,30 +77,36 @@ namespace NMib::NConcurrency
 						.f_Call()
 					;
 				}
-				(CMoveList())
-			;
+				else
+				{
+					return Actor.template f_Bind<&CActor::f_DispatchWithReturnSharedCallable<CReturn, CStorage, tfp_CParams2...>, EVirtualCall::mc_NotVirtual>
+						(
+							fg_TempCopy(mp_pFunctor)
+							, fg_CopyOrMove<tfp_CParams2>(fg_Forward<tfp_CParams>(p_Params))...
+						)
+						.f_Call()
+					;
+				}
+			}
+		;
+
+		if constexpr (t_bCoalesced)
+		{
+			if (!mp_pFunctor->m_Gate.f_Arm())
+				return g_Void;
+
+			uint32 Generation = mp_pFunctor->m_Gate.f_GetGeneration();
+
+			return NPrivate::fg_ReopenCoalescedGateOnFailure(mp_pFunctor, Generation, fDispatch(CMoveList()));
 		}
 		else
-		{
-			return [&]<typename ...tfp_CParams2>(NMeta::TCTypeList<tfp_CParams2...> &&) -> TCFuture<CStripedReturn>
-				{
-					return Actor.template f_Bind<&CActor::f_DispatchWithReturnShared<CReturn, tfp_CParams2...>, EVirtualCall::mc_NotVirtual>
-						(
-							fg_TempCopy(mp_pFunctor)
-							, fg_CopyOrMove<tfp_CParams2>(fg_Forward<tfp_CParams>(p_Params))...
-						)
-						.f_Call()
-					;
-				}
-				(CMoveList())
-			;
-		}
+			return fDispatch(CMoveList());
 	}
 
-	template <typename t_CFunction>
+	template <typename t_CFunction, bool t_bCoalesced>
 		requires (!NPrivate::TCAddRValueReferencesToFunctor<t_CFunction>::mc_bAnyReference)
 	template <typename ...tfp_CParams>
-	void TCActorFunctorWeak<t_CFunction>::f_CallDiscard(tfp_CParams &&...p_Params) const
+	void TCActorFunctorWeak<t_CFunction, t_bCoalesced>::f_CallDiscard(tfp_CParams &&...p_Params) const
 		requires(NPrivate::cIsActorFunctorCallableWith<t_CFunction, tfp_CParams...>)
 	{
 		auto Actor = mp_Actor.f_Lock();
@@ -106,11 +114,17 @@ namespace NMib::NConcurrency
 		if (!Actor || !mp_pFunctor || !*mp_pFunctor)
 			return;
 
+		if constexpr (t_bCoalesced)
+		{
+			if (!mp_pFunctor->m_Gate.f_Arm())
+				return;
+		}
+
 		using CMoveList = typename NPrivate::TCDecayedTupleHelper<typename NTraits::TCFunctionTraits<t_CFunction>::CParams>::CMoveList;
 
 		return [&]<typename ...tfp_CParams2>(NMeta::TCTypeList<tfp_CParams2...> &&) -> void
 			{
-				return Actor.template f_Bind<&CActor::f_DispatchWithReturnShared<CReturn, tfp_CParams2...>, EVirtualCall::mc_NotVirtual>
+				return Actor.template f_Bind<&CActor::f_DispatchWithReturnSharedCallable<CReturn, CStorage, tfp_CParams2...>, EVirtualCall::mc_NotVirtual>
 					(
 						fg_TempCopy(mp_pFunctor)
 						, fg_CopyOrMove<tfp_CParams2>(fg_Forward<tfp_CParams>(p_Params))...
@@ -122,25 +136,25 @@ namespace NMib::NConcurrency
 		;
 	}
 
-	template <typename t_CFunction>
+	template <typename t_CFunction, bool t_bCoalesced>
 		requires (!NPrivate::TCAddRValueReferencesToFunctor<t_CFunction>::mc_bAnyReference)
-	NStorage::TCOptional<TCActorFunctor<t_CFunction>> TCActorFunctorWeak<t_CFunction>::f_Lock() const
+	NStorage::TCOptional<TCActorFunctor<t_CFunction, t_bCoalesced>> TCActorFunctorWeak<t_CFunction, t_bCoalesced>::f_Lock() const
 	{
 		auto Actor = mp_Actor.f_Lock();
 		if (!Actor)
 			return {};
 
-		TCActorFunctor<t_CFunction> Return;
+		TCActorFunctor<t_CFunction, t_bCoalesced> Return;
 		Return.mp_Actor = fg_Move(Actor);
 		Return.mp_pFunctor = mp_pFunctor;
 
 		return fg_Move(Return);
 	}
 
-	template <typename t_CFunction>
+	template <typename t_CFunction, bool t_bCoalesced>
 		requires (!NPrivate::TCAddRValueReferencesToFunctor<t_CFunction>::mc_bAnyReference)
 	template <typename ...tfp_CParams>
-	auto TCActorFunctorWeak<t_CFunction>::operator ()(tfp_CParams &&...p_Params) const -> TCFuture<CStripedReturn>
+	auto TCActorFunctorWeak<t_CFunction, t_bCoalesced>::operator ()(tfp_CParams &&...p_Params) const -> TCFuture<CStripedReturn>
 		requires(NPrivate::cIsActorFunctorCallableWith<t_CFunction, tfp_CParams...>)
 	{
 		auto Actor = mp_Actor.f_Lock();
@@ -150,9 +164,9 @@ namespace NMib::NConcurrency
 
 		using CMoveList = typename NPrivate::TCDecayedTupleHelper<typename NTraits::TCFunctionTraits<t_CFunction>::CParams>::CMoveList;
 
-		return [&]<typename ...tfp_CParams2>(NMeta::TCTypeList<tfp_CParams2...> &&) -> TCFuture<CStripedReturn>
+		auto fDispatch = [&]<typename ...tfp_CParams2>(NMeta::TCTypeList<tfp_CParams2...> &&) -> TCFuture<CStripedReturn>
 			{
-				return Actor.template f_Bind<&CActor::f_DispatchWithReturnShared<CReturn, tfp_CParams2...>, EVirtualCall::mc_NotVirtual>
+				return Actor.template f_Bind<&CActor::f_DispatchWithReturnSharedCallable<CReturn, CStorage, tfp_CParams2...>, EVirtualCall::mc_NotVirtual>
 					(
 						fg_TempCopy(mp_pFunctor)
 						, fg_CopyOrMove<tfp_CParams2>(fg_Forward<tfp_CParams>(p_Params))...
@@ -160,14 +174,25 @@ namespace NMib::NConcurrency
 					.f_Call()
 				;
 			}
-			(CMoveList())
 		;
+
+		if constexpr (t_bCoalesced)
+		{
+			if (!mp_pFunctor->m_Gate.f_Arm())
+				return g_Void;
+
+			uint32 Generation = mp_pFunctor->m_Gate.f_GetGeneration();
+
+			return NPrivate::fg_ReopenCoalescedGateOnFailure(mp_pFunctor, Generation, fDispatch(CMoveList()));
+		}
+		else
+			return fDispatch(CMoveList());
 	}
 
-	template <typename t_CFunction>
+	template <typename t_CFunction, bool t_bCoalesced>
 		requires (!NPrivate::TCAddRValueReferencesToFunctor<t_CFunction>::mc_bAnyReference)
 	template <typename tf_FDispatcher, typename ...tfp_CParams>
-	auto TCActorFunctorWeak<t_CFunction>::f_CallWrapped(tf_FDispatcher &&_fDispatcher, tfp_CParams &&...p_Params) const -> TCFuture<CStripedReturn>
+	auto TCActorFunctorWeak<t_CFunction, t_bCoalesced>::f_CallWrapped(tf_FDispatcher &&_fDispatcher, tfp_CParams &&...p_Params) const -> TCFuture<CStripedReturn>
 		requires(NPrivate::cIsActorFunctorCallableWith<t_CFunction, tfp_CParams...>)
 	{
 		auto Actor = mp_Actor.f_Lock();
@@ -177,7 +202,7 @@ namespace NMib::NConcurrency
 
 		using CMoveList = typename NPrivate::TCDecayedTupleHelper<typename NTraits::TCFunctionTraits<t_CFunction>::CParams>::CMoveList;
 
-		return [&]<typename ...tfp_CParams2>(NMeta::TCTypeList<tfp_CParams2...> &&) -> TCFuture<CStripedReturn>
+		auto fDispatch = [&]<typename ...tfp_CParams2>(NMeta::TCTypeList<tfp_CParams2...> &&) -> TCFuture<CStripedReturn>
 			{
 				return fg_Dispatch
 					(
@@ -207,43 +232,54 @@ namespace NMib::NConcurrency
 					)
 				;
 			}
-			(CMoveList())
 		;
+
+		if constexpr (t_bCoalesced)
+		{
+			if (!mp_pFunctor->m_Gate.f_Arm())
+				return g_Void;
+
+			uint32 Generation = mp_pFunctor->m_Gate.f_GetGeneration();
+
+			return NPrivate::fg_ReopenCoalescedGateOnFailure(mp_pFunctor, Generation, fDispatch(CMoveList()));
+		}
+		else
+			return fDispatch(CMoveList());
 	}
 
-	template <typename t_CFunction>
+	template <typename t_CFunction, bool t_bCoalesced>
 		requires (!NPrivate::TCAddRValueReferencesToFunctor<t_CFunction>::mc_bAnyReference)
-	TCWeakActor<CActor> const &TCActorFunctorWeak<t_CFunction>::f_GetActor() const
+	TCWeakActor<CActor> const &TCActorFunctorWeak<t_CFunction, t_bCoalesced>::f_GetActor() const
 	{
 		return mp_Actor;
 	}
 
-	template <typename t_CFunction>
+	template <typename t_CFunction, bool t_bCoalesced>
 		requires (!NPrivate::TCAddRValueReferencesToFunctor<t_CFunction>::mc_bAnyReference)
-	auto TCActorFunctorWeak<t_CFunction>::f_GetFunctor() const -> CFunction const &
+	auto TCActorFunctorWeak<t_CFunction, t_bCoalesced>::f_GetFunctor() const -> CFunction const &
 	{
 		DMibFastCheck(mp_pFunctor);
 		return *mp_pFunctor;
 	}
 
-	template <typename t_CFunction>
+	template <typename t_CFunction, bool t_bCoalesced>
 		requires (!NPrivate::TCAddRValueReferencesToFunctor<t_CFunction>::mc_bAnyReference)
-	TCWeakActor<CActor> &TCActorFunctorWeak<t_CFunction>::f_GetActor()
+	TCWeakActor<CActor> &TCActorFunctorWeak<t_CFunction, t_bCoalesced>::f_GetActor()
 	{
 		DMibFastCheck(mp_pFunctor);
 		return mp_Actor;
 	}
 
-	template <typename t_CFunction>
+	template <typename t_CFunction, bool t_bCoalesced>
 		requires (!NPrivate::TCAddRValueReferencesToFunctor<t_CFunction>::mc_bAnyReference)
-	auto TCActorFunctorWeak<t_CFunction>::f_GetFunctor() -> CFunction &
+	auto TCActorFunctorWeak<t_CFunction, t_bCoalesced>::f_GetFunctor() -> CFunction &
 	{
 		return *mp_pFunctor;
 	}
 
-	template <typename t_CFunction>
+	template <typename t_CFunction, bool t_bCoalesced>
 		requires (!NPrivate::TCAddRValueReferencesToFunctor<t_CFunction>::mc_bAnyReference)
-	TCFuture<void> TCActorFunctorWeak<t_CFunction>::f_Destroy() &&
+	TCFuture<void> TCActorFunctorWeak<t_CFunction, t_bCoalesced>::f_Destroy() &&
 	{
 		TCFuture<void> DispatchFuture;
 		auto Actor = mp_Actor.f_Lock();
@@ -289,9 +325,9 @@ namespace NMib::NConcurrency
 		return fg_Move(Promise.m_Future);
 	}
 
-	template <typename t_CFunction>
+	template <typename t_CFunction, bool t_bCoalesced>
 		requires (!NPrivate::TCAddRValueReferencesToFunctor<t_CFunction>::mc_bAnyReference)
-	void TCActorFunctorWeak<t_CFunction>::f_Clear()
+	void TCActorFunctorWeak<t_CFunction, t_bCoalesced>::f_Clear()
 	{
 		auto Actor = mp_Actor.f_Lock();
 		if (Actor && mp_pFunctor)
@@ -307,33 +343,38 @@ namespace NMib::NConcurrency
 		mp_pFunctor.f_Clear();
 	}
 
-	inline CActorFunctorWeakHelperWithProperties::CActorFunctorWeakHelperWithProperties(TCActor<> const &_Actor)
+	template <bool t_bCoalesced>
+	inline TCActorFunctorWeakHelperWithProperties<t_bCoalesced>::TCActorFunctorWeakHelperWithProperties(TCActor<> const &_Actor)
 		: mp_Actor(_Actor)
 	{
 	}
 
+	template <bool t_bCoalesced>
 	template <typename tf_FFunction>
-	inline auto CActorFunctorWeakHelperWithProperties::operator / (tf_FFunction &&_fFunction) &&
+	inline auto TCActorFunctorWeakHelperWithProperties<t_bCoalesced>::operator / (tf_FFunction &&_fFunction) &&
 	{
-		return fg_ActorFunctorWeak(fg_Move(mp_Actor), fg_Forward<tf_FFunction>(_fFunction));
+		return fg_ActorFunctorWeak<t_bCoalesced>(fg_Move(mp_Actor), fg_Forward<tf_FFunction>(_fFunction));
 	}
 
-	inline CActorFunctorWeakHelperWithProperties &&CActorFunctorWeakHelperWithProperties::operator () (TCActor<> const &_Actor) &&
+	template <bool t_bCoalesced>
+	inline TCActorFunctorWeakHelperWithProperties<t_bCoalesced> &&TCActorFunctorWeakHelperWithProperties<t_bCoalesced>::operator () (TCActor<> const &_Actor) &&
 	{
 		mp_Actor = _Actor;
 		return fg_Move(*this);
 	}
 
+	template <bool t_bCoalesced>
 	template <typename tf_FFunction>
-	inline auto CActorFunctorWeakHelper::operator / (tf_FFunction &&_fFunction) const
+	inline auto TCActorFunctorWeakHelper<t_bCoalesced>::operator / (tf_FFunction &&_fFunction) const
 	{
 		auto CurrentActor = fg_CurrentActor();
 		DMibFastCheck(CurrentActor);
-		return fg_ActorFunctorWeak(fg_Move(CurrentActor), fg_Forward<tf_FFunction>(_fFunction));
+		return fg_ActorFunctorWeak<t_bCoalesced>(fg_Move(CurrentActor), fg_Forward<tf_FFunction>(_fFunction));
 	}
 
-	inline CActorFunctorWeakHelperWithProperties CActorFunctorWeakHelper::operator () (TCActor<> const &_Actor) const
+	template <bool t_bCoalesced>
+	inline TCActorFunctorWeakHelperWithProperties<t_bCoalesced> TCActorFunctorWeakHelper<t_bCoalesced>::operator () (TCActor<> const &_Actor) const
 	{
-		return CActorFunctorWeakHelperWithProperties(_Actor);
+		return TCActorFunctorWeakHelperWithProperties<t_bCoalesced>(_Actor);
 	}
 }

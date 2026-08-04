@@ -105,6 +105,24 @@ namespace NMib::NConcurrency
 			requires (!(NPrivate::TCIsFuture<tf_CReturnType>::mc_Value || NPrivate::TCIsAsyncGenerator<tf_CReturnType>::mc_Value))
 		;
 
+		template <typename tf_CReturnType, typename tf_CCallable, typename ...tfp_CParams>
+		tf_CReturnType f_DispatchWithReturnSharedCallable
+			(
+				NStorage::TCSharedPointer<tf_CCallable> &&_pToDispatch
+				, NTraits::TCRemoveQualifiersAndAddRValueReference<tfp_CParams> ...p_Params
+			)
+			requires (NPrivate::TCIsAsyncGenerator<tf_CReturnType>::mc_Value || NPrivate::TCIsFuture<tf_CReturnType>::mc_Value)
+		;
+
+		template <typename tf_CReturnType, typename tf_CCallable, typename ...tfp_CParams>
+		tf_CReturnType f_DispatchWithReturnSharedCallable
+			(
+				NStorage::TCSharedPointer<tf_CCallable> &&_pToDispatch
+				, NTraits::TCRemoveQualifiersAndAddRValueReference<tfp_CParams> ...p_Params
+			)
+			requires (!(NPrivate::TCIsFuture<tf_CReturnType>::mc_Value || NPrivate::TCIsAsyncGenerator<tf_CReturnType>::mc_Value))
+		;
+
 		inline_always CConcurrencyManager &f_ConcurrencyManager() const;
 
 		bool f_SuspendCoroutine(CFutureCoroutineContext &_CoroutineContext);

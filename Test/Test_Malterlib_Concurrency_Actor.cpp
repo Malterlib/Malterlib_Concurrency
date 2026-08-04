@@ -6,6 +6,7 @@
 
 #include <Mib/Concurrency/ConcurrencyManager>
 #include <Mib/Concurrency/ActorFunctor>
+#include <Mib/Concurrency/ActorFunctorWeak>
 #include <Mib/Concurrency/ActorSubscription>
 
 #if 0
@@ -513,6 +514,126 @@ namespace
 
 				// First destroy should complete normally
 				co_await fg_Move(Future1);
+
+				co_return {};
+			};
+			DMibTestSuite("DestructCoalescedFunctor") -> TCFuture<void>
+			{
+				// Destruction completes once the function is gone from its actor
+				TCActor<CActor> Actor = fg_Construct();
+				NStorage::TCSharedPointer<int32> pCaptured = fg_Construct(0);
+				umint nOwnReferences = pCaptured.f_GetRefCount();
+				CActorFunctorWeakCoalesced Functor = g_ActorFunctorWeakCoalesced(Actor) / [pCaptured]() -> TCFuture<void>
+					{
+						co_return {};
+					}
+				;
+				umint nReferencesWhileHeld = pCaptured.f_GetRefCount();
+				DMibExpect(nReferencesWhileHeld, ==, nOwnReferences + 1);
+
+				co_await fg_Move(Functor).f_Destroy();
+				umint nReferencesAfterDestroy = pCaptured.f_GetRefCount();
+				DMibExpect(nReferencesAfterDestroy, ==, nOwnReferences);
+
+				co_return {};
+			};
+			DMibTestSuite("CoalescedFunctor") -> TCFuture<void>
+			{
+				// Calls made while a delivery is queued resolve at once and are covered by it. The target
+				// actor is held busy so that delivery stays queued until it is released; it runs on its
+				// own thread so that blocking it does not take a worker from the pool
+				TCActor<CSeparateThreadActor> Actor(fg_Construct(), "CoalescedTarget");
+				NStorage::TCSharedPointer<NAtomic::TCAtomic<umint>> pDelivered = fg_Construct(umint(0));
+				NStorage::TCSharedPointer<NThread::CEvent> pRelease = fg_Construct();
+				TCPromise<void> BusyPromise;
+				CActorFunctorWeakCoalesced Functor = g_ActorFunctorWeakCoalesced(Actor) / [pDelivered]() -> TCFuture<void>
+					{
+						pDelivered->f_FetchAdd(1);
+						co_return {};
+					}
+				;
+
+				TCFuture<void> Busy = fg_Dispatch
+					(
+						Actor
+						, [BusyPromise, pRelease]
+						{
+							BusyPromise.f_SetResult();
+							pRelease->f_WaitTimeout(g_Timeout);
+						}
+					)
+				;
+				co_await BusyPromise.f_Future();
+
+				TCFuture<void> First = Functor();
+				TCFuture<void> Second = Functor();
+				TCFuture<void> Third = Functor();
+				co_await fg_Move(Second); // Covered by the first delivery, so these resolve while the actor is still busy
+				co_await fg_Move(Third);
+				pRelease->f_SetSignaled();
+				co_await fg_Move(Busy);
+				co_await fg_Move(First);
+				umint nDeliveredAfterBurst = pDelivered->f_Load();
+				DMibExpect(nDeliveredAfterBurst, ==, umint(1));
+
+				co_await Functor();
+				umint nDeliveredAfterReopen = pDelivered->f_Load();
+				DMibExpect(nDeliveredAfterReopen, ==, umint(2));
+
+				if (auto fLocked = Functor.f_Lock())
+					co_await (*fLocked)();
+				umint nDeliveredThroughLock = pDelivered->f_Load();
+				DMibExpect(nDeliveredThroughLock, ==, umint(3));
+
+				co_await fg_Move(Functor).f_Destroy();
+
+				co_return {};
+			};
+			DMibTestSuite("CoalescedFunctorOnOwnActor") -> TCFuture<void>
+			{
+				// On the owning actor a direct call delivers at once, a direct call made while a queued delivery
+				// is armed is covered by it, and destruction clears the function in place
+				TCActor<CActor> Actor = fg_Construct();
+				NStorage::TCSharedPointer<int32> pCaptured = fg_Construct(0);
+				umint nOwnReferences = pCaptured.f_GetRefCount();
+				NStorage::TCSharedPointer<NAtomic::TCAtomic<umint>> pDelivered = fg_Construct(umint(0));
+				NStorage::TCSharedPointer<NAtomic::TCAtomic<umint>> pDeliveredAfterDirect = fg_Construct(umint(0));
+				NStorage::TCSharedPointer<NAtomic::TCAtomic<umint>> pDeliveredWhileArmed = fg_Construct(umint(0));
+				CActorFunctorWeakCoalesced Functor = g_ActorFunctorWeakCoalesced(Actor) / [pDelivered, pCaptured]() -> TCFuture<void>
+					{
+						pDelivered->f_FetchAdd(1);
+						co_return {};
+					}
+				;
+
+				co_await fg_Dispatch
+					(
+						Actor
+						, [&Functor, pDelivered, pDeliveredAfterDirect, pDeliveredWhileArmed]() -> TCFuture<void>
+						{
+							co_await Functor.f_CallDirect();
+							if (auto fLocked = Functor.f_Lock())
+								co_await fLocked->f_CallDirect();
+							pDeliveredAfterDirect->f_Store(pDelivered->f_Load());
+
+							TCFuture<void> Queued = Functor();
+							co_await Functor.f_CallDirect();
+							pDeliveredWhileArmed->f_Store(pDelivered->f_Load());
+							co_await fg_Move(Queued);
+
+							co_await fg_Move(Functor).f_Destroy();
+							co_return {};
+						}
+					)
+				;
+				umint nDeliveredAfterDirect = pDeliveredAfterDirect->f_Load();
+				DMibExpect(nDeliveredAfterDirect, ==, umint(2));
+				umint nDeliveredWhileArmed = pDeliveredWhileArmed->f_Load();
+				DMibExpect(nDeliveredWhileArmed, ==, umint(2));
+				umint nDeliveredAfterQueued = pDelivered->f_Load();
+				DMibExpect(nDeliveredAfterQueued, ==, umint(3));
+				umint nReferencesAfterDestroy = pCaptured.f_GetRefCount();
+				DMibExpect(nReferencesAfterDestroy, ==, nOwnReferences);
 
 				co_return {};
 			};

@@ -7,20 +7,20 @@
 
 namespace NMib::NConcurrency
 {
-	template <typename t_CFunction>
-		requires (!NPrivate::TCAddRValueReferencesToFunctor<t_CFunction>::mc_bAnyReference)
-	struct TCActorFunctorWeak;
-
-	template <typename t_CFunction>
+	// A coalesced functor admits one queued delivery at a time; calls made while one is queued resolve
+	// at once and are covered by it. Only TCFuture<void> () functions can be coalesced
+	template <typename t_CFunction, bool t_bCoalesced>
 		requires (!NPrivate::TCAddRValueReferencesToFunctor<t_CFunction>::mc_bAnyReference)
 	struct TCActorFunctor
 	{
 		using CReturn = typename NTraits::TCFunctionTraits<t_CFunction>::CReturn;
 		using CFunction = NFunction::TCFunctionMovable<typename NPrivate::TCAddRValueReferencesToFunctor<t_CFunction>::CType>;
+		using CStorage = typename NPrivate::TCActorFunctorStorage<t_CFunction, t_bCoalesced>::CType;
 		static_assert(NPrivate::TCIsFuture<CReturn>::mc_Value || NPrivate::TCIsAsyncGenerator<CReturn>::mc_Value, "You need to return a future or async generator");
+		static_assert(!t_bCoalesced || NPrivate::cIsCoalescableActorFunction<t_CFunction>, "Only TCFuture<void> () functors can be coalesced");
 		using CStripedReturn = typename NPrivate::TCIsFuture<CReturn>::CType;
 
-		friend struct TCActorFunctorWeak<t_CFunction>;
+		friend struct TCActorFunctorWeak<t_CFunction, t_bCoalesced>;
 
 		TCActorFunctor() = default;
 		TCActorFunctor(TCActorFunctor &&) = default;
@@ -68,11 +68,11 @@ namespace NMib::NConcurrency
 
 	protected:
 		TCActor<CActor> mp_Actor;
-		NStorage::TCSharedPointer<CFunction> mp_pFunctor;
+		NStorage::TCSharedPointer<CStorage> mp_pFunctor;
 		CActorSubscription mp_Subscription;
 	};
 
-	template <typename tf_CFunctor>
+	template <bool t_bCoalesced = false, typename tf_CFunctor>
 	auto fg_ActorFunctor(TCActor<> const &_Actor, tf_CFunctor &&_fFunctor, CActorSubscription &&_Subscription = nullptr)
 	{
 		using CFunction = NPrivate::TCRemoveReferencesFromFunctor
@@ -82,33 +82,40 @@ namespace NMib::NConcurrency
 			::CType
 		;
 
-		return TCActorFunctor<CFunction>{fg_TempCopy(_Actor), fg_Forward<tf_CFunctor>(_fFunctor), fg_Move(_Subscription)};
+		return TCActorFunctor<CFunction, t_bCoalesced>{fg_TempCopy(_Actor), fg_Forward<tf_CFunctor>(_fFunctor), fg_Move(_Subscription)};
 	}
 
-	struct CActorFunctorHelperWithProperties
+	template <bool t_bCoalesced>
+	struct TCActorFunctorHelperWithProperties
 	{
-		inline CActorFunctorHelperWithProperties(TCActor<> const &_Actor);
-		inline CActorFunctorHelperWithProperties(TCActor<> const &_Actor, CActorSubscription &&_Subscription);
+		inline TCActorFunctorHelperWithProperties(TCActor<> const &_Actor);
+		inline TCActorFunctorHelperWithProperties(TCActor<> const &_Actor, CActorSubscription &&_Subscription);
 
 		template <typename tf_FFunction>
 		inline auto operator / (tf_FFunction &&_fFunction) &&;
-		inline CActorFunctorHelperWithProperties &&operator () (TCActor<> const &_Actor) &&;
-		inline CActorFunctorHelperWithProperties &&operator () (CActorSubscription &&_Subscription) &&;
+		inline TCActorFunctorHelperWithProperties &&operator () (TCActor<> const &_Actor) &&;
+		inline TCActorFunctorHelperWithProperties &&operator () (CActorSubscription &&_Subscription) &&;
 
 	private:
 		TCActor<> mp_Actor;
 		CActorSubscription mp_Subscription;
 	};
 
-	struct CActorFunctorHelper
+	template <bool t_bCoalesced>
+	struct TCActorFunctorHelper
 	{
 		template <typename tf_FFunction>
 		inline auto operator / (tf_FFunction &&_fFunction) const;
-		inline CActorFunctorHelperWithProperties operator () (TCActor<> const &_Actor) const;
-		inline CActorFunctorHelperWithProperties operator () (CActorSubscription &&_Subscription) const;
+		inline TCActorFunctorHelperWithProperties<t_bCoalesced> operator () (TCActor<> const &_Actor) const;
+		inline TCActorFunctorHelperWithProperties<t_bCoalesced> operator () (CActorSubscription &&_Subscription) const;
 	};
 
+	using CActorFunctorHelperWithProperties = TCActorFunctorHelperWithProperties<false>;
+	using CActorFunctorHelper = TCActorFunctorHelper<false>;
+	using CActorFunctorCoalesced = TCActorFunctor<TCFuture<void> (), true>;
+
 	extern CActorFunctorHelper const &g_ActorFunctor;
+	extern TCActorFunctorHelper<true> const &g_ActorFunctorCoalesced;
 }
 
 #ifndef DMibPNoShortCuts

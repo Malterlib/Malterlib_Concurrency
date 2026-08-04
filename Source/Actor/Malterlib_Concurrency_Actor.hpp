@@ -951,6 +951,29 @@ namespace NMib::NConcurrency
 		return (*_pToDisptach)(fg_Move(p_Params)...);
 	}
 
+	// The shared pointer keeps the callable alive for as long as the call runs, whatever type owns it
+	template <typename tf_CReturnType, typename tf_CCallable, typename ...tfp_CParams>
+	mark_no_coroutine_debug tf_CReturnType CActor::f_DispatchWithReturnSharedCallable
+		(
+			NStorage::TCSharedPointer<tf_CCallable> &&_pToDispatch
+			, NTraits::TCRemoveQualifiersAndAddRValueReference<tfp_CParams> ...p_Params
+		)
+		requires (NPrivate::TCIsAsyncGenerator<tf_CReturnType>::mc_Value || NPrivate::TCIsFuture<tf_CReturnType>::mc_Value)
+	{
+		return fp_DispatchWithReturnCoroutine<tf_CReturnType>(fg_Move(_pToDispatch), fg_Move(p_Params)...);
+	}
+
+	template <typename tf_CReturnType, typename tf_CCallable, typename ...tfp_CParams>
+	mark_no_coroutine_debug tf_CReturnType CActor::f_DispatchWithReturnSharedCallable
+		(
+			NStorage::TCSharedPointer<tf_CCallable> &&_pToDispatch
+			, NTraits::TCRemoveQualifiersAndAddRValueReference<tfp_CParams> ...p_Params
+		)
+		requires (!(NPrivate::TCIsFuture<tf_CReturnType>::mc_Value || NPrivate::TCIsAsyncGenerator<tf_CReturnType>::mc_Value))
+	{
+		return (*_pToDispatch)(fg_Move(p_Params)...);
+	}
+
 	template <typename t_CActor>
 	TCRoundRobinActors<t_CActor>::TCRoundRobinActors(umint _nActors)
 	{

@@ -91,6 +91,12 @@ namespace NMib::NConcurrency
 		template <typename tf_CFunction, uint32 tf_SubscriptionID>
 		void f_Feed(TCActorFunctorWithID<tf_CFunction, tf_SubscriptionID> &&_ActorFunctor);
 
+		// A remote call must never be dropped, so a coalesced functor cannot be published
+		template <typename tf_CFunction>
+		void f_Feed(TCActorFunctor<tf_CFunction, true> &&_ActorFunctor) = delete;
+		template <typename tf_CFunction>
+		void f_Feed(TCActorFunctorWeak<tf_CFunction, true> &&_ActorFunctor) = delete;
+
 		template <typename tf_CFunction, uint32 tf_SubscriptionID>
 		void f_Feed(TCDistributedActorInterfaceWithID<tf_CFunction, tf_SubscriptionID> &&_ActorInterface);
 
@@ -138,6 +144,11 @@ namespace NMib::NConcurrency
 
 		template <typename tf_CFunction, uint32 tf_SubscriptionID>
 		void f_Consume(TCActorFunctorWithID<tf_CFunction, tf_SubscriptionID> &_ActorFunctor);
+
+		template <typename tf_CFunction>
+		void f_Consume(TCActorFunctor<tf_CFunction, true> &_ActorFunctor) = delete;
+		template <typename tf_CFunction>
+		void f_Consume(TCActorFunctorWeak<tf_CFunction, true> &_ActorFunctor) = delete;
 
 		template <typename tf_CFunction, uint32 tf_SubscriptionID>
 		void f_Consume(TCDistributedActorInterfaceWithID<tf_CFunction, tf_SubscriptionID> &_ActorInterface);

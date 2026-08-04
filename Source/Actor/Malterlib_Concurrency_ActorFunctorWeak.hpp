@@ -336,4 +336,61 @@ namespace NMib::NConcurrency
 	{
 		return CActorFunctorWeakHelperWithProperties(_Actor);
 	}
+
+	template <typename tf_FFunction>
+	auto fg_ActorFunctorWeakCoalesced(TCActor<> const &_Actor, tf_FFunction &&_fFunction) -> CActorFunctorWeakCoalesced
+	{
+		NStorage::TCSharedPointer<NPrivate::CActorFunctorWeakCoalescedGate> pGate = fg_Construct();
+
+		// The disarm rides inside the delivery coroutine so it runs on the target actor right
+		// before the target does; the target is invoked through fg_CallSafe, which pins a copy of
+		// it for the lifetime of its coroutine
+		auto fWrapped = fg_ActorFunctorWeak
+			(
+				_Actor
+				, [pGate, fFunction = fg_Forward<tf_FFunction>(_fFunction)]() -> TCFuture<void>
+				{
+					// Disarm before the target: a change conflated while this delivery was queued
+					// is observed by it, and a change after this point re-arms a fresh delivery
+					pGate->m_bArmed.f_Exchange(false);
+
+					co_await fg_CallSafe(fg_TempCopy(fFunction));
+
+					co_return {};
+				}
+			)
+		;
+
+		return CActorFunctorWeakCoalesced(fg_Move(pGate), fg_Move(fWrapped));
+	}
+
+	inline CActorFunctorWeakCoalescedHelperWithProperties::CActorFunctorWeakCoalescedHelperWithProperties(TCActor<> const &_Actor)
+		: mp_Actor(_Actor)
+	{
+	}
+
+	template <typename tf_FFunction>
+	inline auto CActorFunctorWeakCoalescedHelperWithProperties::operator / (tf_FFunction &&_fFunction) &&
+	{
+		return fg_ActorFunctorWeakCoalesced(fg_Move(mp_Actor), fg_Forward<tf_FFunction>(_fFunction));
+	}
+
+	inline CActorFunctorWeakCoalescedHelperWithProperties &&CActorFunctorWeakCoalescedHelperWithProperties::operator () (TCActor<> const &_Actor) &&
+	{
+		mp_Actor = _Actor;
+		return fg_Move(*this);
+	}
+
+	template <typename tf_FFunction>
+	inline auto CActorFunctorWeakCoalescedHelper::operator / (tf_FFunction &&_fFunction) const
+	{
+		auto CurrentActor = fg_CurrentActor();
+		DMibFastCheck(CurrentActor);
+		return fg_ActorFunctorWeakCoalesced(fg_Move(CurrentActor), fg_Forward<tf_FFunction>(_fFunction));
+	}
+
+	inline CActorFunctorWeakCoalescedHelperWithProperties CActorFunctorWeakCoalescedHelper::operator () (TCActor<> const &_Actor) const
+	{
+		return CActorFunctorWeakCoalescedHelperWithProperties(_Actor);
+	}
 }

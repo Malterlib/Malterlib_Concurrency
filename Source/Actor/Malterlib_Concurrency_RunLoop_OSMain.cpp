@@ -7,7 +7,18 @@
 
 namespace NMib::NConcurrency
 {
-	COSMainRunLoop::COSMainRunLoop()
+#if defined(DPlatformFamily_macOS)
+	namespace NPrivate
+	{
+		// Implemented in Malterlib_Concurrency_RunLoop_OSMain_MacOS.mm; a negative timeout waits
+		// indefinitely, the return value is true when the wait timed out
+		bool fg_OSMainRunLoop_WaitApplicationEvent(fp64 _Timeout);
+		void fg_OSMainRunLoop_WakeApplication();
+	}
+#endif
+
+	COSMainRunLoop::COSMainRunLoop(EOSMainRunLoopMode _Mode)
+		: mp_Mode(_Mode)
 	{
 #if defined(DPlatformFamily_macOS)
 #else
@@ -66,7 +77,10 @@ namespace NMib::NConcurrency
 		if (!mp_bPendingWake.f_Exchange(false))
 		{
 #if defined(DPlatformFamily_macOS)
-			CFRunLoopRun();
+			if (mp_Mode == EOSMainRunLoopMode::mc_ApplicationEvents)
+				NPrivate::fg_OSMainRunLoop_WaitApplicationEvent(-1.0);
+			else
+				CFRunLoopRun();
 #endif
 		}
 	}
@@ -78,6 +92,9 @@ namespace NMib::NConcurrency
 		if (!mp_bPendingWake.f_Exchange(false))
 		{
 #if defined(DPlatformFamily_macOS)
+			if (mp_Mode == EOSMainRunLoopMode::mc_ApplicationEvents)
+				return NPrivate::fg_OSMainRunLoop_WaitApplicationEvent(_Timeout);
+
 			return CFRunLoopRunInMode(kCFRunLoopDefaultMode, _Timeout.f_Get(), false) == kCFRunLoopRunTimedOut;
 #endif
 		}
@@ -86,10 +103,17 @@ namespace NMib::NConcurrency
 
 	void COSMainRunLoop::f_Wake()
 	{
-		mp_bPendingWake = true;
+		// Coalesce: an unconsumed wake already guarantees the waiter will not block, so repeated
+		// wakes need no further signaling (posting application events in particular is not cheap)
+		if (mp_bPendingWake.f_Exchange(true))
+			return;
+
 #if defined(DPlatformFamily_macOS)
 		CFRunLoopSourceSignal(mp_pRunLoopSourceRef);
 		CFRunLoopWakeUp(mp_RunLoopRef);
+
+		if (mp_Mode == EOSMainRunLoopMode::mc_ApplicationEvents)
+			NPrivate::fg_OSMainRunLoop_WakeApplication();
 #endif
 	}
 
@@ -116,9 +140,11 @@ namespace NMib::NConcurrency
 		return [pThis = NStorage::TCSharedPointer<COSMainRunLoop>(fg_Explicit(this))](FActorQueueDispatchNoAlloc &&_Dispatch)
 			{
 				pThis->mp_RunQueue.f_AddToQueue(fg_Move(_Dispatch));
-#if defined(DPlatformFamily_macOS)
-				CFRunLoopStop(pThis->mp_RunLoopRef);
-#endif
+
+				// The wake knows the mode: stopping the run loop is not enough once the wait is the
+				// application's event dequeue, which only a posted event returns from, and a stop
+				// that lands before the loop runs is lost where the pending wake is not
+				pThis->f_Wake();
 			}
 		;
 	}

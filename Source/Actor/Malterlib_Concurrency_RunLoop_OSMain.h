@@ -14,9 +14,15 @@ DMibDefineSharedPointerType(NMib::NConcurrency::NPrivate::COSMainRunLoopWakeStat
 
 namespace NMib::NConcurrency
 {
+	enum class EOSMainRunLoopMode : uint8
+	{
+		mc_RunLoop
+		, mc_ApplicationEvents // Routes application events once the application object exists.
+	};
+
 	struct COSMainRunLoop : public CRunLoop
 	{
-		COSMainRunLoop();
+		COSMainRunLoop(EOSMainRunLoopMode _Mode = EOSMainRunLoopMode::mc_RunLoop);
 		~COSMainRunLoop();
 
 		void f_Process() override;

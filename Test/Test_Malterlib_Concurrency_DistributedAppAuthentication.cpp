@@ -940,6 +940,18 @@ namespace NTestAuthentication
 			co_return {};
 		}
 
+		TCFuture<void> f_Clipboard_SetText(NStr::CStrIO _Text) override
+		{
+			DMibNeverGetHere;
+			co_return {};
+		}
+
+		TCFuture<NStr::CStrIO> f_Clipboard_GetText() override
+		{
+			DMibNeverGetHere;
+			co_return {};
+		}
+
 		TCFuture<void> f_ReturnString(NStr::CStrSecure _String)
 		{
 			m_ReturnValues.f_InsertLast(_String);

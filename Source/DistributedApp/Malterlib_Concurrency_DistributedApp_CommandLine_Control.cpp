@@ -28,6 +28,8 @@ namespace NMib::NConcurrency
 		DMibPublishActorFunction(ICCommandLineControl::f_ReadLine);
 		DMibPublishActorFunction(ICCommandLineControl::f_ReadPrompt);
 		DMibPublishActorFunction(ICCommandLineControl::f_AbortReads);
+		DMibPublishActorFunction(ICCommandLineControl::f_Clipboard_SetText);
+		DMibPublishActorFunction(ICCommandLineControl::f_Clipboard_GetText);
 		DMibPublishActorFunction(ICCommandLineControl::f_StdOut);
 		DMibPublishActorFunction(ICCommandLineControl::f_StdOutBinary);
 		DMibPublishActorFunction(ICCommandLineControl::f_StdErr);
@@ -233,6 +235,13 @@ namespace NMib::NConcurrency
 		if (!f_SupportsClipboard())
 			return DMibErrorInstance("Command line peer does not support clipboard access");
 		return m_ControlActor.f_CallActor(&ICCommandLineControl::f_Clipboard_SetText)(_Text);
+	}
+
+	TCFuture<CStrIO> CCommandLineControl::f_Clipboard_GetText() const
+	{
+		if (!f_SupportsClipboard())
+			return DMibErrorInstance("Command line peer does not support clipboard access");
+		return m_ControlActor.f_CallActor(&ICCommandLineControl::f_Clipboard_GetText)();
 	}
 
 	auto CCommandLineControl::f_RegisterForScreenChange(ICCommandLineControl::FOnScreenChange &&_fOnScreenChange) const -> TCFuture<TCActorSubscriptionWithID<>>

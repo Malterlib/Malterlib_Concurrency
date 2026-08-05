@@ -182,6 +182,30 @@ namespace NMib::NConcurrency
 				co_return {};
 			}
 
+			TCFuture<void> f_Clipboard_SetText(NStr::CStrIO _Text) override
+			{
+				if (auto Destroyed = fp_CheckDestroyed())
+					co_return Destroyed;
+
+				if (!NSys::fg_Clipboard_SetText(_Text))
+					co_return DMibErrorInstance("Failed to store text in the system clipboard");
+
+				co_return {};
+			}
+
+			TCFuture<NStr::CStrIO> f_Clipboard_GetText() override
+			{
+				if (auto Destroyed = fp_CheckDestroyed())
+					co_return Destroyed;
+
+				NStr::CStr Text;
+
+				if (!NSys::fg_Clipboard_GetText(Text))
+					co_return DMibErrorInstance("Failed to read text from the system clipboard");
+
+				co_return NStr::CStrIO(fg_Move(Text));
+			}
+
 			TCFuture<bool> f_Cancel()
 			{
 				TCFutureVector<bool> Results;

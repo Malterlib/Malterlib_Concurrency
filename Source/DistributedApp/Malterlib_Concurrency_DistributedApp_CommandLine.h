@@ -58,8 +58,9 @@ namespace NMib::NConcurrency
 			EProtocolVersion_Min = 0x107
 
 			, EProtocolVersion_SupportScreenChange = 0x108
+			, EProtocolVersion_SupportClipboard = 0x109
 
-			, EProtocolVersion_Current = 0x108
+			, EProtocolVersion_Current = 0x109
 		};
 
 		struct CU2FAuthenticate
@@ -147,6 +148,11 @@ namespace NMib::NConcurrency
 		virtual NConcurrency::TCFuture<void> f_StdOutBinary(NContainer::CIOByteVector _Output) = 0;
 		virtual NConcurrency::TCFuture<void> f_StdOut(NStr::CStrIO _Output) = 0;
 		virtual NConcurrency::TCFuture<void> f_StdErr(NStr::CStrIO _Output) = 0;
+
+		// System clipboard of the client host, so applications reach the clipboard at the user's
+		// seat even when they run remotely
+		virtual NConcurrency::TCFuture<void> f_Clipboard_SetText(NStr::CStrIO _Text) = 0;
+		virtual NConcurrency::TCFuture<NStr::CStrIO> f_Clipboard_GetText() = 0;
 
 		virtual NConcurrency::TCFuture<CU2FRegister::CResult> f_U2F_Register(CU2FRegister _Register) = 0;
 		virtual NConcurrency::TCFuture<CU2FAuthenticate::CResult> f_U2F_Authenticate(CU2FAuthenticate _Authenticate) = 0;

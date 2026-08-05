@@ -5,6 +5,33 @@
 
 namespace NMib::NConcurrency
 {
+	constexpr EClientPlatform fg_GetLocalClientPlatform()
+	{
+#if defined(DPlatformFamily_Windows)
+		return EClientPlatform::mc_Windows;
+#elif defined(DPlatformFamily_macOS)
+		return EClientPlatform::mc_MacOS;
+#elif defined(DPlatformFamily_Linux)
+		return EClientPlatform::mc_Linux;
+#else
+		return EClientPlatform::mc_Unknown;
+#endif
+	}
+
+	template <typename tf_CStream>
+	void CCommandLineClientInfo::f_Stream(tf_CStream &_Stream)
+	{
+		_Stream % m_Platform;
+		_Stream % m_PlatformFamily;
+		_Stream % m_Terminal;
+		_Stream % m_TerminalProgram;
+		_Stream % m_TerminalProgramVersion;
+		_Stream % m_ColorTerm;
+		_Stream % m_Locale;
+		_Stream % m_UTCOffsetSeconds;
+		_Stream % m_bClipboardSupported;
+	}
+
 	template <typename tf_CStream>
 	void ICCommandLineControl::CScreenChange::f_Stream(tf_CStream &_Stream)
 	{
@@ -26,6 +53,8 @@ namespace NMib::NConcurrency
 			_Stream % m_CommandLineGlyphHeight;
 		}
 		_Stream % m_AnsiFlags;
+		if (_Stream.f_GetVersion() >= ICCommandLine::EProtocolVersion_SupportClientInfo)
+			_Stream % m_ClientInfo;
 	}
 
 	template <typename tf_CStream>

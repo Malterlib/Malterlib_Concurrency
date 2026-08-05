@@ -17,6 +17,35 @@ namespace NMib::NCommandLine
 
 namespace NMib::NConcurrency
 {
+	enum class EClientPlatform : uint32
+	{
+		mc_Unknown = 0
+		, mc_Windows
+		, mc_MacOS
+		, mc_Linux
+	};
+
+	constexpr EClientPlatform fg_GetLocalClientPlatform();
+
+	// Client-host facts unavailable locally for remote clients, including environment-based terminal identity.
+	struct CCommandLineClientInfo
+	{
+		template <typename tf_CStream>
+		void f_Stream(tf_CStream &_Stream);
+
+		static CCommandLineClientInfo fs_CollectLocal();
+
+		NStr::CStr m_PlatformFamily; // Exact compile time platform family, DMibStringize(DPlatformFamily)
+		NStr::CStr m_Terminal; // $TERM
+		NStr::CStr m_TerminalProgram; // $TERM_PROGRAM
+		NStr::CStr m_TerminalProgramVersion; // $TERM_PROGRAM_VERSION
+		NStr::CStr m_ColorTerm; // $COLORTERM
+		NStr::CStr m_Locale; // $LC_ALL falling back to $LANG
+		EClientPlatform m_Platform = EClientPlatform::mc_Unknown;
+		int32 m_UTCOffsetSeconds = 0; // Client local time offset from UTC when the command started
+		bool m_bClipboardSupported = false;
+	};
+
 	struct ICCommandLineControl : public CActor
 	{
 		enum : uint32
@@ -154,6 +183,11 @@ namespace NMib::NConcurrency
 
 		// False when the connected command line peer negotiated a protocol without f_RegisterForScreenChange
 		bool f_SupportsScreenChange() const;
+		EClientPlatform f_GetClientPlatform() const;
+		bool f_SupportsClipboard() const;
+
+		NConcurrency::TCFuture<void> f_Clipboard_SetText(NStr::CStrIO const &_Text) const;
+		NConcurrency::TCFuture<NStr::CStrIO> f_Clipboard_GetText() const;
 		NConcurrency::TCFuture<NConcurrency::TCActorSubscriptionWithID<>> f_RegisterForScreenChange(ICCommandLineControl::FOnScreenChange &&_fOnScreenChange) const;
 
 		NConcurrency::TCFuture<NContainer::CIOByteVector> f_ReadBinary() const;
@@ -172,6 +206,7 @@ namespace NMib::NConcurrency
 		uint32 m_CommandLineGlyphWidth = 0;
 		uint32 m_CommandLineGlyphHeight = 0;
 		NCommandLine::EAnsiEncodingFlag m_AnsiFlags = NCommandLine::EAnsiEncodingFlag_None;
+		CCommandLineClientInfo m_ClientInfo;
 	private:
 		static TCFuture<void> fsp_SendStdOutBinary(CCommandLineControl const &_This, uint8 const *_pData, umint _DataLen);
 	};
@@ -183,8 +218,9 @@ namespace NMib::NConcurrency
 			EProtocolVersion_Min = 0x103
 
 			, EProtocolVersion_SupportGlyphSize = 0x104
+			, EProtocolVersion_SupportClientInfo = 0x105
 
-			, EProtocolVersion_Current = 0x104
+			, EProtocolVersion_Current = 0x105
 		};
 
 		ICCommandLine();

@@ -416,6 +416,7 @@ namespace NMib::NConcurrency
 			CommandLineControl.m_CommandLineGlyphWidth = mp_CommandLineGlyphWidth;
 			CommandLineControl.m_CommandLineGlyphHeight = mp_CommandLineGlyphHeight;
 			CommandLineControl.m_AnsiFlags = mp_AnsiFlags;
+			CommandLineControl.m_ClientInfo = CCommandLineClientInfo::fs_CollectLocal();
 
 			struct CState
 			{

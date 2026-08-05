@@ -181,6 +181,60 @@ namespace NMib::NConcurrency
 		return m_ControlActor.f_GetProtocolVersions().m_MaxSupported >= ICCommandLineControl::EProtocolVersion_SupportScreenChange;
 	}
 
+	CCommandLineClientInfo CCommandLineClientInfo::fs_CollectLocal()
+	{
+		CSystem &System = *fg_GetSys();
+
+		CCommandLineClientInfo Info;
+		Info.m_Platform = fg_GetLocalClientPlatform();
+		Info.m_PlatformFamily = DMibStringize(DPlatformFamily);
+		Info.m_Terminal = System.f_GetEnvironmentVariable("TERM");
+		Info.m_TerminalProgram = System.f_GetEnvironmentVariable("TERM_PROGRAM");
+		Info.m_TerminalProgramVersion = System.f_GetEnvironmentVariable("TERM_PROGRAM_VERSION");
+		Info.m_ColorTerm = System.f_GetEnvironmentVariable("COLORTERM");
+		Info.m_Locale = System.f_GetEnvironmentVariable("LC_ALL");
+
+		if (Info.m_Locale.f_IsEmpty())
+			Info.m_Locale = System.f_GetEnvironmentVariable("LANG");
+
+		NTime::CTimeSpan UTCOffset;
+
+		NTime::CSystem_Time::fs_TimeGetUTCOffset(&UTCOffset);
+		Info.m_UTCOffsetSeconds = int32(UTCOffset.f_GetSeconds());
+
+		Info.m_bClipboardSupported = NSys::fg_Clipboard_Supported();
+
+		return Info;
+	}
+
+	EClientPlatform CCommandLineControl::f_GetClientPlatform() const
+	{
+		// Peers without client info leave the field unknown; the local platform is the right
+		// default for the common same-host client
+		if (m_ClientInfo.m_Platform == EClientPlatform::mc_Unknown)
+			return fg_GetLocalClientPlatform();
+
+		return m_ClientInfo.m_Platform;
+	}
+
+	bool CCommandLineControl::f_SupportsClipboard() const
+	{
+		if (!m_ControlActor)
+			return false;
+
+		if (m_ControlActor.f_GetProtocolVersions().m_MaxSupported < ICCommandLineControl::EProtocolVersion_SupportClipboard)
+			return false;
+
+		return m_ClientInfo.m_bClipboardSupported;
+	}
+
+	TCFuture<void> CCommandLineControl::f_Clipboard_SetText(CStrIO const &_Text) const
+	{
+		if (!f_SupportsClipboard())
+			return DMibErrorInstance("Command line peer does not support clipboard access");
+		return m_ControlActor.f_CallActor(&ICCommandLineControl::f_Clipboard_SetText)(_Text);
+	}
+
 	auto CCommandLineControl::f_RegisterForScreenChange(ICCommandLineControl::FOnScreenChange &&_fOnScreenChange) const -> TCFuture<TCActorSubscriptionWithID<>>
 	{
 		TCPromise<TCActorSubscriptionWithID<>> Promise;

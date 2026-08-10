@@ -604,8 +604,10 @@ namespace NMib::NConcurrency
 
 		bool fp_HasCommandLineAccess(NStr::CStr const &_HostID);
 
+		bool fp_UseAuthenticatedUnixForLocalSockets() const;
 		NWeb::NHTTP::CURL fp_GetLocalAddress() const;
-		NStr::CStr fp_GetLocalHostname(bool _bEnclaveSpecific) const;
+		NWeb::NHTTP::CURL fp_GetLocalAddressForTransport(bool _bAuthenticatedUnix) const;
+		NStr::CStr fp_GetLocalHostname(ELocalSocketFlag _Flags) const;
 		NContainer::TCMap<NStr::CStr, NStr::CStr> fp_GetTranslateHostnames() const;
 		void fp_MakeActive();
 #if DMibEnableSafeCheck > 0

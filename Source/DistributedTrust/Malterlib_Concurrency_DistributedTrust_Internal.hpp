@@ -24,4 +24,12 @@ namespace NMib::NConcurrency
 	{
 		return NContainer::TCMap<CPermissionIdentifiers, CPermissionState>::fs_GetKey(*this);
 	}
+
+	inline NStr::CStr CDistributedActorTrustManager::CInternal::f_TranslateHostname(NStr::CStr const &_Hostname) const
+	{
+		if (auto *pTranslate = m_TranslateHostnames.f_FindEqual(_Hostname))
+			return *pTranslate;
+
+		return _Hostname;
+	}
 }

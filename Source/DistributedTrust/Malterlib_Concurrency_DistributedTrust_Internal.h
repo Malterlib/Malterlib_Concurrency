@@ -235,6 +235,8 @@ namespace NMib::NConcurrency
 			)
 		;
 
+		NStr::CStr f_TranslateHostname(NStr::CStr const &_Hostname) const;
+
 		NStorage::TCSharedPointer<bool> m_pDestroyed = fg_Construct(false);
 		CDistributedActorTrustManager *m_pThis;
 		TCActor<ICDistributedActorTrustManagerDatabase> m_Database;

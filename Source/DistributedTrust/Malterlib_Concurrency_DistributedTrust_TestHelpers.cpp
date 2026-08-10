@@ -97,6 +97,9 @@ namespace NMib::NConcurrency
 
 	TCFuture<void> CTrustManagerDatabaseTestHelper::f_RemoveListenConfig(CListenConfig _Config)
 	{
+		if (m_PrimaryListen && *m_PrimaryListen == _Config.m_Address)
+			m_PrimaryListen.f_Clear();
+
 		if (!m_ListenConfigs.f_Remove(_Config))
 			co_return DMibErrorInstance("Listen config does not exist");
 
@@ -429,7 +432,13 @@ namespace NMib::NConcurrency
 		co_return {};
 	}
 
-	TCActor<CDistributedActorTrustManager> CTrustManagerTestHelper::f_TrustManager(NStr::CStr const &_FriendlyName, CStr const &_SessionID, bool _bSupportAuthentication) const
+	TCActor<CDistributedActorTrustManager> CTrustManagerTestHelper::f_TrustManager
+		(
+			NStr::CStr const &_FriendlyName
+			, CStr const &_SessionID
+			, bool _bSupportAuthentication
+			, NCryptography::CPublicKeySetting const &_KeySetting
+		) const
 	{
 		CDistributedActorTrustManager::COptions Options{.m_ReconnectDelay = 1_ms};
 
@@ -438,7 +447,7 @@ namespace NMib::NConcurrency
 				return fg_ConstructActor<CActorDistributionManager>(_Settings);
 			}
 		;
-		Options.m_KeySetting = CDistributedActorTestKeySettings{};
+		Options.m_KeySetting = _KeySetting;
 		Options.m_ListenFlags = NNetwork::ENetFlag_None;
 		Options.m_FriendlyName = _FriendlyName;
 		Options.m_Enclave = _SessionID;

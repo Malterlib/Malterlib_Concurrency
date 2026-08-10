@@ -5,6 +5,8 @@
 #include <Mib/Concurrency/DistributedActorTrustManagerDatabases/JsonDirectory>
 #include <Mib/Concurrency/ActorSubscription>
 
+#include <Mib/Network/Sockets/AuthenticatedUnix>
+
 #include "Malterlib_Concurrency_DistributedApp.h"
 #include "Malterlib_Concurrency_DistributedApp_Internal.h"
 
@@ -159,16 +161,31 @@ namespace NMib::NConcurrency
 
 	TCFuture<void> CDistributedAppActor::fp_SetupCommandLineListen()
 	{
+		bool bAuthenticatedUnix = fp_UseAuthenticatedUnixForLocalSockets();
+
 		CDistributedActorTrustManager_Address LocalListenAddress;
-		LocalListenAddress.m_URL = fp_GetLocalAddress();
-
-		if (co_await mp_State.m_TrustManager(&CDistributedActorTrustManager::f_HasListen, LocalListenAddress))
-			co_return {};
-
-		co_await mp_State.m_TrustManager(&CDistributedActorTrustManager::f_AddListen, LocalListenAddress);
+		LocalListenAddress.m_URL = fp_GetLocalAddressForTransport(bAuthenticatedUnix);
 
 		auto CurrentPrimary = co_await mp_State.m_TrustManager(&CDistributedActorTrustManager::f_GetPrimaryListen);
-		if (!CurrentPrimary)
+
+		// Removing a primary listen clears the primary, so equality guarantees the listen exists.
+		if (CurrentPrimary && *CurrentPrimary == LocalListenAddress)
+			co_return {};
+
+		// A listen registered under the other transport keeps serving clients that still use it and
+		// is left in place; it only loses the primary role
+		CDistributedActorTrustManager_Address AlternateListenAddress;
+		AlternateListenAddress.m_URL = fp_GetLocalAddressForTransport(!bAuthenticatedUnix);
+
+		auto Listens = co_await mp_State.m_TrustManager(&CDistributedActorTrustManager::f_EnumListens);
+
+		// Listen commands cannot run until trust setup finishes, so the primary stays stable across these suspensions.
+		bool bTakePrimary = !CurrentPrimary || *CurrentPrimary == AlternateListenAddress;
+
+		if (!Listens.f_FindEqual(LocalListenAddress))
+			co_await mp_State.m_TrustManager(&CDistributedActorTrustManager::f_AddListen, LocalListenAddress);
+
+		if (bTakePrimary)
 			co_await mp_State.m_TrustManager(&CDistributedActorTrustManager::f_SetPrimaryListen, LocalListenAddress);
 
 		co_return {};

@@ -465,6 +465,12 @@ namespace NMib::NConcurrency
 				{
 					auto &Internal = *mp_pInternal;
 					Internal.f_CheckState();
+
+					// Clear the primary first; deleting the config first can make retries fail before repairing a dangling primary.
+					CInternal::CPrimaryListen PrimaryListen;
+					if (Internal.f_Read(PrimaryListen, "PrimaryListen") && PrimaryListen.m_Address == _Config.m_Address)
+						Internal.f_Delete("PrimaryListen");
+
 					auto NameHash = Internal.f_GetNameHash(_Config.m_Address);
 					if (!Internal.f_Delete("ListenConfigs", NameHash))
 						DMibError("No such listen config");

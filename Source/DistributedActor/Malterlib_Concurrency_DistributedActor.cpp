@@ -523,6 +523,18 @@ namespace NMib::NConcurrency
 		SignOptions.m_Serial = ++m_Serial;
 		SignOptions.m_Days = 10*365;
 
+		// Transports do not verify hostnames; constrain issued leaves to clientAuth so a client cannot impersonate the server.
+		SignOptions.m_LeafRole = NCryptography::ECertificateLeafRole_ClientAuth;
+
+		auto KeySetting = NCryptography::CPublicCrypto::fs_PublicKeySettingsFromPrivateKey(m_PrivateKey);
+		SignOptions.m_AllowedKeyTypes.f_Insert(KeySetting);
+		SignOptions.m_AllowedRequestDigests.f_Insert(NCryptography::fg_GetAutomaticDigestType(KeySetting));
+
+		SignOptions.m_AllowedRequestExtensions.f_Insert("1.3.6.1.4.1.47722.1.1");
+
+		NStr::CStr RequestHostID = CActorDistributionManager::fs_GetCertificateRequestHostID(_Request);
+		SignOptions.m_OverrideSubjectCommonName = fg_Format("Malterlib Distributed Actor Client - {}", RequestHostID).f_Left(64);
+
 		NContainer::CByteVector Return;
 		NCryptography::CCertificate::fs_SignClientCertificate
 			(
@@ -563,6 +575,7 @@ namespace NMib::NConcurrency
 
 	void CActorDistributionConnectionSettings::f_SetCryptography(CActorDistributionCryptographySettings const &_Settings)
 	{
+		// The domain key setting is caller policy and must not be inferred from installed credentials.
 		auto pRemote = _Settings.m_RemoteClientCertificates.f_FindEqual(m_ServerURL);
 		if (pRemote)
 		{

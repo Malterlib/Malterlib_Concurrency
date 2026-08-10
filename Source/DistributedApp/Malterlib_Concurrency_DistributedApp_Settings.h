@@ -9,6 +9,13 @@
 
 namespace NMib::NConcurrency
 {
+	enum class ELocalSocketFlag : uint32
+	{
+		mc_None = 0
+		, mc_EnclaveSpecific = DMibBit(0)
+		, mc_AuthenticatedUnix = DMibBit(1) // Uses a distinct .wsa.socket path so both transports can listen concurrently.
+	};
+
 	struct CDistributedAppActor_Settings : public CDistributedAppActor_SettingsProperties
 	{
 		CDistributedAppActor_Settings();
@@ -17,9 +24,9 @@ namespace NMib::NConcurrency
 		static CDistributedAppActor_SettingsProperties &fs_GetGlobalDefaultSettings();
 
 		NStr::CStr f_GetCompositeFriendlyName() const;
-		NStr::CStr f_GetLocalSocketHostname(bool _bEnclaveSpecific) const;
-		NStr::CStr f_GetLocalSocketFileName(bool _bEnclaveSpecific, NStr::CStr const &_Enclave) const;
-		NStr::CStr f_GetLocalSocketWildcard(bool _bEnclaveSpecific) const;
+		NStr::CStr f_GetLocalSocketHostname(ELocalSocketFlag _Flags) const;
+		NStr::CStr f_GetLocalSocketFileName(ELocalSocketFlag _Flags, NStr::CStr const &_Enclave) const;
+		NStr::CStr f_GetLocalSocketWildcard(ELocalSocketFlag _Flags) const;
 
 		CDistributedAppActor_Settings &&f_RootDirectory(NStr::CStr const &_RootDirectory) &&;
 		CDistributedAppActor_Settings &&f_FriendlyName(NStr::CStr const &_FriendlyName) &&;
@@ -37,11 +44,12 @@ namespace NMib::NConcurrency
 		CDistributedAppActor_Settings &&f_DefaultCommandLineFunctionalies(EDefaultCommandLineFunctionality _DefaultCommandLineFunctionality) &&;
 		CDistributedAppActor_Settings &&f_CommandLineBeforeAppStart(bool _bCommandLineBeforeAppStart) &&;
 		CDistributedAppActor_Settings &&f_TimeoutForUnixSockets(bool _bTimeoutForUnixSockets) &&;
+		CDistributedAppActor_Settings &&f_TLSForLocalSockets(bool _bTLSForLocalSockets) &&;
 		CDistributedAppActor_Settings &&f_ReconnectDelay(fp64 _ReconnectDelay) &&;
 		CDistributedAppActor_Settings &&f_HostTimeoutOnShutdown(fp64 _HostTimeoutOnShutdown) &&;
 		CDistributedAppActor_Settings &&f_KillHostsTimeoutOnShutdown(fp64 _HostTimeoutOnShutdown) &&;
 		CDistributedAppActor_Settings &&f_MaxShutdownTime(fp64 _MaxShutdownTime) &&;
 	private:
-		NStr::CStr fp_GetLocalSocketPath(NStr::CStr const &_Prefix, bool _bEnclaveSpecific, NStr::CStr const &_Enclave) const;
+		NStr::CStr fp_GetLocalSocketPath(NStr::CStr const &_Prefix, ELocalSocketFlag _Flags, NStr::CStr const &_Enclave) const;
 	};
 }

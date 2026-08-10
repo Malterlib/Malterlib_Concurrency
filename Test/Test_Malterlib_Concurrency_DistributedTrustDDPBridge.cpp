@@ -8,6 +8,7 @@
 #include <Mib/Concurrency/DistributedTrustDDPBridge>
 #include <Mib/Web/DDPClient>
 #include <Mib/Network/Sockets/SSL>
+#include <Mib/Network/Sockets/AuthenticatedUnix>
 #include <Mib/Concurrency/DistributedTrustTestHelpers>
 #include <Mib/Concurrency/DistributedActorTestHelpers>
 
@@ -47,7 +48,13 @@ namespace
 				TCActor<CDistributedActorTrustManager> ClientTrustManager = ClientState.f_TrustManager("Client");
 
 				CDistributedActorTrustManager_Address ServerAddress;
-				ServerAddress.m_URL = "wss://[UNIX(666):{}]/"_f << fg_GetSafeUnixSocketPath("{}/server.sock"_f << RootDirectory);
+
+				bool bAuthenticatedUnix = fg_IsAuthenticatedUnixSupported();
+				if (bAuthenticatedUnix)
+					ServerAddress.m_URL = "wsa://[UNIX(666):{}]/"_f << fg_GetSafeUnixSocketPath("{}/server.sock"_f << RootDirectory);
+				else
+					ServerAddress.m_URL = "wss://[UNIX(666):{}]/"_f << fg_GetSafeUnixSocketPath("{}/server.sock"_f << RootDirectory);
+
 				ServerTrustManager(&CDistributedActorTrustManager::f_AddListen, ServerAddress).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
 
 				{
@@ -101,9 +108,19 @@ namespace
 				ClientSettings.m_PrivateKeyData = ClientDatabase.m_BasicConfig.m_CAPrivateKey;
 				ClientSettings.m_PublicCertificateData = pClientConnection->m_PublicClientCertificate;
 
-				NStorage::TCSharedPointer<CSSLContext> pClientContext = fg_Construct(CSSLContext::EType_Client, ClientSettings);
+				NNetwork::FVirtualSocketFactory ClientSocketFactory;
+				if (bAuthenticatedUnix)
+				{
+					NStorage::TCSharedPointer<CAuthenticatedUnixContext> pClientContext = fg_Construct(CAuthenticatedUnixContext::EType::mc_Client, ClientSettings);
+					ClientSocketFactory = CSocket_AuthenticatedUnix::fs_GetFactory(pClientContext);
+				}
+				else
+				{
+					NStorage::TCSharedPointer<CSSLContext> pClientContext = fg_Construct(CSSLContext::EType_Client, ClientSettings);
+					ClientSocketFactory = CSocket_SSL::fs_GetFactory(pClientContext);
+				}
 
-				TCActor<CDDPClient> Client = fg_ConstructActor<CDDPClient>(ConnectToURL, "", fg_Default(), "", CSocket_SSL::fs_GetFactory(pClientContext));
+				TCActor<CDDPClient> Client = fg_ConstructActor<CDDPClient>(ConnectToURL, "", fg_Default(), "", ClientSocketFactory);
 
 				CDDPClient::CConnectInfo ConnectionInfo = Client(&CDDPClient::f_Connect, "", "", "", "", 20.0, nullptr).f_CallSync();
 

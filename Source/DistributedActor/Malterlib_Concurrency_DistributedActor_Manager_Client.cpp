@@ -212,7 +212,7 @@ namespace NMib::NConcurrency
 			, fp64 _Timeout
 		)
 	{
-		if (!_pConnection->m_pSSLContext || !m_WebsocketClientConnector || m_pThis->f_IsDestroyed())
+		if ((!_pConnection->m_pSSLContext && !_pConnection->m_pAuthenticatedUnixContext) || !m_WebsocketClientConnector || m_pThis->f_IsDestroyed())
 			return;
 
 		umint Sequence = ++_pConnection->m_ConnectionSequence;
@@ -222,18 +222,37 @@ namespace NMib::NConcurrency
 
 		auto ToConnectTo = fp_TranslateURL(_pConnection->m_ServerURL);
 
+		if (_pConnection->m_pAuthenticatedUnixContext && !NNetwork::fg_IsUnixSocketAddressString(ToConnectTo.f_GetHost()))
+		{
+			// Hostname translation must not downgrade wsa to plaintext TCP. Reject before retaining the connection.
+			NStr::CStr Error = "wsa connections require a unix socket address";
+			if (_pPromise)
+				_pPromise->f_SetException(DMibErrorInstance(Error));
+			fp_DestroyClientConnection(*_pConnection, false, Error, false, nullptr);
+			return;
+		}
+
+		NNetwork::FVirtualSocketFactory SocketFactory;
+		bool bAuthenticatedUnix = bool(_pConnection->m_pAuthenticatedUnixContext);
+		if (bAuthenticatedUnix)
+			SocketFactory = NNetwork::CSocket_AuthenticatedUnix::fs_GetFactory(_pConnection->m_pAuthenticatedUnixContext);
+		else
+			SocketFactory = NNetwork::CSocket_SSL::fs_GetFactory(_pConnection->m_pSSLContext);
+
+		NWeb::CWebSocketClientActor::CConnectSettings ConnectSettings;
+		ConnectSettings.m_ConnectToAddress = ToConnectTo.f_GetHost();
+		ConnectSettings.m_Port = ToConnectTo.f_GetPort();
+		ConnectSettings.m_URI = ToConnectTo.f_GetFullPath();
+		ConnectSettings.m_Origin = ToConnectTo.f_Encode();
+		ConnectSettings.m_Protocols = NContainer::fg_CreateVector<NStr::CStr>("MalterlibDistributedActors");
+		ConnectSettings.m_Request = fg_Move(Request);
+		ConnectSettings.m_SocketFactory = fg_Move(SocketFactory);
+		ConnectSettings.m_bAllowUnmaskedFrames = bAuthenticatedUnix; // Authenticated Unix sockets are confidential point-to-point links.
+
 		m_WebsocketClientConnector
 			(
 				&NWeb::CWebSocketClientActor::f_Connect
-				, ToConnectTo.f_GetHost()
-				, ""
-				, NNetwork::ENetAddressType_None
-				, ToConnectTo.f_GetPort()
-				, ToConnectTo.f_GetFullPath()
-				, ToConnectTo.f_Encode()
-				, NContainer::fg_CreateVector<NStr::CStr>("MalterlibDistributedActors")
-				, fg_Move(Request)
-				, NNetwork::CSocket_SSL::fs_GetFactory(_pConnection->m_pSSLContext)
+				, fg_Move(ConnectSettings)
 			)
 			.f_Timeout(_Timeout, "Timed out waiting for websocket connection")
 			> [this, pConnectionWeak = _pConnection.f_Weak(), _pPromise, Sequence, _bRetry, _bRetryOnFirst]
@@ -325,6 +344,14 @@ namespace NMib::NConcurrency
 				if (!Connection.m_ExpectedRealHostID.f_IsEmpty() && Connection.m_ExpectedRealHostID != RealHostID)
 				{
 					NStr::CStr Error = "Host ID mismatch";
+					fReportError(Error, NException::fg_MakeException(DMibErrorInstance(Error)));
+					return;
+				}
+
+				// This root issues only direct leaves; a longer chain would grant an intermediate unauthorized CA capability.
+				if (!Connection.m_ExpectedRealHostID.f_IsEmpty() && pSocketInfo->m_CertificateChain.f_GetLen() > 2)
+				{
+					NStr::CStr Error = "Server certificate chain is too long";
 					fReportError(Error, NException::fg_MakeException(DMibErrorInstance(Error)));
 					return;
 				}
@@ -603,6 +630,10 @@ namespace NMib::NConcurrency
 		NStr::CStr &RealHostID = o_DecodedSettings.m_RealHostID;
 		NNetwork::CSSLSettings &ClientSettings = o_DecodedSettings.m_ClientSettings;
 
+		// Validate after translation because logical hosts may map to Unix paths.
+		if (auto Error = fg_ValidateAuthenticatedUnixAddress(_Settings.m_ServerURL.f_GetScheme(), fp_TranslateHostname(_Settings.m_ServerURL.f_GetHost())); !Error.f_IsEmpty())
+			return DMibErrorInstance(Error);
+
 		bAnonymous = _Settings.m_PrivateClientKey.f_IsEmpty();
 
 		if ((_Settings.m_bRetryConnectOnFailure || _Settings.m_bRetryConnectOnFirstFailure) && bAnonymous)
@@ -610,6 +641,10 @@ namespace NMib::NConcurrency
 
 		if (_Settings.m_PublicServerCertificate.f_IsEmpty())
 		{
+			// wsa does not verify hostnames, so OS-store trust alone could authenticate an unrelated server. Require a pin or explicit insecure mode.
+			if (!_Settings.m_bAllowInsecureConnection && NActorDistributionManagerInternal::fg_IsAuthenticatedUnixScheme(_Settings.m_ServerURL.f_GetScheme()))
+				return DMibErrorInstance("wsa connections require a pinned server certificate or an explicitly allowed insecure connection");
+
 			if (_Settings.m_bAllowInsecureConnection)
 				ClientSettings.m_VerificationFlags = NNetwork::CSSLSettings::EVerificationFlag_IgnoreVerificationFailures;
 			else
@@ -657,6 +692,44 @@ namespace NMib::NConcurrency
 		if (!Internal.m_WebsocketClientConnector)
 			Internal.m_WebsocketClientConnector = NConcurrency::fg_ConstructActor<NWeb::CWebSocketClientActor>(Internal.m_WebsocketSettings);
 
+		// Validate the transport context before registration; a throw after insertion would leave a connection with no returned ID.
+		NStorage::TCSharedPointer<NNetwork::CAuthenticatedUnixContext> pAuthenticatedUnixContext;
+		NStorage::TCSharedPointer<NNetwork::CSSLContext> pSSLContext;
+
+		if (NActorDistributionManagerInternal::fg_IsAuthenticatedUnixScheme(_Settings.m_ServerURL.f_GetScheme()))
+		{
+			try
+			{
+				pAuthenticatedUnixContext = fg_Construct
+					(
+						NNetwork::CAuthenticatedUnixContext::EType::mc_Client
+						, DecodedSettings.m_ClientSettings
+						, NActorDistributionManagerInternal::fg_VerifyOptionsFromKeySetting
+						(
+							_Settings.m_KeySetting
+							, !DecodedSettings.m_ClientSettings.m_PrivateKeyData.f_IsEmpty()
+							, _Settings.m_PublicServerCertificate
+						)
+					)
+				;
+			}
+			catch (NException::CException const &_Exception)
+			{
+				co_return DMibErrorInstance(fg_Format("Error creating authenticated unix context: {}", _Exception.f_GetErrorStr()));
+			}
+		}
+		else
+		{
+			try
+			{
+				pSSLContext = fg_Construct(NNetwork::CSSLContext::EType_Client, DecodedSettings.m_ClientSettings);
+			}
+			catch (NException::CException const &_Exception)
+			{
+				co_return DMibErrorInstance(fg_Format("Error creating SSL context: {}", _Exception.f_GetErrorStr()));
+			}
+		}
+
 		NStr::CStr ConnectionID = NCryptography::fg_RandomID(Internal.m_ClientConnections);
 
 		auto pConnection = Internal.m_ClientConnections[ConnectionID] = fg_Construct();
@@ -668,14 +741,9 @@ namespace NMib::NConcurrency
 		pConnection->m_bRetryConnectOnFailure = _Settings.m_bRetryConnectOnFailure;
 		pConnection->m_bRetryConnectOnFirstFailure = _Settings.m_bRetryConnectOnFirstFailure;
 
-		try
-		{
-			pConnection->m_pSSLContext = fg_Construct(NNetwork::CSSLContext::EType_Client, DecodedSettings.m_ClientSettings);
-		}
-		catch (NException::CException const &_Exception)
-		{
-			co_return DMibErrorInstance(fg_Format("Error creating SSL context: {}", _Exception.f_GetErrorStr()));
-		}
+		pConnection->m_pAuthenticatedUnixContext = fg_Move(pAuthenticatedUnixContext);
+		pConnection->m_pSSLContext = fg_Move(pSSLContext);
+
 		pConnection->m_ServerURL = _Settings.m_ServerURL;
 
 		TCPromiseFuturePair<CActorDistributionManager::CConnectionResult> Promise;
@@ -796,16 +864,44 @@ namespace NMib::NConcurrency
 			co_return DMibErrorInstance("You cannot change the host ID of the connection");
 
 		NStorage::TCSharedPointer<NNetwork::CSSLContext> pNewSSLContext;
-		try
+		NStorage::TCSharedPointer<NNetwork::CAuthenticatedUnixContext> pNewAuthenticatedUnixContext;
+
+		if (NActorDistributionManagerInternal::fg_IsAuthenticatedUnixScheme(_Settings.m_ServerURL.f_GetScheme()))
 		{
-			pNewSSLContext = fg_Construct(NNetwork::CSSLContext::EType_Client, DecodedSettings.m_ClientSettings);
+			try
+			{
+				pNewAuthenticatedUnixContext = fg_Construct
+					(
+						NNetwork::CAuthenticatedUnixContext::EType::mc_Client
+						, DecodedSettings.m_ClientSettings
+						, NActorDistributionManagerInternal::fg_VerifyOptionsFromKeySetting
+						(
+							_Settings.m_KeySetting
+							, !DecodedSettings.m_ClientSettings.m_PrivateKeyData.f_IsEmpty()
+							, _Settings.m_PublicServerCertificate
+						)
+					)
+				;
+			}
+			catch (NException::CException const &_Exception)
+			{
+				co_return DMibErrorInstance(fg_Format("Error creating authenticated unix context: {}", _Exception.f_GetErrorStr()));
+			}
 		}
-		catch (NException::CException const &_Exception)
+		else
 		{
-			co_return DMibErrorInstance(fg_Format("Error creating SSL context: {}", _Exception.f_GetErrorStr()));
+			try
+			{
+				pNewSSLContext = fg_Construct(NNetwork::CSSLContext::EType_Client, DecodedSettings.m_ClientSettings);
+			}
+			catch (NException::CException const &_Exception)
+			{
+				co_return DMibErrorInstance(fg_Format("Error creating SSL context: {}", _Exception.f_GetErrorStr()));
+			}
 		}
 
 		Connection.m_pSSLContext = fg_Move(pNewSSLContext);
+		Connection.m_pAuthenticatedUnixContext = fg_Move(pNewAuthenticatedUnixContext);
 		Connection.m_ServerURL = _Settings.m_ServerURL;
 
 		co_return {};

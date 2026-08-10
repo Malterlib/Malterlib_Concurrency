@@ -49,6 +49,10 @@ namespace NMib::NConcurrency
 		if (HostID.f_IsEmpty())
 			co_return DMibErrorInstance("Certificate request has no host ID");
 
+		// The server/CA host ID must never be issued to a client, which could then impersonate this endpoint.
+		if (HostID == m_BasicConfig.m_HostID)
+			co_return DMibErrorInstance("Certificate request may not use the trust manager host ID");
+
 		auto pExistingClient = co_await (m_Database(&ICDistributedActorTrustManagerDatabase::f_TryGetClient, HostID) % "Failed to check for existing client");
 		bool bExistingClient = !pExistingClient.f_IsEmpty();
 		if (bExistingClient)
@@ -74,8 +78,10 @@ namespace NMib::NConcurrency
 				[
 					CaCertificate = m_BasicConfig.m_CACertificate
 					, CaPrivateKey = m_BasicConfig.m_CAPrivateKey
+					, KeySetting = m_KeySetting
 					, _CertificateRequest
 					, Serial
+					, HostID
 				]
 				{
 					CResults Results;
@@ -84,6 +90,20 @@ namespace NMib::NConcurrency
 						NCryptography::CCertificateSignOptions SignOptions;
 						SignOptions.m_Serial = Serial;
 						SignOptions.m_Days = 10*365;
+
+						SignOptions.m_OverrideSubjectCommonName = fg_Format("Malterlib Distributed Actor Client - {}", HostID).f_Left(64);
+
+						// Transports do not verify hostnames; constrain issued leaves to clientAuth so a client cannot impersonate the server.
+						SignOptions.m_LeafRole = NCryptography::ECertificateLeafRole_ClientAuth;
+
+						SignOptions.m_AllowedKeyTypes.f_Insert(KeySetting);
+
+						// Requests are self-signed with the configured key's automatic digest, so that
+						// is the only digest the signer accepts
+						SignOptions.m_AllowedRequestDigests.f_Insert(NCryptography::fg_GetAutomaticDigestType(KeySetting));
+
+						// Only the signed MalterlibHostID is trusted from the remote request; discard other requested extensions.
+						SignOptions.m_AllowedRequestExtensions.f_Insert("1.3.6.1.4.1.47722.1.1");
 
 						NException::CDisableExceptionTraceScope DisableTrace;
 						NCryptography::CCertificate::fs_SignClientCertificate
@@ -312,6 +332,11 @@ namespace NMib::NConcurrency
 		using namespace NStr;
 
 		auto &Internal = *mp_pInternal;
+
+		NStr::CStr TranslatedTicketHost = Internal.f_TranslateHostname(_TrustTicket.m_ServerAddress.m_URL.f_GetHost());
+		if (auto Error = fg_ValidateAuthenticatedUnixAddress(_TrustTicket.m_ServerAddress.m_URL.f_GetScheme(), TranslatedTicketHost); !Error.f_IsEmpty())
+			co_return DMibErrorInstance(Error);
+
 		co_await Internal.f_WaitForInit();
 
 		NStr::CStr ServerHostID;
@@ -332,6 +357,7 @@ namespace NMib::NConcurrency
 		ConnectionSettings.m_bRetryConnectOnFirstFailure = false;
 		ConnectionSettings.m_bRetryConnectOnFailure = false;
 		ConnectionSettings.m_PublicServerCertificate = _TrustTicket.m_ServerPublicCert;
+		ConnectionSettings.m_KeySetting = Internal.m_KeySetting;
 
 		auto ConnectionResult = co_await (Internal.m_ActorDistributionManager(&CActorDistributionManager::f_Connect, ConnectionSettings, _Timeout) % "Failed to connect to server");
 
@@ -480,6 +506,7 @@ namespace NMib::NConcurrency
 		FinalConnectionSettings.m_PublicServerCertificate = ClientConnection.m_PublicServerCertificate;
 		FinalConnectionSettings.m_PublicClientCertificate = ClientConnection.m_PublicClientCertificate;
 		FinalConnectionSettings.m_PrivateClientKey = Internal.m_BasicConfig.m_CAPrivateKey;
+		FinalConnectionSettings.m_KeySetting = Internal.m_KeySetting;
 		FinalConnectionSettings.m_bRetryConnectOnFirstFailure = false;
 		FinalConnectionSettings.m_bRetryConnectOnFailure = true;
 
@@ -552,6 +579,10 @@ namespace NMib::NConcurrency
 		using namespace NStr;
 
 		auto &Internal = *mp_pInternal;
+
+		if (auto Error = fg_ValidateAuthenticatedUnixAddress(_Address.m_URL.f_GetScheme(), Internal.f_TranslateHostname(_Address.m_URL.f_GetHost())); !Error.f_IsEmpty())
+			co_return DMibErrorInstance(Error);
+
 		co_await Internal.f_WaitForInit();
 
 		auto *pClientConnection = Internal.m_ClientConnections.f_FindEqual(_Address);
@@ -564,6 +595,7 @@ namespace NMib::NConcurrency
 		{
 			NMib::NConcurrency::CActorDistributionConnectionSettings ConnectionSettings;
 			ConnectionSettings.m_ServerURL = _Address.m_URL;
+			ConnectionSettings.m_KeySetting = Internal.m_KeySetting;
 			ConnectionSettings.m_bRetryConnectOnFirstFailure = false;
 			ConnectionSettings.m_bRetryConnectOnFailure = false;
 			ConnectionSettings.m_bAllowInsecureConnection = true;
@@ -605,6 +637,7 @@ namespace NMib::NConcurrency
 			NMib::NConcurrency::CActorDistributionConnectionSettings ConnectionSettings;
 			ConnectionSettings.m_ServerURL = _Address.m_URL;
 			ConnectionSettings.m_PublicServerCertificate = NewClientConnection.m_PublicServerCertificate;
+			ConnectionSettings.m_KeySetting = Internal.m_KeySetting;
 			ConnectionSettings.m_bRetryConnectOnFirstFailure = false;
 			ConnectionSettings.m_bRetryConnectOnFailure = false;
 
@@ -624,6 +657,7 @@ namespace NMib::NConcurrency
 			ConnectionSettings.m_PublicServerCertificate = NewClientConnection.m_PublicServerCertificate;
 			ConnectionSettings.m_PublicClientCertificate = NewClientConnection.m_PublicClientCertificate;
 			ConnectionSettings.m_PrivateClientKey = Internal.m_BasicConfig.m_CAPrivateKey;
+			ConnectionSettings.m_KeySetting = Internal.m_KeySetting;
 			ConnectionSettings.m_bRetryConnectOnFirstFailure = true;
 			ConnectionSettings.m_bRetryConnectOnFailure = true;
 

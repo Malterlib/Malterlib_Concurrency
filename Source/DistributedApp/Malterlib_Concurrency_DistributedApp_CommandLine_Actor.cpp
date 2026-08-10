@@ -5,6 +5,8 @@
 #include <Mib/Concurrency/DistributedActorTrustManagerDatabases/JsonDirectory>
 #include <Mib/Concurrency/ActorSubscription>
 
+#include <Mib/Network/Sockets/AuthenticatedUnix>
+
 #include "Malterlib_Concurrency_DistributedApp.h"
 #include "Malterlib_Concurrency_DistributedApp_Internal.h"
 
@@ -159,16 +161,36 @@ namespace NMib::NConcurrency
 
 	TCFuture<void> CDistributedAppActor::fp_SetupCommandLineListen()
 	{
+		bool bAuthenticatedUnix = fp_UseAuthenticatedUnixForLocalSockets();
+
 		CDistributedActorTrustManager_Address LocalListenAddress;
-		LocalListenAddress.m_URL = fp_GetLocalAddress();
-
-		if (co_await mp_State.m_TrustManager(&CDistributedActorTrustManager::f_HasListen, LocalListenAddress))
-			co_return {};
-
-		co_await mp_State.m_TrustManager(&CDistributedActorTrustManager::f_AddListen, LocalListenAddress);
+		LocalListenAddress.m_URL = fp_GetLocalAddressForTransport(bAuthenticatedUnix);
 
 		auto CurrentPrimary = co_await mp_State.m_TrustManager(&CDistributedActorTrustManager::f_GetPrimaryListen);
-		if (!CurrentPrimary)
+
+		// A primary matching the configured local listen means the listen exists (removing a primary
+		// listen clears the primary), so nothing needs reconciling
+		if (CurrentPrimary && *CurrentPrimary == LocalListenAddress)
+			co_return {};
+
+		// A listen registered under the other transport keeps serving clients that still use it and
+		// is left in place; it only loses the primary role
+		CDistributedActorTrustManager_Address AlternateListenAddress;
+		AlternateListenAddress.m_URL = fp_GetLocalAddressForTransport(!bAuthenticatedUnix);
+
+		auto Listens = co_await mp_State.m_TrustManager(&CDistributedActorTrustManager::f_EnumListens);
+
+		// Leave a manually chosen primary alone; switching the transport back re-selects the
+		// retained listen. The primary read above is not read again after the calls below
+		// suspend: listens and the primary change only through the command line's listen
+		// commands, and this runs inside the trust setup before the command line trust exists,
+		// so nothing can change them under this coroutine
+		bool bTakePrimary = !CurrentPrimary || *CurrentPrimary == AlternateListenAddress;
+
+		if (!Listens.f_FindEqual(LocalListenAddress))
+			co_await mp_State.m_TrustManager(&CDistributedActorTrustManager::f_AddListen, LocalListenAddress);
+
+		if (bTakePrimary)
 			co_await mp_State.m_TrustManager(&CDistributedActorTrustManager::f_SetPrimaryListen, LocalListenAddress);
 
 		co_return {};

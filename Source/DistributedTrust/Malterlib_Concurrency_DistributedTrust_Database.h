@@ -211,6 +211,8 @@ namespace NMib::NConcurrency
 
 		virtual TCFuture<NContainer::TCSet<CListenConfig>> f_EnumListenConfigs() = 0;
 		virtual TCFuture<void> f_AddListenConfig(CListenConfig _Config) = 0;
+		// Also clears the primary listen record when it references the removed config, so the
+		// primary can never point at a config that no longer exists
 		virtual TCFuture<void> f_RemoveListenConfig(CListenConfig _Config) = 0;
 
 		virtual TCFuture<NStorage::TCOptional<CDistributedActorTrustManager_Address>> f_GetPrimaryListen() = 0;

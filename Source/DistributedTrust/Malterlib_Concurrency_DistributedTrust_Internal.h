@@ -235,6 +235,10 @@ namespace NMib::NConcurrency
 			)
 		;
 
+		// The same translation this manager pushes to the actor distribution manager; used so address
+		// validation at trust entry points judges the host that will actually be connected or bound
+		NStr::CStr f_TranslateHostname(NStr::CStr const &_Hostname) const;
+
 		NStorage::TCSharedPointer<bool> m_pDestroyed = fg_Construct(false);
 		CDistributedActorTrustManager *m_pThis;
 		TCActor<ICDistributedActorTrustManagerDatabase> m_Database;

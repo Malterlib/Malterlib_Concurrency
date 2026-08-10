@@ -68,6 +68,7 @@ namespace NMib::NConcurrency
 		ConnectionSettings.m_PublicServerCertificate = ClientConnection.m_PublicServerCertificate;
 		ConnectionSettings.m_PublicClientCertificate = ClientConnection.m_PublicClientCertificate;
 		ConnectionSettings.m_PrivateClientKey = m_BasicConfig.m_CAPrivateKey;
+		ConnectionSettings.m_KeySetting = m_KeySetting;
 		ConnectionSettings.m_bRetryConnectOnFirstFailure = true;
 		ConnectionSettings.m_bRetryConnectOnFailure = true;
 
@@ -134,6 +135,12 @@ namespace NMib::NConcurrency
 			auto &Extension = Options.m_Extensions["MalterlibHostID"].f_Insert();
 			Extension.m_bCritical = false;
 			Extension.m_Value = m_BasicConfig.m_HostID;
+
+			// The root issues only direct leaves, never sub-CAs: CA:TRUE with pathlen 0.
+			// fs_VerifyCertificateChain enforces the anchor's pathlen explicitly (BoringSSL checks
+			// path lengths only on untrusted certificates)
+			Options.f_AddExtension_BasicConstraints(true, true, 0);
+			Options.f_AddExtension_KeyUsage(NCryptography::EKeyUsage_CertificateSign | NCryptography::EKeyUsage_CRLSign, true);
 
 			NCryptography::CCertificateSignOptions SignOptions;
 			SignOptions.m_Serial = 1;
@@ -376,6 +383,7 @@ namespace NMib::NConcurrency
 			ListenSettings.m_PrivateKey = pServerCert->m_PrivateKey;
 			ListenSettings.m_PublicCertificate = pServerCert->m_PublicCertificate;
 			ListenSettings.m_CACertificate = m_BasicConfig.m_CACertificate;
+			ListenSettings.m_KeySetting = m_KeySetting;
 			ListenSettings.m_bRetryOnListenFailure = m_bRetryOnListenFailureDuringInit;
 			ListenSettings.m_ListenFlags = m_ListenFlags;
 

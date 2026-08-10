@@ -232,6 +232,11 @@ namespace NMib::NConcurrency
 		int32 m_Serial = 0;
 	};
 
+	// Returns an error message (empty on success) when a wsa address cannot be used: the platform
+	// must support kernel peer-process authentication (macOS/Linux) and the address must be a unix
+	// socket. Non-wsa schemes always succeed.
+	NStr::CStr fg_ValidateAuthenticatedUnixAddress(NStr::CStr const &_Scheme, NStr::CStr const &_Host);
+
 	struct CActorDistributionConnectionSettings
 	{
 		CActorDistributionConnectionSettings();
@@ -239,10 +244,11 @@ namespace NMib::NConcurrency
 
 		void f_SetCryptography(CActorDistributionCryptographySettings const &_Settings);
 
-		NWeb::NHTTP::CURL m_ServerURL;
+		NWeb::NHTTP::CURL m_ServerURL; // The scheme selects the transport: wss uses TLS, wsa uses the authenticated unix handshake
 		NContainer::CByteVector m_PublicServerCertificate;
 		NContainer::CByteVector m_PublicClientCertificate;
 		NContainer::CSecureByteVector m_PrivateClientKey;
+		NCryptography::CPublicKeySetting m_KeySetting = CActorDistributionCryptographySettings::fs_DefaultKeySetting(); // The domain key setting; the wsa peer verification whitelists the peer leaf against it
 		bool m_bRetryConnectOnFirstFailure = true;
 		bool m_bRetryConnectOnFailure = true;
 		bool m_bAllowInsecureConnection = false; // Only enabled when m_PublicServerCertificate is empty
@@ -256,10 +262,11 @@ namespace NMib::NConcurrency
 
 		void f_SetCryptography(CActorDistributionCryptographySettings const &_Settings);
 
-		NContainer::TCVector<NWeb::NHTTP::CURL> m_ListenAddresses;
+		NContainer::TCVector<NWeb::NHTTP::CURL> m_ListenAddresses; // The scheme selects the transport per address: wss uses TLS, wsa uses the authenticated unix handshake
 		NContainer::CSecureByteVector m_PrivateKey;
 		NContainer::CByteVector m_CACertificate;
 		NContainer::CByteVector m_PublicCertificate;
+		NCryptography::CPublicKeySetting m_KeySetting = CActorDistributionCryptographySettings::fs_DefaultKeySetting(); // The domain key setting; the wsa peer verification whitelists the peer leaf against it
 		NNetwork::ENetFlag m_ListenFlags = NNetwork::ENetFlag_None;
 		bool m_bRetryOnListenFailure = true;
 	};
@@ -421,6 +428,9 @@ namespace NMib::NConcurrency
 
 		void f_Clear();
 		TCFuture<void> f_Stop();
+
+		bool f_IsActive() const;
+
 #if DMibConfig_Tests_Enable
 		TCFuture<void> f_Debug_BreakAllConnections(fp64 _Timeout, NNetwork::ESocketDebugFlag _DebugFlags);
 		TCFuture<void> f_Debug_SetServerBroken(bool _bBroken);

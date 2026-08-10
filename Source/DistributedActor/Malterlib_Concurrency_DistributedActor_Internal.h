@@ -7,6 +7,7 @@
 
 #include <Mib/Web/WebSocket>
 #include <Mib/Network/SSL>
+#include <Mib/Network/Sockets/AuthenticatedUnix>
 #include <Mib/Memory/Allocators/Secure>
 #include <Mib/Cryptography/RandomID>
 #include <Mib/Intrusive/AVLTree>
@@ -83,6 +84,7 @@ namespace NMib::NConcurrency::NActorDistributionManagerInternal
 
 		NStr::CStr m_ConnectionID;
 		NWeb::NHTTP::CURL m_ServerURL;
+		NStorage::TCSharedPointer<NNetwork::CAuthenticatedUnixContext> m_pAuthenticatedUnixContext; // Used instead of TLS for unix socket connections
 		umint m_ConnectionSequence = 0;
 		bool m_bConnected = false;
 		bool m_bAnonymous = false;
@@ -102,6 +104,11 @@ namespace NMib::NConcurrency::NActorDistributionManagerInternal
 		umint const m_ConnectionID;
 		NStr::CStr m_ListenID;
 	};
+
+	umint fg_TransportFragmentationOverride();
+
+	bool fg_IsAuthenticatedUnixScheme(NStr::CStr const &_Scheme);
+	NCryptography::CCertificateVerifyOptions fg_VerifyOptionsFromKeySetting(NCryptography::CPublicKeySetting const &_KeySetting, bool _bHasLocalCertificate, NContainer::CByteVector const &_AuthorityCertificate);
 
 	// Pack priority (8 bits) and packetID (56 bits) into a single uint64 for efficient lookup
 	// Format: [priority:8][packetID:56] - priority in high bits for correct sort order

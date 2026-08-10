@@ -77,10 +77,16 @@ namespace NMib::NConcurrency
 		if (m_AuditCategory.f_IsEmpty())
 			m_AuditCategory = _AppName;
 #ifndef DPlatformFamily_Windows
-		// A longer app name and enclave results in a unix socket name becoming too long
+		// A longer app name and enclave results in a unix socket name becoming too long. Check the wsa
+		// variant (the longest, adding .wsa) so the fallback in f_GetLocalSocketFileName always fits
 		DMibRequire
 			(
-				fp_GetLocalSocketPath(fg_Format("/tmp/{}", g_HostnameRootUUID.f_GetAsString(EUniversallyUniqueIdentifierFormat_AlphaNum)), true, m_Enclave).f_GetLen()
+				fp_GetLocalSocketPath
+				(
+					fg_Format("/tmp/{}", g_HostnameRootUUID.f_GetAsString(EUniversallyUniqueIdentifierFormat_AlphaNum))
+					, ELocalSocketFlag::mc_EnclaveSpecific | ELocalSocketFlag::mc_AuthenticatedUnix
+					, m_Enclave
+				).f_GetLen()
 				<= aint(NSys::NNetwork::fg_GetMaxUnixSocketNameLength())
 			)
 		;
@@ -90,39 +96,51 @@ namespace NMib::NConcurrency
 #endif
 	}
 
-	NStr::CStr CDistributedAppActor_Settings::fp_GetLocalSocketPath(CStr const &_Prefix, bool _bEnclaveSpecific, CStr const &_Enclave) const
+	NStr::CStr CDistributedAppActor_Settings::fp_GetLocalSocketPath(CStr const &_Prefix, ELocalSocketFlag _Flags, CStr const &_Enclave) const
 	{
-		if (!m_Enclave.f_IsEmpty() && _bEnclaveSpecific)
-			return fg_Format("{}/{}.{}.socket", _Prefix, m_AppName, _Enclave);
+		// Enclaves are alphanumeric and cannot collide with the .wsa marker, but the app name is
+		// free form: an app name ending in ".wsa" or containing ".wsa." would make a wss instance
+		// produce a wsa instance's path. Case folded because common filesystems ignore case
+		DMibRequire(m_Enclave.f_IsEmpty() || CActorDistributionManager::fs_IsValidEnclave(m_Enclave));
+		DMibRequire(!m_AppName.f_LowerCase().f_EndsWith(".wsa") && m_AppName.f_LowerCase().f_Find(".wsa.") < 0);
+
+		// wsa marks its socket file with a .wsa component so it never contends with the wss .socket path
+		CStr TransportSuffix = fg_IsSet(_Flags, ELocalSocketFlag::mc_AuthenticatedUnix) ? gc_Str<".wsa">.m_Str : CStr();
+		if (!m_Enclave.f_IsEmpty() && fg_IsSet(_Flags, ELocalSocketFlag::mc_EnclaveSpecific))
+			return fg_Format("{}/{}{}.{}.socket", _Prefix, m_AppName, TransportSuffix, _Enclave);
 		else
-			return fg_Format("{}/{}.socket", _Prefix, m_AppName);
+			return fg_Format("{}/{}{}.socket", _Prefix, m_AppName, TransportSuffix);
 	}
 
-	NStr::CStr CDistributedAppActor_Settings::f_GetLocalSocketFileName(bool _bEnclaveSpecific, NStr::CStr const &_Enclave) const
+	NStr::CStr CDistributedAppActor_Settings::f_GetLocalSocketFileName(ELocalSocketFlag _Flags, NStr::CStr const &_Enclave) const
 	{
+		// The directory is probed with this instance's own longest name, making it a property of
+		// m_Enclave, not _Enclave: another instance's path must go through that instance's settings
 		umint MaxLength = NSys::NNetwork::fg_GetMaxUnixSocketNameLength();
-		if (fp_GetLocalSocketPath(m_RootDirectory, true, m_Enclave).f_GetLen() <= aint(MaxLength))
-			return fp_GetLocalSocketPath(m_RootDirectory, _bEnclaveSpecific, _Enclave);
+		if (fp_GetLocalSocketPath(m_RootDirectory, _Flags | ELocalSocketFlag::mc_EnclaveSpecific, m_Enclave).f_GetLen() <= aint(MaxLength))
+			return fp_GetLocalSocketPath(m_RootDirectory, _Flags, _Enclave);
 
 		CStr ConfigHash = fg_GetHashedUuidString(m_RootDirectory, g_HostnameRootUUID, EUniversallyUniqueIdentifierFormat_AlphaNum);
 		CStr TempDir = CFile::fs_GetRawTemporaryDirectory();
 		CStr Prefix = TempDir / ConfigHash;
-		if (fp_GetLocalSocketPath(Prefix, true, m_Enclave).f_GetLen() <= aint(MaxLength))
-			return fp_GetLocalSocketPath(Prefix, _bEnclaveSpecific, _Enclave);
+		if (fp_GetLocalSocketPath(Prefix, _Flags | ELocalSocketFlag::mc_EnclaveSpecific, m_Enclave).f_GetLen() <= aint(MaxLength))
+			return fp_GetLocalSocketPath(Prefix, _Flags, _Enclave);
 
 		Prefix = fg_Format("/tmp/{}", ConfigHash);
-		DMibCheck(fp_GetLocalSocketPath(Prefix, true, m_Enclave).f_GetLen() <= aint(MaxLength));
-		return fp_GetLocalSocketPath(Prefix, _bEnclaveSpecific, _Enclave);
+		DMibCheck(fp_GetLocalSocketPath(Prefix, _Flags | ELocalSocketFlag::mc_EnclaveSpecific, m_Enclave).f_GetLen() <= aint(MaxLength));
+		return fp_GetLocalSocketPath(Prefix, _Flags, _Enclave);
 	}
 
-	NStr::CStr CDistributedAppActor_Settings::f_GetLocalSocketWildcard(bool _bEnclaveSpecific) const
+	NStr::CStr CDistributedAppActor_Settings::f_GetLocalSocketWildcard(ELocalSocketFlag _Flags) const
 	{
-		return f_GetLocalSocketFileName(_bEnclaveSpecific, "*");
+		// Per transport: the extra .wsa component counts toward the socket name length, so the two
+		// transports can resolve to different fallback directories and each needs its own wildcard
+		return f_GetLocalSocketFileName(_Flags, "*");
 	}
 
-	NStr::CStr CDistributedAppActor_Settings::f_GetLocalSocketHostname(bool _bEnclaveSpecific) const
+	NStr::CStr CDistributedAppActor_Settings::f_GetLocalSocketHostname(ELocalSocketFlag _Flags) const
 	{
-		return fg_Format("UNIX(666):{}", f_GetLocalSocketFileName(_bEnclaveSpecific, m_Enclave));
+		return fg_Format("UNIX(666):{}", f_GetLocalSocketFileName(_Flags, m_Enclave));
 	}
 
 	CDistributedAppActor_Settings &&CDistributedAppActor_Settings::f_RootDirectory(CStr const &_RootDirectory) &&
@@ -212,6 +230,12 @@ namespace NMib::NConcurrency
 	CDistributedAppActor_Settings &&CDistributedAppActor_Settings::f_TimeoutForUnixSockets(bool _bTimeoutForUnixSockets) &&
 	{
 		m_bTimeoutForUnixSockets = _bTimeoutForUnixSockets;
+		return fg_Move(*this);
+	}
+
+	CDistributedAppActor_Settings &&CDistributedAppActor_Settings::f_TLSForLocalSockets(bool _bTLSForLocalSockets) &&
+	{
+		m_bTLSForLocalSockets = _bTLSForLocalSockets;
 		return fg_Move(*this);
 	}
 

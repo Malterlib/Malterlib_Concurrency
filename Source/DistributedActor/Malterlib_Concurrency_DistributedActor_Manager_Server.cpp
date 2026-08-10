@@ -40,6 +40,12 @@ namespace NMib::NConcurrency
 		}
 	}
 
+	// False for a default constructed or already stopped reference, which has nothing to stop
+	bool CDistributedActorListenReference::f_IsActive() const
+	{
+		return !mp_DistributionManager.f_IsEmpty();
+	}
+
 	TCFuture<void> CDistributedActorListenReference::f_Stop()
 	{
 		if (mp_DistributionManager.f_IsEmpty())
@@ -223,6 +229,15 @@ namespace NMib::NConcurrency
 				fReject("Incorrect peer certificate");
 				co_return {};
 			}
+		}
+
+		// Mirror the client's chain-length check: only direct leaves of this root are issued, so
+		// a longer chain means an intermediate minted its own client leaf. The access handler
+		// below is optional, so this structural check must stand on its own
+		if (!bAnonymous && pSocketInfo->m_CertificateChain.f_GetLen() > 2)
+		{
+			fReject("Peer certificate chain is too long");
+			co_return {};
 		}
 
 		if (!bAnonymous && m_AccessHandler)
@@ -484,9 +499,9 @@ namespace NMib::NConcurrency
 		TCFutureVector<NMib::NNetwork::CNetAddress> ResolvedAddresses;
 		for (auto &Address : _Settings.m_ListenAddresses)
 		{
+			// The addresses were validated by fp_Listen before the retry classification, so a
+			// failure from here on is treated as potentially transient
 			auto TranslatedAddress = fp_TranslateHostname(Address.f_GetHost());
-			if (TranslatedAddress.f_IsEmpty())
-				co_return DMibErrorInstance("Listen address is empty");
 
 			m_ResolveActor(&NNetwork::CResolveActor::f_Resolve, TranslatedAddress, NNetwork::ENetAddressType_None) > ResolvedAddresses;
 		}
@@ -496,14 +511,30 @@ namespace NMib::NConcurrency
 		auto ResolveResults = co_await (fg_AllDone(ResolvedAddresses) % "Failed to resolve addresses");
 
 		NContainer::TCVector<NNetwork::CNetAddress> Addresses;
+		// What the configured address says about each listen: the transport its scheme picks
+		struct CAddressKind
+		{
+			bool m_bAuthenticatedUnix;
+		};
+
+		NContainer::TCVector<CAddressKind> AddressKinds;
+		bool bAnyAuthenticatedUnix = false;
+		bool bAnyTls = false;
 
 		umint iResult = 0;
 		for (auto &Address : ResolveResults)
 		{
-			auto Port = _Settings.m_ListenAddresses[iResult].f_GetPortFromScheme();
+			auto &ListenURL = _Settings.m_ListenAddresses[iResult];
 			++iResult;
+
+			auto Port = ListenURL.f_GetPortFromScheme();
 			if (Port)
 				Address.f_SetPort(Port);
+
+			bool bAuthenticatedUnix = NActorDistributionManagerInternal::fg_IsAuthenticatedUnixScheme(ListenURL.f_GetScheme());
+			(bAuthenticatedUnix ? bAnyAuthenticatedUnix : bAnyTls) = true;
+
+			AddressKinds.f_Insert({.m_bAuthenticatedUnix = bAuthenticatedUnix});
 			Addresses.f_Insert(fg_Move(Address));
 		}
 
@@ -515,14 +546,36 @@ namespace NMib::NConcurrency
 		ServerSettings.m_VerificationFlags |= NNetwork::CSSLSettings::EVerificationFlag_AllowMissingPeerCertificate;
 
 		NStorage::TCSharedPointer<NNetwork::CSSLContext> pServerContext;
+		NStorage::TCSharedPointer<NNetwork::CAuthenticatedUnixContext> pAuthenticatedUnixContext;
 
-		try
+		if (bAnyTls)
 		{
-			 pServerContext = fg_Construct(NNetwork::CSSLContext::EType_Server, ServerSettings);
+			try
+			{
+				 pServerContext = fg_Construct(NNetwork::CSSLContext::EType_Server, ServerSettings);
+			}
+			catch (NException::CException const &_Exception)
+			{
+				co_return DMibErrorInstance(fg_Format("Error creating SSL context: {}", _Exception.f_GetErrorStr()));
+			}
 		}
-		catch (NException::CException const &_Exception)
+
+		if (bAnyAuthenticatedUnix)
 		{
-			co_return DMibErrorInstance(fg_Format("Error creating SSL context: {}", _Exception.f_GetErrorStr()));
+			try
+			{
+				pAuthenticatedUnixContext = fg_Construct
+					(
+						NNetwork::CAuthenticatedUnixContext::EType::mc_Server
+						, ServerSettings
+						, NActorDistributionManagerInternal::fg_VerifyOptionsFromKeySetting(_Settings.m_KeySetting, !ServerSettings.m_PrivateKeyData.f_IsEmpty(), _Settings.m_CACertificate)
+					)
+				;
+			}
+			catch (NException::CException const &_Exception)
+			{
+				co_return DMibErrorInstance(fg_Format("Error creating authenticated unix context: {}", _Exception.f_GetErrorStr()));
+			}
 		}
 
 		NStorage::TCSharedPointer<CListen> pListenState = fg_Construct();
@@ -556,7 +609,20 @@ namespace NMib::NConcurrency
 
 						co_return {};
 					}
-					, NNetwork::CSocket_SSL::fs_GetFactory(pServerContext)
+					, NWeb::CWebSocketListenSocketFactory::fs_PerAddress
+					(
+						[pServerContext, pAuthenticatedUnixContext, AddressKinds = fg_Move(AddressKinds)](umint _iAddress, NNetwork::CNetAddress const &_Address) -> NWeb::CWebSocketListenAddressConfig
+						{
+							auto const &AddressKind = AddressKinds[_iAddress];
+
+							// Authenticated unix listens are wsa unix sockets, a confidential point to point
+							// link, so unmasked client frames are accepted; TLS listens keep masking
+							if (AddressKind.m_bAuthenticatedUnix)
+								return {NNetwork::CSocket_AuthenticatedUnix::fs_GetFactory(pAuthenticatedUnixContext), true};
+
+							return {NNetwork::CSocket_SSL::fs_GetFactory(pServerContext), false};
+						}
+					)
 				)
 				% CStr("Failed to start listen on ({vs,vb})"_f << _Settings.m_ListenAddresses)
 			)
@@ -579,6 +645,18 @@ namespace NMib::NConcurrency
 	TCFuture<CDistributedActorListenReference> CActorDistributionManagerInternal::fp_Listen(NStr::CStr _ListenID, CActorDistributionListenSettings _Settings)
 	{
 		auto CheckDestory = co_await m_pThis->f_CheckDestroyedOnResume();
+
+		// Permanent configuration errors: retrying cannot fix an unsupported transport, so they
+		// bypass the retry loop below (which exists for transient bind failures)
+		for (auto &Address : _Settings.m_ListenAddresses)
+		{
+			auto TranslatedAddress = fp_TranslateHostname(Address.f_GetHost());
+			if (TranslatedAddress.f_IsEmpty())
+				co_return DMibErrorInstance("Listen address is empty");
+
+			if (auto Error = fg_ValidateAuthenticatedUnixAddress(Address.f_GetScheme(), TranslatedAddress); !Error.f_IsEmpty())
+				co_return DMibErrorInstance(fg_Format("{} ('{}')", Error, Address.f_Encode()));
+		}
 
 		auto ListenResult = co_await fp_ListenTry(_ListenID, _Settings).f_Wrap();
 

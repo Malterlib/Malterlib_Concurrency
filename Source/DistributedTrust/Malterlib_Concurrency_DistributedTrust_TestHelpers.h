@@ -78,7 +78,14 @@ namespace NMib::NConcurrency
 
 	struct CTrustManagerTestHelper
 	{
-		TCActor<CDistributedActorTrustManager> f_TrustManager(NStr::CStr const &_FriendlyName, NStr::CStr const &_SessionID = {}, bool _bSupportAuthentication = true) const;
+		TCActor<CDistributedActorTrustManager> f_TrustManager
+			(
+				NStr::CStr const &_FriendlyName
+				, NStr::CStr const &_SessionID = {}
+				, bool _bSupportAuthentication = true
+				, NCryptography::CPublicKeySetting const &_KeySetting = CDistributedActorTestKeySettings{}
+			) const
+		;
 
 		CTrustManagerTestHelper();
 		~CTrustManagerTestHelper();

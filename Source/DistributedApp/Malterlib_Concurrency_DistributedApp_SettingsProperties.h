@@ -103,5 +103,6 @@ namespace NMib::NConcurrency
 		bool m_bCanUseLocalListenAsPrimary = true;
 		bool m_bCommandLineBeforeAppStart = false;
 		bool m_bTimeoutForUnixSockets = true;
+		bool m_bTLSForLocalSockets = true; // Selects the local socket address scheme: wss (TLS, compatible with older builds) or wsa (authenticated unix handshake)
 	};
 }

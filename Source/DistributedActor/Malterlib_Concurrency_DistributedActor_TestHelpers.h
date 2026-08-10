@@ -11,6 +11,8 @@ namespace NMib::NConcurrency
 {
 	class CDistributedActorTrustManager;
 
+	// The signer's key policy is derived from the configured key setting, so tests can use the
+	// fastest supported curve
 	using CDistributedActorTestKeySettings = NCryptography::CPublicKeySettings_EC_secp256r1;
 
 	struct CDistributedActorTestHelper

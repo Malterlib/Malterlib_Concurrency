@@ -7,6 +7,7 @@
 #include <Mib/Concurrency/DistributedAppInterface>
 #include <Mib/Concurrency/LogError>
 #include <Mib/Network/Socket>
+#include <Mib/Network/Sockets/AuthenticatedUnix>
 #include <Mib/Log/AnsiLogger>
 
 #include "Malterlib_Concurrency_DistributedApp.h"
@@ -298,29 +299,60 @@ namespace NMib::NConcurrency
 		;
 	}
 
-	NStr::CStr CDistributedAppActor::fp_GetLocalHostname(bool _bEnclaveSpecific) const
+	NStr::CStr CDistributedAppActor::fp_GetLocalHostname(ELocalSocketFlag _Flags) const
 	{
-		return mp_Settings.f_GetLocalSocketHostname(_bEnclaveSpecific);
+		return mp_Settings.f_GetLocalSocketHostname(_Flags);
+	}
+
+	bool CDistributedAppActor::fp_UseAuthenticatedUnixForLocalSockets() const
+	{
+		// wsa needs kernel peer-process authentication; fall back to TLS where unavailable. This
+		// only governs listens created here — a persisted wsa listen is restarted by trust-manager
+		// init and fails there by design if the host lacks support
+		return !mp_Settings.m_bTLSForLocalSockets && NNetwork::fg_IsAuthenticatedUnixSupported();
 	}
 
 	NWeb::NHTTP::CURL CDistributedAppActor::fp_GetLocalAddress() const
 	{
-		return NWeb::NHTTP::CURL{fg_Format("wss://[{}]/", fp_GetLocalHostname(false))};
+		return fp_GetLocalAddressForTransport(fp_UseAuthenticatedUnixForLocalSockets());
+	}
+
+	NWeb::NHTTP::CURL CDistributedAppActor::fp_GetLocalAddressForTransport(bool _bAuthenticatedUnix) const
+	{
+		// The .wsa socket path is built inside the socket-name machinery so its length is accounted for
+		// when a too-long name falls back to a hashed prefix
+		return NWeb::NHTTP::CURL
+			{
+				fg_Format
+				(
+					"{}://[{}]/"
+					, _bAuthenticatedUnix ? "wsa" : "wss"
+					, fp_GetLocalHostname(_bAuthenticatedUnix ? ELocalSocketFlag::mc_AuthenticatedUnix : ELocalSocketFlag::mc_None)
+				)
+			}
+		;
 	}
 
 	NContainer::TCMap<NStr::CStr, NStr::CStr> CDistributedAppActor::fp_GetTranslateHostnames() const
 	{
 		NContainer::TCMap<NStr::CStr, NStr::CStr> TranslateHostnames;
 		if (!mp_Settings.m_Enclave.f_IsEmpty())
-			TranslateHostnames[fp_GetLocalHostname(false)] = fp_GetLocalHostname(true);
+		{
+			// Map both transports' hostnames to their enclave-specific socket paths. Switching the
+			// local transport retains the previous listen alongside the new one, and a retained listen
+			// must keep resolving to its enclave path or it would bind the shared non-enclave socket
+			// and collide with other enclave instances
+			TranslateHostnames[fp_GetLocalHostname(ELocalSocketFlag::mc_None)] = fp_GetLocalHostname(ELocalSocketFlag::mc_EnclaveSpecific);
+			TranslateHostnames[fp_GetLocalHostname(ELocalSocketFlag::mc_AuthenticatedUnix)] =
+				fp_GetLocalHostname(ELocalSocketFlag::mc_EnclaveSpecific | ELocalSocketFlag::mc_AuthenticatedUnix)
+			;
+		}
 		return TranslateHostnames;
 	}
 
 	TCFuture<void> CDistributedAppActor::fp_SetupListen()
 	{
 		DMibLogWithCategory(Mib/Concurrency/App, Debug, "Setting up listen config");
-
-		TCSet<CDistributedActorTrustManager_Address> WantedListens;
 
 		// Deduce primary listen from old config and remove the config
 		auto const *pListen = mp_State.m_ConfigDatabase.m_Data.f_GetMember("Listen", EJsonType_Array);
@@ -346,6 +378,11 @@ namespace NMib::NConcurrency
 			CDistributedActorTrustManager_Address LocalListen;
 			LocalListen.m_URL = fp_GetLocalAddress();
 
+			// The previous transport's local address must also be recognized as local below: after a
+			// transport switch a persisted entry can still carry the other scheme and socket path
+			CDistributedActorTrustManager_Address LocalListenAlternate;
+			LocalListenAlternate.m_URL = fp_GetLocalAddressForTransport(!fp_UseAuthenticatedUnixForLocalSockets());
+
 			for (auto &Object : pListen->f_Array())
 			{
 				if (!Object.f_IsObject())
@@ -358,13 +395,24 @@ namespace NMib::NConcurrency
 						continue;
 					if (!Address.m_URL.f_Decode(pAddress->f_String()))
 						continue;
-					if (Address.m_URL.f_GetScheme() != "wss")
+
+					// Stored addresses always carry a lower case scheme
+					NStr::CStr const &Scheme = Address.m_URL.f_GetScheme();
+					if (Scheme != "wss" && Scheme != "wsa")
 						continue;
 				}
 				else
 					continue;
 
-				if (Address == LocalListen && !mp_Settings.m_bCanUseLocalListenAsPrimary)
+				bool bIsLocal = Address == LocalListen || Address == LocalListenAlternate;
+				if (bIsLocal && !mp_Settings.m_bCanUseLocalListenAsPrimary)
+					continue;
+
+				// The legacy config array is a separate store from the trust manager's listens, so an
+				// entry can name an address that is not a current listen (never added, or removed
+				// since); f_SetPrimaryListen rejects an unknown address, which would abort the setup
+				// instead of falling through to the next candidate
+				if (!co_await mp_State.m_TrustManager(&CDistributedActorTrustManager::f_HasListen, Address))
 					continue;
 
 				co_await mp_State.m_TrustManager(&CDistributedActorTrustManager::f_SetPrimaryListen, Address);
@@ -386,15 +434,44 @@ namespace NMib::NConcurrency
 		auto BlockingActorCheckout = fg_BlockingActor();
 		auto BlockingActor = BlockingActorCheckout.f_Actor();
 
+		// The .wsa component can push the two transports into different fallback directories, so
+		// each is scanned; this instance may hold both paths when a listen is retained
+		NContainer::TCVector<NStr::CStr> WildcardPaths;
+		WildcardPaths.f_Insert(mp_Settings.f_GetLocalSocketWildcard(ELocalSocketFlag::mc_EnclaveSpecific));
+		WildcardPaths.f_Insert(mp_Settings.f_GetLocalSocketWildcard(ELocalSocketFlag::mc_EnclaveSpecific | ELocalSocketFlag::mc_AuthenticatedUnix));
+
+		NContainer::TCSet<NStr::CStr> OwnSocketPaths;
+		OwnSocketPaths.f_Insert(mp_Settings.f_GetLocalSocketFileName(ELocalSocketFlag::mc_EnclaveSpecific, mp_Settings.m_Enclave));
+		OwnSocketPaths.f_Insert(mp_Settings.f_GetLocalSocketFileName(ELocalSocketFlag::mc_EnclaveSpecific | ELocalSocketFlag::mc_AuthenticatedUnix, mp_Settings.m_Enclave));
+
+		// The enclave wildcard also matches the base instance's wsa socket (".wsa" cannot be an
+		// enclave name), and deleting it would race the base instance's bind. Its paths must be
+		// computed through settings with the enclave cleared: the fallback directory is a property
+		// of the owning instance's enclave
+		auto BaseSettings = mp_Settings;
+		BaseSettings.m_Enclave = NStr::CStr();
+		OwnSocketPaths.f_Insert(BaseSettings.f_GetLocalSocketFileName(ELocalSocketFlag::mc_None, NStr::CStr()));
+		OwnSocketPaths.f_Insert(BaseSettings.f_GetLocalSocketFileName(ELocalSocketFlag::mc_AuthenticatedUnix, NStr::CStr()));
+
 		(
-			g_Dispatch(BlockingActor) / [WildcardPath = mp_Settings.f_GetLocalSocketWildcard(true), OwnSocketPath = mp_Settings.f_GetLocalSocketFileName(true, mp_Settings.m_Enclave)]
+			g_Dispatch(BlockingActor) / [WildcardPaths = fg_Move(WildcardPaths), OwnSocketPaths = fg_Move(OwnSocketPaths)]
 			{
 				try
 				{
-					for (auto &File : CFile::fs_FindFiles(WildcardPath, EFileAttrib_File))
+					NContainer::TCSet<NStr::CStr> Files;
+					for (auto &WildcardPath : WildcardPaths)
 					{
-						// Never touch this instance's own socket; the listen setup replaces a stale file itself and deleting it here races with bind/chmod
-						if (File == OwnSocketPath)
+						for (auto &File : CFile::fs_FindFiles(WildcardPath, EFileAttrib_File))
+						{
+							if (!Files.f_FindEqual(File))
+								Files.f_Insert(File);
+						}
+					}
+
+					for (auto &File : Files)
+					{
+						// Never touch this instance's own sockets; the listen setup replaces a stale file itself and deleting it here races with bind/chmod
+						if (OwnSocketPaths.f_FindEqual(File))
 							continue;
 
 						try

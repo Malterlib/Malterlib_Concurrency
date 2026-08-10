@@ -588,7 +588,9 @@ namespace NMib::NConcurrency
 		TCFuture<void> fp_SubscribeAppServerInterface(NEncoding::CEJsonSorted const _Params);
 		TCFuture<CDistributedActorTrustManager::CTrustTicket> fp_GetTicketThroughStdIn(NStr::CStr _RequestMagic);
 
+		// Issues the ticket against the address fp_SetupCommandLineListen settled on, so the spellings match
 		TCFuture<void> fp_CreateCommandLineTrust();
+		// Listens on the stored local entry when one exists, otherwise on the generated address
 		TCFuture<void> fp_SetupCommandLineListen();
 		TCFuture<void> fp_SetupCommandLineTrust();
 		TCFuture<void> fp_SetupRemoteCommandLine();
@@ -604,8 +606,10 @@ namespace NMib::NConcurrency
 
 		bool fp_HasCommandLineAccess(NStr::CStr const &_HostID);
 
+		bool fp_UseAuthenticatedUnixForLocalSockets() const; // wsa when opted in and the platform can bind the kernel peer identity
 		NWeb::NHTTP::CURL fp_GetLocalAddress() const;
-		NStr::CStr fp_GetLocalHostname(bool _bEnclaveSpecific) const;
+		NWeb::NHTTP::CURL fp_GetLocalAddressForTransport(bool _bAuthenticatedUnix) const; // wsa uses a distinct .wsa.socket path so it can coexist with a wss listen
+		NStr::CStr fp_GetLocalHostname(ELocalSocketFlag _Flags) const;
 		NContainer::TCMap<NStr::CStr, NStr::CStr> fp_GetTranslateHostnames() const;
 		void fp_MakeActive();
 #if DMibEnableSafeCheck > 0

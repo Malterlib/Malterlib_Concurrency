@@ -12,6 +12,31 @@
 
 namespace NMib::NConcurrency
 {
+	namespace NActorDistributionManagerInternal
+	{
+		// The wsa scheme selects the authenticated unix handshake instead of TLS; schemes preserve case so
+		// the comparison must not, or a mixed case scheme would silently fall back to raw TCP
+		bool fg_IsAuthenticatedUnixScheme(NStr::CStr const &_Scheme)
+		{
+			return NStr::fg_StrCmpNoCase(_Scheme, "wsa") == 0;
+		}
+
+		// Whitelists come from the domain's one configured key setting, not the local leaf, which
+		// can lag it after a reconfiguration. An anonymous endpoint (no local certificate) leaves
+		// the whitelists empty and relies on the pinned CA
+		NCryptography::CCertificateVerifyOptions fg_VerifyOptionsFromKeySetting(NCryptography::CPublicKeySetting const &_KeySetting, bool _bHasLocalCertificate)
+		{
+			NCryptography::CCertificateVerifyOptions VerifyOptions;
+			if (!_bHasLocalCertificate)
+				return VerifyOptions;
+
+			VerifyOptions.m_AllowedLeafKeyTypes.f_Insert(_KeySetting);
+			VerifyOptions.m_AllowedSignatureDigests.f_Insert(NCryptography::fg_GetAutomaticDigestType(_KeySetting));
+
+			return VerifyOptions;
+		}
+	}
+
 	using namespace NActorDistributionManagerInternal;
 
 	CActorDistributionManagerInitSettings::CActorDistributionManagerInitSettings(NStr::CStr const &_HostID, NStr::CStr const &_Enclave, NStr::CStr const &_FriendlyName)
@@ -257,6 +282,10 @@ namespace NMib::NConcurrency
 	void CActorDistributionManagerInternal::CClientConnection::f_Destroy(NStr::CStr const &_Message, CActorDistributionManagerInternal &_This, TCPromise<void> *_pPromise)
 	{
 		CConnection::f_Destroy(_Message, _This, _pPromise);
+		// The base clears m_pSSLContext; release the authenticated unix context here too so its copied
+		// private-key material is not retained past teardown (for example while a reconnect timer holds
+		// this connection alive)
+		m_pAuthenticatedUnixContext.f_Clear();
 		m_bConnected = false;
 	}
 
@@ -346,6 +375,22 @@ namespace NMib::NConcurrency
 	bool CActorDistributionManager::fs_IsValidEnclave(NStr::CStr const &_String)
 	{
 		return fg_IsHostIDValid(_String);
+	}
+
+	NStr::CStr fg_ValidateAuthenticatedUnixAddress(NStr::CStr const &_Scheme, NStr::CStr const &_Host)
+	{
+		if (NStr::fg_StrCmpNoCase(_Scheme, "wsa") != 0)
+			return {};
+
+		if (!NNetwork::fg_IsAuthenticatedUnixSupported())
+			return "wsa requires kernel peer-process authentication (macOS/Linux); use the wss/TLS transport";
+
+		// The authenticated unix handshake does not encrypt, so only allow it where the kernel keeps the
+		// stream private
+		if (!NNetwork::fg_IsUnixSocketAddressString(_Host))
+			return "wsa connections require a unix socket address";
+
+		return {};
 	}
 
 	NStr::CStr CActorDistributionManager::fs_GetCertificateHostID(NContainer::CByteVector const &_Certificate)

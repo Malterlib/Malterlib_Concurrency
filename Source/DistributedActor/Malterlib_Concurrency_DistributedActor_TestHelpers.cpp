@@ -135,6 +135,7 @@ namespace NMib::NConcurrency
 		mp_ServerCryptography.f_GenerateNewCert(NContainer::fg_CreateVector<NStr::CStr>("localhost"), CDistributedActorTestKeySettings{});
 
 		mp_ListenSettings.f_SetCryptography(mp_ServerCryptography);
+		mp_ListenSettings.m_KeySetting = CDistributedActorTestKeySettings{};
 		mp_ListenSettings.m_bRetryOnListenFailure = false;
 		mp_ListenSettings.m_ListenFlags = NNetwork::ENetFlag_None;
 		mp_ListenReference = ServerManager(&CActorDistributionManager::f_Listen, mp_ListenSettings).f_CallSync(mp_pRunLoop, 60.0);
@@ -180,6 +181,7 @@ namespace NMib::NConcurrency
 			mp_ClientCryptography.f_AddRemoteServer(ConnectionSettings.m_ServerURL, _Server.mp_ServerCryptography.m_PublicCertificate, SignedRequest);
 		}
 		ConnectionSettings.f_SetCryptography(mp_ClientCryptography);
+		ConnectionSettings.m_KeySetting = CDistributedActorTestKeySettings{};
 		ConnectionSettings.m_bRetryConnectOnFirstFailure = false;
 		ConnectionSettings.m_bRetryConnectOnFailure = _bReconnect;
 
@@ -208,6 +210,7 @@ namespace NMib::NConcurrency
 		CActorDistributionConnectionSettings ConnectionSettings;
 		ConnectionSettings.m_ServerURL = _Server.mp_ListenSettings.m_ListenAddresses[0];
 		ConnectionSettings.m_PublicServerCertificate = _Server.mp_ListenSettings.m_CACertificate;
+		ConnectionSettings.m_KeySetting = CDistributedActorTestKeySettings{};
 		ConnectionSettings.m_bRetryConnectOnFirstFailure = false;
 		ConnectionSettings.m_bRetryConnectOnFailure = false;
 

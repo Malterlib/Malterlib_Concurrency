@@ -3,6 +3,7 @@
 
 #pragma once
 #include <Mib/Core/Core>
+#include <Mib/Stream/BinaryStorage>
 
 namespace NMib::NConcurrency::NPrivate
 {
@@ -43,7 +44,7 @@ namespace NMib::NConcurrency::NPrivate
 
 namespace NMib::NConcurrency
 {
-	struct CDistributedActorWriteStream : public NStream::CBinaryStreamMemory<NStream::CBinaryStreamDefault, NContainer::CIOByteVector>
+	struct CDistributedActorWriteStream : public NStream::TCBinaryStreamStorage<NStream::CBinaryStreamDefault>
 	{
 		inline_always NPrivate::CDistributedActorStreamContextState &f_GetState();
 		inline_always NStorage::TCSharedPointer<NPrivate::CDistributedActorStreamContextState> const &f_GetStatePtr();
@@ -107,12 +108,18 @@ namespace NMib::NConcurrency
 		void f_Feed(TCAsyncResult<tf_CType> &&_AsyncResult);
 	};
 
-	struct CDistributedActorReadStream : public NStream::CBinaryStreamMemoryPtr<>
+	struct CDistributedActorReadStream : public NStream::TCBinaryStreamStoragePtr<>
 	{
 		inline_always NPrivate::CDistributedActorStreamContextState &f_GetState();
 		inline_always NStorage::TCSharedPointer<NPrivate::CDistributedActorStreamContextState> const &f_GetStatePtr();
 
 		DMibStreamImplementOperators(CDistributedActorReadStream);
+
+		// The borrow forms open over a storage the caller keeps alive
+		using NStream::TCBinaryStreamStoragePtr<>::f_OpenRead;
+
+		void f_OpenRead(NContainer::CSharedByteVector const &_View);
+		void f_OpenRead(NStorage::TCSharedPointer<NStream::CBinaryStorage const> _pStorage, umint _Offset, umint _nBytes);
 
 		void f_Consume(CActorSubscription &_Subscription, uint32 _SubscriptionSequenceID = TCLimitsInt<uint32>::mc_Max);
 		template <uint32 tf_SubscriptionID>
@@ -155,5 +162,8 @@ namespace NMib::NConcurrency
 
 		template <typename tf_CType>
 		void f_Consume(TCAsyncResult<tf_CType> &_AsyncResult);
+
+		NStream::CBinaryStorage m_BackingStorage;
+		NStorage::TCSharedPointer<NStream::CBinaryStorage const> m_pBackingStorage;
 	};
 }

@@ -27,8 +27,8 @@ namespace NMib::NConcurrency
 	bool CActorDistributionManagerInternal::fp_QueueIncomingPacket
 		(
 			CConnection *_pConnection
-			, NStorage::TCSharedPointer<NContainer::CIOByteVector> const &_pMessage
-			, NStream::CBinaryStreamMemoryPtr<> &_Stream
+			, NStorage::TCSharedPointer<NStream::CBinaryStorage const> const &_pMessage
+			, NStream::TCBinaryStreamStoragePtr<> &_Stream
 			, uint8 _Priority
 		)
 	{
@@ -67,7 +67,7 @@ namespace NMib::NConcurrency
 			else if (iPacket->f_GetPacketID() < PacketID)
 			{
 				DMibLog(DebugVerbose2, " ---- {} {} Receive packet {} (priority {})", pHost->m_bIncoming, _pConnection->f_GetConnectionID(), PacketID, _Priority);
-				NStorage::TCUniquePointer<CPacket> pPacket = fg_Construct(_pMessage, _Priority);
+				NStorage::TCUniquePointer<CPacket> pPacket = fg_Construct(fg_Construct(fg_WrapSharedIncomingPacket(_pMessage)), _Priority);
 				PriorityQueues.m_IncomingPackets.f_InsertAfter(pPacket.f_Detach(), &*iPacket);
 				break;
 			}
@@ -75,7 +75,7 @@ namespace NMib::NConcurrency
 
 		if (!iPacket)
 		{
-			NStorage::TCUniquePointer<CPacket> pPacket = fg_Construct(_pMessage, _Priority);
+			NStorage::TCUniquePointer<CPacket> pPacket = fg_Construct(fg_Construct(fg_WrapSharedIncomingPacket(_pMessage)), _Priority);
 			DMibLog(DebugVerbose2, " ---- {} {} Receive2 packet {} (priority {})", pHost->m_bIncoming, _pConnection->f_GetConnectionID(), PacketID, _Priority);
 			PriorityQueues.m_IncomingPackets.f_InsertFirst(pPacket.f_Detach());
 		}
@@ -115,10 +115,10 @@ namespace NMib::NConcurrency
 	bool CActorDistributionManagerInternal::fp_HandleProtocolIncoming
 		(
 			CConnection *_pConnection
-			, NStorage::TCSharedPointer<NContainer::CIOByteVector> const &_pMessage
+			, NStorage::TCSharedPointer<NStream::CBinaryStorage const> const &_pMessage
 		)
 	{
-		umint Length = _pMessage->f_GetLen();
+		umint Length = _pMessage->f_GetTotalLength();
 		if (Length < 1)
 		{
 			DMibLog(DebugVerbose2, " ---- {} {} Too small", _pConnection->m_pHost ? _pConnection->m_pHost->m_bIncoming : false, _pConnection->f_GetConnectionID());
@@ -128,12 +128,12 @@ namespace NMib::NConcurrency
 		if (_pConnection->m_pHost)
 		{
 			auto &Host = *_pConnection->m_pHost;
-			Host.m_nReceivedBytes += _pMessage->f_GetLen();
+			Host.m_nReceivedBytes += Length;
 			++Host.m_nReceivedPackets;
 		}
 
-		NStream::CBinaryStreamMemoryPtr<> Stream;
-		Stream.f_OpenRead(_pMessage->f_GetArray(), _pMessage->f_GetLen());
+		NStream::TCBinaryStreamStoragePtr<> Stream;
+		Stream.f_OpenRead(*_pMessage);
 		uint8 Command;
 		Stream >> Command;
 
@@ -384,11 +384,11 @@ namespace NMib::NConcurrency
 								Publish.m_Hierarchy = Actor.m_Hierarchy;
 								Publish.m_ProtocolVersions = Actor.m_ProtocolVersions;
 
-								NStream::CBinaryStreamMemory<NStream::CBinaryStreamDefault, NContainer::CIOByteVector> Stream;
+								NStream::TCBinaryStreamStorage<> Stream;
 								auto VersionScope = Host.f_StreamVersion(Stream);
 
 								Stream << Publish;
-								auto Data = Stream.f_MoveVector();
+								auto Data = Stream.f_MoveStorage();
 
 								DMibLogWithCategory
 									(
@@ -402,7 +402,7 @@ namespace NMib::NConcurrency
 										, Publish.m_ActorID
 									)
 								;
-								fp_QueuePacket(pHost, fg_TempCopy(Data));
+								fp_QueuePacket(pHost, fg_Move(Data));
 							}
 						}
 					}
@@ -424,11 +424,11 @@ namespace NMib::NConcurrency
 					if (Identify.m_ProtocolVersion >= EDistributedActorProtocolVersion_InitialPublishFinishedSupported)
 					{
 						CDistributedActorCommand_InitialPublishFinished Identify;
-						NStream::CBinaryStreamMemory<NStream::CBinaryStreamDefault, NContainer::CIOByteVector> Stream;
+						NStream::TCBinaryStreamStorage<> Stream;
 						Stream << Identify;
-						NStorage::TCSharedPointer<NContainer::CIOByteVector> pPacketData = fg_Construct(Stream.f_MoveVector());
+						NStorage::TCSharedPointer<NStream::CBinaryStorage> pPacketData = fg_Construct(Stream.f_MoveStorage());
 						// InitialPublishFinished must stay ordered with Publish packets - use priority 128
-						fp_SendPacket(_pConnection, fg_Move(pPacketData), 128);
+						fp_SendPacket(_pConnection, pPacketData.f_ShareAsConst(), 128);
 					}
 					else
 					{
@@ -479,11 +479,11 @@ namespace NMib::NConcurrency
 							if (Host.m_ActorProtocolVersion >= EDistributedActorProtocolVersion_WaitForRemotePublishProcessing)
 							{
 								CDistributedActorCommand_InitialPublishFinishedProcessing Packet;
-								NStream::CBinaryStreamMemory<NStream::CBinaryStreamDefault, NContainer::CIOByteVector> Stream;
+								NStream::TCBinaryStreamStorage<> Stream;
 								Stream << Packet;
-								NStorage::TCSharedPointer<NContainer::CIOByteVector> pPacketData = fg_Construct(Stream.f_MoveVector());
+								NStorage::TCSharedPointer<NStream::CBinaryStorage> pPacketData = fg_Construct(Stream.f_MoveStorage());
 								// InitialPublishFinishedProcessing must stay ordered with data flow - use priority 128
-								fp_SendPacket(pConnection.f_Get(), fg_Move(pPacketData), 128);
+								fp_SendPacket(pConnection.f_Get(), pPacketData.f_ShareAsConst(), 128);
 							}
 							else
 							{
@@ -625,14 +625,14 @@ namespace NMib::NConcurrency
 						PriorityState.m_HighestSeenPacketID = HighestSeenPacketID;
 					}
 
-					NStream::CBinaryStreamMemory<NStream::CBinaryStreamDefault, NContainer::CIOByteVector> Stream;
+					NStream::TCBinaryStreamStorage<> Stream;
 					auto VersionScope = Host.f_StreamVersion(Stream);
 					Stream << RequestPackets;
 
-					NStorage::TCSharedPointer<NContainer::CIOByteVector> pPacketData = fg_Construct(Stream.f_MoveVector());
+					NStorage::TCSharedPointer<NStream::CBinaryStorage> pPacketData = fg_Construct(Stream.f_MoveStorage());
 
 					// RequestMissingPackets is a recovery control packet - use priority 0 (highest)
-					fp_SendPacket(_pConnection, fg_Move(pPacketData), 0);
+					fp_SendPacket(_pConnection, pPacketData.f_ShareAsConst(), 0);
 				}
 				break;
 			case EDistributedActorCommand_RequestMissingPackets:
@@ -789,13 +789,13 @@ namespace NMib::NConcurrency
 			)
 		;
 
-		NStream::CBinaryStreamMemory<NStream::CBinaryStreamDefault, NContainer::CIOByteVector> Stream;
+		NStream::TCBinaryStreamStorage<> Stream;
 		Stream << Identify;
 
-		NStorage::TCSharedPointer<NContainer::CIOByteVector> pPacketData = fg_Construct(Stream.f_MoveVector());
+		NStorage::TCSharedPointer<NStream::CBinaryStorage> pPacketData = fg_Construct(Stream.f_MoveStorage());
 
 		// Identify is the first packet on a connection - use priority 0 (highest)
-		fp_SendPacket(_pConnection, fg_Move(pPacketData), 0);
+		fp_SendPacket(_pConnection, pPacketData.f_ShareAsConst(), 0);
 	}
 
 	void CActorDistributionManagerInternal::fp_NotifyDisconnect(CHost &_Host)
@@ -809,20 +809,20 @@ namespace NMib::NConcurrency
 		CDistributedActorCommand_NotifyConnectionLost Notification;
 		Notification.m_NotifyLostSequence = ++_Host.m_LastNotifyConnectionLostSequenceSent;
 
-		NContainer::CIOByteVector PacketData;
+		NStream::CBinaryStorage PacketData;
 		{
-			NStream::CBinaryStreamMemory<NStream::CBinaryStreamDefault, NContainer::CIOByteVector> Stream;
+			NStream::TCBinaryStreamStorage<> Stream;
 			Stream << Notification;
-			PacketData = Stream.f_MoveVector();
+			PacketData = Stream.f_MoveStorage();
 		}
 
-		NStorage::TCSharedPointer<NContainer::CIOByteVector> pPacketData = fg_Construct(PacketData);
+		NStorage::TCSharedPointer<NStream::CBinaryStorage> pPacketData = fg_Construct(fg_Move(PacketData));
 
 		for (auto &Connection : _Host.m_ActiveConnections)
 		{
 			DMibLog(DebugVerbose2, " ---- {} {} Sending notify disconnect packet {}", _Host.m_bIncoming, Connection.f_GetConnectionID(), Notification.m_NotifyLostSequence);
 			// NotifyConnectionLost is a control notification with its own sequence number - use priority 0 (highest)
-			fp_SendPacket(&Connection, fg_TempCopy(pPacketData), 0);
+			fp_SendPacket(&Connection, pPacketData.f_ShareAsConst(), 0);
 		}
 	}
 }

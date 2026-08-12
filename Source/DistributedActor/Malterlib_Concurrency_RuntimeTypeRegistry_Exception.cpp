@@ -15,7 +15,7 @@ namespace NMib::NConcurrency::NPrivate
 {
 	void fg_StreamAsyncResultException
 		(
-			NStream::CBinaryStreamMemory<NStream::CBinaryStreamDefault, NContainer::CIOByteVector> &_Stream
+			NStream::TCBinaryStreamStorage<NStream::CBinaryStreamDefault> &_Stream
 			, NException::CExceptionBase const &_Exception
 			, uint32 _ActorProtocolVersion
 		)
@@ -46,7 +46,7 @@ namespace NMib::NConcurrency::NPrivate
 
 	void fg_StreamAsyncResultException
 		(
-			NStream::CBinaryStreamMemory<NStream::CBinaryStreamDefault, NContainer::CIOByteVector> &_Stream
+			NStream::TCBinaryStreamStorage<NStream::CBinaryStreamDefault> &_Stream
 			, NConcurrency::CAsyncResult const &_Result
 			, uint32 _ActorProtocolVersion
 		)
@@ -67,18 +67,18 @@ namespace NMib::NConcurrency::NPrivate
 		return fg_StreamAsyncResultException(_Stream, DMibErrorInstance("Non Malterlib exception encountered in remote actor call"), _ActorProtocolVersion);
 	}
 
-	NContainer::CIOByteVector fg_StreamAsyncResultException(NException::CExceptionBase const &_Exception, uint32 _ActorProtocolVersion)
+	NStream::CBinaryStorage fg_StreamAsyncResultException(NException::CExceptionBase const &_Exception, uint32 _ActorProtocolVersion)
 	{
-		NStream::CBinaryStreamMemory<NStream::CBinaryStreamDefault, NContainer::CIOByteVector> Stream;
+		NStream::TCBinaryStreamStorage<NStream::CBinaryStreamDefault> Stream;
 		fg_StreamAsyncResultException(Stream, _Exception, _ActorProtocolVersion);
-		return Stream.f_MoveVector();
+		return Stream.f_MoveStorage();
 	}
 
-	NContainer::CIOByteVector fg_StreamAsyncResultException(NConcurrency::CAsyncResult const &_Result, uint32 _ActorProtocolVersion)
+	NStream::CBinaryStorage fg_StreamAsyncResultException(NConcurrency::CAsyncResult const &_Result, uint32 _ActorProtocolVersion)
 	{
-		NStream::CBinaryStreamMemory<NStream::CBinaryStreamDefault, NContainer::CIOByteVector> Stream;
+		NStream::TCBinaryStreamStorage<NStream::CBinaryStreamDefault> Stream;
 		fg_StreamAsyncResultException(Stream, _Result, _ActorProtocolVersion);
-		return Stream.f_MoveVector();
+		return Stream.f_MoveStorage();
 	}
 
 	void fg_FeedException(NStream::CBinaryStreamDefault &_Stream, NException::CExceptionBase const &_Exception)

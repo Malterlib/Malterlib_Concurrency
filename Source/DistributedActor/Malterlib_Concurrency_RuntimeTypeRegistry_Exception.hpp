@@ -7,7 +7,7 @@
 namespace NMib::NConcurrency::NPrivate
 {
 	template <typename tf_CResult>
-	bool fg_CopyReplyToAsyncResultShared(NStream::CBinaryStreamMemoryPtr<> &_Stream, TCAsyncResult<tf_CResult> &_PromiseOrAsyncResult, uint32 _ActorProtocolVersion);
+	bool fg_CopyReplyToAsyncResultShared(NStream::TCBinaryStreamStoragePtr<> &_Stream, TCAsyncResult<tf_CResult> &_PromiseOrAsyncResult, uint32 _ActorProtocolVersion);
 }
 
 namespace NMib::NConcurrency
@@ -74,7 +74,7 @@ namespace NMib::NConcurrency
 namespace NMib::NConcurrency::NPrivate
 {
 	template <typename tf_CStream, typename tf_CType>
-	NContainer::CIOByteVector fg_StreamAsyncResult(NConcurrency::TCAsyncResult<tf_CType> &&_Result, void *_pStreamContext, uint32 _Version)
+	NStream::CBinaryStorage fg_StreamAsyncResult(NConcurrency::TCAsyncResult<tf_CType> &&_Result, void *_pStreamContext, uint32 _Version)
 	{
 		if (_Result)
 		{
@@ -83,34 +83,34 @@ namespace NMib::NConcurrency::NPrivate
 			DMibBinaryStreamVersion(Stream, _Version);
 			Stream << uint8(0); // No exception
 			Stream << fg_Move(*_Result);
-			return Stream.f_MoveVector();
+			return Stream.f_MoveStorage();
 		}
 
 		return fg_StreamAsyncResultException(_Result, fg_ActorProtocolVersion(_pStreamContext));
 	}
 
 	template <typename tf_CType>
-	inline_always_debug NContainer::CIOByteVector fg_StreamAsyncResult(NConcurrency::TCAsyncResult<tf_CType> &&_Result, void *_pStreamContext, uint32 _Version)
+	inline_always_debug NStream::CBinaryStorage fg_StreamAsyncResult(NConcurrency::TCAsyncResult<tf_CType> &&_Result, void *_pStreamContext, uint32 _Version)
 	{
-		return fg_StreamAsyncResult<NStream::CBinaryStreamMemory<NStream::CBinaryStreamDefault, NContainer::CIOByteVector>>(fg_Move(_Result), _pStreamContext, _Version);
+		return fg_StreamAsyncResult<NStream::TCBinaryStreamStorage<NStream::CBinaryStreamDefault>>(fg_Move(_Result), _pStreamContext, _Version);
 	}
 
 	template <typename tf_CStream>
-	NContainer::CIOByteVector fg_StreamAsyncResult(NConcurrency::TCAsyncResult<void> &&_Result, void *_pStreamContext, uint32 _Version)
+	NStream::CBinaryStorage fg_StreamAsyncResult(NConcurrency::TCAsyncResult<void> &&_Result, void *_pStreamContext, uint32 _Version)
 	{
 		if (_Result)
 		{
 			tf_CStream Stream;
 			Stream << uint8(0); // No exception
-			return Stream.f_MoveVector();
+			return Stream.f_MoveStorage();
 		}
 
 		return fg_StreamAsyncResultException(_Result, fg_ActorProtocolVersion(_pStreamContext));
 	}
 
-	inline_always_debug NContainer::CIOByteVector fg_StreamAsyncResult(NConcurrency::TCAsyncResult<void> &&_Result, void *_pStreamContext, uint32 _Version)
+	inline_always_debug NStream::CBinaryStorage fg_StreamAsyncResult(NConcurrency::TCAsyncResult<void> &&_Result, void *_pStreamContext, uint32 _Version)
 	{
-		return fg_StreamAsyncResult<NStream::CBinaryStreamMemory<NStream::CBinaryStreamDefault, NContainer::CIOByteVector>>(fg_Move(_Result), _pStreamContext, _Version);
+		return fg_StreamAsyncResult<NStream::TCBinaryStreamStorage<NStream::CBinaryStreamDefault>>(fg_Move(_Result), _pStreamContext, _Version);
 	}
 
 	template <typename t_CException>
@@ -120,7 +120,7 @@ namespace NMib::NConcurrency::NPrivate
 	}
 
 	template <typename t_CException>
-	NException::CExceptionPointer TCRuntimeTypeRegistryEntry_Exception<t_CException>::f_Consume(NStream::CBinaryStreamMemoryPtr<NStream::CBinaryStreamDefault> &_Stream)
+	NException::CExceptionPointer TCRuntimeTypeRegistryEntry_Exception<t_CException>::f_Consume(NStream::TCBinaryStreamStoragePtr<NStream::CBinaryStreamDefault> &_Stream)
 	{
 		auto Exception = DMibImpExceptionInstance(t_CException, "");
 		_Stream >> Exception;
@@ -149,7 +149,7 @@ namespace NMib::NConcurrency::NPrivate
 	template <typename t_CException>
 	void TCRuntimeTypeRegistryEntry_Exception<t_CException>::f_Feed
 		(
-			NStream::CBinaryStreamMemory<NStream::CBinaryStreamDefault, NContainer::CIOByteVector> &_Stream
+			NStream::TCBinaryStreamStorage<NStream::CBinaryStreamDefault> &_Stream
 			, NException::CExceptionBase const &_Exception
 		)
 	{

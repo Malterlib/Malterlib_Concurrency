@@ -149,7 +149,7 @@ namespace NMib::NConcurrency::NActorDistributionManagerInternal
 			}
 		};
 
-		CPacket(NStorage::TCSharedPointer<NContainer::CIOByteVector> const &_pData, uint8 _Priority)
+		CPacket(NStorage::TCSharedPointer<NStream::CBinaryStorage const> const &_pData, uint8 _Priority)
 			: m_pData(_pData)
 			, m_Priority(_Priority)
 		{
@@ -157,7 +157,7 @@ namespace NMib::NConcurrency::NActorDistributionManagerInternal
 
 		uint64 f_GetPacketID() const;
 
-		NStorage::TCSharedPointer<NContainer::CIOByteVector> m_pData; // Shared pointer because we need to keep this around and possibly resend it
+		NStorage::TCSharedPointer<NStream::CBinaryStorage const> m_pData; // Shared pointer because we need to keep this around and possibly resend it
 		NIntrusive::TCAVLLink<> m_TreeLink;
 		DMibListLinkDS_Link(CPacket, m_Link);
 
@@ -222,7 +222,7 @@ namespace NMib::NConcurrency::NActorDistributionManagerInternal
 
 	struct COutstandingCall
 	{
-		TCPromise<NContainer::CIOByteVector> m_Promise{CPromiseConstructEmpty()};
+		TCPromise<NStream::CBinaryStorage> m_Promise{CPromiseConstructEmpty()};
 		NStorage::TCSharedPointer<NPrivate::CDistributedActorStreamContextState> m_pState;
 	};
 
@@ -550,12 +550,19 @@ namespace NMib::NConcurrency
 		TCFuture<void> fp_OnNewConnection(NStr::CStr _ListenID, NWeb::CWebSocketNewServerConnection _NewServerConnection);
 		TCFuture<CDistributedActorListenReference> fp_ListenTry(NStr::CStr _ListenID, CActorDistributionListenSettings _Settings);
 		TCFuture<CDistributedActorListenReference> fp_Listen(NStr::CStr _ListenID, CActorDistributionListenSettings _Settings);
-		uint64 fp_QueuePacket(NStorage::TCSharedPointerSupportWeak<CHost> const &_pHost, NContainer::CIOByteVector &&_Data);
+		uint64 fp_QueuePacket(NStorage::TCSharedPointerSupportWeak<CHost> const &_pHost, NStream::CBinaryStorage &&_Data);
 		void fp_SendPacketQueue(NStorage::TCSharedPointerSupportWeak<CHost> const &_pHost);
-		bool fp_QueueIncomingPacket(CConnection *_pConnection, NStorage::TCSharedPointer<NContainer::CIOByteVector> const &_pMessage, NStream::CBinaryStreamMemoryPtr<> &_Stream, uint8 _Priority);
+		bool fp_QueueIncomingPacket
+			(
+				CConnection *_pConnection
+				, NStorage::TCSharedPointer<NStream::CBinaryStorage const> const &_pMessage
+				, NStream::TCBinaryStreamStoragePtr<> &_Stream
+				, uint8 _Priority
+			)
+		;
 		void fp_ProcessPacketQueue(CConnection *_pConnection, CPriorityQueues &_PrioroityQueues, uint8 _Priority);
 		void fp_RemoveAcknowledgedPackets(CHost &_Host, uint8 _Priority, uint64 _LastInOrderPacketID);
-		void fp_SendPacket(CConnection *_pConnection, NStorage::TCSharedPointer<NContainer::CIOByteVector> &&_pMessage, uint8 _Priority);
+		void fp_SendPacket(CConnection *_pConnection, NStorage::TCSharedPointer<NStream::CBinaryStorage const> &&_pMessage, uint8 _Priority);
 		void fp_OnInvalidConnection
 			(
 				CConnection *_pConnection
@@ -563,7 +570,7 @@ namespace NMib::NConcurrency
 			)
 		;
 
-		bool fp_HandleProtocolIncoming(CConnection *_pConnection, NStorage::TCSharedPointer<NContainer::CIOByteVector> const &_pMessage);
+		bool fp_HandleProtocolIncoming(CConnection *_pConnection, NStorage::TCSharedPointer<NStream::CBinaryStorage const> const &_pMessage);
 		void fp_Identify(CConnection *_pConnection);
 		NContainer::TCSet<NStr::CStr> const &fp_GetAllowedNamespacesForHost(NStorage::TCSharedPointerSupportWeak<CHost> const &_pHost, bool &o_bAllowAll);
 		void fp_NotifyNewActor
@@ -595,7 +602,7 @@ namespace NMib::NConcurrency
 			(
 				NStorage::TCSharedPointerSupportWeak<CHost> const &_pHost
 				, uint64 _PacketID
-				, NContainer::CIOByteVector const &_Data
+				, NStream::CBinaryStorage &&_Data
 				, NPrivate::CDistributedActorStreamContext const &_Context
 			)
 		;
@@ -606,14 +613,29 @@ namespace NMib::NConcurrency
 				, CResultSubscriptionData const *_pSubscriptionData
 			)
 		;
-		bool fp_ApplyRemoteCall(CConnection *_pConnection, NStream::CBinaryStreamMemoryPtr<> &_Stream, bool _bHasAuthHandlerID, uint8 _Priority);
-		bool fp_ApplyRemoteCallResult(CConnection *_pConnection, NStream::CBinaryStreamMemoryPtr<> &_Stream, uint8 _Priority);
-		bool fp_HandlePublishPacket(CConnection *_pConnection, NStream::CBinaryStreamMemoryPtr<> &_Stream);
-		bool fp_HandlePublishFinishedPacket(CConnection *_pConnection, NStream::CBinaryStreamMemoryPtr<> &_Stream);
-		bool fp_HandleUnpublishPacket(CConnection *_pConnection, NStream::CBinaryStreamMemoryPtr<> &_Stream);
-		bool fp_HandleUnpublishFinishedPacket(CConnection *_pConnection, NStream::CBinaryStreamMemoryPtr<> &_Stream);
-		bool fp_HandleDestroySubscription(CConnection *_pConnection, NStream::CBinaryStreamMemoryPtr<> &_Stream);
-		bool fp_HandleSubscriptionDestroyed(CConnection *_pConnection, NStream::CBinaryStreamMemoryPtr<> &_Stream);
+		bool fp_ApplyRemoteCall
+			(
+				CConnection *_pConnection
+				, NStorage::TCSharedPointer<NStream::CBinaryStorage const> const &_pPacketData
+				, NStream::TCBinaryStreamStoragePtr<> &_Stream
+				, bool _bHasAuthHandlerID
+				, uint8 _Priority
+			)
+		;
+		bool fp_ApplyRemoteCallResult
+			(
+				CConnection *_pConnection
+				, NStorage::TCSharedPointer<NStream::CBinaryStorage const> const &_pPacketData
+				, NStream::TCBinaryStreamStoragePtr<> &_Stream
+				, uint8 _Priority
+			)
+		;
+		bool fp_HandlePublishPacket(CConnection *_pConnection, NStream::TCBinaryStreamStoragePtr<> &_Stream);
+		bool fp_HandlePublishFinishedPacket(CConnection *_pConnection, NStream::TCBinaryStreamStoragePtr<> &_Stream);
+		bool fp_HandleUnpublishPacket(CConnection *_pConnection, NStream::TCBinaryStreamStoragePtr<> &_Stream);
+		bool fp_HandleUnpublishFinishedPacket(CConnection *_pConnection, NStream::TCBinaryStreamStoragePtr<> &_Stream);
+		bool fp_HandleDestroySubscription(CConnection *_pConnection, NStream::TCBinaryStreamStoragePtr<> &_Stream);
+		bool fp_HandleSubscriptionDestroyed(CConnection *_pConnection, NStream::TCBinaryStreamStoragePtr<> &_Stream);
 		bool fp_NamespaceAllowedForAnonymous(NStr::CStr const &_Namespace) const;
 		NException::CExceptionPointer fp_RegisterActorFunctorsForCall(NPrivate::CDistributedActorStreamContextState &_State, CHost &_Host);
 		void fp_RegisterLocalSubscriptions(NPrivate::CDistributedActorStreamContextState &_State);

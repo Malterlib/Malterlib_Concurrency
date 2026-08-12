@@ -209,10 +209,10 @@ namespace NMib::NConcurrency
 		return fg_RegisterActorFunctorsForCall(_State, _Host);
 	}
 
-	TCFuture<NContainer::CIOByteVector> CActorDistributionManager::f_CallRemote
+	TCFuture<NStream::CBinaryStorage> CActorDistributionManager::f_CallRemote
 		(
 			NStorage::TCSharedPointer<NPrivate::CDistributedActorData> _pDistributedActorData
-			, NContainer::CIOByteVector _CallData
+			, NStream::CBinaryStorage _CallData
 			, NPrivate::CDistributedActorStreamContext _Context
 		)
 	{
@@ -237,7 +237,7 @@ namespace NMib::NConcurrency
 
 		auto &Internal = *mp_pInternal;
 
-		if (_CallData.f_GetLen() > Internal.m_WebsocketSettings.m_MaxMessageSize)
+		if (_CallData.f_GetTotalLength() > Internal.m_WebsocketSettings.m_MaxMessageSize)
 			co_return DMibErrorInstance("Remote call size was larger than the max allowed packet size");
 
 		State.m_pHost = pHost;
@@ -247,11 +247,10 @@ namespace NMib::NConcurrency
 		if (auto pException = fg_RegisterActorFunctorsForCall(State, *pHost))
 			co_return fg_Move(pException);
 
-		DMibFastCheck(_CallData.f_GetLen() >= 1);
-		auto pCallDataPointer = _CallData.f_GetArray();
+		DMibFastCheck(_CallData.f_GetTotalLength() >= 1);
 		uint8 Priority = 128;
 		{
-			uint8 CommandByte = pCallDataPointer[0];
+			uint8 CommandByte = _CallData.f_GetByte(0);
 			DMibCheck
 				(
 					CommandByte == EDistributedActorCommand_RemoteCall
@@ -267,12 +266,12 @@ namespace NMib::NConcurrency
 				|| CommandByte == EDistributedActorCommand_RemoteCallWithPriorityAndAuthHandler
 			)
 			{
-				DMibFastCheck(_CallData.f_GetLen() >= 2);
-				Priority = pCallDataPointer[1];
+				DMibFastCheck(_CallData.f_GetTotalLength() >= 2);
+				Priority = _CallData.f_GetByte(1);
 			}
 		}
 
-		TCPromiseFuturePair<NContainer::CIOByteVector> Promise;
+		TCPromiseFuturePair<NStream::CBinaryStorage> Promise;
 
 		auto PacketID = Internal.fp_QueuePacket(pHost, fg_Move(_CallData));
 		auto OutstandingCallKey = fg_MakeOutstandingCallKey(Priority, PacketID);
@@ -283,7 +282,13 @@ namespace NMib::NConcurrency
 		co_return co_await fg_Move(Promise.m_Future);
 	}
 
-	bool CActorDistributionManagerInternal::fp_ApplyRemoteCallResult(CConnection *_pConnection, NStream::CBinaryStreamMemoryPtr<> &_Stream, uint8 _Priority)
+	bool CActorDistributionManagerInternal::fp_ApplyRemoteCallResult
+		(
+			CConnection *_pConnection
+			, NStorage::TCSharedPointer<NStream::CBinaryStorage const> const &_pPacketData
+			, NStream::TCBinaryStreamStoragePtr<> &_Stream
+			, uint8 _Priority
+		)
 	{
 		CDistributedActorCommand_RemoteCallResult RemoteCallResult;
 		auto &Host = *_pConnection->m_pHost;
@@ -297,14 +302,13 @@ namespace NMib::NConcurrency
 		if (!pCall)
 			return false;
 
-		umint nBytes = _Stream.f_GetLength() - _Stream.f_GetPosition();
+		umint nBytes = umint(_Stream.f_GetLength()) - umint(_Stream.f_GetPosition());
 
-		NContainer::CIOByteVector Data;
-		if (nBytes != 0)
-		{
-			Data.f_SetLen(nBytes);
-			_Stream.f_ConsumeBytes(Data.f_GetArray(), nBytes);
-		}
+		// The result payload crosses to the caller as a storage: shared spans of the packet
+		// travel as sub views holding their receive buffers, arena content (small packets)
+		// is copied — nothing is stitched contiguous here
+		NStream::CBinaryStorage Data = _Stream.f_ConsumeStorage(nBytes);
+
 		fp_RegisterImplicitSubscriptions(Host, *pCall->m_pState, &RemoteCallResult.m_SubscriptionData);
 		pCall->m_Promise.f_SetResult(fg_Move(Data));
 
@@ -347,7 +351,7 @@ namespace NMib::NConcurrency
 		(
 			NStorage::TCSharedPointerSupportWeak<CHost> const &_pHost
 			, uint64 _PacketID
-			, NContainer::CIOByteVector const &_Data
+			, NStream::CBinaryStorage &&_Data
 			, NPrivate::CDistributedActorStreamContext const &_Context
 		)
 	{
@@ -360,7 +364,10 @@ namespace NMib::NConcurrency
 		uint32 HostActorProtocolVersion = Host.m_ActorProtocolVersion.f_Load(NAtomic::gc_MemoryOrder_Relaxed);
 		bool bUsePriority = Priority != 128 && HostActorProtocolVersion >= EDistributedActorProtocolVersion_PrioritySupport;
 
-		NStream::CBinaryStreamMemory<NStream::CBinaryStreamDefault, NContainer::CIOByteVector> Stream;
+		umint DataLen = _Data.f_GetTotalLength();
+		bool bIsException = DataLen != 0 && _Data.f_GetByte(0) != 0;
+
+		NStream::TCBinaryStreamStorage<> Stream;
 		auto VersionScope = Host.f_StreamVersion(Stream);
 
 		if (bUsePriority)
@@ -379,19 +386,19 @@ namespace NMib::NConcurrency
 			Stream << Result;
 		}
 
-		umint DataLen = _Data.f_GetLen();
+		// The variable length reply header wraps the already serialized result payload as a
+		// nested segment instead of copying it
 		if (DataLen != 0)
-			Stream.f_FeedBytes(_Data.f_GetArray(), DataLen);
+			Stream.f_FeedStorage(fg_Move(_Data));
 
-		auto SendPacket = Stream.f_MoveVector();
+		auto SendPacket = Stream.f_MoveStorage();
 
-		if (SendPacket.f_GetLen() > m_WebsocketSettings.m_MaxMessageSize)
+		if (SendPacket.f_GetTotalLength() > m_WebsocketSettings.m_MaxMessageSize)
 		{
 			fp_ReplyToRemoteCallWithException(_pHost, _PacketID, DMibErrorInstance("Reply was larger than max allowed packet size"), _Context);
 			return;
 		}
 
-		bool bIsException = _Data[0] != 0;
 		if (!bIsException)
 		{
 			fp_RegisterLocalSubscriptions(State);
@@ -440,7 +447,14 @@ namespace NMib::NConcurrency
 		;
 	}
 
-	bool CActorDistributionManagerInternal::fp_ApplyRemoteCall(CConnection *_pConnection, NStream::CBinaryStreamMemoryPtr<> &_Stream, bool _bHasAuthHandlerID, uint8 _Priority)
+	bool CActorDistributionManagerInternal::fp_ApplyRemoteCall
+		(
+			CConnection *_pConnection
+			, NStorage::TCSharedPointer<NStream::CBinaryStorage const> const &_pPacketData
+			, NStream::TCBinaryStreamStoragePtr<> &_Stream
+			, bool _bHasAuthHandlerID
+			, uint8 _Priority
+		)
 	{
 		CDistributedActorCommand_RemoteCall RemoteCall;
 		_Stream >> RemoteCall;
@@ -487,7 +501,7 @@ namespace NMib::NConcurrency
 		ContextState.m_DistributionManager = fg_ThisActor(m_pThis);
 		ContextState.m_LastExecutionID = Host.m_LastExecutionID;
 
-		NFunction::TCFunctionMovable<NConcurrency::TCFuture<NContainer::CIOByteVector> (CDistributedActorReadStream &_Stream)> fCall;
+		NFunction::TCFunctionMovable<NConcurrency::TCFuture<NStream::CBinaryStorage> (CDistributedActorReadStream &_Stream)> fCall;
 
 		TCActor<> Actor;
 		if (FunctionHash == 0)
@@ -610,21 +624,20 @@ namespace NMib::NConcurrency
 				;
 		}
 
-		NContainer::CIOByteVector ParamData;
-		{
-			umint nBytes = _Stream.f_GetLength() - _Stream.f_GetPosition();
-			if (nBytes != 0)
-			{
-				ParamData.f_SetLen(nBytes);
-				_Stream.f_ConsumeBytes(ParamData.f_GetArray(), nBytes);
-			}
-		}
+		// The call parameters stay in the shared packet storage across the actor hop: the
+		// dispatch below reads them through a storage stream over this range, so disjoint
+		// receive buffers deserialize in place with no copy here
+		umint ParamOffset = umint(_Stream.f_GetPosition());
+		umint nParamBytes = umint(_Stream.f_GetLength()) - ParamOffset;
+		_Stream.f_AddPosition(nParamBytes);
 
-		Actor.f_Bind<&CActor::f_DispatchWithReturn<NConcurrency::TCFuture<NContainer::CIOByteVector>>>
+		Actor.f_Bind<&CActor::f_DispatchWithReturn<NConcurrency::TCFuture<NStream::CBinaryStorage>>>
 			(
 				[
 					Actor
-					, ParamData = fg_Move(ParamData)
+					, pPacketData = _pPacketData
+					, ParamOffset
+					, nParamBytes
 					, HostID = Host.m_HostInfo.m_RealHostID
 					, CallingHostInfo = CCallingHostInfo
 						(
@@ -643,12 +656,12 @@ namespace NMib::NConcurrency
 					, fCall = fg_Move(fCall)
 					, ProtocolVersion
 				]
-				() mutable -> TCFuture<NContainer::CIOByteVector>
+				() mutable -> TCFuture<NStream::CBinaryStorage>
 				{
 					CCallingHostInfoScope CallingHostInfoScope{fg_Move(CallingHostInfo)};
 
 					CDistributedActorReadStream Stream;
-					Stream.f_OpenRead(ParamData);
+					Stream.f_OpenRead(fg_Move(pPacketData), ParamOffset, nParamBytes);
 					DMibBinaryStreamContext(Stream, &Context);
 					DMibBinaryStreamVersion(Stream, ProtocolVersion);
 
@@ -663,7 +676,7 @@ namespace NMib::NConcurrency
 				, Context
 				, LastExecutionID = Host.m_LastExecutionID
 			]
-			(TCAsyncResult<NContainer::CIOByteVector> &&_Result) mutable
+			(TCAsyncResult<NStream::CBinaryStorage> &&_Result) mutable
 			{
 				if (LastExecutionID != pHost->m_LastExecutionID)
 					return;
@@ -674,7 +687,7 @@ namespace NMib::NConcurrency
 					return;
 				}
 
-				bool bException = (*_Result)[0] != 0;
+				bool bException = _Result->f_GetByte(0) != 0;
 
 				if (!bException)
 				{
@@ -695,7 +708,7 @@ namespace NMib::NConcurrency
 					}
 				}
 
-				fp_ReplyToRemoteCall(pHost, PacketID, *_Result, Context);
+				fp_ReplyToRemoteCall(pHost, PacketID, fg_Move(*_Result), Context);
 			}
 		;
 		return true;
@@ -811,9 +824,9 @@ namespace NMib::NConcurrency
 
 			auto &Internal = *mp_pInternal;
 
-			NStream::CBinaryStreamMemory<NStream::CBinaryStreamDefault, NContainer::CIOByteVector> Stream;
+			NStream::TCBinaryStreamStorage<> Stream;
 			Stream << Result;
-			Internal.fp_QueuePacket(fg_Explicit(&Host), Stream.f_MoveVector());
+			Internal.fp_QueuePacket(fg_Explicit(&Host), Stream.f_MoveStorage());
 
 			if (HostActorProtocolVersion < EDistributedActorProtocolVersion_SubscriptionDestroyedSupported)
 				co_return {};
@@ -854,7 +867,7 @@ namespace NMib::NConcurrency
 		_Host.m_LocalSubscriptionReferences.f_Remove(pSubscription);
 	}
 
-	bool CActorDistributionManagerInternal::fp_HandleDestroySubscription(CConnection *_pConnection, NStream::CBinaryStreamMemoryPtr<> &_Stream)
+	bool CActorDistributionManagerInternal::fp_HandleDestroySubscription(CConnection *_pConnection, NStream::TCBinaryStreamStoragePtr<> &_Stream)
 	{
 		auto &pHost = _pConnection->m_pHost;
 		if (pHost->m_bDeleted.f_Load(NAtomic::gc_MemoryOrder_Relaxed))
@@ -882,9 +895,9 @@ namespace NMib::NConcurrency
 						Result.m_SubscriptionID = SubscriptionID;
 						Result.m_Result = fg_Move(_Result);
 
-						NStream::CBinaryStreamMemory<NStream::CBinaryStreamDefault, NContainer::CIOByteVector> Stream;
+						NStream::TCBinaryStreamStorage<> Stream;
 						Result.f_Feed(Stream, ActorProtocolVersion);
-						fp_QueuePacket(pHost, Stream.f_MoveVector());
+						fp_QueuePacket(pHost, Stream.f_MoveStorage());
 					}
 				;
 			}
@@ -894,9 +907,9 @@ namespace NMib::NConcurrency
 				Result.m_SubscriptionID = DestroySubscription.m_SubscriptionID;
 				Result.m_Result.f_SetResult();
 
-				NStream::CBinaryStreamMemory<NStream::CBinaryStreamDefault, NContainer::CIOByteVector> Stream;
+				NStream::TCBinaryStreamStorage<> Stream;
 				Result.f_Feed(Stream, ActorProtocolVersion);
-				fp_QueuePacket(pHost, Stream.f_MoveVector());
+				fp_QueuePacket(pHost, Stream.f_MoveStorage());
 			}
 		}
 
@@ -906,7 +919,7 @@ namespace NMib::NConcurrency
 		return true;
 	}
 
-	bool CActorDistributionManagerInternal::fp_HandleSubscriptionDestroyed(CConnection *_pConnection, NStream::CBinaryStreamMemoryPtr<> &_Stream)
+	bool CActorDistributionManagerInternal::fp_HandleSubscriptionDestroyed(CConnection *_pConnection, NStream::TCBinaryStreamStoragePtr<> &_Stream)
 	{
 		auto &pHost = _pConnection->m_pHost;
 		if (pHost->m_bDeleted.f_Load(NAtomic::gc_MemoryOrder_Relaxed))

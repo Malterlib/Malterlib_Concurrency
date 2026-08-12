@@ -795,10 +795,10 @@ namespace NMib::NConcurrency
 		TCFuture<CDistributedActorListenReference> f_Listen(CActorDistributionListenSettings _Settings);
 		TCFuture<CConnectionResult> f_Connect(CActorDistributionConnectionSettings _Settings, fp64 _Timeout);
 
-		TCFuture<NContainer::CIOByteVector> f_CallRemote
+		TCFuture<NStream::CBinaryStorage> f_CallRemote
 			(
 				NStorage::TCSharedPointer<NPrivate::CDistributedActorData> _pDistributedActorData
-				, NContainer::CIOByteVector _CallData
+				, NStream::CBinaryStorage _CallData
 				, NPrivate::CDistributedActorStreamContext _Context
 			)
 		;
@@ -978,15 +978,15 @@ namespace NMib::NConcurrency
 			&CActorDistributionManager::f_CallRemote
 			, EVirtualCall::mc_NotVirtual
 			, NMib::NStorage::TCSharedPointer<NMib::NConcurrency::NPrivate::CDistributedActorData> &&
-			, NMib::NContainer::CIOByteVector &&
+			, NMib::NStream::CBinaryStorage &&
 			, NMib::NConcurrency::NPrivate::CDistributedActorStreamContext &
 		>
 		(
 			NMib::NStorage::TCSharedPointer<NPrivate::CDistributedActorData> &&
-			, NMib::NContainer::CIOByteVector &&
+			, NMib::NStream::CBinaryStorage &&
 			, NPrivate::CDistributedActorStreamContext &
 		) const &
-		-> TCFuture<NContainer::CIOByteVector>
+		-> TCFuture<NStream::CBinaryStorage>
 	;
 
 	extern template auto TCActor<CActorDistributionManager>::f_InternalCallActor
@@ -994,15 +994,15 @@ namespace NMib::NConcurrency
 			&CActorDistributionManager::f_CallRemote
 			, EVirtualCall::mc_NotVirtual
 			, NMib::NStorage::TCSharedPointer<NMib::NConcurrency::NPrivate::CDistributedActorData> &&
-			, NMib::NContainer::CIOByteVector &&
+			, NMib::NStream::CBinaryStorage &&
 			, NMib::NConcurrency::NPrivate::CDistributedActorStreamContext &
 		>
 		(
 			NMib::NStorage::TCSharedPointer<NPrivate::CDistributedActorData> &&
-			, NMib::NContainer::CIOByteVector &&
+			, NMib::NStream::CBinaryStorage &&
 			, NPrivate::CDistributedActorStreamContext &
 		) &&
-		-> TCFuture<NContainer::CIOByteVector>
+		-> TCFuture<NStream::CBinaryStorage>
 	;
 }
 #endif

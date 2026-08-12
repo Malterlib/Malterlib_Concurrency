@@ -37,7 +37,7 @@ namespace NMib::NConcurrency
 namespace NMib::NConcurrency::NPrivate
 {
 	template <typename tf_CResult>
-	bool fg_CopyReplyToAsyncResultShared(NStream::CBinaryStreamMemoryPtr<> &_Stream, TCAsyncResult<tf_CResult> &_PromiseOrAsyncResult, uint32 _ActorProtocolVersion)
+	bool fg_CopyReplyToAsyncResultShared(NStream::TCBinaryStreamStoragePtr<> &_Stream, TCAsyncResult<tf_CResult> &_PromiseOrAsyncResult, uint32 _ActorProtocolVersion)
 	{
 		uint8 bException;
 		_Stream >> bException;
@@ -74,7 +74,7 @@ namespace NMib::NConcurrency::NPrivate
 	void fg_CopyReplyToAsyncResult
 		(
 			TCAsyncResult<tf_CResult> &_AsyncResult
-			, NContainer::CIOByteVector const &_Data
+			, NStream::CBinaryStorage const &_Data
 			, CDistributedActorStreamContext &_Context
 			, uint32 _Version
 		)
@@ -102,7 +102,7 @@ namespace NMib::NConcurrency::NPrivate
 	void fg_CopyReplyToAsyncResult
 		(
 			TCAsyncResult<void> &_Promise
-			, NContainer::CIOByteVector const &_Data
+			, NStream::CBinaryStorage const &_Data
 			, CDistributedActorStreamContext &_Context
 			, uint32 _Version
 		)

@@ -25,6 +25,14 @@ namespace NMib::NStream
 
 	template <typename t_CStreamType>
 	class TCBinaryStreamNull;
+
+	struct CBinaryStorage;
+
+	template <typename t_CStreamType>
+	struct TCBinaryStreamStorage;
+
+	template <typename t_CStreamType>
+	struct TCBinaryStreamStoragePtr;
 }
 
 namespace NMib::NException

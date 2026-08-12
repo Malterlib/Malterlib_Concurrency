@@ -3,6 +3,7 @@
 
 #pragma once
 #include <Mib/Core/Core>
+#include <Mib/Stream/BinaryStorage>
 
 namespace NMib::NConcurrency::NPrivate
 {
@@ -43,7 +44,7 @@ namespace NMib::NConcurrency::NPrivate
 
 namespace NMib::NConcurrency
 {
-	struct CDistributedActorWriteStream : public NStream::CBinaryStreamMemory<NStream::CBinaryStreamDefault, NContainer::CIOByteVector>
+	struct CDistributedActorWriteStream : public NStream::TCBinaryStreamStorage<NStream::CBinaryStreamDefault>
 	{
 		inline_always NPrivate::CDistributedActorStreamContextState &f_GetState();
 		inline_always NStorage::TCSharedPointer<NPrivate::CDistributedActorStreamContextState> const &f_GetStatePtr();
@@ -101,12 +102,24 @@ namespace NMib::NConcurrency
 		void f_Feed(TCAsyncResult<tf_CType> &&_AsyncResult);
 	};
 
-	struct CDistributedActorReadStream : public NStream::CBinaryStreamMemoryPtr<>
+	struct CDistributedActorReadStream : public NStream::TCBinaryStreamStoragePtr<>
 	{
 		inline_always NPrivate::CDistributedActorStreamContextState &f_GetState();
 		inline_always NStorage::TCSharedPointer<NPrivate::CDistributedActorStreamContextState> const &f_GetStatePtr();
 
 		DMibStreamImplementOperators(CDistributedActorReadStream);
+
+		// The borrow forms open over a storage the caller keeps alive
+		using NStream::TCBinaryStreamStoragePtr<>::f_OpenRead;
+
+		// Opens over a shared view of a reply buffer; shared byte vector values consumed
+		// from the stream then become sub views instead of copies
+		void f_OpenRead(NContainer::CSharedByteVector const &_View);
+
+		// Opens over [_Offset, _Offset + _nBytes) of a shared packet storage, keeping the
+		// storage alive for the read; consumed payloads become sub views of the packet's
+		// shared segments, disjoint receive buffers included
+		void f_OpenRead(NStorage::TCSharedPointer<NStream::CBinaryStorage const> _pStorage, umint _Offset, umint _nBytes);
 
 		void f_Consume(CActorSubscription &_Subscription, uint32 _SubscriptionSequenceID = TCLimitsInt<uint32>::mc_Max);
 		template <uint32 tf_SubscriptionID>
@@ -144,5 +157,10 @@ namespace NMib::NConcurrency
 
 		template <typename tf_CType>
 		void f_Consume(TCAsyncResult<tf_CType> &_AsyncResult);
+
+		// The storages behind the two open forms: a wrapped reply view, or the shared
+		// packet the range form keeps alive
+		NStream::CBinaryStorage m_BackingStorage;
+		NStorage::TCSharedPointer<NStream::CBinaryStorage const> m_pBackingStorage;
 	};
 }

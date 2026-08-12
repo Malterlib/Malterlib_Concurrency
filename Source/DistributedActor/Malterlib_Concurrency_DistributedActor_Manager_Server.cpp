@@ -385,7 +385,7 @@ namespace NMib::NConcurrency
 		;
 
 		NewServerConnection.m_fOnReceiveBinaryMessage = g_ActorFunctorWeak / [this, pConnectionWeak = pConnection.f_Weak()]
-			(NStorage::TCSharedPointer<NContainer::CIOByteVector> _pMessage) -> TCFuture<void>
+			(NStorage::TCSharedPointer<NStream::CBinaryStorage const> _pMessage) -> TCFuture<void>
 			{
 				auto pConnection = pConnectionWeak.f_Lock();
 				if (!pConnection)

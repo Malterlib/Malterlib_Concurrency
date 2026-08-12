@@ -436,10 +436,13 @@ namespace NMib::NConcurrency
 
 				TCSharedPointer<TCVector<CDistributedAppSensorReporter::CSensorReading>> pReadings = fg_Construct(fg_Move(NewReadings));
 
+				// Both consumers only read the batch, and it is not touched again here
+				auto pFrozenReadings = pReadings.f_ShareAsConst();
+
 				auto [DatabaseResult, UpstreamResult] = co_await
 					(
-						f_StoreSensorReadings(_SensorInfoKey, _DatabaseKey, pReadings)
-						+ f_NewSensorReadings(_SensorInfoKey, pReadings)
+						f_StoreSensorReadings(_SensorInfoKey, _DatabaseKey, pFrozenReadings)
+						+ f_NewSensorReadings(_SensorInfoKey, pFrozenReadings)
 					)
 					.f_Wrap()
 				;

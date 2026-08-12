@@ -180,7 +180,7 @@ namespace NMib::NConcurrency
 				continue;
 			}
 
-			NStream::CBinaryStreamMemory<NStream::CBinaryStreamDefault, NContainer::CIOByteVector> Stream;
+			NStream::TCBinaryStreamStorage<> Stream;
 			auto VersionScope = Host.f_StreamVersion(Stream);
 
 			if (_WaitForPublicationsTimeout && Stream.f_GetVersion() >= EDistributedActorProtocolVersion_WaitForRemotePublishProcessing)
@@ -196,7 +196,7 @@ namespace NMib::NConcurrency
 
 			Stream << Publish;
 
-			Internal.fp_QueuePacket(pHost, Stream.f_MoveVector());
+			Internal.fp_QueuePacket(pHost, Stream.f_MoveStorage());
 		}
 
 		if (WaitResults.f_IsEmpty())
@@ -311,9 +311,9 @@ namespace NMib::NConcurrency
 			Publish.m_Hierarchy = PublishedActor.m_Hierarchy;
 			Publish.m_ProtocolVersions = PublishedActor.m_ProtocolVersions;
 
-			NContainer::CIOByteVector UnpublishData;
+			NStream::CBinaryStorage UnpublishData;
 			{
-				NStream::CBinaryStreamMemory<NStream::CBinaryStreamDefault, NContainer::CIOByteVector> Stream;
+				NStream::TCBinaryStreamStorage<> Stream;
 				auto VersionScope = Host.f_StreamVersion(Stream);
 
 				if (_WaitForPublicationsTimeout && Stream.f_GetVersion() >= EDistributedActorProtocolVersion_WaitForRemotePublishProcessing)
@@ -328,12 +328,12 @@ namespace NMib::NConcurrency
 					Unpublish.m_WaitPublicationID = 0;
 
 				Stream << Unpublish;
-				UnpublishData = Stream.f_MoveVector();
+				UnpublishData = Stream.f_MoveStorage();
 			}
 
-			NContainer::CIOByteVector PublishData;
+			NStream::CBinaryStorage PublishData;
 			{
-				NStream::CBinaryStreamMemory<NStream::CBinaryStreamDefault, NContainer::CIOByteVector> Stream;
+				NStream::TCBinaryStreamStorage<> Stream;
 				auto VersionScope = Host.f_StreamVersion(Stream);
 
 				if (_WaitForPublicationsTimeout && Stream.f_GetVersion() >= EDistributedActorProtocolVersion_WaitForRemotePublishProcessing)
@@ -348,7 +348,7 @@ namespace NMib::NConcurrency
 					Publish.m_WaitPublicationID = 0;
 
 				Stream << Publish;
-				PublishData = Stream.f_MoveVector();
+				PublishData = Stream.f_MoveStorage();
 			}
 
 			Internal.fp_QueuePacket(pHost, fg_Move(UnpublishData));
@@ -456,7 +456,7 @@ namespace NMib::NConcurrency
 				continue;
 			}
 
-			NStream::CBinaryStreamMemory<NStream::CBinaryStreamDefault, NContainer::CIOByteVector> Stream;
+			NStream::TCBinaryStreamStorage<> Stream;
 			auto VersionScope = Host.f_StreamVersion(Stream);
 
 			if (_WaitForPublicationsTimeout && Stream.f_GetVersion() >= EDistributedActorProtocolVersion_WaitForRemotePublishProcessing)
@@ -471,7 +471,7 @@ namespace NMib::NConcurrency
 				Unpublish.m_WaitPublicationID = 0;
 
 			Stream << Unpublish;
-			auto Data = Stream.f_MoveVector();
+			auto Data = Stream.f_MoveStorage();
 
 			Internal.fp_QueuePacket(pHost, fg_Move(Data));
 		}
@@ -699,7 +699,7 @@ namespace NMib::NConcurrency
 			fSendNotifications(*pSpecific);
 	}
 
-	bool CActorDistributionManagerInternal::fp_HandleUnpublishFinishedPacket(CConnection *_pConnection, NStream::CBinaryStreamMemoryPtr<> &_Stream)
+	bool CActorDistributionManagerInternal::fp_HandleUnpublishFinishedPacket(CConnection *_pConnection, NStream::TCBinaryStreamStoragePtr<> &_Stream)
 	{
 		auto &pHost = _pConnection->m_pHost;
 		auto &Host = *pHost;
@@ -723,7 +723,7 @@ namespace NMib::NConcurrency
 		return true;
 	}
 
-	bool CActorDistributionManagerInternal::fp_HandlePublishFinishedPacket(CConnection *_pConnection, NStream::CBinaryStreamMemoryPtr<> &_Stream)
+	bool CActorDistributionManagerInternal::fp_HandlePublishFinishedPacket(CConnection *_pConnection, NStream::TCBinaryStreamStoragePtr<> &_Stream)
 	{
 		auto &pHost = _pConnection->m_pHost;
 		auto &Host = *pHost;
@@ -747,7 +747,7 @@ namespace NMib::NConcurrency
 		return true;
 	}
 
-	bool CActorDistributionManagerInternal::fp_HandlePublishPacket(CConnection *_pConnection, NStream::CBinaryStreamMemoryPtr<> &_Stream)
+	bool CActorDistributionManagerInternal::fp_HandlePublishPacket(CConnection *_pConnection, NStream::TCBinaryStreamStoragePtr<> &_Stream)
 	{
 		auto &pHost = _pConnection->m_pHost;
 		auto &Host = *pHost;
@@ -789,11 +789,11 @@ namespace NMib::NConcurrency
 				CDistributedActorCommand_PublishFinished PublishFinished;
 				PublishFinished.m_WaitPublicationID = WaitPublicationID;
 
-				NStream::CBinaryStreamMemory<NStream::CBinaryStreamDefault, NContainer::CIOByteVector> Stream;
+				NStream::TCBinaryStreamStorage<> Stream;
 				auto VersionScope = Host.f_StreamVersion(Stream);
 
 				Stream << PublishFinished;
-				auto Data = Stream.f_MoveVector();
+				auto Data = Stream.f_MoveStorage();
 
 				fp_QueuePacket(pHost, fg_Move(Data));
 			}
@@ -856,7 +856,7 @@ namespace NMib::NConcurrency
 		return true;
 	}
 
-	bool CActorDistributionManagerInternal::fp_HandleUnpublishPacket(CConnection *_pConnection, NStream::CBinaryStreamMemoryPtr<> &_Stream)
+	bool CActorDistributionManagerInternal::fp_HandleUnpublishPacket(CConnection *_pConnection, NStream::TCBinaryStreamStoragePtr<> &_Stream)
 	{
 		auto &pHost = _pConnection->m_pHost;
 		auto &Host = *pHost;
@@ -909,11 +909,11 @@ namespace NMib::NConcurrency
 				CDistributedActorCommand_UnpublishFinished UnpublishFinished;
 				UnpublishFinished.m_WaitPublicationID = WaitPublicationID;
 
-				NStream::CBinaryStreamMemory<NStream::CBinaryStreamDefault, NContainer::CIOByteVector> Stream;
+				NStream::TCBinaryStreamStorage<> Stream;
 				auto VersionScope = Host.f_StreamVersion(Stream);
 
 				Stream << UnpublishFinished;
-				auto Data = Stream.f_MoveVector();
+				auto Data = Stream.f_MoveStorage();
 
 				fp_QueuePacket(pHost, fg_Move(Data));
 			}

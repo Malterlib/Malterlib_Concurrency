@@ -13,10 +13,9 @@ namespace NMib::NConcurrency
 	{
 		uint64 CPacket::f_GetPacketID() const
 		{
-			DMibFastCheck(m_pData && m_pData->f_GetLen() >= sizeof(uint64));
+			DMibFastCheck(m_pData && m_pData->f_GetTotalLength() >= sizeof(uint64));
 
-			uint8 const *pDataBase = m_pData->f_GetArray();
-			uint8 Command = pDataBase[0];
+			uint8 Command = m_pData->f_GetByte(0);
 			umint Offset = 1;
 			// Priority commands have format: [cmd:1][priority:1][packetID:8]
 			if
@@ -26,12 +25,12 @@ namespace NMib::NConcurrency
 				|| Command == EDistributedActorCommand_RemoteCallResultWithPriority
 			)
 			{
-				DMibFastCheck(m_pData->f_GetLen() >= (sizeof(uint64) + 2));
+				DMibFastCheck(m_pData->f_GetTotalLength() >= (sizeof(uint64) + 2));
 				Offset = 2; // Skip priority byte
 			}
 
 			uint64 PacketID;
-			NMemory::fg_MemCopy(&PacketID, pDataBase + Offset, sizeof(PacketID));
+			m_pData->f_CopyTo(&PacketID, Offset, sizeof(PacketID));
 			return fg_ByteSwapLE(PacketID);
 		}
 	}
@@ -89,14 +88,14 @@ namespace NMib::NConcurrency
 		}
 	}
 
-	void CActorDistributionManagerInternal::fp_SendPacket(CConnection *_pConnection, NStorage::TCSharedPointer<NContainer::CIOByteVector> &&_pMessage, uint8 _Priority)
+	void CActorDistributionManagerInternal::fp_SendPacket(CConnection *_pConnection, NStorage::TCSharedPointer<NStream::CBinaryStorage const> &&_pMessage, uint8 _Priority)
 	{
 		if (!_pConnection->m_Connection)
 		{
 			if (_pConnection->m_pHost)
 			{
 				auto &Host = *_pConnection->m_pHost;
-				Host.m_nDiscardedBytes += _pMessage->f_GetLen();
+				Host.m_nDiscardedBytes += _pMessage->f_GetTotalLength();
 				++Host.m_nDiscardedPackets;
 			}
 			return;
@@ -105,7 +104,7 @@ namespace NMib::NConcurrency
 		if (_pConnection->m_pHost)
 		{
 			auto &Host = *_pConnection->m_pHost;
-			Host.m_nSentBytes += _pMessage->f_GetLen();
+			Host.m_nSentBytes += _pMessage->f_GetTotalLength();
 			++Host.m_nSentPackets;
 		}
 
@@ -113,7 +112,7 @@ namespace NMib::NConcurrency
 		// Distributed actor priority 0 (highest) -> WebSocket priority 255 (highest)
 		// Distributed actor priority 255 (lowest) -> WebSocket priority 0 (lowest)
 		uint32 WebSocketPriority = 255 - _Priority;
-		_pConnection->m_Connection(&NWeb::CWebSocketActor::f_SendBinary, fg_Move(_pMessage), WebSocketPriority)
+		_pConnection->m_Connection(&NWeb::CWebSocketActor::f_SendBinaryStorage, fg_Move(_pMessage), WebSocketPriority)
 			> [this, pWeakConnection = NStorage::TCSharedPointer<CConnection, NStorage::CSupportWeakTag>(fg_Explicit(_pConnection)).f_Weak()](TCAsyncResult<void> &&_Result)
 			{
 				if (!_Result)
@@ -126,13 +125,12 @@ namespace NMib::NConcurrency
 		;
 	}
 
-	uint64 CActorDistributionManagerInternal::fp_QueuePacket(NStorage::TCSharedPointerSupportWeak<CHost> const &_pHost, NContainer::CIOByteVector &&_Data)
+	uint64 CActorDistributionManagerInternal::fp_QueuePacket(NStorage::TCSharedPointerSupportWeak<CHost> const &_pHost, NStream::CBinaryStorage &&_Data)
 	{
-		DMibFastCheck(_Data.f_GetLen() <= m_WebsocketSettings.m_MaxMessageSize);
-		DMibFastCheck(_Data.f_GetLen() >= 1 + sizeof(uint64));
+		DMibFastCheck(_Data.f_GetTotalLength() <= m_WebsocketSettings.m_MaxMessageSize);
+		DMibFastCheck(_Data.f_GetTotalLength() >= 1 + sizeof(uint64));
 
-		uint8 const *pDataBase = _Data.f_GetArray();
-		uint8 Command = pDataBase[0];
+		uint8 Command = _Data.f_GetByte(0);
 
 		uint8 Priority = 128;
 		umint PacketIDOffset = 1;
@@ -143,8 +141,8 @@ namespace NMib::NConcurrency
 			|| Command == EDistributedActorCommand_RemoteCallResultWithPriority
 		)
 		{
-			DMibFastCheck(_Data.f_GetLen() >= 2 + sizeof(uint64));
-			Priority = pDataBase[1];
+			DMibFastCheck(_Data.f_GetTotalLength() >= 2 + sizeof(uint64));
+			Priority = _Data.f_GetByte(1);
 			PacketIDOffset = 2;
 		}
 
@@ -155,14 +153,15 @@ namespace NMib::NConcurrency
 
 		DMibLog(DebugVerbose2, " ---- {} Queueing packet {} (priority {})", _pHost->m_bIncoming, PacketID, Priority);
 
-		{
-			NStream::CBinaryStreamMemoryPtr<> Stream;
-			Stream.f_OpenReadWrite(_Data.f_GetArray(), _Data.f_GetLen(), _Data.f_GetLen());
-			Stream.f_AddPosition(PacketIDOffset);
-			Stream << PacketID;
-		}
+		// Patch the dummy packet id written during serialization; the header always lands in
+		// the local storage arena so the range is patchable in place
+		uint64 PacketIDLE = fg_ByteSwapLE(PacketID);
+		NMemory::fg_MemCopy(_Data.f_GetMutableLocalSpan(PacketIDOffset, sizeof(uint64)), &PacketIDLE, sizeof(uint64));
 
-		NStorage::TCUniquePointer<CActorDistributionManagerInternal::CPacket> pPacket = fg_Construct(fg_Construct(_Data), Priority);
+		// The packet id above is the last mutation; from here the storage is only read and
+		// possibly resent, so it is frozen as it becomes shared
+		NStorage::TCSharedPointer<NStream::CBinaryStorage> pStorage = fg_Construct(fg_Move(_Data));
+		NStorage::TCUniquePointer<CActorDistributionManagerInternal::CPacket> pPacket = fg_Construct(pStorage.f_ShareAsConst(), Priority);
 		PriorityQueues.m_OutgoingPackets.f_Insert(pPacket.f_Detach());
 
 		fp_SendPacketQueue(_pHost);
@@ -220,15 +219,19 @@ namespace NMib::NConcurrency
 			{
 				NException::CDisableExceptionTraceScope DisableTrace;
 				auto &Data = *pPacketStore->m_pData;
-				NStream::CBinaryStreamMemoryPtr<> Stream;
-				Stream.f_OpenRead(Data.f_GetArray(), Data.f_GetLen());
+
+				// Incoming packets parse in place over their storage, so a packet assembled
+				// from several receive buffers never flattens; shared payload spans hand out
+				// sub views further down
+				NStream::TCBinaryStreamStoragePtr<> Stream;
+				Stream.f_OpenRead(Data);
 				uint8 Command;
 				Stream >> Command;
 				switch (Command)
 				{
 				case EDistributedActorCommand_RemoteCall:
 					{
-						if (!fp_ApplyRemoteCall(_pConnection, Stream, false, 128))
+						if (!fp_ApplyRemoteCall(_pConnection, pPacketStore->m_pData, Stream, false, 128))
 						{
 							fp_OnInvalidConnection(_pConnection, DMibErrorInstance("Invalid remote call").f_ExceptionPointer());
 							return;
@@ -237,7 +240,7 @@ namespace NMib::NConcurrency
 					break;
 				case EDistributedActorCommand_RemoteCallWithAuthHandler:
 					{
-						if (!fp_ApplyRemoteCall(_pConnection, Stream, true, 128))
+						if (!fp_ApplyRemoteCall(_pConnection, pPacketStore->m_pData, Stream, true, 128))
 						{
 							fp_OnInvalidConnection(_pConnection, DMibErrorInstance("Invalid remote call").f_ExceptionPointer());
 							return;
@@ -248,7 +251,7 @@ namespace NMib::NConcurrency
 					{
 						uint8 Priority;
 						Stream >> Priority;
-						if (!fp_ApplyRemoteCall(_pConnection, Stream, false, Priority))
+						if (!fp_ApplyRemoteCall(_pConnection, pPacketStore->m_pData, Stream, false, Priority))
 						{
 							fp_OnInvalidConnection(_pConnection, DMibErrorInstance("Invalid remote call with priority").f_ExceptionPointer());
 							return;
@@ -259,7 +262,7 @@ namespace NMib::NConcurrency
 					{
 						uint8 Priority;
 						Stream >> Priority;
-						if (!fp_ApplyRemoteCall(_pConnection, Stream, true, Priority))
+						if (!fp_ApplyRemoteCall(_pConnection, pPacketStore->m_pData, Stream, true, Priority))
 						{
 							fp_OnInvalidConnection(_pConnection, DMibErrorInstance("Invalid remote call with priority and auth handler").f_ExceptionPointer());
 							return;
@@ -268,7 +271,7 @@ namespace NMib::NConcurrency
 					break;
 				case EDistributedActorCommand_RemoteCallResult:
 					{
-						if (!fp_ApplyRemoteCallResult(_pConnection, Stream, 128))
+						if (!fp_ApplyRemoteCallResult(_pConnection, pPacketStore->m_pData, Stream, 128))
 						{
 							fp_OnInvalidConnection(_pConnection, DMibErrorInstance("Invalid remote call result").f_ExceptionPointer());
 							return;
@@ -279,7 +282,7 @@ namespace NMib::NConcurrency
 					{
 						uint8 Priority;
 						Stream >> Priority;
-						if (!fp_ApplyRemoteCallResult(_pConnection, Stream, Priority))
+						if (!fp_ApplyRemoteCallResult(_pConnection, pPacketStore->m_pData, Stream, Priority))
 						{
 							fp_OnInvalidConnection(_pConnection, DMibErrorInstance("Invalid remote call result with priority").f_ExceptionPointer());
 							return;
@@ -358,7 +361,7 @@ namespace NMib::NConcurrency
 
 		if (bAccPacket)
 		{
-			NStream::CBinaryStreamMemory<NStream::CBinaryStreamDefault, NContainer::CIOByteVector> Stream;
+			NStream::TCBinaryStreamStorage<> Stream;
 			uint32 HostActorProtocolVersion = pHost->m_ActorProtocolVersion.f_Load(NAtomic::gc_MemoryOrder_Relaxed);
 
 			// Use priority-aware acknowledgment when priority != 128 and protocol supports it
@@ -374,10 +377,10 @@ namespace NMib::NConcurrency
 				Stream << AckPacket;
 			}
 
-			NStorage::TCSharedPointer<NContainer::CIOByteVector> pMessage = fg_Construct(Stream.f_MoveVector());
+			NStorage::TCSharedPointer<NStream::CBinaryStorage> pMessage = fg_Construct(Stream.f_MoveStorage());
 
 			// Acknowledge is a control packet - use priority 0 (highest) as it's independent of data ordering
-			fp_SendPacket(_pConnection, fg_Move(pMessage), 0);
+			fp_SendPacket(_pConnection, pMessage.f_ShareAsConst(), 0);
 		}
 	}
 }

@@ -148,7 +148,7 @@ namespace NMib::NConcurrency
 						if (!DistributionManager)
 							co_return DMibErrorInstance("Actor distribution manager for actor no longer exists");
 
-						auto Result = co_await DistributionManager(&CActorDistributionManager::f_CallRemote, fg_Move(pActorData), Stream.f_MoveVector(), Context).f_Wrap();
+						auto Result = co_await DistributionManager(&CActorDistributionManager::f_CallRemote, fg_Move(pActorData), Stream.f_MoveStorage(), Context).f_Wrap();
 
 						if (!Result)
 							co_return Result.f_GetException();
@@ -207,7 +207,7 @@ namespace NMib::NConcurrency
 						if (!DistributionManager)
 							co_return DMibErrorInstance("Actor distribution manager for actor no longer exists");
 
-						auto Data = co_await DistributionManager(&CActorDistributionManager::f_CallRemote, fg_Move(pActorData), Stream.f_MoveVector(), Context);
+						auto Data = co_await DistributionManager(&CActorDistributionManager::f_CallRemote, fg_Move(pActorData), Stream.f_MoveStorage(), Context);
 
 						NException::CDisableExceptionTraceScope DisableTrace;
 						TCActorFunctorWithID<TCFuture<NStorage::TCOptional<CAsyncGeneratorType>> ()> fRemoteFunctor;
@@ -270,7 +270,7 @@ namespace NMib::NConcurrency
 			}
 
 			template <typename tf_FFunction, umint... tfp_Indices>
-			static NConcurrency::TCFuture<NContainer::CIOByteVector> fs_Call
+			static NConcurrency::TCFuture<NStream::CBinaryStorage> fs_Call
 				(
 					CDistributedActorReadStream &_Stream
 					, tf_FFunction &_fFunction
@@ -318,7 +318,7 @@ namespace NMib::NConcurrency
 		#endif
 				if constexpr (mc_bIsFuture)
 				{
-					NConcurrency::TCPromiseFuturePair<NContainer::CIOByteVector> Return;
+					NConcurrency::TCPromiseFuturePair<NStream::CBinaryStorage> Return;
 
 					TCFutureOnResult<CReturnType> fOnResultSet =
 #if DMibEnableSafeCheck > 0 && defined(DMibCheckOnResultSizes)
@@ -404,7 +404,7 @@ namespace NMib::NConcurrency
 					DMibBinaryStreamVersion(Stream, _Stream.f_GetVersion());
 					Stream << false; // No exception
 					Stream << fg_Move(Result);
-					return Stream.f_MoveVector();
+					return Stream.f_MoveStorage();
 				}
 			}
 		};
@@ -489,7 +489,7 @@ namespace NMib::NConcurrency::NPrivate
 	}
 
 	template <typename t_FFunction, typename t_FFunctionSignature>
-	auto TCStreamingFunction<t_FFunction, t_FFunctionSignature>::f_Call(CDistributedActorReadStream &_Stream) -> NConcurrency::TCFuture<NContainer::CIOByteVector>
+	auto TCStreamingFunction<t_FFunction, t_FFunctionSignature>::f_Call(CDistributedActorReadStream &_Stream) -> NConcurrency::TCFuture<NStream::CBinaryStorage>
 	{
 		return NPrivate::TCStreamingFunctionHelper<t_FFunctionSignature>::fs_Call
 			(

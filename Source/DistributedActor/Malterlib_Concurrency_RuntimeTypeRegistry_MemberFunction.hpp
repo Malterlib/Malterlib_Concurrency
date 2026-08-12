@@ -80,7 +80,7 @@ namespace NMib::NConcurrency::NPrivate
 			, NMeta::TCIndices<tfp_Indices...> const &_Indices
 			, NMeta::TCTypeList<tfp_CParams...> const &_TypeList
 		)
-		-> NConcurrency::TCFuture<NContainer::CIOByteVector>
+		-> NConcurrency::TCFuture<NStream::CBinaryStorage>
 		requires (TCIsAsyncGenerator<t_CReturn>::mc_Value)
 	{
 		using CClass = typename NTraits::TCMemberFunctionPointerTraits<decltype(t_pMemberFunction)>::CClass;
@@ -128,7 +128,7 @@ namespace NMib::NConcurrency::NPrivate
 			, NMeta::TCIndices<tfp_Indices...> const &_Indices
 			, NMeta::TCTypeList<tfp_CParams...> const &_TypeList
 		)
-		-> NConcurrency::TCUnsafeFuture<NContainer::CIOByteVector>
+		-> NConcurrency::TCUnsafeFuture<NStream::CBinaryStorage>
 		requires (!TCIsAsyncGenerator<t_CReturn>::mc_Value)
 	{
 		using CClass = typename NTraits::TCMemberFunctionPointerTraits<decltype(t_pMemberFunction)>::CClass;
@@ -170,10 +170,10 @@ namespace NMib::NConcurrency::NPrivate
 			, t_CReturn
 		>::f_Call
 		(
-			NStream::CBinaryStreamMemoryPtr<NStream::CBinaryStreamDefault> &_Stream
+			NStream::TCBinaryStreamStoragePtr<NStream::CBinaryStreamDefault> &_Stream
 			, void *_pObject
 		)
-		-> NConcurrency::TCFuture<NContainer::CIOByteVector>
+		-> NConcurrency::TCFuture<NStream::CBinaryStorage>
 	{
 		using CParams = typename NTraits::TCMemberFunctionPointerTraits<decltype(t_pMemberFunction)>::CParams;
 		return fp_Call
@@ -236,7 +236,7 @@ namespace NMib::NConcurrency::NPrivate
 			, NMeta::TCIndices<tfp_Indices...> const &_Indices
 			, NMeta::TCTypeList<tfp_CParams...> const &_TypeList
 		)
-		-> NConcurrency::TCUnsafeFuture<NContainer::CIOByteVector>
+		-> NConcurrency::TCUnsafeFuture<NStream::CBinaryStorage>
 	{
 		using CClass = typename NTraits::TCMemberFunctionPointerTraits<decltype(t_pMemberFunction)>::CClass;
 
@@ -277,10 +277,10 @@ namespace NMib::NConcurrency::NPrivate
 			, void
 		>::f_Call
 		(
-			NStream::CBinaryStreamMemoryPtr<NStream::CBinaryStreamDefault> &_Stream
+			NStream::TCBinaryStreamStoragePtr<NStream::CBinaryStreamDefault> &_Stream
 			, void *_pObject
 		)
-		-> NConcurrency::TCFuture<NContainer::CIOByteVector>
+		-> NConcurrency::TCFuture<NStream::CBinaryStorage>
 	{
 		using CParams = typename NTraits::TCMemberFunctionPointerTraits<decltype(t_pMemberFunction)>::CParams;
 		return fp_Call
@@ -347,7 +347,7 @@ namespace NMib::NConcurrency::NPrivate
 			, NMeta::TCIndices<tfp_Indices...> const &_Indices
 			, NMeta::TCTypeList<tfp_CParams...> const &_TypeList
 		)
-		-> NConcurrency::TCFuture<NContainer::CIOByteVector>
+		-> NConcurrency::TCFuture<NStream::CBinaryStorage>
 	{
 		using CClass = typename NTraits::TCMemberFunctionPointerTraits<decltype(t_pMemberFunction)>::CClass;
 
@@ -363,7 +363,7 @@ namespace NMib::NConcurrency::NPrivate
 			return _Exception.f_ExceptionPointer();
 		}
 
-		NConcurrency::TCPromiseFuturePair<NContainer::CIOByteVector> Return;
+		NConcurrency::TCPromiseFuturePair<NStream::CBinaryStorage> Return;
 
 		TCFutureOnResult<t_CResult> fOnResultSet =
 #if DMibEnableSafeCheck > 0 && defined(DMibCheckOnResultSizes)
@@ -446,10 +446,10 @@ namespace NMib::NConcurrency::NPrivate
 			, NConcurrency::TCFuture<t_CResult>
 		>::f_Call
 		(
-			NStream::CBinaryStreamMemoryPtr<NStream::CBinaryStreamDefault> &_Stream
+			NStream::TCBinaryStreamStoragePtr<NStream::CBinaryStreamDefault> &_Stream
 			, void *_pObject
 		)
-		-> NConcurrency::TCFuture<NContainer::CIOByteVector>
+		-> NConcurrency::TCFuture<NStream::CBinaryStorage>
 	{
 		using CParams = typename NTraits::TCMemberFunctionPointerTraits<decltype(t_pMemberFunction)>::CParams;
 		return fp_Call

@@ -214,8 +214,8 @@ namespace NMib::NConcurrency
 
 //#define DMibConcurrency 1
 
-	CConcurrencyThreadLocal::CConcurrencyThreadLocal()
-		: m_SystemThreadLocal(fg_SystemThreadLocal())
+	CConcurrencyThreadLocal::CConcurrencyThreadLocal(NThread::CThreadLocalConstructionContext const &_Context)
+		: m_SystemThreadLocal(fg_SystemThreadLocal(_Context.m_ThreadID))
 	{
 
 		m_SystemThreadLocal.m_PromiseThreadLocal.m_pConcurrencyThreadLocal = this;

@@ -9,6 +9,7 @@
 #include <Mib/Function/Function>
 #include <Mib/Meta/Meta>
 #include <Mib/Storage/Tuple>
+#include <Mib/Thread/Local>
 #include <Mib/Time/Stopwatch>
 
 #include "Malterlib_Concurrency_Coroutine.h"
@@ -311,7 +312,9 @@ namespace NMib::NConcurrency
 
 	struct CConcurrencyThreadLocal final
 	{
-		CConcurrencyThreadLocal();
+		static constexpr bool mc_bThreadLocalConstructForThread = true;
+
+		CConcurrencyThreadLocal(NThread::CThreadLocalConstructionContext const &_Context);
 		~CConcurrencyThreadLocal();
 
 		CActorHolder *m_pCurrentlyProcessingActorHolder = nullptr;

@@ -282,7 +282,7 @@ namespace NMib::NConcurrency
 		umint nThreads = NSys::fg_Thread_GetVirtualCores();
 #endif
 		{
-			NStr::CStrNonTracked ThreadOverride = NSys::fg_Process_GetEnvironmentVariable_NonProtected(NStr::CStrNonTracked("MibConcurrencyThreads"));
+			NStr::CStrNonTracked ThreadOverride = NSys::fg_Process_GetEnvironmentVariable_NonProtected(NStr::gc_Str<"MibConcurrencyThreads">.m_Str);
 			if (ThreadOverride != "")
 			{
 				// Parse signed so a negative override is rejected instead of wrapping to a huge count

@@ -105,6 +105,20 @@ namespace NMib::NConcurrency::NActorDistributionManagerInternal
 		NStr::CStr m_ListenID;
 	};
 
+	// Unix transports run at local bandwidths where a large frame costs microseconds of head of
+	// line blocking; network transports keep the websocket default so fragmentation bounds how
+	// long a frame blocks interleaved priority traffic. The margin covers the packet framing
+	// plus a piggybacked ack, so a full sized chunk does not split into a maximum frame plus a
+	// tiny tail frame
+	inline constexpr umint gc_TransportFragmentPayload = 1024 * 1024;
+	inline constexpr umint gc_TransportFragmentMargin = 4096;
+	inline constexpr umint gc_UnixTransportFragmentationSize = gc_TransportFragmentPayload + gc_TransportFragmentMargin;
+
+	// Both ends of a unix transport fragment at the same size, so accepting exactly that is what
+	// keeps the peer's frames legal while still bounding how far an advertised length grows the
+	// receive buffer ahead of the payload
+	inline constexpr umint gc_UnixTransportMaxFragmentSize = gc_UnixTransportFragmentationSize;
+
 	umint fg_TransportFragmentationOverride();
 
 	bool fg_IsAuthenticatedUnixScheme(NStr::CStr const &_Scheme);

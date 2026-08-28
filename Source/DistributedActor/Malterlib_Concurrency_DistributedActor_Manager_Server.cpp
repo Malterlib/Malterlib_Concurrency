@@ -497,6 +497,7 @@ namespace NMib::NConcurrency
 	TCFuture<CDistributedActorListenReference> CActorDistributionManagerInternal::fp_ListenTry(NStr::CStr _ListenID, CActorDistributionListenSettings _Settings)
 	{
 		TCFutureVector<NMib::NNetwork::CNetAddress> ResolvedAddresses;
+		NContainer::TCVector<NStr::CStr> TranslatedHosts;
 		for (auto &Address : _Settings.m_ListenAddresses)
 		{
 			// The addresses were validated by fp_Listen before the retry classification, so a
@@ -504,6 +505,7 @@ namespace NMib::NConcurrency
 			auto TranslatedAddress = fp_TranslateHostname(Address.f_GetHost());
 
 			m_ResolveActor(&NNetwork::CResolveActor::f_Resolve, TranslatedAddress, NNetwork::ENetAddressType_None) > ResolvedAddresses;
+			TranslatedHosts.f_Insert(fg_Move(TranslatedAddress));
 		}
 
 		auto CheckDestory = co_await m_pThis->f_CheckDestroyedOnResume();
@@ -511,10 +513,12 @@ namespace NMib::NConcurrency
 		auto ResolveResults = co_await (fg_AllDone(ResolvedAddresses) % "Failed to resolve addresses");
 
 		NContainer::TCVector<NNetwork::CNetAddress> Addresses;
-		// What the configured address says about each listen: the transport its scheme picks
+		// What the configured address says about each listen: the transport its scheme picks, and
+		// whether its host is local
 		struct CAddressKind
 		{
 			bool m_bAuthenticatedUnix;
+			bool m_bLocal;
 		};
 
 		NContainer::TCVector<CAddressKind> AddressKinds;
@@ -525,6 +529,7 @@ namespace NMib::NConcurrency
 		for (auto &Address : ResolveResults)
 		{
 			auto &ListenURL = _Settings.m_ListenAddresses[iResult];
+			auto const &TranslatedHost = TranslatedHosts[iResult];
 			++iResult;
 
 			auto Port = ListenURL.f_GetPortFromScheme();
@@ -534,7 +539,14 @@ namespace NMib::NConcurrency
 			bool bAuthenticatedUnix = NActorDistributionManagerInternal::fg_IsAuthenticatedUnixScheme(ListenURL.f_GetScheme());
 			(bAuthenticatedUnix ? bAnyAuthenticatedUnix : bAnyTls) = true;
 
-			AddressKinds.f_Insert({.m_bAuthenticatedUnix = bAuthenticatedUnix});
+			// The rule the connecting end applies to the host it dials, applied to the host this
+			// listen was configured with: a unix path or a loopback host is a local transport on
+			// both ends. Decided on the string rather than on the resolved address so the two
+			// ends agree, and so a listen on every interface, which remote peers reach, keeps the
+			// wire bound on what it accepts
+			bool bLocal = NNetwork::fg_IsUnixSocketAddressString(TranslatedHost) || NNetwork::fg_IsLoopbackHostString(TranslatedHost);
+
+			AddressKinds.f_Insert({.m_bAuthenticatedUnix = bAuthenticatedUnix, .m_bLocal = bLocal});
 			Addresses.f_Insert(fg_Move(Address));
 		}
 
@@ -581,7 +593,10 @@ namespace NMib::NConcurrency
 		NStorage::TCSharedPointer<CListen> pListenState = fg_Construct();
 
 		pListenState->m_ListenAddresses = _Settings.m_ListenAddresses;
-		pListenState->m_WebsocketServer = fg_ConstructActor<NWeb::CWebSocketServerActor>(m_WebsocketSettings);
+
+		auto ListenWebsocketSettings = m_WebsocketSettings;
+
+		pListenState->m_WebsocketServer = fg_ConstructActor<NWeb::CWebSocketServerActor>(ListenWebsocketSettings);
 
 		auto StartListenResult = co_await
 			(
@@ -615,12 +630,37 @@ namespace NMib::NConcurrency
 						{
 							auto const &AddressKind = AddressKinds[_iAddress];
 
+							// The local sizes only where the configured host says so, on both counts: the
+							// accepted size is the bound on what a public peer can make this end allocate,
+							// so a listen remote peers can reach keeps the wire default (0), and a client
+							// that dialed a loopback host against such a listen has its large frames
+							// refused rather than the listen opened up to everyone
+							bool bLocalAddress = AddressKind.m_bLocal;
+							uint32 FragmentationSize = bLocalAddress ? uint32(NActorDistributionManagerInternal::gc_UnixTransportFragmentationSize) : 0;
+							uint32 MaxFragmentSize = bLocalAddress ? uint32(NActorDistributionManagerInternal::gc_UnixTransportMaxFragmentSize) : 0;
+
 							// Authenticated unix listens are wsa unix sockets, a confidential point to point
 							// link, so unmasked client frames are accepted; TLS listens keep masking
 							if (AddressKind.m_bAuthenticatedUnix)
-								return {NNetwork::CSocket_AuthenticatedUnix::fs_GetFactory(pAuthenticatedUnixContext), true};
+							{
+								return
+									{
+										.m_Factory = NNetwork::CSocket_AuthenticatedUnix::fs_GetFactory(pAuthenticatedUnixContext)
+										, .m_bAllowUnmaskedFrames = true
+										, .m_FragmentationSize = FragmentationSize
+										, .m_MaxFragmentSize = MaxFragmentSize
+									}
+								;
+							}
 
-							return {NNetwork::CSocket_SSL::fs_GetFactory(pServerContext), false};
+							return
+								{
+									.m_Factory = NNetwork::CSocket_SSL::fs_GetFactory(pServerContext)
+									, .m_bAllowUnmaskedFrames = false
+									, .m_FragmentationSize = FragmentationSize
+									, .m_MaxFragmentSize = MaxFragmentSize
+								}
+							;
 						}
 					)
 				)

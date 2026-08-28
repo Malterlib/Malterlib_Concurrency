@@ -82,9 +82,12 @@ namespace NMib::NConcurrency
 			++Host.m_nSentPackets;
 		}
 
-		// Invert priority for WebSocket: distributed actor uses lower=higher, WebSocket uses higher=higher
-		// Distributed actor priority 0 (highest) -> WebSocket priority 255 (highest)
-		// Distributed actor priority 255 (lowest) -> WebSocket priority 0 (lowest)
+		// The websocket actor is transport machinery: the calling host of whatever remote call
+		// triggered this send means nothing there, and without the break every packet send would
+		// store and replay it as per call state
+		CBreakCallingHostInfoScope BreakCallingHostInfo;
+
+		// WebSocket priority is inverted relative to distributed actor priority
 		uint32 WebSocketPriority = 255 - _Priority;
 		_pConnection->m_Connection(&NWeb::CWebSocketActor::f_SendBinaryStorage, fg_Move(_pMessage), WebSocketPriority)
 			> [this, pWeakConnection = NStorage::TCSharedPointer<CConnection, NStorage::CSupportWeakTag>(fg_Explicit(_pConnection)).f_Weak()](TCAsyncResult<void> &&_Result)

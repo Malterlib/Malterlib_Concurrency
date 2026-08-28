@@ -21,8 +21,9 @@ namespace NMib::NConcurrency
 			CStr m_LastPath;
 		};
 
-		CInternal(CStr const &_RootPath)
+		CInternal(CStr const &_RootPath, bool _bColorLogs)
 			: m_RootPath(_RootPath)
+			, m_bColorLogs(_bColorLogs)
 		{
 		}
 
@@ -37,10 +38,12 @@ namespace NMib::NConcurrency
 		TCMap<CStr, CLogState *> m_FileToLogState;
 
 		CActorSubscription m_UpdateAllTimerSubscription;
+
+		bool m_bColorLogs = false;
 	};
 
-	CDistributedAppLogForwarder::CDistributedAppLogForwarder(CStr const &_RootPath)
-		: mp_pInternal(fg_Construct(_RootPath))
+	CDistributedAppLogForwarder::CDistributedAppLogForwarder(CStr const &_RootPath, bool _bColorLogs)
+		: mp_pInternal(fg_Construct(_RootPath, _bColorLogs))
 	{
 	}
 
@@ -106,8 +109,7 @@ namespace NMib::NConcurrency
 	{
 		auto &Internal = *mp_pInternal;
 
-		if (NCommandLine::CCommandLineDefaults::fs_ColorAnsiFlagsDefault() & NCommandLine::EAnsiEncodingFlag_Color)
-			fg_GetSys()->f_SetEnvironmentVariable("MalterlibFileLogColor", "true");
+		fg_GetSys()->f_SetEnvironmentVariable("MalterlibFileLogColor", Internal.m_bColorLogs ? "true" : "false");
 
 		fg_GetSys()->f_SetEnvironmentVariable("MalterlibLogCategoryWidth", "");
 

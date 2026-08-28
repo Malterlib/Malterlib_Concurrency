@@ -11,7 +11,9 @@ namespace NMib::NConcurrency
 	{
 		using CActorHolder = CSeparateThreadActorHolder;
 
-		CDistributedAppLogForwarder(NStr::CStr const &_RootPath);
+		// _bColorLogs decides whether monitored processes are asked to write colored log files;
+		// pass the effective color setting of the caller so --no-color reaches the forwarded logs
+		CDistributedAppLogForwarder(NStr::CStr const &_RootPath, bool _bColorLogs);
 		~CDistributedAppLogForwarder();
 
 		struct CInternal;

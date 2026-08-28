@@ -39,7 +39,7 @@ namespace NMib::NConcurrency
 					for (auto &Packet: _Container)
 					{
 						o_Bytes += Packet.m_pData->f_GetTotalLength();
-						o_PacketIDs.f_Insert(Packet.f_GetPacketID());
+						o_PacketIDs.f_Insert(Packet.m_PacketID);
 					}
 				}
 			;
@@ -68,7 +68,7 @@ namespace NMib::NConcurrency
 				auto &OutQueues = OutHost.m_PriorityQueues[Priority];
 				++OutQueues.m_Outgoing_SentPacketsQueueLength;
 				OutQueues.m_Outgoing_SentPacketsQueueBytes += Packet.m_pData->f_GetTotalLength();
-				OutQueues.m_Outgoing_SentPacketsQueueIDs.f_Insert(Packet.f_GetPacketID());
+				OutQueues.m_Outgoing_SentPacketsQueueIDs.f_Insert(Packet.m_PacketID);
 			}
 
 			OutHost.m_nSentPackets = Host.m_nSentPackets;

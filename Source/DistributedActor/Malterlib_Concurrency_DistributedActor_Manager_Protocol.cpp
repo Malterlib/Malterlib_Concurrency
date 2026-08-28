@@ -18,7 +18,7 @@ namespace NMib::NConcurrency
 			NContainer::TCVector<uint64> Packets;
 
 			for (auto &Packet : _Host.m_Outgoing_SentPackets)
-				Packets.f_Insert(Packet.f_GetPacketID());
+				Packets.f_Insert(Packet.m_PacketID);
 
 			return Packets;
 		}
@@ -59,12 +59,12 @@ namespace NMib::NConcurrency
 		iPacket.f_Reverse(PriorityQueues.m_IncomingPackets);
 		for (; iPacket; --iPacket)
 		{
-			if (iPacket->f_GetPacketID() == PacketID)
+			if (iPacket->m_PacketID == PacketID)
 			{
 				DMibLog(DebugVerbose2, " ---- {} {} ALREADY RECEIVED PACKET {} (priority {})", pHost->m_bIncoming, _pConnection->f_GetConnectionID(), PacketID, _Priority);
 				return true; // Already received
 			}
-			else if (iPacket->f_GetPacketID() < PacketID)
+			else if (iPacket->m_PacketID < PacketID)
 			{
 				DMibLog(DebugVerbose2, " ---- {} {} Receive packet {} (priority {})", pHost->m_bIncoming, _pConnection->f_GetConnectionID(), PacketID, _Priority);
 				NStorage::TCUniquePointer<CPacket> pPacket = fg_Construct(fg_Construct(fg_WrapSharedIncomingPacket(_pMessage)), _Priority);
@@ -104,7 +104,7 @@ namespace NMib::NConcurrency
 				break;
 
 			// Check if still within the acknowledged range and correct priority
-			if (fg_MakePriorityPacketKey(pPacket->m_Priority, pPacket->f_GetPacketID()) > EndKey)
+			if (fg_MakePriorityPacketKey(pPacket->m_Priority, pPacket->m_PacketID) > EndKey)
 				break;
 
 			_Host.m_Outgoing_SentPackets.f_Remove(pPacket);
@@ -612,7 +612,7 @@ namespace NMib::NConcurrency
 
 						for (auto &ReceivedPacket : PriorityQueues.m_IncomingPackets)
 						{
-							uint64 PacketID = ReceivedPacket.f_GetPacketID();
+							uint64 PacketID = ReceivedPacket.m_PacketID;
 							while (NextExpectedPacketID < PacketID)
 							{
 								PriorityState.m_MissingPacketIDs.f_Insert(NextExpectedPacketID);
@@ -754,7 +754,7 @@ namespace NMib::NConcurrency
 
 			for (auto &ReceivedPacket : PriorityQueues.m_IncomingPackets)
 			{
-				uint64 PacketID = ReceivedPacket.f_GetPacketID();
+				uint64 PacketID = ReceivedPacket.m_PacketID;
 				while (NextExpectedPacketID < PacketID)
 				{
 					PriorityState.m_MissingPacketIDs.f_Insert(NextExpectedPacketID);

@@ -9,32 +9,6 @@
 
 namespace NMib::NConcurrency
 {
-	namespace NActorDistributionManagerInternal
-	{
-		uint64 CPacket::f_GetPacketID() const
-		{
-			DMibFastCheck(m_pData && m_pData->f_GetTotalLength() >= sizeof(uint64));
-
-			uint8 Command = m_pData->f_GetByte(0);
-			umint Offset = 1;
-			// Priority commands have format: [cmd:1][priority:1][packetID:8]
-			if
-			(
-				Command == EDistributedActorCommand_RemoteCallWithPriority
-				|| Command == EDistributedActorCommand_RemoteCallWithPriorityAndAuthHandler
-				|| Command == EDistributedActorCommand_RemoteCallResultWithPriority
-			)
-			{
-				DMibFastCheck(m_pData->f_GetTotalLength() >= (sizeof(uint64) + 2));
-				Offset = 2; // Skip priority byte
-			}
-
-			uint64 PacketID;
-			m_pData->f_CopyTo(&PacketID, Offset, sizeof(PacketID));
-			return fg_ByteSwapLE(PacketID);
-		}
-	}
-
 	void CActorDistributionManagerInternal::fp_OnInvalidConnection
 		(
 			CConnection *_pConnection
@@ -161,7 +135,7 @@ namespace NMib::NConcurrency
 		// The packet id above is the last mutation; from here the storage is only read and
 		// possibly resent, so it is frozen as it becomes shared
 		NStorage::TCSharedPointer<NStream::CBinaryStorage> pStorage = fg_Construct(fg_Move(_Data));
-		NStorage::TCUniquePointer<CActorDistributionManagerInternal::CPacket> pPacket = fg_Construct(pStorage.f_ShareAsConst(), Priority);
+		NStorage::TCUniquePointer<CActorDistributionManagerInternal::CPacket> pPacket = fg_Construct(pStorage.f_ShareAsConst(), Priority, PacketID);
 		PriorityQueues.m_OutgoingPackets.f_Insert(pPacket.f_Detach());
 
 		fp_SendPacketQueue(_pHost);
@@ -186,7 +160,7 @@ namespace NMib::NConcurrency
 			while (auto *pPacket = PriorityQueues.m_OutgoingPackets.f_GetFirst())
 			{
 				auto *pConnection = &*iConnection;
-				DMibLog(DebugVerbose2, " ---- {} {} Sending packet {} (priority {})", _pHost->m_bIncoming, pConnection->f_GetConnectionID(), pPacket->f_GetPacketID(), pPacket->m_Priority);
+				DMibLog(DebugVerbose2, " ---- {} {} Sending packet {} (priority {})", _pHost->m_bIncoming, pConnection->f_GetConnectionID(), pPacket->m_PacketID, pPacket->m_Priority);
 
 				fp_SendPacket(pConnection, fg_TempCopy(pPacket->m_pData), pPacket->m_Priority);
 				pPacket->m_Link.f_Unlink();
@@ -206,9 +180,9 @@ namespace NMib::NConcurrency
 		uint64 AckPacket;
 		bool bAccPacket = false;
 		auto *pPacket = _PrioroityQueues.m_IncomingPackets.f_GetFirst();
-		while (pPacket && pPacket->f_GetPacketID() == _PrioroityQueues.m_IncomingNextPacketID)
+		while (pPacket && pPacket->m_PacketID == _PrioroityQueues.m_IncomingNextPacketID)
 		{
-			DMibLog(DebugVerbose2, " ---- {} {} Processing packet {} (priority {})", pHost->m_bIncoming, _pConnection->f_GetConnectionID(), pPacket->f_GetPacketID(), _Priority);
+			DMibLog(DebugVerbose2, " ---- {} {} Processing packet {} (priority {})", pHost->m_bIncoming, _pConnection->f_GetConnectionID(), pPacket->m_PacketID, _Priority);
 			AckPacket = _PrioroityQueues.m_IncomingNextPacketID;
 			++_PrioroityQueues.m_IncomingNextPacketID;
 			bAccPacket = true;

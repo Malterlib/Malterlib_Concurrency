@@ -389,6 +389,19 @@ namespace NMib::NConcurrency
 							Checkout.f_GarbageCollectLocalArenaIfPending();
 #endif
 						}
+
+#if DMibConfig_Concurrency_FairScheduling
+						// A requested yield must take the nonlocal handoff below; fair rescheduling would leave the yield pending for another message.
+						if (!mp_bYield) [[likely]]
+						{
+							UnLock.f_Clear();
+							mp_Working.f_FetchAnd(~gc_ProcessingMask);
+
+							fp_QueueRunProcess(ThreadLocal);
+
+							return;
+						}
+#endif
 					}
 
 					if (!ThreadLocal.m_pCurrentlyProcessingActorHolder)

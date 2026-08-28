@@ -27,6 +27,10 @@
 #	endif
 #endif
 
+#ifndef DMibConfig_Concurrency_FairScheduling
+#	define DMibConfig_Concurrency_FairScheduling 0
+#endif
+
 #ifndef DMibConfig_Concurrency_LocalFirstScheduler
 #	define DMibConfig_Concurrency_LocalFirstScheduler 1
 #endif

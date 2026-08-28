@@ -389,6 +389,22 @@ namespace NMib::NConcurrency
 							Checkout.f_GarbageCollectLocalArenaIfPending();
 #endif
 						}
+
+#if DMibConfig_Concurrency_FairScheduling
+						// A yield requested by the processed handler falls through to the yield
+						// branch below instead of taking the fair reschedule: the fair return
+						// would leave the flag set and run one more message before the forced
+						// non-local handoff the yield asked for
+						if (!mp_bYield) [[likely]]
+						{
+							UnLock.f_Clear();
+							mp_Working.f_FetchAnd(~gc_ProcessingMask);
+
+							fp_QueueRunProcess(ThreadLocal);
+
+							return;
+						}
+#endif
 					}
 
 					if (!ThreadLocal.m_pCurrentlyProcessingActorHolder)

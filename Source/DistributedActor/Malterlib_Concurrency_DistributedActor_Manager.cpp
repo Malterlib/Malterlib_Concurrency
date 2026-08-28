@@ -47,6 +47,25 @@ namespace NMib::NConcurrency
 
 			return VerifyOptions;
 		}
+
+#if DMibConfig_IoDebug_Enable
+		umint fg_TransportFragmentationOverride()
+		{
+			static umint s_nBytes =
+				(
+					[]() -> umint
+					{
+						auto Setting = NSys::fg_Process_GetEnvironmentVariable_NonProtected(NStr::gc_Str<"MalterlibTransportFragmentation">.m_Str);
+
+						return Setting.f_ToIntExact(umint(0));
+					}
+					()
+				)
+			;
+
+			return s_nBytes;
+		}
+#endif
 	}
 
 	using namespace NActorDistributionManagerInternal;

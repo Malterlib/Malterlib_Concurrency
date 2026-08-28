@@ -494,12 +494,14 @@ namespace NMib::NConcurrency
 	TCFuture<CDistributedActorListenReference> CActorDistributionManagerInternal::fp_ListenTry(NStr::CStr _ListenID, CActorDistributionListenSettings _Settings)
 	{
 		TCFutureVector<NMib::NNetwork::CNetAddress> ResolvedAddresses;
+		NContainer::TCVector<NStr::CStr> TranslatedHosts;
 		for (auto &Address : _Settings.m_ListenAddresses)
 		{
 			// Permanent address errors were rejected before entering the transient-failure retry loop.
 			auto TranslatedAddress = fp_TranslateHostname(Address.f_GetHost());
 
 			m_ResolveActor(&NNetwork::CResolveActor::f_Resolve, TranslatedAddress, NNetwork::ENetAddressType_None) > ResolvedAddresses;
+			TranslatedHosts.f_Insert(fg_Move(TranslatedAddress));
 		}
 
 		auto CheckDestory = co_await m_pThis->f_CheckDestroyedOnResume();
@@ -510,6 +512,7 @@ namespace NMib::NConcurrency
 		struct CAddressKind
 		{
 			bool m_bAuthenticatedUnix;
+			bool m_bLocal;
 		};
 
 		NContainer::TCVector<CAddressKind> AddressKinds;
@@ -520,6 +523,7 @@ namespace NMib::NConcurrency
 		for (auto &Address : ResolveResults)
 		{
 			auto &ListenURL = _Settings.m_ListenAddresses[iResult];
+			auto const &TranslatedHost = TranslatedHosts[iResult];
 			++iResult;
 
 			auto Port = ListenURL.f_GetPortFromScheme();
@@ -529,7 +533,10 @@ namespace NMib::NConcurrency
 			bool bAuthenticatedUnix = NActorDistributionManagerInternal::fg_IsAuthenticatedUnixScheme(ListenURL.f_GetScheme());
 			(bAuthenticatedUnix ? bAnyAuthenticatedUnix : bAnyTls) = true;
 
-			AddressKinds.f_Insert({.m_bAuthenticatedUnix = bAuthenticatedUnix});
+			// Use the configured host string on both ends; wildcard listens must retain the public frame limit.
+			bool bLocal = NNetwork::fg_IsUnixSocketAddressString(TranslatedHost) || NNetwork::fg_IsLoopbackHostString(TranslatedHost);
+
+			AddressKinds.f_Insert({.m_bAuthenticatedUnix = bAuthenticatedUnix, .m_bLocal = bLocal});
 			Addresses.f_Insert(fg_Move(Address));
 		}
 
@@ -576,7 +583,10 @@ namespace NMib::NConcurrency
 		NStorage::TCSharedPointer<CListen> pListenState = fg_Construct();
 
 		pListenState->m_ListenAddresses = _Settings.m_ListenAddresses;
-		pListenState->m_WebsocketServer = fg_ConstructActor<NWeb::CWebSocketServerActor>(m_WebsocketSettings);
+
+		auto ListenWebsocketSettings = m_WebsocketSettings;
+
+		pListenState->m_WebsocketServer = fg_ConstructActor<NWeb::CWebSocketServerActor>(ListenWebsocketSettings);
 
 		auto StartListenResult = co_await
 			(
@@ -610,10 +620,31 @@ namespace NMib::NConcurrency
 						{
 							auto const &AddressKind = AddressKinds[_iAddress];
 
-							if (AddressKind.m_bAuthenticatedUnix)
-								return {NNetwork::CSocket_AuthenticatedUnix::fs_GetFactory(pAuthenticatedUnixContext), true};
+							// A public listen retains its allocation bound even for clients connecting through loopback.
+							bool bLocalAddress = AddressKind.m_bLocal;
+							uint32 FragmentationSize = bLocalAddress ? uint32(NActorDistributionManagerInternal::gc_UnixTransportFragmentationSize) : 0;
+							uint32 MaxFragmentSize = bLocalAddress ? uint32(NActorDistributionManagerInternal::gc_UnixTransportMaxFragmentSize) : 0;
 
-							return {NNetwork::CSocket_SSL::fs_GetFactory(pServerContext), false};
+							if (AddressKind.m_bAuthenticatedUnix)
+							{
+								return
+									{
+										.m_Factory = NNetwork::CSocket_AuthenticatedUnix::fs_GetFactory(pAuthenticatedUnixContext)
+										, .m_bAllowUnmaskedFrames = true
+										, .m_FragmentationSize = FragmentationSize
+										, .m_MaxFragmentSize = MaxFragmentSize
+									}
+								;
+							}
+
+							return
+								{
+									.m_Factory = NNetwork::CSocket_SSL::fs_GetFactory(pServerContext)
+									, .m_bAllowUnmaskedFrames = false
+									, .m_FragmentationSize = FragmentationSize
+									, .m_MaxFragmentSize = MaxFragmentSize
+								}
+							;
 						}
 					)
 				)

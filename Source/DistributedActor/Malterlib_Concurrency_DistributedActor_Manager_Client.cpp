@@ -247,6 +247,14 @@ namespace NMib::NConcurrency
 		ConnectSettings.m_Protocols = NContainer::fg_CreateVector<NStr::CStr>("MalterlibDistributedActors");
 		ConnectSettings.m_Request = fg_Move(Request);
 		ConnectSettings.m_SocketFactory = fg_Move(SocketFactory);
+		// The CLI exports the listen address so both endpoints derive matching frame limits from the configured host.
+		// Public receive limits are a security contract. Custom connections substituting a loopback host for a public listen
+		// can select incompatible frame sizes and are intentionally rejected during identify.
+		if (NNetwork::fg_IsUnixSocketAddressString(ToConnectTo.f_GetHost()) || NNetwork::fg_IsLoopbackHostString(ToConnectTo.f_GetHost()))
+		{
+			ConnectSettings.m_FragmentationSize = NActorDistributionManagerInternal::gc_UnixTransportFragmentationSize;
+			ConnectSettings.m_MaxFragmentSize = NActorDistributionManagerInternal::gc_UnixTransportMaxFragmentSize;
+		}
 		ConnectSettings.m_bAllowUnmaskedFrames = bAuthenticatedUnix; // Authenticated Unix sockets are confidential point-to-point links.
 
 		m_WebsocketClientConnector

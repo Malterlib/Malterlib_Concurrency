@@ -105,6 +105,13 @@ namespace NMib::NConcurrency::NActorDistributionManagerInternal
 		NStr::CStr m_ListenID;
 	};
 
+	// Local transports use larger frames; the margin prevents framing and piggybacked acknowledgements from creating a tiny tail frame.
+	inline constexpr umint gc_TransportFragmentPayload = 1024 * 1024;
+	inline constexpr umint gc_TransportFragmentMargin = 4096;
+	inline constexpr umint gc_UnixTransportFragmentationSize = gc_TransportFragmentPayload + gc_TransportFragmentMargin;
+
+	inline constexpr umint gc_UnixTransportMaxFragmentSize = gc_UnixTransportFragmentationSize; // Accept the peer's local fragment size while bounding advertised-length allocations.
+
 	umint fg_TransportFragmentationOverride();
 
 	bool fg_IsAuthenticatedUnixScheme(NStr::CStr const &_Scheme);

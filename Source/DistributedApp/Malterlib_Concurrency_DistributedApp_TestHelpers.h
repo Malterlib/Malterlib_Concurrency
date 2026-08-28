@@ -11,7 +11,7 @@ namespace NMib::NConcurrency
 	{
 		using CActorHolder = CSeparateThreadActorHolder;
 
-		CDistributedAppLogForwarder(NStr::CStr const &_RootPath);
+		CDistributedAppLogForwarder(NStr::CStr const &_RootPath, bool _bColorLogs);
 		~CDistributedAppLogForwarder();
 
 		struct CInternal;

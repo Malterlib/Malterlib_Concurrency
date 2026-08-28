@@ -102,7 +102,7 @@ namespace NMib::NConcurrency
 			NStorage::TCSharedPointer<TCDistributedActorInterfaceWithID<CDistributedActorTrustManagerInterface>> m_pTrustInterface;
 		};
 
-		CDistributedApp_LaunchHelper(CDistributedApp_LaunchHelperDependencies const &_Dependencies, bool _bLogToStderr);
+		CDistributedApp_LaunchHelper(CDistributedApp_LaunchHelperDependencies const &_Dependencies, bool _bLogToStderr, bool _bNoColor = false);
 		~CDistributedApp_LaunchHelper();
 
 		CActorSubscription fp_GetLaunchSubscription(NStr::CStr const &_LaunchID);
@@ -135,5 +135,6 @@ namespace NMib::NConcurrency
 		NContainer::TCMap<NStr::CStr, TCPromise<void>> m_PendingDestroys;
 		TCDistributedActorInstance<CDistributedAppInterfaceServerImplementation> m_AppInterfaceServer;
 		bool m_bLogToStderr = false;
+		bool m_bNoColor = false;
 	};
 }

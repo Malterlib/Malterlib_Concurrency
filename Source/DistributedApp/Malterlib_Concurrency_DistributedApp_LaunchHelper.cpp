@@ -173,9 +173,10 @@ namespace NMib::NConcurrency
 		co_return {};
 	}
 
-	CDistributedApp_LaunchHelper::CDistributedApp_LaunchHelper(CDistributedApp_LaunchHelperDependencies const &_Dependencies, bool _bLogToStderr)
+	CDistributedApp_LaunchHelper::CDistributedApp_LaunchHelper(CDistributedApp_LaunchHelperDependencies const &_Dependencies, bool _bLogToStderr, bool _bNoColor)
 		: m_Dependencies(_Dependencies)
 		, m_bLogToStderr(_bLogToStderr)
+		, m_bNoColor(_bNoColor)
 	{
 		m_AppInterfaceServer.f_Publish<CDistributedAppInterfaceServer>(m_Dependencies.m_DistributionManager, this)
 			> [](TCAsyncResult<void> &&_Result)
@@ -343,7 +344,12 @@ namespace NMib::NConcurrency
 
 		Params.f_Insert(fg_Move(_ExtraParams));
 		if (m_bLogToStderr)
+		{
 			Params.f_Insert("--log-to-stderr");
+
+			if (m_bNoColor)
+				Params.f_Insert("--no-color");
+		}
 
 		NProcess::CProcessLaunchActor::CLaunch Launch
 			{

@@ -250,6 +250,13 @@ namespace NMib::NConcurrency
 		ConnectSettings.m_Protocols = NContainer::fg_CreateVector<NStr::CStr>("MalterlibDistributedActors");
 		ConnectSettings.m_Request = fg_Move(Request);
 		ConnectSettings.m_SocketFactory = fg_Move(SocketFactory);
+		// The server derives the same sizes from the same address type. Older builds put no upper
+		// bound on accepted fragments, so no negotiation is needed
+		if (NNetwork::fg_IsUnixSocketAddressString(ToConnectTo.f_GetHost()))
+		{
+			ConnectSettings.m_FragmentationSize = NActorDistributionManagerInternal::gc_UnixTransportFragmentationSize;
+			ConnectSettings.m_MaxFragmentSize = NActorDistributionManagerInternal::gc_UnixTransportMaxFragmentSize;
+		}
 		ConnectSettings.m_bAllowUnmaskedFrames = bAuthenticatedUnix; // wsa unix connections are a confidential point to point link, so send unmasked
 
 		m_WebsocketClientConnector

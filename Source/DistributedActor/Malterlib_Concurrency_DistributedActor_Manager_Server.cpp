@@ -570,7 +570,10 @@ namespace NMib::NConcurrency
 		NStorage::TCSharedPointer<CListen> pListenState = fg_Construct();
 
 		pListenState->m_ListenAddresses = _Settings.m_ListenAddresses;
-		pListenState->m_WebsocketServer = fg_ConstructActor<NWeb::CWebSocketServerActor>(m_WebsocketSettings);
+
+		auto ListenWebsocketSettings = m_WebsocketSettings;
+
+		pListenState->m_WebsocketServer = fg_ConstructActor<NWeb::CWebSocketServerActor>(ListenWebsocketSettings);
 
 		auto StartListenResult = co_await
 			(
@@ -602,12 +605,35 @@ namespace NMib::NConcurrency
 					(
 						[pServerContext, pAuthenticatedUnixContext, AddressAuthenticatedUnix](umint _iAddress, NNetwork::CNetAddress const &_Address) -> NWeb::CWebSocketListenAddressConfig
 						{
+							// Keyed on the address type rather than on the transport, so that it matches the
+							// rule the connecting end applies: a client picks the unix frame sizes from the
+							// address it dials, whether or not that unix listen turned out to be wsa
+							bool bUnixAddress = _Address.f_GetType() == NNetwork::ENetAddressType_Unix;
+							uint32 FragmentationSize = bUnixAddress ? uint32(NActorDistributionManagerInternal::gc_UnixTransportFragmentationSize) : 0;
+							uint32 MaxFragmentSize = bUnixAddress ? uint32(NActorDistributionManagerInternal::gc_UnixTransportMaxFragmentSize) : 0;
+
 							// Authenticated unix listens are wsa unix sockets, a confidential point to point
 							// link, so unmasked client frames are accepted; TLS listens keep masking
 							if (AddressAuthenticatedUnix[_iAddress])
-								return {NNetwork::CSocket_AuthenticatedUnix::fs_GetFactory(pAuthenticatedUnixContext), true};
+							{
+								return
+									{
+										.m_Factory = NNetwork::CSocket_AuthenticatedUnix::fs_GetFactory(pAuthenticatedUnixContext)
+										, .m_bAllowUnmaskedFrames = true
+										, .m_FragmentationSize = FragmentationSize
+										, .m_MaxFragmentSize = MaxFragmentSize
+									}
+								;
+							}
 
-							return {NNetwork::CSocket_SSL::fs_GetFactory(pServerContext), false};
+							return
+								{
+									.m_Factory = NNetwork::CSocket_SSL::fs_GetFactory(pServerContext)
+									, .m_bAllowUnmaskedFrames = false
+									, .m_FragmentationSize = FragmentationSize
+									, .m_MaxFragmentSize = MaxFragmentSize
+								}
+							;
 						}
 					)
 				)

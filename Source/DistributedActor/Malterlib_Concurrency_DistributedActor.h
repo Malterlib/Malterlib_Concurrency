@@ -876,6 +876,7 @@ namespace NMib::NConcurrency
 			)
 		;
 		void fp_CleanupRemoteContext(NFunction::TCFunction<void (CActorDistributionManagerInternal &_Internal)> const &_fCleanup);
+		void fp_FlushSendPacketQueue(NStorage::TCSharedPointerSupportWeak<NPrivate::ICHost> _pHost);
 		TCFuture<void> fp_RemoveListen(NStr::CStr _ListenID);
 #if DMibConfig_Tests_Enable
 		TCFuture<void> fp_Debug_BreakAllListenConnections(NStr::CStr _ListenID, fp64 _Timeout, NNetwork::ESocketDebugFlag _DebugFlags);
@@ -912,6 +913,7 @@ namespace NMib::NConcurrency
 		friend struct CCallingHostInfo;
 		friend struct NPrivate::CDistributedActorStreamContextState;
 		friend struct NPrivate::CDistributedActorSubscriptionReferenceState;
+		friend struct CActorDistributionManagerInternal;
 
 		NStorage::TCUniquePointer<CActorDistributionManagerInternal> mp_pInternal;
 	};

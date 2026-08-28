@@ -102,6 +102,51 @@ namespace NMib::NConcurrency
 		;
 	}
 
+	void CActorDistributionManagerInternal::fp_SendPackets
+		(
+			CConnection *_pConnection
+			, NContainer::TCVector<NStorage::TCSharedPointer<NStream::CBinaryStorage const>> &&_Messages
+			, uint8 _Priority
+		)
+	{
+		if (!_pConnection->m_Connection)
+		{
+			if (_pConnection->m_pHost)
+			{
+				auto &Host = *_pConnection->m_pHost;
+				for (auto const &pMessage : _Messages)
+					Host.m_nDiscardedBytes += pMessage->f_GetTotalLength();
+				Host.m_nDiscardedPackets += _Messages.f_GetLen();
+			}
+			return;
+		}
+
+		if (_pConnection->m_pHost)
+		{
+			auto &Host = *_pConnection->m_pHost;
+			for (auto const &pMessage : _Messages)
+				Host.m_nSentBytes += pMessage->f_GetTotalLength();
+			Host.m_nSentPackets += _Messages.f_GetLen();
+		}
+
+		// See fp_SendPacket: the calling host means nothing to the websocket actor
+		CBreakCallingHostInfoScope BreakCallingHostInfo;
+
+		// WebSocket priority is inverted relative to distributed actor priority
+		uint32 WebSocketPriority = 255 - _Priority;
+		_pConnection->m_Connection(&NWeb::CWebSocketActor::f_SendBinaryStorages, fg_Move(_Messages), WebSocketPriority)
+			> [this, pWeakConnection = NStorage::TCSharedPointer<CConnection, NStorage::CSupportWeakTag>(fg_Explicit(_pConnection)).f_Weak()](TCAsyncResult<void> &&_Result)
+			{
+				if (!_Result)
+				{
+					auto pConnection = pWeakConnection.f_Lock();
+					if (pConnection)
+						fp_OnInvalidConnection(pConnection.f_Get(), _Result.f_GetException());
+				}
+			}
+		;
+	}
+
 	uint64 CActorDistributionManagerInternal::fp_QueuePacket(NStorage::TCSharedPointerSupportWeak<CHost> const &_pHost, NStream::CBinaryStorage &&_Data)
 	{
 		DMibFastCheck(_Data.f_GetTotalLength() <= m_WebsocketSettings.m_MaxMessageSize);
@@ -141,9 +186,32 @@ namespace NMib::NConcurrency
 		NStorage::TCUniquePointer<CActorDistributionManagerInternal::CPacket> pPacket = fg_Construct(pStorage.f_ShareAsConst(), Priority, PacketID);
 		PriorityQueues.m_OutgoingPackets.f_Insert(pPacket.f_Detach());
 
-		fp_SendPacketQueue(_pHost);
+		fp_ScheduleSendPacketQueue(_pHost);
 
 		return PacketID;
+	}
+
+	void CActorDistributionManagerInternal::fp_ScheduleSendPacketQueue(NStorage::TCSharedPointerSupportWeak<CHost> const &_pHost)
+	{
+		if (_pHost->m_bSendPacketQueueScheduled)
+			return;
+		_pHost->m_bSendPacketQueueScheduled = true;
+
+		// Same edge trigger as the websocket send flush: the drain rides the manager's own run
+		// queue, so every packet queued by calls already behind the current one lands in the same
+		// drain and each connection gets its share as one batched send call
+		fg_ThisActor(m_pThis).f_Bind<&CActorDistributionManager::fp_FlushSendPacketQueue>(NStorage::TCSharedPointerSupportWeak<NPrivate::ICHost>(_pHost)).f_DiscardResult();
+	}
+
+	void CActorDistributionManager::fp_FlushSendPacketQueue(NStorage::TCSharedPointerSupportWeak<NPrivate::ICHost> _pHost)
+	{
+		auto &Host = *(static_cast<NActorDistributionManagerInternal::CHost *>(_pHost.f_Get()));
+		Host.m_bSendPacketQueueScheduled = false;
+
+		if (Host.m_bDeleted.f_Load(NAtomic::gc_MemoryOrder_Relaxed))
+			return;
+
+		mp_pInternal->fp_SendPacketQueue(NStorage::TCSharedPointerSupportWeak<NActorDistributionManagerInternal::CHost>(fg_Explicit(&Host)));
 	}
 
 	void CActorDistributionManagerInternal::fp_SendPacketQueue(NStorage::TCSharedPointerSupportWeak<CHost> const &_pHost)
@@ -158,6 +226,16 @@ namespace NMib::NConcurrency
 		if (_pHost->m_pLastSendConnection)
 			iConnection = _pHost->m_pLastSendConnection;
 
+		// Batches are per connection and per priority, so nothing changes on the wire
+		struct CBatch
+		{
+			CConnection *m_pConnection = nullptr;
+			NContainer::TCVector<NStorage::TCSharedPointer<NStream::CBinaryStorage const>> m_Messages;
+			uint8 m_Priority = 0;
+		};
+
+		NContainer::TCVector<CBatch> Batches;
+
 		for (auto &PriorityQueues : _pHost->m_PriorityQueues)
 		{
 			while (auto *pPacket = PriorityQueues.m_OutgoingPackets.f_GetFirst())
@@ -165,13 +243,42 @@ namespace NMib::NConcurrency
 				auto *pConnection = &*iConnection;
 				DMibLog(DebugVerbose2, " ---- {} {} Sending packet {} (priority {})", _pHost->m_bIncoming, pConnection->f_GetConnectionID(), pPacket->m_PacketID, pPacket->m_Priority);
 
-				fp_SendPacket(pConnection, fg_TempCopy(pPacket->m_pData), pPacket->m_Priority);
+				CBatch *pBatch = nullptr;
+				for (auto &Batch : Batches)
+				{
+					if (Batch.m_pConnection == pConnection)
+					{
+						pBatch = &Batch;
+						break;
+					}
+				}
+
+				if (pBatch && pBatch->m_Priority != pPacket->m_Priority && !pBatch->m_Messages.f_IsEmpty())
+				{
+					fp_SendPackets(pBatch->m_pConnection, fg_Move(pBatch->m_Messages), pBatch->m_Priority);
+					pBatch->m_Messages.f_Clear();
+				}
+
+				if (!pBatch)
+				{
+					pBatch = &Batches.f_InsertLast();
+					pBatch->m_pConnection = pConnection;
+				}
+				pBatch->m_Priority = pPacket->m_Priority;
+				pBatch->m_Messages.f_InsertLast(fg_TempCopy(pPacket->m_pData));
+
 				pPacket->m_Link.f_Unlink();
 				_pHost->m_Outgoing_SentPackets.f_Insert(pPacket);
 				++iConnection;
 				if (!iConnection)
 					iConnection = _pHost->m_ActiveConnections.f_GetIterator();
 			}
+		}
+
+		for (auto &Batch : Batches)
+		{
+			if (!Batch.m_Messages.f_IsEmpty())
+				fp_SendPackets(Batch.m_pConnection, fg_Move(Batch.m_Messages), Batch.m_Priority);
 		}
 
 		_pHost->m_pLastSendConnection = iConnection;

@@ -26,9 +26,12 @@ namespace NMib::NConcurrency
 
 		void f_LogException(NException::CExceptionPointer const &_pException) const;
 
+		CLogErrorResultFunctor &&f_IgnoreActorDeleted() &&;
+
 		NStr::CStr m_Category;
 		NStr::CStr m_Description;
 		NLog::ESeverity m_Severity = NLog::ESeverity_Error;
+		bool m_bIgnoreActorDeleted = false;
 	};
 
 	struct CLogErrorResultFunctorWithUserError : public CLogErrorResultFunctor
@@ -39,6 +42,18 @@ namespace NMib::NConcurrency
 	CLogErrorResultFunctor fg_LogWarning(NStr::CStr const &_Category, NStr::CStr const &_Description);
 	CLogErrorResultFunctor fg_LogError(NStr::CStr const &_Category, NStr::CStr const &_Description);
 	CLogErrorResultFunctor fg_LogCritical(NStr::CStr const &_Category, NStr::CStr const &_Description);
+
+	// Logs unconsumed failures where the call completes; arguments must be string literals.
+	// Actor-deleted failures are normal for weak calls. With warning logging disabled, no result callback is installed.
+	#if (DMibSysLogSeverities) & DMibLogSeverity_Warning
+		#define DMibLogWarningOrDiscardResult(d_Call, d_Category, d_Description) \
+			( \
+				(d_Call) > ::NMib::NConcurrency::g_DirectResult \
+				/ ::NMib::NConcurrency::fg_LogWarning(::NMib::NStr::gc_Str<d_Category>.m_Str, ::NMib::NStr::gc_Str<d_Description>.m_Str).f_IgnoreActorDeleted() \
+			)
+	#else
+		#define DMibLogWarningOrDiscardResult(d_Call, d_Category, d_Description) ((d_Call).f_DiscardResult())
+	#endif
 
 	struct CLogError
 	{

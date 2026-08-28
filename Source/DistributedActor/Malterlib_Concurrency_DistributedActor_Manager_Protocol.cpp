@@ -67,7 +67,7 @@ namespace NMib::NConcurrency
 			else if (iPacket->m_PacketID < PacketID)
 			{
 				DMibLog(DebugVerbose2, " ---- {} {} Receive packet {} (priority {})", pHost->m_bIncoming, _pConnection->f_GetConnectionID(), PacketID, _Priority);
-				NStorage::TCUniquePointer<CPacket> pPacket = fg_Construct(fg_Construct(fg_WrapSharedIncomingPacket(_pMessage)), _Priority);
+				NStorage::TCUniquePointer<CPacket> pPacket = fg_Construct(_pMessage, _Priority, PacketID);
 				PriorityQueues.m_IncomingPackets.f_InsertAfter(pPacket.f_Detach(), &*iPacket);
 				break;
 			}
@@ -75,7 +75,7 @@ namespace NMib::NConcurrency
 
 		if (!iPacket)
 		{
-			NStorage::TCUniquePointer<CPacket> pPacket = fg_Construct(fg_Construct(fg_WrapSharedIncomingPacket(_pMessage)), _Priority);
+			NStorage::TCUniquePointer<CPacket> pPacket = fg_Construct(_pMessage, _Priority, PacketID);
 			DMibLog(DebugVerbose2, " ---- {} {} Receive2 packet {} (priority {})", pHost->m_bIncoming, _pConnection->f_GetConnectionID(), PacketID, _Priority);
 			PriorityQueues.m_IncomingPackets.f_InsertFirst(pPacket.f_Detach());
 		}
@@ -427,7 +427,8 @@ namespace NMib::NConcurrency
 						NStream::TCBinaryStreamStorage<> Stream;
 						Stream << Identify;
 						NStorage::TCSharedPointer<NStream::CBinaryStorage> pPacketData = fg_Construct(Stream.f_MoveStorage());
-						// InitialPublishFinished must stay ordered with Publish packets - use priority 128
+						// Flush queued Publish packets before this direct marker, at the same priority, so it cannot overtake them.
+						fp_SendPacketQueue(pHost);
 						fp_SendPacket(_pConnection, pPacketData.f_ShareAsConst(), 128);
 					}
 					else
@@ -482,7 +483,8 @@ namespace NMib::NConcurrency
 								NStream::TCBinaryStreamStorage<> Stream;
 								Stream << Packet;
 								NStorage::TCSharedPointer<NStream::CBinaryStorage> pPacketData = fg_Construct(Stream.f_MoveStorage());
-								// InitialPublishFinishedProcessing must stay ordered with data flow - use priority 128
+								// Flush queued data before this direct marker, at the same priority, so it cannot overtake it.
+								fp_SendPacketQueue(NStorage::TCSharedPointerSupportWeak<CHost>(fg_Explicit(&Host)));
 								fp_SendPacket(pConnection.f_Get(), pPacketData.f_ShareAsConst(), 128);
 							}
 							else

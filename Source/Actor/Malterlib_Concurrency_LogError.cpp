@@ -57,8 +57,17 @@ namespace NMib::NConcurrency
 		return CLogErrorResultFunctorWithUserError{*this, _UserError};
 	}
 
+	CLogErrorResultFunctor &&CLogErrorResultFunctor::f_IgnoreActorDeleted() &&
+	{
+		m_bIgnoreActorDeleted = true;
+		return fg_Move(*this);
+	}
+
 	void CLogErrorResultFunctor::f_LogException(NException::CExceptionPointer const &_pException) const
 	{
+		if (m_bIgnoreActorDeleted && NException::fg_ExceptionIsOfType<CExceptionActorDeleted>(_pException))
+			return;
+
 		DMibLogCategoryStr(m_Category.f_GetStr());
 		if (m_Severity == NLog::ESeverity_Critical)
 			DMibLog(Critical, "{}: {}", m_Description, NException::fg_ExceptionString(_pException));

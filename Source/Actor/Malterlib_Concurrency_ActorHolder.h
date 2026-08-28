@@ -131,6 +131,7 @@ namespace NMib::NConcurrency
 
 		void f_Yield();
 		void f_SetFixedQueue(umint _iFixedCore);
+		void f_SetInitialQueue(umint _iQueue);
 		void f_QueueProcessDestroy(FActorQueueDispatch &&_Functor);
 		void f_QueueProcess(FActorQueueDispatch &&_Functor);
 		void f_QueueProcessEntry(CConcurrentRunQueueEntryHolder &&_Entry);

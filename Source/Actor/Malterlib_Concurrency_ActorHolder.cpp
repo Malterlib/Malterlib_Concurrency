@@ -82,6 +82,14 @@ namespace NMib::NConcurrency
 		mp_iFixedQueue = _iFixedQueue;
 	}
 
+	void CActorHolder::f_SetInitialQueue(umint _iQueue)
+	{
+		// Seeds the local-first scheduler's placement before the first job runs. Unlike
+		// f_SetFixedQueue this restricts nothing; it only stops the first dispatch from landing
+		// on the constructing thread's queue instead of the bound io-loop queue
+		mp_iLastQueue.f_Store((uint32)_iQueue, NAtomic::gc_MemoryOrder_Relaxed);
+	}
+
 	void CActorHolder::f_Yield()
 	{
 		DMibFastCheck(fg_ConcurrencyThreadLocal().m_pCurrentlyProcessingActorHolder == this);

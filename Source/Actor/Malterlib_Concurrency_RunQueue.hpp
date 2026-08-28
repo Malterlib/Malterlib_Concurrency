@@ -158,6 +158,17 @@ namespace NMib::NConcurrency
 	}
 
 	template <typename tf_CBaseEntry, typename tf_CEntry>
+	bool TCConcurrentRunQueue<tf_CBaseEntry, tf_CEntry>::f_AddToQueueLocalFirst(NStorage::TCUniquePointer<tf_CEntry> &&_pEntry, CLocalQueueData &_LocalQueue)
+	{
+		bool bWasEmpty = _LocalQueue.m_LocalQueue.f_IsEmpty();
+		auto pEntry = _pEntry.f_Detach();
+		pEntry->m_Link.f_Construct();
+		_LocalQueue.m_LocalQueue.f_InsertFirst(pEntry);
+		++_LocalQueue.m_nEntries;
+		return bWasEmpty;
+	}
+
+	template <typename tf_CBaseEntry, typename tf_CEntry>
 	void TCConcurrentRunQueue<tf_CBaseEntry, tf_CEntry>::f_AddToQueue(TCConcurrentRunQueueEntryHolder<tf_CBaseEntry> &&_Entry)
 	{
 		auto *pNewEntry = _Entry.f_Detach();
@@ -177,6 +188,17 @@ namespace NMib::NConcurrency
 		auto pEntry = _Entry.f_Detach();
 		pEntry->m_Link.f_Construct();
 		_LocalQueue.m_LocalQueue.f_Insert(pEntry);
+		++_LocalQueue.m_nEntries;
+		return bWasEmpty;
+	}
+
+	template <typename tf_CBaseEntry, typename tf_CEntry>
+	bool TCConcurrentRunQueue<tf_CBaseEntry, tf_CEntry>::f_AddToQueueLocalFirst(TCConcurrentRunQueueEntryHolder<tf_CBaseEntry> &&_Entry, CLocalQueueData &_LocalQueue)
+	{
+		bool bWasEmpty = _LocalQueue.m_LocalQueue.f_IsEmpty();
+		auto pEntry = _Entry.f_Detach();
+		pEntry->m_Link.f_Construct();
+		_LocalQueue.m_LocalQueue.f_InsertFirst(pEntry);
 		++_LocalQueue.m_nEntries;
 		return bWasEmpty;
 	}

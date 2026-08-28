@@ -291,11 +291,64 @@ namespace NMib::NConcurrency
 			}
 		}
 		m_nThreads = nThreads;
+
+		// A throw anywhere later in construction skips the destructor, and f_Stop's loop cleanup
+		// with it — the loops created below are raw handles, so an unwound constructor would leak
+		// every ring, pipe and poll descriptor already opened. No thread exists yet and nothing
+		// can have registered with a loop, so plain destruction is the whole cleanup
+		auto LoopCleanup = g_OnScopeExit / [&]
+			{
+				for (EPriority Priority = EPriority_Low; Priority < EPriority_Max; Priority = static_cast<EPriority>(Priority + 1))
+				{
+					for (auto &Queue : m_Queues[Priority])
+					{
+						if (!Queue.m_pIoLoop)
+							continue;
+
+						NSys::ICIoLoop *pLoop = Queue.m_pIoLoop;
+						Queue.m_pIoLoop = nullptr;
+						NSys::fg_DestroyIoLoop(pLoop);
+					}
+				}
+			}
+		;
+
 		for (EPriority Priority = EPriority_Low; Priority < EPriority_Max; Priority = static_cast<EPriority>(Priority + 1))
 		{
 			m_ExecutionPriority[Priority] = _ExecutionPriority[Priority];
 			auto &Queues = m_Queues[Priority];
 			Queues.f_SetLen(nThreads);
+
+			// The io loops are created before any pool thread exists, so every queue's loop
+			// pointer is a startup constant: signallers and the parking thread read them
+			// without a publication protocol. Each loop costs a couple of descriptors;
+			// fg_SetupLimits has already raised RLIMIT_NOFILE at process start.
+			// MalterlibIoLoops caps the count (0 disables)
+			{
+#if DMibConfig_IoDebug_Enable
+				smint nLoops = NSys::fg_Process_GetEnvironmentVariable_NonProtected(NStr::gc_Str<"MalterlibIoLoops">.m_Str).f_ToInt(smint(-1));
+#else
+				smint nLoops = -1;
+#endif
+				umint nLoopQueues = nLoops < 0 ? nThreads : fg_Min(umint(nLoops), nThreads);
+
+				for (umint i = 0; i < nLoopQueues; ++i)
+				{
+					// A loop that cannot get its descriptors throws out of construction
+					// deliberately: silently degrading every connection to the shared poller
+					// is a performance cliff with no diagnostic. Use MalterlibIoLoops to ask
+					// for fewer loops
+					NSys::ICIoLoop *pLoop = NSys::fg_CreateIoLoop();
+					if (!pLoop)
+						break; // This platform has no loops of its own
+
+					auto &Queue = Queues[i];
+					Queue.m_pIoLoop = pLoop;
+					Queue.m_pIoLoop->f_SetParkEvent(&Queue.m_Event);
+					Queue.m_bIoLoopParksOnEvent = Queue.m_pIoLoop->f_ParksOnQueueEvent();
+					m_nIoLoopQueues[Priority] = i + 1;
+				}
+			}
 
 			auto &nActors = (m_nActorsPerQueue[Priority] = NContainer::TCVector<CNumActorsPerQueue>(nThreads));
 			m_nActorsPerQueueArray[Priority] = nActors.f_GetArray();
@@ -320,13 +373,22 @@ namespace NMib::NConcurrency
 				auto *pQueue = &Queues[i];
 				pQueue->m_iQueue = i;
 				pQueue->m_Priority = Priority;
-				if (Priority == EPriority_Normal)
-					pQueue->f_Signal(this);
 			}
 		}
 
 		m_ActorsOtherMask = fg_RoundPowerOfTwoUp(nThreads) - 1;
 		m_nActorsOther = NContainer::TCVector<CNumActorsOther>(m_ActorsOtherMask + 1);
+
+		// The guard's coverage deliberately ends here, before anything can start a worker: an
+		// unwind with live workers would race their loop pointer reads and needs the full stop
+		// sequence, which in turn needs the internal actors constructed below. A throw past this
+		// point is allocation exhaustion with running threads, where the process is lost anyway
+		LoopCleanup.f_Clear();
+
+		// Pre-warm the normal pool only after every loop and queue exists — signaling creates
+		// worker threads, and nothing may run before the structures they read are complete
+		for (auto &Queue : m_Queues[EPriority_Normal])
+			Queue.f_Signal(this);
 
 		m_DirectCallActor = f_ConstructActor(fg_Construct<CDirectCallActorImpl>());
 		m_ThisConcurrentActor = f_ConstructActor(fg_Construct<CThisConcurrentActorImpl>());
@@ -414,6 +476,11 @@ namespace NMib::NConcurrency
 				{
 					Queue.m_pThread->f_Stop(false);
 					Queue.m_Event.f_Signal();
+
+					// A thread parked in a loop does not watch the event, so it would sit there
+					// until something else happened to arrive
+					if (Queue.m_pIoLoop)
+						Queue.m_pIoLoop->f_Wake();
 				}
 			}
 		}
@@ -480,6 +547,45 @@ namespace NMib::NConcurrency
 		}
 
 		fProcessQueues();
+
+		// The threads are joined and the queues are drained, so nothing can reach a loop anymore:
+		// signallers are gone and each enabled loop was drained to quiescence by its exiting
+		// owner. Destroying here is what keeps a non-process-lifetime manager from leaking every
+		// loop's descriptors
+		for (umint Prio = 0; Prio < EPriority_Max; ++Prio)
+		{
+			for (auto &Queue : m_Queues[Prio])
+			{
+				if (!Queue.m_pIoLoop)
+					continue;
+
+				// An enable that lost the race to this stop leaves the loop unclaimed with its
+				// queued registrations and teardown continuations undrained: the worker never
+				// parked in it, so its exit drain never ran. With the threads joined this thread
+				// can safely claim and drain it — an unclaimed ring has not bound itself to any
+				// other thread yet
+				if (!Queue.m_bIoLoopParkActive)
+				{
+					Queue.m_pIoLoop->f_SetOwnerThreadToCurrent();
+					Queue.m_pIoLoop->f_DrainForShutdown();
+				}
+				else
+				{
+					// A claimed loop was drained to quiescence by its exiting owner, but the
+					// queue passes above can still have released loop-bound sockets afterwards,
+					// queueing removals nobody will ever iterate for — and a claimed ring
+					// cannot be entered from this thread (single issuer). The abandonment runs
+					// the stranded teardown continuations and cancels never-submitted
+					// operations without touching the kernel objects; the destroy below
+					// releases those wholesale
+					Queue.m_pIoLoop->f_AbandonPendingTeardown();
+				}
+
+				NSys::ICIoLoop *pLoop = Queue.m_pIoLoop;
+				Queue.m_pIoLoop = nullptr;
+				NSys::fg_DestroyIoLoop(pLoop);
+			}
+		}
 	}
 
 	CConcurrencyManager::~CConcurrencyManager()
@@ -577,7 +683,15 @@ namespace NMib::NConcurrency
 	{
 		DSchedulerStat(*this, m_nSignals);
 		m_Event.f_Signal();
-		if (!m_bThreadCreated.f_Load(NAtomic::gc_MemoryOrder_Relaxed))
+
+		// m_pIoLoop is a startup constant, so no publication handshake is needed here. A loop
+		// that parks on the queue's event is reached by the event signal above; anything else
+		// gets the explicit wake, whose loop-internal wake state elides the syscall whenever the
+		// owner is not parked in it — including before the loop was ever enabled
+		if (m_pIoLoop && !m_bIoLoopParksOnEvent) [[unlikely]]
+			m_pIoLoop->f_Wake();
+
+		if (!m_bThreadCreated.f_Load(NAtomic::gc_MemoryOrder_Relaxed)) [[unlikely]]
 			fp_CreateThread(_pThis);
 	}
 
@@ -980,6 +1094,11 @@ namespace NMib::NConcurrency
 		}
 #endif
 		auto &ThreadLocal = fg_ConcurrencyThreadLocal();
+
+		// The loop pointer is a startup constant, hoisted so the hot drain never touches the
+		// cache line it shares with the signaller side (the event word every signaller dirties);
+		// the park-active gate lives on the owner's own line
+		NSys::ICThreadIoLoop *pIoLoop = _Queue.m_pIoLoop;
 		ThreadLocal.m_pThisQueue = &_Queue;
 #if DMibPPtrBits > 32
 		auto Checkout = fg_GetSys()->f_MemoryManager_Checkout();
@@ -1049,6 +1168,16 @@ namespace NMib::NConcurrency
 
 								bDoneSomething = true;
 							}
+
+							// Reap what the enabled loop has already completed between batches;
+							// the gate is only touched by this thread. The local drain empties
+							// because long-running work is expected to co_await g_Yield, which
+							// re-queues through the forced non-local path
+							if (_Queue.m_bIoLoopParkActive) [[unlikely]]
+							{
+								if (pIoLoop->f_PollAndDispatch())
+									bDoneSomething = true;
+							}
 						}
 					}
 				}
@@ -1076,8 +1205,26 @@ namespace NMib::NConcurrency
 			fp_SetQueueIdle(_Queue);
 #endif
 			DSchedulerStat(_Queue, m_nSleeps);
-			_Queue.m_Event.f_Wait();
+
+			if (_Queue.m_bIoLoopParkActive) [[unlikely]]
+			{
+				// The state is set before the loop is woken, so a stop that raced an earlier
+				// iterate is visible here; checking costs nothing and spares the park entirely
+				if (_pThread->f_GetState() == NThread::EThreadState_EventWantQuit)
+					break;
+
+				pIoLoop->f_WaitAndDispatch();
+			}
+			else
+				_Queue.m_Event.f_Wait();
 		}
+
+		// The thread is leaving, so nothing would service an enabled loop. Drain it to
+		// quiescence first — deferred socket destructions included — because nothing else will
+		// drive it afterwards, and multi-stage teardown (io_uring cancel handshakes) needs more
+		// than one pass
+		if (_Queue.m_bIoLoopParkActive) [[unlikely]]
+			pIoLoop->f_DrainForShutdown();
 	}
 
 	void CConcurrencyManager::fp_AddedActor()
@@ -1525,6 +1672,133 @@ namespace NMib::NConcurrency
 			return ThreadLocal.m_pThisQueue->m_iQueue;
 
 		return TCLimitsInt<umint>::mc_Max;
+	}
+
+	// The priority of the queue this thread belongs to, or EPriority_Max when this is not a
+	// pool thread. Pairs with f_GetQueue, which gives the index within that priority
+	EPriority CConcurrencyManager::f_GetQueuePriority() const
+	{
+		auto &ThreadLocal = fg_ConcurrencyThreadLocal();
+		if (ThreadLocal.m_pThisQueue)
+			return ThreadLocal.m_pThisQueue->m_Priority;
+
+		return EPriority_Max;
+	}
+
+	umint CConcurrencyManager::f_GetNumQueues(EPriority _Priority) const
+	{
+		return m_Queues[_Priority].f_GetLen();
+	}
+
+	// Runs the job on one named pool queue rather than wherever there is room, so that work
+	// which has to happen on a particular thread can be placed there
+	void CConcurrencyManager::f_DispatchToQueue(EPriority _Priority, umint _iQueue, FActorQueueDispatchNoAlloc &&_ToQueue)
+	{
+		DMibSafeCheck(_iQueue < m_Queues[_Priority].f_GetLen(), "Dispatching to a pool queue that does not exist");
+
+		auto &ThreadLocal = fg_ConcurrencyThreadLocal();
+		auto &Queue = m_Queues[_Priority].f_GetArray()[_iQueue];
+
+		if (fp_AddToQueue(Queue, fg_Move(_ToQueue), ThreadLocal))
+			Queue.f_Signal(this);
+	}
+
+	// The manager owns the io loops: created at startup, constant afterwards, never handed
+	// over. Enabling is a message processed by the queue's own thread — it claims loop
+	// ownership there and makes the thread park in the loop, so all park-choice state is
+	// owned by that thread and signallers only ever read startup constants
+	void CConcurrencyManager::f_EnableQueueIoLoop(EPriority _Priority, umint _iQueue)
+	{
+		DMibSafeCheck(m_Queues[_Priority][_iQueue].m_pIoLoop, "Enabling a queue that has no io loop");
+
+		// The enable rides the queue as a message: the owner thread claims the loop and flips
+		// its own park choice, so no other thread ever writes park state. Repeats are harmless
+		f_DispatchToQueue
+			(
+				_Priority
+				, _iQueue
+				, [pTargetQueue = &m_Queues[_Priority].f_GetArray()[_iQueue]](CConcurrencyThreadLocal &_ThreadLocal)
+				{
+					// A stop that wins the race drains this entry on a thread that does not own
+					// the target queue — the stopping thread owns none, and when the stop is
+					// driven from another manager's worker its pool TLS names that manager's
+					// queue. The identity comparison covers both: only the target queue's own
+					// thread may claim its loop; anywhere else the loops are being torn down and
+					// there is nothing to enable
+					if (_ThreadLocal.m_pThisQueue != pTargetQueue)
+						return;
+
+					auto &Queue = *pTargetQueue;
+					if (Queue.m_bIoLoopParkActive)
+						return;
+
+					Queue.m_pIoLoop->f_SetOwnerThreadToCurrent();
+					Queue.m_bIoLoopParkActive = true;
+				}
+			)
+		;
+	}
+
+	NSys::ICIoLoop *CConcurrencyManager::f_GetQueueIoLoop(EPriority _Priority, umint _iQueue) const
+	{
+		return m_Queues[_Priority][_iQueue].m_pIoLoop;
+	}
+
+	// The loop a new io object should belong to, spread over this manager's loop owning
+	// queues at the given priority. The first pick at a priority sends its enable messages,
+	// so the owning threads start parking in their loops; empty where the platform has no
+	// loops or they are disabled
+	auto CConcurrencyManager::f_PickIoLoopBinding(EPriority _Priority) -> CIoLoopBinding
+	{
+		umint nLoopQueues = m_nIoLoopQueues[_Priority];
+		if (!nLoopQueues)
+			return CIoLoopBinding();
+
+		// The first pick at a priority enables its loops; the enables are idempotent, so the
+		// exchange only spares repeat dispatches. A binding may be handed out before its
+		// enable has run: loop-bound sockets always deregister asynchronously, so nothing can
+		// block on it
+		if (!m_bIoLoopsEnabled[_Priority].f_Load(NAtomic::gc_MemoryOrder_Relaxed) && !m_bIoLoopsEnabled[_Priority].f_Exchange(true, NAtomic::gc_MemoryOrder_AcquireRelease))
+		{
+			for (umint iQueue = 0; iQueue < nLoopQueues; ++iQueue)
+				f_EnableQueueIoLoop(_Priority, iQueue);
+		}
+
+		umint iQueue = m_iNextIoLoopBinding[_Priority].f_FetchAdd(1, NAtomic::gc_MemoryOrder_Relaxed) % nLoopQueues;
+
+		return CIoLoopBinding{.m_pLoop = m_Queues[_Priority][iQueue].m_pIoLoop, .m_iQueue = iQueue, .m_Priority = _Priority};
+	}
+
+	CIoLoopBinding::operator bool () const
+	{
+		return m_pLoop != nullptr;
+	}
+
+	CIoLoopCreateScope::CIoLoopCreateScope(CIoLoopBinding const &_Binding)
+	{
+		if (!_Binding.m_pLoop)
+			return;
+
+		// Restored rather than cleared on close, so a scope opened inside another scope hands
+		// the outer binding back instead of stranding it
+		mp_pPreviousLoop = NSys::fg_GetThreadIoLoop();
+		NSys::fg_SetThreadIoLoop(_Binding.m_pLoop);
+		mp_bSet = true;
+	}
+
+	CIoLoopCreateScope::~CIoLoopCreateScope()
+	{
+		if (mp_bSet)
+			NSys::fg_SetThreadIoLoop(mp_pPreviousLoop);
+	}
+
+	NSys::ICIoLoop *CConcurrencyManager::f_GetThreadIoLoop()
+	{
+		auto &ThreadLocal = fg_ConcurrencyThreadLocal();
+		if (!ThreadLocal.m_pThisQueue || !ThreadLocal.m_pThisQueue->m_bIoLoopParkActive)
+			return nullptr;
+
+		return ThreadLocal.m_pThisQueue->m_pIoLoop;
 	}
 
 #if DMibConfig_Concurrency_SchedulerStats

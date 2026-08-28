@@ -40,6 +40,36 @@ namespace NMib::NConcurrency
 #endif
 	};
 
+	// A queue that owns an io loop, as handed out to io object creators. Picks spread round
+	// robin over the loop owning queues of one manager
+	struct CIoLoopBinding
+	{
+		explicit operator bool () const;
+
+		NSys::ICIoLoop *m_pLoop = nullptr;
+		umint m_iQueue = TCLimitsInt<umint>::mc_Max;
+		EPriority m_Priority = EPriority_Max;
+	};
+
+	// Registers io objects created inside the scope with the binding's loop rather than the
+	// shared one, so no object ever has to be moved between loops afterwards. The scope is a
+	// thread-local, so in a coroutine it must live in its own block that closes before the
+	// next suspension point; holding it across one asserts in debug builds
+	struct [[nodiscard]] CIoLoopCreateScope
+	{
+		CIoLoopCreateScope(CIoLoopBinding const &_Binding);
+		~CIoLoopCreateScope();
+
+		CIoLoopCreateScope(CIoLoopCreateScope const &) = delete;
+		CIoLoopCreateScope &operator = (CIoLoopCreateScope const &) = delete;
+
+	private:
+		DMibThreadLocalScopeDebugMember;
+		// The binding in effect when this scope opened, restored on close so scopes nest
+		NSys::ICIoLoop *mp_pPreviousLoop = nullptr;
+		bool mp_bSet = false;
+	};
+
 	/// \brief Manages scheduling of running actors in a thread pool
 	class CConcurrencyManager
 	{
@@ -96,6 +126,17 @@ namespace NMib::NConcurrency
 
 		void f_DispatchOnCurrentThreadOrConcurrent(EPriority _Priority, FActorQueueDispatchNoAlloc &&_ToQueue);
 		void f_DispatchOnCurrentThreadOrConcurrentFirst(EPriority _Priority, FActorQueueDispatchNoAlloc &&_ToQueue);
+
+		void f_DispatchToQueue(EPriority _Priority, umint _iQueue, FActorQueueDispatchNoAlloc &&_ToQueue);
+
+		void f_EnableQueueIoLoop(EPriority _Priority, umint _iQueue);
+		NSys::ICIoLoop *f_GetQueueIoLoop(EPriority _Priority, umint _iQueue) const;
+		NSys::ICIoLoop *f_GetThreadIoLoop();
+
+		CIoLoopBinding f_PickIoLoopBinding(EPriority _Priority);
+
+		EPriority f_GetQueuePriority() const;
+		umint f_GetNumQueues(EPriority _Priority) const;
 
 		void f_SetExecutionPriority(EPriority _Priority, EExecutionPriority _ExecutionPriority);
 		EExecutionPriority f_GetExecutionPriority(EPriority _Priority);
@@ -183,9 +224,23 @@ namespace NMib::NConcurrency
 			align_cacheline CConcurrentRunQueueNonVirtualNoAlloc::CLocalQueueData m_JobQueueLocal;
 			umint m_iQueue;
 			EPriority m_Priority;
-			NThread::CEventAutoReset m_Event;
+			// Set by the enable message running on this queue's own thread; only that thread
+			// reads it — once per drained batch — to decide whether to park in the loop instead
+			// of m_Event. It lives on the owner side of the cache line split below, away from
+			// the event word every signaller dirties
+			bool m_bIoLoopParkActive = false;
+			// The event word is RMWed by every signaller, so the line it starts is the
+			// signaller line: the loop fields signallers read in the same f_Signal call sit on
+			// it deliberately, one line transfer instead of two. They are startup constants
+			// (created by the manager before any pool thread runs, null where the platform has
+			// no loops), so the sharing costs the owner nothing
+			align_cacheline NThread::CEventAutoReset m_Event;
+			NSys::ICIoLoop *m_pIoLoop = nullptr;
 			NStorage::TCUniquePointer<NThread::CThreadObjectNonTracked, NMemory::CAllocator_NonTrackedHeap> m_pThread;
 			NAtomic::TCAtomic<bool> m_bThreadCreated;
+			// The loop folds m_Event's park into its own wait, so signalling the event is what
+			// wakes it and the explicit loop wake is skipped
+			bool m_bIoLoopParksOnEvent = false;
 #if DMibConfig_Concurrency_LocalFirstScheduler && DMibConfig_Concurrency_LocalFirstDistribution
 #endif
 #if DMibConfig_Concurrency_SchedulerStats
@@ -245,6 +300,11 @@ namespace NMib::NConcurrency
 
 		umint m_nThreads = 0;
 		NContainer::TCVector<CQueue> m_Queues[EPriority_Max];
+
+		// Queues 0..m_nIoLoopQueues[Priority]-1 own loops; constant from startup
+		umint m_nIoLoopQueues[EPriority_Max] = {};
+		NAtomic::TCAtomic<umint> m_iNextIoLoopBinding[EPriority_Max] = {};
+		NAtomic::TCAtomic<bool> m_bIoLoopsEnabled[EPriority_Max] = {};
 
 #if DMibConfig_Concurrency_LocalFirstScheduler
 		/// \brief One chunk of the advisory idle-queue bitmask; a set bit marks a queue whose thread

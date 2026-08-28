@@ -347,6 +347,9 @@ namespace NMib::NConcurrency::NActorDistributionManagerInternal
 		bool m_bIncoming = false;
 		bool m_bOutgoing = false;
 		bool m_bLoggedConnection = false;
+		// Edge trigger for the deferred packet queue drain: set when a flush call is already
+		// riding the manager's run queue, so a burst of queued packets drains once, as batches
+		bool m_bSendPacketQueueScheduled = false;
 	};
 
 	struct CLocalNamespace;
@@ -562,6 +565,7 @@ namespace NMib::NConcurrency
 		TCFuture<CDistributedActorListenReference> fp_Listen(NStr::CStr _ListenID, CActorDistributionListenSettings _Settings);
 		uint64 fp_QueuePacket(NStorage::TCSharedPointerSupportWeak<CHost> const &_pHost, NStream::CBinaryStorage &&_Data);
 		void fp_SendPacketQueue(NStorage::TCSharedPointerSupportWeak<CHost> const &_pHost);
+		void fp_ScheduleSendPacketQueue(NStorage::TCSharedPointerSupportWeak<CHost> const &_pHost);
 		bool fp_QueueIncomingPacket
 			(
 				CConnection *_pConnection
@@ -573,6 +577,7 @@ namespace NMib::NConcurrency
 		void fp_ProcessPacketQueue(CConnection *_pConnection, CPriorityQueues &_PrioroityQueues, uint8 _Priority);
 		void fp_RemoveAcknowledgedPackets(CHost &_Host, uint8 _Priority, uint64 _LastInOrderPacketID);
 		void fp_SendPacket(CConnection *_pConnection, NStorage::TCSharedPointer<NStream::CBinaryStorage const> &&_pMessage, uint8 _Priority);
+		void fp_SendPackets(CConnection *_pConnection, NContainer::TCVector<NStorage::TCSharedPointer<NStream::CBinaryStorage const>> &&_Messages, uint8 _Priority);
 		void fp_OnInvalidConnection
 			(
 				CConnection *_pConnection

@@ -252,7 +252,12 @@ namespace NMib::NConcurrency
 		ConnectSettings.m_SocketFactory = fg_Move(SocketFactory);
 		// The server derives the same sizes from the same address type. Older builds put no upper
 		// bound on accepted fragments, so no negotiation is needed
-		if (NNetwork::fg_IsUnixSocketAddressString(ToConnectTo.f_GetHost()))
+		if (umint nOverride = NActorDistributionManagerInternal::fg_TransportFragmentationOverride())
+		{
+			ConnectSettings.m_FragmentationSize = nOverride + NActorDistributionManagerInternal::gc_TransportFragmentMargin;
+			ConnectSettings.m_MaxFragmentSize = ConnectSettings.m_FragmentationSize;
+		}
+		else if (NNetwork::fg_IsUnixSocketAddressString(ToConnectTo.f_GetHost()))
 		{
 			ConnectSettings.m_FragmentationSize = NActorDistributionManagerInternal::gc_UnixTransportFragmentationSize;
 			ConnectSettings.m_MaxFragmentSize = NActorDistributionManagerInternal::gc_UnixTransportMaxFragmentSize;

@@ -611,6 +611,11 @@ namespace NMib::NConcurrency
 							bool bUnixAddress = _Address.f_GetType() == NNetwork::ENetAddressType_Unix;
 							uint32 FragmentationSize = bUnixAddress ? uint32(NActorDistributionManagerInternal::gc_UnixTransportFragmentationSize) : 0;
 							uint32 MaxFragmentSize = bUnixAddress ? uint32(NActorDistributionManagerInternal::gc_UnixTransportMaxFragmentSize) : 0;
+							if (umint nOverride = NActorDistributionManagerInternal::fg_TransportFragmentationOverride())
+							{
+								FragmentationSize = uint32(nOverride + NActorDistributionManagerInternal::gc_TransportFragmentMargin);
+								MaxFragmentSize = FragmentationSize;
+							}
 
 							// Authenticated unix listens are wsa unix sockets, a confidential point to point
 							// link, so unmasked client frames are accepted; TLS listens keep masking

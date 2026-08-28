@@ -119,7 +119,17 @@ namespace NMib::NConcurrency::NActorDistributionManagerInternal
 	// receive buffer ahead of the payload
 	inline constexpr umint gc_UnixTransportMaxFragmentSize = gc_UnixTransportFragmentationSize;
 
+	// Debug override for the transport fragment payload target on every address; 0 = keep the
+	// address type's default. Both ends read the same environment, which holds in the single
+	// process benchmarks this exists for
+#if DMibConfig_IoDebug_Enable
 	umint fg_TransportFragmentationOverride();
+#else
+	constexpr umint fg_TransportFragmentationOverride()
+	{
+		return 0;
+	}
+#endif
 
 	bool fg_IsAuthenticatedUnixScheme(NStr::CStr const &_Scheme);
 	NCryptography::CCertificateVerifyOptions fg_VerifyOptionsFromKeySetting(NCryptography::CPublicKeySetting const &_KeySetting, bool _bHasLocalCertificate);

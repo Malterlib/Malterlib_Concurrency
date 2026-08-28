@@ -82,6 +82,9 @@ namespace NMib::NConcurrency
 			++Host.m_nSentPackets;
 		}
 
+		// Calling-host state has no meaning in the transport and must not propagate with each packet.
+		CBreakCallingHostInfoScope BreakCallingHostInfo;
+
 		// Invert priority for WebSocket: distributed actor uses lower=higher, WebSocket uses higher=higher
 		// Distributed actor priority 0 (highest) -> WebSocket priority 255 (highest)
 		// Distributed actor priority 255 (lowest) -> WebSocket priority 0 (lowest)

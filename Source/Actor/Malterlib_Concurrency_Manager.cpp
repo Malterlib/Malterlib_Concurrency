@@ -666,9 +666,10 @@ namespace NMib::NConcurrency
 			do
 			{
 				umint iThisQueue = TCLimitsInt<umint>::mc_Max;
-				if (_ThreadLocal.m_pThisQueue)
+				if (auto pThisQueue = _ThreadLocal.m_pThisQueue)
 				{
-					iThisQueue = _ThreadLocal.m_pThisQueue->m_iQueue;
+					iThisQueue = pThisQueue->m_iQueue;
+					auto ThisQueuePriority = pThisQueue->m_Priority;
 #if DMibConfig_Concurrency_LocalFirstScheduler
 					bool bForceNonLocal = _ThreadLocal.m_bForceNonLocal;
 #	if DMibConfig_Tests_Enable && !defined(DTests_PerfTests)
@@ -678,7 +679,7 @@ namespace NMib::NConcurrency
 					if (bForceNonLocal) [[unlikely]]
 					{
 #	if DMibConfig_Concurrency_LocalFirstDistribution
-						if (_ThreadLocal.m_pThisQueue->m_Priority == _Priority)
+						if (ThisQueuePriority == _Priority)
 						{
 							umint iIdleQueue = fp_ClaimIdleQueue(_Priority, iThisQueue);
 							if (iIdleQueue != gc_InvalidQueue)
@@ -690,26 +691,29 @@ namespace NMib::NConcurrency
 						}
 #	endif
 						iJobQueue = iThisQueue;
-						DSchedulerStat(*_ThreadLocal.m_pThisQueue, m_nForcedNonLocalSelections);
+						DSchedulerStat(*pThisQueue, m_nForcedNonLocalSelections);
 						break;
 					}
-					if (_ThreadLocal.m_pThisQueue->m_Priority == _Priority)
+
+					if (ThisQueuePriority == _Priority)
 					{
 						iJobQueue = iThisQueue;
-						DSchedulerStat(*_ThreadLocal.m_pThisQueue, m_nCurrentThreadSelections);
+						DSchedulerStat(*pThisQueue, m_nCurrentThreadSelections);
 						break;
 					}
 #else
 					if (_ThreadLocal.m_bForceNonLocal) [[unlikely]]
 					{
 						iJobQueue = iThisQueue;
-						DSchedulerStat(*_ThreadLocal.m_pThisQueue, m_nForcedNonLocalSelections);
+						DSchedulerStat(*pThisQueue, m_nForcedNonLocalSelections);
 						break;
 					}
-					if (_ThreadLocal.m_pThisQueue->m_Priority == _Priority && _ThreadLocal.m_pThisQueue->m_JobQueue.f_IsEmpty(_ThreadLocal.m_pThisQueue->m_JobQueueLocal))
+
+					if ((ThisQueuePriority == _Priority) && pThisQueue->m_JobQueue.f_IsEmpty(pThisQueue->m_JobQueueLocal))
 					{
+						_Priority = ThisQueuePriority;
 						iJobQueue = iThisQueue;
-						DSchedulerStat(*_ThreadLocal.m_pThisQueue, m_nCurrentThreadSelections);
+						DSchedulerStat(*pThisQueue, m_nCurrentThreadSelections);
 						break;
 					}
 #endif
@@ -726,6 +730,7 @@ namespace NMib::NConcurrency
 					}
 				}
 
+#if !(DMibConfig_Concurrency_LocalFirstScheduler && DMibConfig_Concurrency_LocalFirstDistribution)
 				if (_iLastQueue < m_nThreads)
 				{
 					auto &Queue = m_Queues[_Priority].f_GetArray()[_iLastQueue];
@@ -740,8 +745,17 @@ namespace NMib::NConcurrency
 						return;
 					}
 				}
+#else
+				if (_iLastQueue < m_nThreads)
+				{
+					auto &Queue = m_Queues[_Priority].f_GetArray()[_iLastQueue];
+					DSchedulerStat(Queue, m_nLastQueueSelections);
 
-#if DMibConfig_Concurrency_LocalFirstScheduler && DMibConfig_Concurrency_LocalFirstDistribution
+					if (fp_AddToQueue(Queue, fg_Move(pQueueEntry), _ThreadLocal))
+						Queue.f_Signal(this);
+					return;
+				}
+
 				{
 					umint iIdleQueue = fp_ClaimIdleQueue(_Priority, iThisQueue);
 					if (iIdleQueue != gc_InvalidQueue)

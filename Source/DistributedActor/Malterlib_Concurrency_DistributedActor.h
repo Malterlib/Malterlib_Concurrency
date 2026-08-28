@@ -655,6 +655,8 @@ namespace NMib::NConcurrency
 	{
 		using CActorHolder = CActorDistributionManagerHolder;
 
+		static constexpr NConcurrency::EPriority mc_Priority = NConcurrency::EPriority_Normal;
+
 		struct CConnectionResult
 		{
 			CDistributedActorConnectionReference m_ConnectionReference;

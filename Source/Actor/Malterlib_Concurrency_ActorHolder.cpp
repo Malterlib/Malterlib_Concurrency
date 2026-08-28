@@ -82,6 +82,12 @@ namespace NMib::NConcurrency
 		mp_iFixedQueue = _iFixedQueue;
 	}
 
+	void CActorHolder::f_SetInitialQueue(umint _iQueue)
+	{
+		// Seed placement before the first dispatch so it starts on the bound I/O queue.
+		mp_iLastQueue.f_Store((uint32)_iQueue, NAtomic::gc_MemoryOrder_Relaxed);
+	}
+
 	void CActorHolder::f_Yield()
 	{
 		DMibFastCheck(fg_ConcurrencyThreadLocal().m_pCurrentlyProcessingActorHolder == this);
@@ -329,24 +335,16 @@ namespace NMib::NConcurrency
 
 						++nProcessedEntries;
 						++nProcessedEntriesThisTime;
-#if DMibConfig_Concurrency_LocalFirstScheduler && DMibConfig_Concurrency_LocalFirstDistribution
-						// A long drain never returns to the pool thread loop, and jobs queued
-						// behind this actor are blocked for its whole duration — once this run
-						// is provably a long drain, offer all of them to idle threads, not just
-						// the excess above the batching target. Short runs keep the batching
-						// target: their job boundary is imminent, and shipping a lone peer
-						// resume would put a wakeup on the critical path of every exchange.
+						// Long actor drains must offer queued work and service I/O before returning to the pool loop.
 						if (((nProcessedEntries & 63) == 0) && ThreadLocal.m_pThisQueue)
 						{
-							mp_pConcurrencyManager->fp_OfferExcessWork
+							mp_pConcurrencyManager->fp_DrainCheckpoint
 								(
 									*ThreadLocal.m_pThisQueue
-									, true
 									, nProcessedEntriesThisTime >= 64 ? 0 : DMibConfig_Concurrency_LocalQueueTargetSize
 								)
 							;
 						}
-#endif
 
 #if DMibConfig_Concurrency_SchedulerStats
 						++nStatsEntriesDrained;

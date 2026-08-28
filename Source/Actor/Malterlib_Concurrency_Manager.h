@@ -40,6 +40,30 @@ namespace NMib::NConcurrency
 #endif
 	};
 
+	struct CIoLoopBinding
+	{
+		explicit operator bool () const;
+
+		NSys::ICIoLoop *m_pLoop = nullptr;
+		umint m_iQueue = TCLimitsInt<umint>::mc_Max;
+		EPriority m_Priority = EPriority_Max;
+	};
+
+	// Thread-local binding for newly created I/O objects. A coroutine must close the scope before suspending.
+	struct [[nodiscard]] CIoLoopCreateScope
+	{
+		CIoLoopCreateScope(CIoLoopBinding const &_Binding);
+		~CIoLoopCreateScope();
+
+		CIoLoopCreateScope(CIoLoopCreateScope const &) = delete;
+		CIoLoopCreateScope &operator = (CIoLoopCreateScope const &) = delete;
+
+	private:
+		DMibThreadLocalScopeDebugMember;
+		NSys::ICIoLoop *mp_pPreviousLoop = nullptr; // Restored on close so scopes nest.
+		bool mp_bSet = false;
+	};
+
 	/// \brief Manages scheduling of running actors in a thread pool
 	class CConcurrencyManager
 	{
@@ -96,6 +120,17 @@ namespace NMib::NConcurrency
 
 		void f_DispatchOnCurrentThreadOrConcurrent(EPriority _Priority, FActorQueueDispatchNoAlloc &&_ToQueue);
 		void f_DispatchOnCurrentThreadOrConcurrentFirst(EPriority _Priority, FActorQueueDispatchNoAlloc &&_ToQueue);
+
+		void f_DispatchToQueue(EPriority _Priority, umint _iQueue, FActorQueueDispatchNoAlloc &&_ToQueue);
+
+		void f_EnableQueueIoLoop(EPriority _Priority, umint _iQueue);
+		NSys::ICIoLoop *f_GetQueueIoLoop(EPriority _Priority, umint _iQueue) const;
+		NSys::ICIoLoop *f_GetThreadIoLoop();
+
+		CIoLoopBinding f_PickIoLoopBinding(EPriority _Priority);
+
+		EPriority f_GetQueuePriority() const;
+		umint f_GetNumQueues(EPriority _Priority) const;
 
 		void f_SetExecutionPriority(EPriority _Priority, EExecutionPriority _ExecutionPriority);
 		EExecutionPriority f_GetExecutionPriority(EPriority _Priority);
@@ -180,17 +215,22 @@ namespace NMib::NConcurrency
 		{
 			align_cacheline CConcurrentRunQueueNonVirtualNoAlloc m_JobQueue;
 			NAtomic::TCAtomic<umint> m_Working;
+
 			align_cacheline CConcurrentRunQueueNonVirtualNoAlloc::CLocalQueueData m_JobQueueLocal;
 			umint m_iQueue;
 			EPriority m_Priority;
-			NThread::CEventAutoReset m_Event;
+			bool m_bIoLoopParkActive = false; // Only the owner thread reads or writes this park choice.
+
+			align_cacheline NThread::CEventAutoReset m_Event; // Co-locate immutable loop fields with the event dirtied by signallers to avoid a second cache-line transfer.
+			NSys::ICIoLoop *m_pIoLoop = nullptr;
 			NStorage::TCUniquePointer<NThread::CThreadObjectNonTracked, NMemory::CAllocator_NonTrackedHeap> m_pThread;
 			NAtomic::TCAtomic<bool> m_bThreadCreated;
-#if DMibConfig_Concurrency_LocalFirstScheduler && DMibConfig_Concurrency_LocalFirstDistribution
-#endif
+			bool m_bIoLoopParksOnEvent = false; // The loop waits on m_Event, so signalling it needs no explicit loop wake.
+
 #if DMibConfig_Concurrency_SchedulerStats
 			CSchedulerQueueStats m_SchedulerStats;
 #endif
+
 			CQueue(CQueue &&_Other);
 			CQueue();
 			void f_Signal(CConcurrencyManager *_pThis);
@@ -210,6 +250,7 @@ namespace NMib::NConcurrency
 		void fp_OfferExcessWork(CQueue &_Queue, bool _bTransfer, umint _TargetSize = DMibConfig_Concurrency_LocalQueueTargetSize);
 #endif
 #endif
+		void fp_DrainCheckpoint(CQueue &_Queue, umint _OfferTargetSize);
 
 		inline_never umint fp_InitConcurrentActors();
 		void fp_DispatchOnCurrentThreadOrConcurrent(EPriority _Priority, FActorQueueDispatchNoAlloc &&_ToQueue, CConcurrencyThreadLocal &_ThreadLocal);
@@ -245,6 +286,9 @@ namespace NMib::NConcurrency
 
 		umint m_nThreads = 0;
 		NContainer::TCVector<CQueue> m_Queues[EPriority_Max];
+		umint m_nIoLoopQueues[EPriority_Max] = {}; // Queues [0, count) own loops; fixed at startup.
+		NAtomic::TCAtomic<umint> m_iNextIoLoopBinding[EPriority_Max] = {};
+		NAtomic::TCAtomic<bool> m_bIoLoopsEnabled[EPriority_Max] = {};
 
 #if DMibConfig_Concurrency_LocalFirstScheduler
 		/// \brief One chunk of the advisory idle-queue bitmask; a set bit marks a queue whose thread

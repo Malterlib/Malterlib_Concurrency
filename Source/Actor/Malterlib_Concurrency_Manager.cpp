@@ -1596,8 +1596,9 @@ namespace NMib::NConcurrency
 	}
 
 // The dump must also work in release builds where DMibTrace compiles out, since scheduler
-// stats can be enabled there
-#define DSchedulerStatsTrace(...) NSys::fg_DebugOutput(NStr::fg_Format<NStr::CStrNonTracked>(__VA_ARGS__))
+// stats can be enabled there. Stderr, not stdout: a CLI or daemon can reserve stdout for
+// structured output, and an opt-in diagnostic must not corrupt that stream
+#define DSchedulerStatsTrace(...) NSys::fg_ConsoleErrorOutput(NStr::fg_Format<NStr::CStrNonTracked>(__VA_ARGS__))
 
 	inline_never void CConcurrencyManager::fp_DumpSchedulerStats()
 	{

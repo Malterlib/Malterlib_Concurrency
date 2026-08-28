@@ -263,6 +263,9 @@ namespace NMib::NConcurrency
 			ConnectSettings.m_MaxFragmentSize = NActorDistributionManagerInternal::gc_UnixTransportMaxFragmentSize;
 		}
 		ConnectSettings.m_bAllowUnmaskedFrames = bAuthenticatedUnix; // wsa unix connections are a confidential point to point link, so send unmasked
+		// Over TLS the same is true once the peer is authenticated, but it is asked for rather than
+		// assumed, so a server that predates the extension leaves masking on
+		ConnectSettings.m_bNegotiateUnmaskedFrames = !bAuthenticatedUnix;
 
 		m_WebsocketClientConnector
 			(

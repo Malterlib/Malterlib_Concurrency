@@ -631,10 +631,14 @@ namespace NMib::NConcurrency
 								;
 							}
 
+							// Mutual TLS leaves nothing between the endpoints for masking to protect;
+							// negotiated rather than assumed so a peer predating the extension keeps
+							// masking
 							return
 								{
 									.m_Factory = NNetwork::CSocket_SSL::fs_GetFactory(pServerContext)
 									, .m_bAllowUnmaskedFrames = false
+									, .m_bNegotiateUnmaskedFrames = true
 									, .m_FragmentationSize = FragmentationSize
 									, .m_MaxFragmentSize = MaxFragmentSize
 								}

@@ -145,22 +145,22 @@ namespace NMib::NConcurrency::NActorDistributionManagerInternal
 		{
 			inline_always_debug uint64 operator ()(CPacket const &_Entry)
 			{
-				return fg_MakePriorityPacketKey(_Entry.m_Priority, _Entry.f_GetPacketID());
+				return fg_MakePriorityPacketKey(_Entry.m_Priority, _Entry.m_PacketID);
 			}
 		};
 
-		CPacket(NStorage::TCSharedPointer<NStream::CBinaryStorage const> const &_pData, uint8 _Priority)
+		CPacket(NStorage::TCSharedPointer<NStream::CBinaryStorage const> const &_pData, uint8 _Priority, uint64 _PacketID)
 			: m_pData(_pData)
+			, m_PacketID(_PacketID)
 			, m_Priority(_Priority)
 		{
 		}
-
-		uint64 f_GetPacketID() const;
 
 		NStorage::TCSharedPointer<NStream::CBinaryStorage const> m_pData; // Shared pointer because we need to keep this around and possibly resend it
 		NIntrusive::TCAVLLink<> m_TreeLink;
 		DMibListLinkDS_Link(CPacket, m_Link);
 
+		uint64 m_PacketID = 0;
 		uint8 m_Priority = 128; // Packet priority (0 = highest, 255 = lowest, 128 = default)
 	};
 

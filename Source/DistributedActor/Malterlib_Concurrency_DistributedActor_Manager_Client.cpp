@@ -250,7 +250,12 @@ namespace NMib::NConcurrency
 		// The CLI exports the listen address so both endpoints derive matching frame limits from the configured host.
 		// Public receive limits are a security contract. Custom connections substituting a loopback host for a public listen
 		// can select incompatible frame sizes and are intentionally rejected during identify.
-		if (NNetwork::fg_IsUnixSocketAddressString(ToConnectTo.f_GetHost()) || NNetwork::fg_IsLoopbackHostString(ToConnectTo.f_GetHost()))
+		if (umint nOverride = NActorDistributionManagerInternal::fg_TransportFragmentationOverride())
+		{
+			ConnectSettings.m_FragmentationSize = nOverride + NActorDistributionManagerInternal::gc_TransportFragmentMargin;
+			ConnectSettings.m_MaxFragmentSize = ConnectSettings.m_FragmentationSize;
+		}
+		else if (NNetwork::fg_IsUnixSocketAddressString(ToConnectTo.f_GetHost()) || NNetwork::fg_IsLoopbackHostString(ToConnectTo.f_GetHost()))
 		{
 			ConnectSettings.m_FragmentationSize = NActorDistributionManagerInternal::gc_UnixTransportFragmentationSize;
 			ConnectSettings.m_MaxFragmentSize = NActorDistributionManagerInternal::gc_UnixTransportMaxFragmentSize;

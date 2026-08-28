@@ -112,7 +112,15 @@ namespace NMib::NConcurrency::NActorDistributionManagerInternal
 
 	inline constexpr umint gc_UnixTransportMaxFragmentSize = gc_UnixTransportFragmentationSize; // Accept the peer's local fragment size while bounding advertised-length allocations.
 
+	// Fragment-size overrides must agree at both endpoints; zero preserves address defaults.
+#if DMibConfig_IoDebug_Enable
 	umint fg_TransportFragmentationOverride();
+#else
+	constexpr umint fg_TransportFragmentationOverride()
+	{
+		return 0;
+	}
+#endif
 
 	bool fg_IsAuthenticatedUnixScheme(NStr::CStr const &_Scheme);
 	auto fg_VerifyOptionsFromKeySetting

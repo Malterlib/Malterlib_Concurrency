@@ -624,6 +624,11 @@ namespace NMib::NConcurrency
 							bool bLocalAddress = AddressKind.m_bLocal;
 							uint32 FragmentationSize = bLocalAddress ? uint32(NActorDistributionManagerInternal::gc_UnixTransportFragmentationSize) : 0;
 							uint32 MaxFragmentSize = bLocalAddress ? uint32(NActorDistributionManagerInternal::gc_UnixTransportMaxFragmentSize) : 0;
+							if (umint nOverride = NActorDistributionManagerInternal::fg_TransportFragmentationOverride())
+							{
+								FragmentationSize = uint32(nOverride + NActorDistributionManagerInternal::gc_TransportFragmentMargin);
+								MaxFragmentSize = FragmentationSize;
+							}
 
 							if (AddressKind.m_bAuthenticatedUnix)
 							{

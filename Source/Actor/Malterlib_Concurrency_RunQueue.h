@@ -160,6 +160,7 @@ namespace NMib::NConcurrency
 		bool f_AddToQueueIfEmpty(NStorage::TCUniquePointer<tf_CEntry> &&_pEntry);
 		void f_AddToQueue(NStorage::TCUniquePointer<tf_CEntry> &&_pEntry);
 		bool f_AddToQueueLocal(NStorage::TCUniquePointer<tf_CEntry> &&_pEntry, CLocalQueueData &_LocalQueue);
+		bool f_AddToQueueLocalFirst(NStorage::TCUniquePointer<tf_CEntry> &&_pEntry, CLocalQueueData &_LocalQueue);
 
 		void f_AddToQueue(FQueueDispatch &&_Functor);
 		bool f_AddToQueueLocal(FQueueDispatch &&_Functor, CLocalQueueData &_LocalQueue);
@@ -167,6 +168,7 @@ namespace NMib::NConcurrency
 
 		void f_AddToQueue(TCConcurrentRunQueueEntryHolder<tf_CBaseEntry> &&_Entry);
 		bool f_AddToQueueLocal(TCConcurrentRunQueueEntryHolder<tf_CBaseEntry> &&_Entry, CLocalQueueData &_LocalQueue);
+		bool f_AddToQueueLocalFirst(TCConcurrentRunQueueEntryHolder<tf_CBaseEntry> &&_Entry, CLocalQueueData &_LocalQueue);
 
 		void f_AddChainToQueue(tf_CBaseEntry *_pFirstEntry, tf_CBaseEntry *_pLastEntry);
 

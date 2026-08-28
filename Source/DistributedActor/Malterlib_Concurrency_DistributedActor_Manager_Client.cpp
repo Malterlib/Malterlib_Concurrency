@@ -254,7 +254,12 @@ namespace NMib::NConcurrency
 		// host is a local transport on both ends, where large frames cost nothing on the wire and
 		// halve the per-frame work. Older builds put no upper bound on accepted fragments, so no
 		// negotiation is needed
-		if (NNetwork::fg_IsUnixSocketAddressString(ToConnectTo.f_GetHost()) || NNetwork::fg_IsLoopbackHostString(ToConnectTo.f_GetHost()))
+		if (umint nOverride = NActorDistributionManagerInternal::fg_TransportFragmentationOverride())
+		{
+			ConnectSettings.m_FragmentationSize = nOverride + NActorDistributionManagerInternal::gc_TransportFragmentMargin;
+			ConnectSettings.m_MaxFragmentSize = ConnectSettings.m_FragmentationSize;
+		}
+		else if (NNetwork::fg_IsUnixSocketAddressString(ToConnectTo.f_GetHost()) || NNetwork::fg_IsLoopbackHostString(ToConnectTo.f_GetHost()))
 		{
 			ConnectSettings.m_FragmentationSize = NActorDistributionManagerInternal::gc_UnixTransportFragmentationSize;
 			ConnectSettings.m_MaxFragmentSize = NActorDistributionManagerInternal::gc_UnixTransportMaxFragmentSize;

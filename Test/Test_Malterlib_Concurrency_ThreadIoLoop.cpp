@@ -3,8 +3,10 @@
 
 #include <Mib/Concurrency/ConcurrencyManager>
 
-#ifndef DPlatformFamily_Windows
-#include <dirent.h>
+#ifdef DPlatformFamily_Windows
+#	include <Windows.h>
+#else
+#	include <dirent.h>
 #endif
 
 namespace
@@ -92,9 +94,9 @@ namespace
 
 				umint nQueues = ConcurrencyManager.f_GetNumQueues(c_Priority);
 
-				// Same fallback ladder as the manager: the legacy MalterlibSocketIoLoops name
-				// still caps the loop count when the current name is unset. Builds without the
-				// io debugging overrides ignore the environment, and so must the expectation
+				// The same knob the manager reads: MalterlibIoLoops caps the loop count. Builds
+				// without the io debugging overrides ignore the environment, and so must the
+				// expectation
 #if DMibConfig_IoDebug_Enable
 				smint nConfiguredLoops = NSys::fg_Process_GetEnvironmentVariable_NonProtected(NStr::gc_Str<"MalterlibIoLoops">.m_Str).f_ToInt(smint(-1));
 #else
@@ -175,15 +177,22 @@ namespace
 				DMibExpectTrue(NSys::fg_GetThreadIoLoop() == nullptr);
 			};
 
-#ifndef DPlatformFamily_Windows
 			DMibTestSuite("ManagerLoopLifetime")
 			{
 				// Loops are created at manager construction and destroyed at stop, so a manager
 				// lifetime must return the process to its descriptor baseline: every loop holds a
-				// wake pipe plus a poll descriptor, and leaking them once per manager exhausts
-				// the process on repeated construction
+				// wake pipe plus a poll descriptor (a completion port and its AFD handles on
+				// Windows), and leaking them once per manager exhausts the process on repeated
+				// construction
 				auto fCountOpenDescriptors = []() -> umint
 					{
+#ifdef DPlatformFamily_Windows
+						DWORD nHandles = 0;
+						if (!GetProcessHandleCount(GetCurrentProcess(), &nHandles))
+							return 0;
+
+						return nHandles;
+#else
 						DIR *pDescriptorDir = opendir("/dev/fd");
 						if (!pDescriptorDir)
 							return 0;
@@ -194,6 +203,7 @@ namespace
 						closedir(pDescriptorDir);
 
 						return nDescriptors;
+#endif
 					}
 				;
 
@@ -226,7 +236,6 @@ namespace
 				// not expectable; a loop leak is dozens to hundreds on any multicore machine
 				DMibExpectTrue(nDescriptorsAfter <= nDescriptorsBefore + 16);
 			};
-#endif
 		}
 	};
 

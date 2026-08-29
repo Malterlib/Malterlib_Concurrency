@@ -605,12 +605,16 @@ namespace NMib::NConcurrency
 					(
 						[pServerContext, pAuthenticatedUnixContext, AddressAuthenticatedUnix](umint _iAddress, NNetwork::CNetAddress const &_Address) -> NWeb::CWebSocketListenAddressConfig
 						{
-							// Keyed on the address type rather than on the transport, so that it matches the
-							// rule the connecting end applies: a client picks the unix frame sizes from the
-							// address it dials, whether or not that unix listen turned out to be wsa
+							// Keyed on the address rather than on the transport, so that it matches the rule
+							// the connecting end applies: a client picks the local frame sizes from the
+							// address it dials — a unix path, whether or not that listen turned out to be
+							// wsa, or a loopback host. A listener on every interface cannot tell a loopback
+							// peer apart and keeps the wire sizes; the client's own frames are still accepted
+							// there, since a TCP listen bounds nothing
 							bool bUnixAddress = _Address.f_GetType() == NNetwork::ENetAddressType_Unix;
-							uint32 FragmentationSize = bUnixAddress ? uint32(NActorDistributionManagerInternal::gc_UnixTransportFragmentationSize) : 0;
-							uint32 MaxFragmentSize = bUnixAddress ? uint32(NActorDistributionManagerInternal::gc_UnixTransportMaxFragmentSize) : 0;
+							bool bLocalAddress = bUnixAddress || NNetwork::fg_IsLoopbackAddress(_Address);
+							uint32 FragmentationSize = bLocalAddress ? uint32(NActorDistributionManagerInternal::gc_UnixTransportFragmentationSize) : 0;
+							uint32 MaxFragmentSize = bLocalAddress ? uint32(NActorDistributionManagerInternal::gc_UnixTransportMaxFragmentSize) : 0;
 							if (umint nOverride = NActorDistributionManagerInternal::fg_TransportFragmentationOverride())
 							{
 								FragmentationSize = uint32(nOverride + NActorDistributionManagerInternal::gc_TransportFragmentMargin);

@@ -454,6 +454,26 @@ namespace NMib::NConcurrency
 		;
 	}
 
+	TCFuture<void> CDistributedActorTrustManagerDatabase_JsonDirectory::f_SetListenConfig(CListenConfig _Config)
+	{
+		auto &Internal = *mp_pInternal;
+		auto SequenceSubscription = co_await Internal.m_Sequencer.f_Sequence();
+		auto BlockingActorCheckout = fg_BlockingActor();
+		co_return co_await
+			(
+				g_Dispatch(BlockingActorCheckout) / [this, pCanDestroy = Internal.m_pCanDestroyTracker, _Config]
+				{
+					auto &Internal = *mp_pInternal;
+					Internal.f_CheckState();
+					auto NameHash = Internal.f_GetNameHash(_Config.m_Address);
+					if (!Internal.f_Exists("ListenConfigs", NameHash))
+						DMibError("No such listen config");
+					Internal.f_Write(_Config, "ListenConfigs", NameHash);
+				}
+			)
+		;
+	}
+
 	TCFuture<void> CDistributedActorTrustManagerDatabase_JsonDirectory::f_RemoveListenConfig(CListenConfig _Config)
 	{
 		auto &Internal = *mp_pInternal;
@@ -1478,6 +1498,7 @@ namespace NMib::NConcurrency
 		Json["PublicClientCertificate"] = _ClientConnection.m_ClientConnection.m_PublicClientCertificate;
 		Json["LastFriendlyName"] = _ClientConnection.m_ClientConnection.m_LastFriendlyName;
 		Json["ConnectionConcurrency"] = _ClientConnection.m_ClientConnection.m_ConnectionConcurrency;
+		Json["SendWindowBytes"] = (int64)_ClientConnection.m_ClientConnection.m_SendWindowBytes;
 		return Json;
 	}
 
@@ -1493,6 +1514,10 @@ namespace NMib::NConcurrency
 			o_ClientConnection.m_ConnectionConcurrency = pName->f_Integer();
 		else
 			o_ClientConnection.m_ConnectionConcurrency = -1;
+		if (auto *pValue = _Json.f_GetMember("SendWindowBytes"))
+			o_ClientConnection.m_SendWindowBytes = (uint64)pValue->f_Integer();
+		else
+			o_ClientConnection.m_SendWindowBytes = 0;
 	}
 
 	void CDistributedActorTrustManagerDatabase_JsonDirectory::CInternal::f_FromJson(CInternalClientConnection &o_ClientConnection, CEJsonSorted const &_Json, CStr const &_Name) const
@@ -1517,12 +1542,17 @@ namespace NMib::NConcurrency
 	{
 		CEJsonSorted Json;
 		f_EncodeAddress(Json["Address"], _ListenConfig.m_Address);
+		Json["SendWindowBytes"] = (int64)_ListenConfig.m_SendWindowBytes;
 		return Json;
 	}
 
 	void CDistributedActorTrustManagerDatabase_JsonDirectory::CInternal::f_FromJson(CListenConfig &o_ListenConfig, CEJsonSorted const &_Json, CStr const &_Name) const
 	{
 		o_ListenConfig.m_Address = f_DecodeAddress(_Json["Address"], _Name);
+		if (auto *pValue = _Json.f_GetMember("SendWindowBytes"))
+			o_ListenConfig.m_SendWindowBytes = (uint64)pValue->f_Integer();
+		else
+			o_ListenConfig.m_SendWindowBytes = 0;
 	}
 
 	CEJsonSorted CDistributedActorTrustManagerDatabase_JsonDirectory::CInternal::f_ToJson(CNamespace const &_Namespace) const

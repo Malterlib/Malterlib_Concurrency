@@ -27,6 +27,7 @@ namespace NMib::NConcurrency
 
 		TCFuture<NContainer::TCSet<CListenConfig>> f_EnumListenConfigs() override;
 		TCFuture<void> f_AddListenConfig(CListenConfig _Config) override;
+		TCFuture<void> f_SetListenConfig(CListenConfig _Config) override;
 		TCFuture<void> f_RemoveListenConfig(CListenConfig _Config) override;
 
 		TCFuture<NStorage::TCOptional<CDistributedActorTrustManager_Address>> f_GetPrimaryListen() override;

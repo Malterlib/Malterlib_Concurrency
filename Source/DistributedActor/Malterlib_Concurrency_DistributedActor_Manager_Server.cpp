@@ -603,7 +603,8 @@ namespace NMib::NConcurrency
 					}
 					, NWeb::CWebSocketListenSocketFactory::fs_PerAddress
 					(
-						[pServerContext, pAuthenticatedUnixContext, AddressAuthenticatedUnix](umint _iAddress, NNetwork::CNetAddress const &_Address) -> NWeb::CWebSocketListenAddressConfig
+						[pServerContext, pAuthenticatedUnixContext, AddressAuthenticatedUnix, SendWindowBytes = _Settings.m_SendWindowBytes]
+							(umint _iAddress, NNetwork::CNetAddress const &_Address) -> NWeb::CWebSocketListenAddressConfig
 						{
 							// Keyed on the address rather than on the transport, so that it matches the rule
 							// the connecting end applies: a client picks the local frame sizes from the
@@ -631,6 +632,7 @@ namespace NMib::NConcurrency
 										, .m_bAllowUnmaskedFrames = true
 										, .m_FragmentationSize = FragmentationSize
 										, .m_MaxFragmentSize = MaxFragmentSize
+										, .m_SendWindowBytes = SendWindowBytes
 									}
 								;
 							}
@@ -645,6 +647,7 @@ namespace NMib::NConcurrency
 									, .m_bNegotiateUnmaskedFrames = true
 									, .m_FragmentationSize = FragmentationSize
 									, .m_MaxFragmentSize = MaxFragmentSize
+										, .m_SendWindowBytes = SendWindowBytes
 								}
 							;
 						}

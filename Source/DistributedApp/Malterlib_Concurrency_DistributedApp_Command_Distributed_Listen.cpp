@@ -16,13 +16,27 @@ namespace NMib::NConcurrency
 	using namespace NContainer;
 	using namespace NCommandLine;
 
-	TCFuture<uint32> CDistributedAppActor::f_CommandLine_AddListen(TCSharedPointer<CCommandLineControl> _pCommandLine, CStr _URL, bool _bPrimary)
+	TCFuture<uint32> CDistributedAppActor::f_CommandLine_AddListen(TCSharedPointer<CCommandLineControl> _pCommandLine, CStr _URL, bool _bPrimary, CStr _SendWindow)
 	{
+		uint64 SendWindowBytes = 0;
+		{
+			CStr Error;
+			if (!fg_ParseSendWindow(_SendWindow, SendWindowBytes, Error))
+				co_return DMibErrorInstance(Error);
+		}
+
 		CDistributedActorTrustManager_Address Address;
 		Address.m_URL = _URL;
 		co_await mp_State.m_TrustManager(&CDistributedActorTrustManager::f_AddListen, Address);
 
 		DMibLogWithCategory(Mib/Concurrency/App, Info, "Add listen '{}' from command line", _URL);
+
+		// Recorded for the listen's next start: the one just started took the default
+		if (SendWindowBytes)
+		{
+			co_await mp_State.m_TrustManager(&CDistributedActorTrustManager::f_SetListenSendWindow, Address, SendWindowBytes);
+			DMibLogWithCategory(Mib/Concurrency/App, Info, "Set send window to {} for listen '{}' from command line", fg_FormatSendWindow(SendWindowBytes), _URL);
+		}
 
 		if (!_bPrimary)
 		{
@@ -44,6 +58,22 @@ namespace NMib::NConcurrency
 			co_await mp_State.m_TrustManager(&CDistributedActorTrustManager::f_SetPrimaryListen, Address);
 			DMibLogWithCategory(Mib/Concurrency/App, Info, "Added listen '{}' set as primary", _URL);
 		}
+
+		co_return 0;
+	}
+
+	TCFuture<uint32> CDistributedAppActor::f_CommandLine_SetListenSendWindow(TCSharedPointer<CCommandLineControl> _pCommandLine, CStr _URL, CStr _SendWindow)
+	{
+		uint64 SendWindowBytes = 0;
+		CStr Error;
+		if (!fg_ParseSendWindow(_SendWindow, SendWindowBytes, Error))
+			co_return DMibErrorInstance(Error);
+
+		CDistributedActorTrustManager_Address Address;
+		Address.m_URL = _URL;
+		co_await mp_State.m_TrustManager(&CDistributedActorTrustManager::f_SetListenSendWindow, Address, SendWindowBytes);
+
+		DMibLogWithCategory(Mib/Concurrency/App, Info, "Change send window to {} for listen '{}' from command line", fg_FormatSendWindow(SendWindowBytes), _URL);
 
 		co_return 0;
 	}
@@ -78,14 +108,16 @@ namespace NMib::NConcurrency
 	{
 		auto Listens = co_await mp_State.m_TrustManager(&CDistributedActorTrustManager::f_EnumListens);
 		auto PrimaryListen = co_await mp_State.m_TrustManager(&CDistributedActorTrustManager::f_GetPrimaryListen);
+		auto SendWindows = co_await mp_State.m_TrustManager(&CDistributedActorTrustManager::f_EnumListenSendWindows);
 
 		CTableRenderHelper TableRenderer = _pCommandLine->f_TableRenderer();
-		TableRenderer.f_AddHeadings("Address", "Primary");
+		TableRenderer.f_AddHeadings("Address", "Primary", "Send Window");
 
 		for (auto &Listen : Listens)
 		{
 			auto PrimaryValue = (PrimaryListen && *PrimaryListen == Listen.m_URL ? "true" : "");
-			TableRenderer.f_AddRow(Listen.m_URL.f_Encode(), PrimaryValue);
+			auto *pSendWindow = SendWindows.f_FindEqual(Listen);
+			TableRenderer.f_AddRow(Listen.m_URL.f_Encode(), PrimaryValue, fg_FormatSendWindow(pSendWindow ? *pSendWindow : 0));
 		}
 
 		DMibLogWithCategory(Mib/Concurrency/App, Info, "Reported listen addresses to command line");

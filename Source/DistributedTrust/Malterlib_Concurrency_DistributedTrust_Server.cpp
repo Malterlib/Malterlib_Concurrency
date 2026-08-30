@@ -166,6 +166,7 @@ namespace NMib::NConcurrency
 			co_return DMibErrorInstance("Already listening to address");
 
 		auto ListenSettings = co_await f_GetCertificateData(_Address);
+		ListenSettings.m_SendWindowBytes = ListenConfig.f_GetEffectiveSendWindowBytes(Internal.m_DefaultSendWindowBytes);
 
 		auto ListenReference = co_await (Internal.m_ActorDistributionManager(&CActorDistributionManager::f_Listen, fg_Move(ListenSettings)) % "Failed to listen");
 
@@ -239,6 +240,53 @@ namespace NMib::NConcurrency
 			co_return Internal.m_Listen.fs_GetKey(*Internal.m_pPrimaryListen).m_Address;
 
 		co_return {};
+	}
+
+	TCFuture<void> CDistributedActorTrustManager::f_SetListenSendWindow(CDistributedActorTrustManager_Address _Address, uint64 _SendWindowBytes)
+	{
+		auto &Internal = *mp_pInternal;
+		co_await Internal.f_WaitForInit();
+
+		CListenConfig ListenConfig;
+		ListenConfig.m_Address = _Address;
+
+		auto iListen = Internal.m_Listen.f_GetIterator();
+		while (iListen && iListen.f_GetKey().m_Address != _Address)
+			++iListen;
+		if (!iListen)
+			co_return DMibErrorInstance("No such listen");
+
+		CListenConfig NewListenConfig = iListen.f_GetKey();
+		if (NewListenConfig.m_SendWindowBytes == _SendWindowBytes)
+			co_return {};
+		NewListenConfig.m_SendWindowBytes = _SendWindowBytes;
+
+		co_await
+			(
+				Internal.m_Database.f_Bind<&ICDistributedActorTrustManagerDatabase::f_SetListenConfig>(NewListenConfig)
+				% "Failed to save listen config to database"
+			)
+		;
+
+		// The key orders on the address alone, so the record is replaced in place with its state;
+		// the listen that is up keeps its window until it is next started
+		auto ListenState = fg_Move(*iListen);
+		Internal.m_Listen.f_Remove(ListenConfig);
+		Internal.m_Listen[NewListenConfig] = fg_Move(ListenState);
+
+		co_return {};
+	}
+
+	TCFuture<NContainer::TCMap<CDistributedActorTrustManager_Address, uint64>> CDistributedActorTrustManager::f_EnumListenSendWindows()
+	{
+		auto &Internal = *mp_pInternal;
+		co_await Internal.f_WaitForInit();
+
+		NContainer::TCMap<CDistributedActorTrustManager_Address, uint64> Windows;
+		for (auto &Listen : Internal.m_Listen.f_Keys())
+			Windows[Listen.m_Address] = Listen.m_SendWindowBytes;
+
+		co_return fg_Move(Windows);
 	}
 
 	TCFuture<NContainer::TCSet<CDistributedActorTrustManager_Address>> CDistributedActorTrustManager::f_EnumListens()

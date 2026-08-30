@@ -13,6 +13,8 @@ namespace NMib::NConcurrency
 		DMibPublishActorFunction(CDistributedActorTrustManagerInterface::f_AddListen);
 		DMibPublishActorFunction(CDistributedActorTrustManagerInterface::f_RemoveListen);
 		DMibPublishActorFunction(CDistributedActorTrustManagerInterface::f_HasListen);
+		DMibPublishActorFunction(CDistributedActorTrustManagerInterface::f_SetListenSendWindow);
+		DMibPublishActorFunction(CDistributedActorTrustManagerInterface::f_EnumListenSendWindows);
 		DMibPublishActorFunction(CDistributedActorTrustManagerInterface::f_SetPrimaryListen);
 		DMibPublishActorFunction(CDistributedActorTrustManagerInterface::f_GetPrimaryListen);
 		DMibPublishActorFunction(CDistributedActorTrustManagerInterface::f_EnumClients);
@@ -23,6 +25,7 @@ namespace NMib::NConcurrency
 		DMibPublishActorFunction(CDistributedActorTrustManagerInterface::f_AddClientConnection);
 		DMibPublishActorFunction(CDistributedActorTrustManagerInterface::f_AddAdditionalClientConnection);
 		DMibPublishActorFunction(CDistributedActorTrustManagerInterface::f_SetClientConnectionConcurrency);
+		DMibPublishActorFunction(CDistributedActorTrustManagerInterface::f_SetClientConnectionSendWindow);
 		DMibPublishActorFunction(CDistributedActorTrustManagerInterface::f_RemoveClientConnection);
 		DMibPublishActorFunction(CDistributedActorTrustManagerInterface::f_HasClientConnection);
 		DMibPublishActorFunction(CDistributedActorTrustManagerInterface::f_GetHostID);
@@ -75,6 +78,8 @@ namespace NMib::NConcurrency
 	{
 		_Stream % m_HostInfo;
 		_Stream % m_ConnectionConcurrency;
+		if (_Stream.f_GetVersion() >= EProtocolVersion_SendWindow)
+			_Stream % m_SendWindowBytes;
 	}
 	DMibDistributedStreamImplement(CDistributedActorTrustManagerInterface::CClientConnectionInfo);
 

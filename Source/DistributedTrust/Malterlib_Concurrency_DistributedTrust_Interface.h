@@ -26,7 +26,8 @@ namespace NMib::NConcurrency
 			, EProtocolVersion_SupportDebugStatsAndPreserveHost = 0x107
 			, EProtocolVersion_SupportPrimaryListen = 0x108
 			, EProtocolVersion_PriorityDebugStats = 0x109
-			, EProtocolVersion_Current = 0x109
+			, EProtocolVersion_SendWindow = 0x10A
+			, EProtocolVersion_Current = 0x10A
 		};
 
 		struct CTrustTicket
@@ -84,6 +85,7 @@ namespace NMib::NConcurrency
 
 			CHostInfo m_HostInfo;
 			int32 m_ConnectionConcurrency = -1;
+			uint64 m_SendWindowBytes = 0;
 		};
 
 		struct CChangeNamespaceHosts
@@ -263,6 +265,8 @@ namespace NMib::NConcurrency
 		virtual TCFuture<void> f_AddListen(CDistributedActorTrustManager_Address _Address) = 0;
 		virtual TCFuture<void> f_RemoveListen(CDistributedActorTrustManager_Address _Address) = 0;
 		virtual TCFuture<bool> f_HasListen(CDistributedActorTrustManager_Address _Address) = 0;
+		virtual TCFuture<void> f_SetListenSendWindow(CDistributedActorTrustManager_Address _Address, uint64 _SendWindowBytes) = 0;
+		virtual TCFuture<NContainer::TCMap<CDistributedActorTrustManager_Address, uint64>> f_EnumListenSendWindows() = 0;
 
 		virtual TCFuture<void> f_SetPrimaryListen(NStorage::TCOptional<CDistributedActorTrustManager_Address> _Address) = 0;
 		virtual TCFuture<NStorage::TCOptional<CDistributedActorTrustManager_Address>> f_GetPrimaryListen() = 0;
@@ -275,6 +279,7 @@ namespace NMib::NConcurrency
 		virtual TCFuture<NContainer::TCMap<CDistributedActorTrustManager_Address, CClientConnectionInfo>> f_EnumClientConnections() = 0;
 		virtual TCFuture<CHostInfo> f_AddClientConnection(CTrustTicket _TrustTicket, fp64 _Timeout, int32 _ConnectionConcurrency = -1) = 0;
 		virtual TCFuture<void> f_SetClientConnectionConcurrency(CDistributedActorTrustManager_Address _Address, int32 _ConnectionConcurrency = -1) = 0;
+		virtual TCFuture<void> f_SetClientConnectionSendWindow(CDistributedActorTrustManager_Address _Address, uint64 _SendWindowBytes) = 0;
 		virtual TCFuture<CHostInfo> f_AddAdditionalClientConnection(CDistributedActorTrustManager_Address _Address, int32 _ConnectionConcurrency = -1) = 0;
 		virtual TCFuture<void> f_RemoveClientConnection(CRemoveClientConnection _Command) = 0;
 		virtual TCFuture<bool> f_HasClientConnection(CDistributedActorTrustManager_Address _Address) = 0;

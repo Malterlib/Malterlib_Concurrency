@@ -290,6 +290,9 @@ namespace NMib::NConcurrency
 			fp64 m_HostDaemonTimeout = 4_hours;
 			fp64 m_ReconnectDelay = 500_ms;
 			int32 m_DefaultConnectionConcurrency = 1;
+			// Bytes a connection may have in flight on its sends unless the connection or listen says
+			// otherwise; 0 leaves the transport's own default of eight frames
+			uint64 m_DefaultSendWindowBytes = 0;
 			bool m_bRetryOnListenFailureDuringInit = true;
 			bool m_bWaitForConnectionsDuringInit = true;
 			bool m_bSupportAuthentication = true;
@@ -313,6 +316,9 @@ namespace NMib::NConcurrency
 		TCFuture<void> f_AddListen(CDistributedActorTrustManager_Address _Address);
 		TCFuture<void> f_RemoveListen(CDistributedActorTrustManager_Address _Address);
 		TCFuture<bool> f_HasListen(CDistributedActorTrustManager_Address _Address);
+		// Applies to connections accepted after the listen next starts
+		TCFuture<void> f_SetListenSendWindow(CDistributedActorTrustManager_Address _Address, uint64 _SendWindowBytes);
+		TCFuture<NContainer::TCMap<CDistributedActorTrustManager_Address, uint64>> f_EnumListenSendWindows();
 		TCFuture<void> f_SetPrimaryListen(NStorage::TCOptional<CDistributedActorTrustManager_Address> _Address);
 		TCFuture<NStorage::TCOptional<CDistributedActorTrustManager_Address>> f_GetPrimaryListen();
 #if DMibConfig_Tests_Enable
@@ -344,6 +350,8 @@ namespace NMib::NConcurrency
 		TCFuture<CHostInfo> f_AddClientConnection(CTrustTicket _TrustTicket, fp64 _Timeout, int32 _ConnectionConcurrency = -1);
 		TCFuture<CHostInfo> f_AddAdditionalClientConnection(CDistributedActorTrustManager_Address _Address, int32 _ConnectionConcurrency = -1);
 		TCFuture<void> f_SetClientConnectionConcurrency(CDistributedActorTrustManager_Address _Address, int32 _ConnectionConcurrency = -1);
+		// Applies to connections made from now on; an established one takes it when it reconnects
+		TCFuture<void> f_SetClientConnectionSendWindow(CDistributedActorTrustManager_Address _Address, uint64 _SendWindowBytes);
 		TCFuture<void> f_RemoveClientConnection(CDistributedActorTrustManager_Address _Address, bool _bPreserveHost = false);
 		TCFuture<bool> f_HasClientConnection(CDistributedActorTrustManager_Address _Address);
 #if DMibConfig_Tests_Enable

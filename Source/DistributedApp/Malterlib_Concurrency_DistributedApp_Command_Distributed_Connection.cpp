@@ -35,10 +35,18 @@ namespace NMib::NConcurrency
 			, CStr _Ticket
 			, bool _bIncludeFriendlyHostName
 			, int32 _ConnectionConcurrency
+			, CStr _SendWindow
 			, TCSet<CStr> _TrustedNamespaces
 		)
 		-> TCFuture<uint32>
 	{
+		uint64 SendWindowBytes = 0;
+		{
+			CStr Error;
+			if (!fg_ParseSendWindow(_SendWindow, SendWindowBytes, Error))
+				co_return DMibErrorInstance(Error);
+		}
+
 		for (auto &Namespace : _TrustedNamespaces)
 		{
 			if (!CActorDistributionManager::fs_IsValidNamespaceName(Namespace))
@@ -64,6 +72,14 @@ namespace NMib::NConcurrency
 
 		CHostInfo HostInfo = co_await mp_State.m_TrustManager(&CDistributedActorTrustManager::f_AddClientConnection, Ticket, 30.0, _ConnectionConcurrency);
 		DMibLogWithCategory(Mib/Concurrency/App, Info, "Add connection to host '{}' from command line", HostInfo.f_GetDesc());
+
+		if (SendWindowBytes)
+		{
+			CDistributedActorTrustManager_Address Address;
+			Address = Ticket.m_ServerAddress;
+			co_await mp_State.m_TrustManager(&CDistributedActorTrustManager::f_SetClientConnectionSendWindow, Address, SendWindowBytes);
+			DMibLogWithCategory(Mib/Concurrency/App, Info, "Set send window to {} for address '{}' from command line", fg_FormatSendWindow(SendWindowBytes), Address.m_URL.f_Encode());
+		}
 
 		if (!_TrustedNamespaces.f_IsEmpty())
 		{
@@ -294,7 +310,7 @@ namespace NMib::NConcurrency
 		auto ClientConnections = co_await mp_State.m_TrustManager(&CDistributedActorTrustManager::f_EnumClientConnections);
 
 		CTableRenderHelper TableRenderer = _pCommandLine->f_TableRenderer();
-		TableRenderer.f_AddHeadings("URL", "Host", "Concurrency");
+		TableRenderer.f_AddHeadings("URL", "Host", "Concurrency", "Send Window");
 
 		for (auto &ConnectionInfo : ClientConnections)
 		{
@@ -306,7 +322,7 @@ namespace NMib::NConcurrency
 			else
 				HostInfo = ConnectionInfo.m_HostInfo.m_HostID;
 
-			TableRenderer.f_AddRow(Address.m_URL.f_Encode(), HostInfo, ConnectionInfo.m_ConnectionConcurrency);
+			TableRenderer.f_AddRow(Address.m_URL.f_Encode(), HostInfo, ConnectionInfo.m_ConnectionConcurrency, fg_FormatSendWindow(ConnectionInfo.m_SendWindowBytes));
 		}
 
 		DMibLogWithCategory(Mib/Concurrency/App, Info, "Reported connections to command line");
@@ -334,21 +350,55 @@ namespace NMib::NConcurrency
 			 , CStr _URL
 			 , bool _bIncludeFriendlyHostName
 			 , int32 _ConnectionConcurrency
+			 , CStr _SendWindow
 		)
 		-> TCFuture<uint32>
 	{
 		if (auto pError = fg_ValidateConnectionConcurrency(_ConnectionConcurrency))
 			co_return pError;
 
+		uint64 SendWindowBytes = 0;
+		{
+			CStr Error;
+			if (!fg_ParseSendWindow(_SendWindow, SendWindowBytes, Error))
+				co_return DMibErrorInstance(Error);
+		}
+
 		CDistributedActorTrustManager_Address Address;
 		Address.m_URL = _URL;
 		CHostInfo HostInfo = co_await mp_State.m_TrustManager(&CDistributedActorTrustManager::f_AddAdditionalClientConnection, Address, _ConnectionConcurrency);
+		if (SendWindowBytes)
+			co_await mp_State.m_TrustManager(&CDistributedActorTrustManager::f_SetClientConnectionSendWindow, Address, SendWindowBytes);
 
 		DMibLogWithCategory(Mib/Concurrency/App, Info, "Add additional connection to host '{}' from command line", HostInfo.f_GetDesc());
 		if (_bIncludeFriendlyHostName)
 			*_pCommandLine += "{}\n"_f << HostInfo.f_GetDescColored(_pCommandLine->m_AnsiFlags);
 		else
 			*_pCommandLine += "{}\n"_f << HostInfo.m_HostID;
+
+		co_return 0;
+	}
+
+	TCFuture<uint32> CDistributedAppActor::f_CommandLine_SetConnectionSendWindow(TCSharedPointer<CCommandLineControl> _pCommandLine, CStr _URL, CStr _SendWindow)
+	{
+		uint64 SendWindowBytes = 0;
+		CStr Error;
+		if (!fg_ParseSendWindow(_SendWindow, SendWindowBytes, Error))
+			co_return DMibErrorInstance(Error);
+
+		CDistributedActorTrustManager_Address Address;
+		Address.m_URL = _URL;
+		co_await mp_State.m_TrustManager(&CDistributedActorTrustManager::f_SetClientConnectionSendWindow, Address, SendWindowBytes);
+
+		DMibLogWithCategory
+			(
+				Mib/Concurrency/App
+				, Info
+				, "Change send window to {} for address '{}' from command line"
+				, fg_FormatSendWindow(SendWindowBytes)
+				, Address.m_URL.f_Encode()
+			)
+		;
 
 		co_return 0;
 	}

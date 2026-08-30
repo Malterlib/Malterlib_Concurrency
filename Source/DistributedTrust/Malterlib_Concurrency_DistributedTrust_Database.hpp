@@ -53,6 +53,7 @@ namespace NMib::NConcurrency::NDistributedActorTrustManagerDatabase
 	{
 		_Stream << EVersion;
 		_Stream << m_Address;
+		_Stream << m_SendWindowBytes;
 	}
 
 	template <typename tf_CStream>
@@ -63,6 +64,8 @@ namespace NMib::NConcurrency::NDistributedActorTrustManagerDatabase
 		if (Version > EVersion)
 			DMibError("Invalid listen config version");
 		_Stream >> m_Address;
+		if (Version >= 0x102)
+			_Stream >> m_SendWindowBytes;
 	}
 
 	template <typename tf_CStream>
@@ -93,6 +96,7 @@ namespace NMib::NConcurrency::NDistributedActorTrustManagerDatabase
 		_Stream << m_PublicClientCertificate;
 		_Stream << m_LastFriendlyName;
 		_Stream << m_ConnectionConcurrency;
+		_Stream << m_SendWindowBytes;
 	}
 
 	template <typename tf_CStream>
@@ -108,6 +112,8 @@ namespace NMib::NConcurrency::NDistributedActorTrustManagerDatabase
 			_Stream >> m_LastFriendlyName;
 		if (Version >= 0x103)
 			_Stream >> m_ConnectionConcurrency;
+		if (Version >= 0x104)
+			_Stream >> m_SendWindowBytes;
 	}
 
 	template <typename tf_CStream>

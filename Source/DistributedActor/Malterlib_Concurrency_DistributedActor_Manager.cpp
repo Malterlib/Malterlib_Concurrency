@@ -396,6 +396,137 @@ namespace NMib::NConcurrency
 		return fg_IsHostIDValid(_String);
 	}
 
+	namespace
+	{
+		struct CSendWindowUnit
+		{
+			ch8 const *m_pSuffix;
+			fp64 m_Scale;
+		};
+
+		// Longer suffixes first, so "kib" is not taken for "b" and "kbit" not for "bit"
+		constexpr CSendWindowUnit gc_SendWindowByteUnits[] =
+			{
+				{"gib", 1024.0 * 1024.0 * 1024.0}, {"mib", 1024.0 * 1024.0}, {"kib", 1024.0}
+				, {"gb", 1000.0 * 1000.0 * 1000.0}, {"mb", 1000.0 * 1000.0}, {"kb", 1000.0}
+				, {"g", 1024.0 * 1024.0 * 1024.0}, {"m", 1024.0 * 1024.0}, {"k", 1024.0}, {"b", 1.0}
+			}
+		;
+
+		constexpr CSendWindowUnit gc_SendWindowRateUnits[] =
+			{
+				{"gbps", 1000.0 * 1000.0 * 1000.0}, {"mbps", 1000.0 * 1000.0}, {"kbps", 1000.0}, {"bps", 1.0}
+				, {"gbit", 1000.0 * 1000.0 * 1000.0}, {"mbit", 1000.0 * 1000.0}, {"kbit", 1000.0}, {"bit", 1.0}
+			}
+		;
+
+		constexpr CSendWindowUnit gc_SendWindowLatencyUnits[] =
+			{
+				{"us", 0.000001}, {"ms", 0.001}, {"s", 1.0}
+			}
+		;
+
+		// A number with one of the units as suffix, or without a unit at the scale given for that
+		template <umint t_nUnits>
+		bool fg_ParseScaled(NStr::CStr const &_Text, CSendWindowUnit const (&_Units)[t_nUnits], fp64 _UnitlessScale, fp64 &o_Value)
+		{
+			NStr::CStr Number = _Text.f_Trim();
+			fp64 Scale = _UnitlessScale;
+			for (auto const &Unit : _Units)
+			{
+				if (Number.f_EndsWithNoCase(Unit.m_pSuffix))
+				{
+					Number = Number.f_Left(Number.f_GetLen() - NStr::fg_StrLen(Unit.m_pSuffix)).f_Trim();
+					Scale = Unit.m_Scale;
+					break;
+				}
+			}
+
+			if (Number.f_IsEmpty())
+				return false;
+
+			fp64 Value = Number.f_ToFloat(fp64(-1.0));
+			if (Value < 0.0)
+				return false;
+
+			o_Value = Value * Scale;
+
+			return true;
+		}
+	}
+
+	bool fg_ParseSendWindow(NStr::CStr const &_Text, uint64 &o_Bytes, NStr::CStr &o_Error)
+	{
+		NStr::CStr Text = _Text.f_Trim();
+		if (Text.f_IsEmpty() || (Text.f_GetLen() == 7 && Text.f_StartsWithNoCase("default")))
+		{
+			o_Bytes = 0;
+
+			return true;
+		}
+
+		fp64 Bytes = 0.0;
+		aint iAt = Text.f_Find("@");
+		if (iAt >= 0)
+		{
+			fp64 BitsPerSecond = 0.0;
+			if (!fg_ParseScaled(Text.f_Left(umint(iAt)), gc_SendWindowRateUnits, 1.0, BitsPerSecond))
+			{
+				o_Error = "Send window rate must be a number in bit, kbit, mbit or gbit per second, like 10gbit@10ms";
+
+				return false;
+			}
+
+			fp64 LatencySeconds = 0.0;
+			if (!fg_ParseScaled(Text.f_Right(Text.f_GetLen() - umint(iAt) - 1), gc_SendWindowLatencyUnits, 0.001, LatencySeconds))
+			{
+				o_Error = "Send window latency must be a number in us, ms or s, like 10gbit@10ms";
+
+				return false;
+			}
+
+			// Twice the bandwidth-delay product: a send holds its bytes until the last of them is
+			// acknowledged, and the acknowledgements come per pair of segments or on the timer
+			Bytes = BitsPerSecond / 8.0 * LatencySeconds * 2.0;
+		}
+		else if (!fg_ParseScaled(Text, gc_SendWindowByteUnits, 1.0, Bytes))
+		{
+			o_Error = "Send window must be a byte count with an optional K, M, G, KiB, MiB, GiB, KB, MB or GB suffix, <rate>@<latency> like 10gbit@10ms, or default";
+
+			return false;
+		}
+
+		if (Bytes < 1.0)
+		{
+			o_Bytes = 0;
+
+			return true;
+		}
+
+		if (Bytes > fp64(uint64(1) << 40))
+		{
+			o_Error = "Send window is larger than a terabyte";
+
+			return false;
+		}
+
+		o_Bytes = uint64(Bytes.f_ToIntRound());
+
+		return true;
+	}
+
+	NStr::CStr fg_FormatSendWindow(uint64 _Bytes)
+	{
+		if (!_Bytes)
+			return "default";
+		if (!(_Bytes % (1024 * 1024)))
+			return NStr::CStr::CFormat("{} MiB") << (_Bytes / (1024 * 1024));
+		if (!(_Bytes % 1024))
+			return NStr::CStr::CFormat("{} KiB") << (_Bytes / 1024);
+
+		return NStr::CStr::CFormat("{} B") << _Bytes;
+	}
+
 	NStr::CStr fg_ValidateAuthenticatedUnixAddress(NStr::CStr const &_Scheme, NStr::CStr const &_Host)
 	{
 		if (NStr::fg_StrCmpNoCase(_Scheme, "wsa") != 0)

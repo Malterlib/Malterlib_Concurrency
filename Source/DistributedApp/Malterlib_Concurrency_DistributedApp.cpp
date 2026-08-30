@@ -580,6 +580,14 @@ namespace NMib::NConcurrency
 		if (auto *pValue = mp_State.m_ConfigDatabase.m_Data.f_GetMember("DefaultConnectionConcurrency", EJsonType_Integer))
 			DefaultConcurrency = fg_Clamp(pValue->f_Integer(), 1, 128);
 
+		uint64 DefaultSendWindowBytes = 0;
+		if (auto *pValue = mp_State.m_ConfigDatabase.m_Data.f_GetMember("DefaultSendWindow", EJsonType_String))
+		{
+			NStr::CStr Error;
+			if (!fg_ParseSendWindow(pValue->f_String(), DefaultSendWindowBytes, Error))
+				DMibLogWithCategory(Mib/Concurrency/App, Warning, "Ignoring DefaultSendWindow '{}': {}", pValue->f_String(), Error);
+		}
+
 		fp64 InitialConnectionTimeout = 5.0;
 		if (auto *pValue = mp_State.m_ConfigDatabase.m_Data.f_GetMember("InitialConnectionTimeout", EJsonType_Float))
 			InitialConnectionTimeout = fg_Clamp(pValue->f_Float(), 0.1, 3600.0);
@@ -599,6 +607,7 @@ namespace NMib::NConcurrency
 		Options.m_InitialConnectionTimeout = InitialConnectionTimeout;
 		Options.m_bWaitForConnectionsDuringInit = mp_Settings.m_bWaitForRemotes;
 		Options.m_DefaultConnectionConcurrency = DefaultConcurrency;
+		Options.m_DefaultSendWindowBytes = DefaultSendWindowBytes;
 		Options.m_bSupportAuthentication = bSupportAuthentication;
 		Options.m_bTimeoutForUnixSockets = mp_Settings.m_bTimeoutForUnixSockets;
 		Options.m_ReconnectDelay = mp_Settings.m_ReconnectDelay;

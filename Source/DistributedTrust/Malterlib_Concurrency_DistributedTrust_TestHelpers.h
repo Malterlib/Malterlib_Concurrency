@@ -25,6 +25,7 @@ namespace NMib::NConcurrency
 		TCFuture<void> f_RemoveServerCertificate(NStr::CStr _HostName) override;
 		TCFuture<NContainer::TCSet<CListenConfig>> f_EnumListenConfigs() override;
 		TCFuture<void> f_AddListenConfig(CListenConfig _Config) override;
+		TCFuture<void> f_SetListenConfig(CListenConfig _Config) override;
 		TCFuture<void> f_RemoveListenConfig(CListenConfig _Config) override;
 		TCFuture<NStorage::TCOptional<CDistributedActorTrustManager_Address>> f_GetPrimaryListen() override;
 		TCFuture<void> f_SetPrimaryListen(NStorage::TCOptional<CDistributedActorTrustManager_Address> _Address) override;

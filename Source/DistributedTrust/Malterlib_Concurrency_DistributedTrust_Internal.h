@@ -304,6 +304,7 @@ namespace NMib::NConcurrency
 		fp64 m_ReconnectDelay;
 
 		int32 m_DefaultConnectionConcurrency = 1;
+		uint64 m_DefaultSendWindowBytes = 0;
 
 		bool m_bRetryOnListenFailureDuringInit = true;
 		bool m_bWaitForConnectionsDuringInit = true;

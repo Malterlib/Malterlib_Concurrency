@@ -72,7 +72,7 @@ namespace NMib::NConcurrency
 	template <typename tf_CString>
 	void CDistributedActorTrustManagerInterface::CClientConnectionInfo::f_Format(tf_CString &o_String) const
 	{
-		o_String += typename tf_CString::CFormat("{} ({} concurrency)") << m_HostInfo << m_ConnectionConcurrency;
+		o_String += typename tf_CString::CFormat("{} ({} concurrency, {} send window)") << m_HostInfo << m_ConnectionConcurrency << m_SendWindowBytes;
 	}
 
 	template <typename tf_CString>

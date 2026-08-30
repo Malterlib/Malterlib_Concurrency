@@ -71,6 +71,7 @@ namespace NMib::NConcurrency
 		ConnectionSettings.m_KeySetting = m_KeySetting;
 		ConnectionSettings.m_bRetryConnectOnFirstFailure = true;
 		ConnectionSettings.m_bRetryConnectOnFailure = true;
+		ConnectionSettings.m_SendWindowBytes = ClientConnection.f_GetEffectiveSendWindowBytes(m_DefaultSendWindowBytes);
 
 		return ConnectionSettings;
 	}
@@ -386,6 +387,7 @@ namespace NMib::NConcurrency
 			ListenSettings.m_KeySetting = m_KeySetting;
 			ListenSettings.m_bRetryOnListenFailure = m_bRetryOnListenFailureDuringInit;
 			ListenSettings.m_ListenFlags = m_ListenFlags;
+			ListenSettings.m_SendWindowBytes = Listen.f_GetEffectiveSendWindowBytes(m_DefaultSendWindowBytes);
 
 			m_ActorDistributionManager(&CActorDistributionManager::f_Listen, ListenSettings) > ListenResults[Listen];
 		}

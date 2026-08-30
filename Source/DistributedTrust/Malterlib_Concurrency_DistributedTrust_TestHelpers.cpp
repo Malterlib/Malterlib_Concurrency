@@ -95,6 +95,16 @@ namespace NMib::NConcurrency
 		co_return {};
 	}
 
+	TCFuture<void> CTrustManagerDatabaseTestHelper::f_SetListenConfig(CListenConfig _Config)
+	{
+		if (!m_ListenConfigs.f_Remove(_Config))
+			co_return DMibErrorInstance("Listen config does not exist");
+
+		m_ListenConfigs.f_Insert(_Config);
+
+		co_return {};
+	}
+
 	TCFuture<void> CTrustManagerDatabaseTestHelper::f_RemoveListenConfig(CListenConfig _Config)
 	{
 		// Clear the primary before removing the config, matching the persisted database so an

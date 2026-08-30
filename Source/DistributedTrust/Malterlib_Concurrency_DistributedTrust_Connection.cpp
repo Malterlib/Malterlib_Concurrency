@@ -582,6 +582,40 @@ namespace NMib::NConcurrency
 		co_return {};
 	}
 
+	TCFuture<void> CDistributedActorTrustManager::f_SetClientConnectionSendWindow(CDistributedActorTrustManager_Address _Address, uint64 _SendWindowBytes)
+	{
+		auto &Internal = *mp_pInternal;
+		co_await Internal.f_WaitForInit();
+
+		auto *pClientConnectionState = Internal.m_ClientConnections.f_FindEqual(_Address);
+		if (!pClientConnectionState)
+			co_return DMibErrorInstance("No such client connection");
+
+		if (_SendWindowBytes == pClientConnectionState->m_ClientConnection.m_SendWindowBytes)
+			co_return {};
+
+		auto NewClientConnection = pClientConnectionState->m_ClientConnection;
+		NewClientConnection.m_SendWindowBytes = _SendWindowBytes;
+
+		co_await
+			(
+				Internal.m_Database
+				(
+					&ICDistributedActorTrustManagerDatabase::f_SetClientConnection
+					, _Address
+					, NewClientConnection
+				)
+				% "Failed to save client connection to database"
+			)
+		;
+
+		// The connections in place keep the window they were made with; the settings they reconnect
+		// with are built from this record, so the change reaches them then
+		Internal.m_ClientConnections[_Address].m_ClientConnection.m_SendWindowBytes = _SendWindowBytes;
+
+		co_return {};
+	}
+
 	TCFuture<CHostInfo> CDistributedActorTrustManager::f_AddAdditionalClientConnection(CDistributedActorTrustManager_Address _Address, int32 _ConnectionConcurrency)
 	{
 		// Connect with insecure connection to server to get server certificate
@@ -815,6 +849,7 @@ namespace NMib::NConcurrency
 				Address.m_HostInfo.m_HostID = ClientConnection.m_pHost->f_GetHostID();
 				Address.m_HostInfo.m_FriendlyName = ClientConnection.m_pHost->m_FriendlyName;
 				Address.m_ConnectionConcurrency = ClientConnection.m_ClientConnection.m_ConnectionConcurrency;
+				Address.m_SendWindowBytes = ClientConnection.m_ClientConnection.m_SendWindowBytes;
 			}
 			else
 				bMissingHost = true;
@@ -842,6 +877,7 @@ namespace NMib::NConcurrency
 				}
 				Client.m_HostInfo.m_FriendlyName = ClientConnection.m_LastFriendlyName;
 				Client.m_ConnectionConcurrency = ClientConnection.m_ConnectionConcurrency;
+				Client.m_SendWindowBytes = ClientConnection.m_SendWindowBytes;
 			}
 		}
 

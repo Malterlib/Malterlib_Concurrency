@@ -56,6 +56,10 @@ namespace NTestTransportPerformance
 
 	static constexpr bool gc_bSerialGeneration = true;
 
+	// Chunks requested ahead of consumption. Sixteen keeps a zero copy pipeline fed through its
+	// release latency; eight measured 30 % under on Windows unix sockets. PipelineLength= overrides
+	static constexpr uint32 gc_nPipelineLength = 16;
+
 	// Ping for round-trip latency, generated-in-memory download so only the transport is measured
 	struct CTransportBenchActor : public CActor
 	{
@@ -211,7 +215,7 @@ namespace NTestTransportPerformance
 		{
 			auto Generator = co_await _Actor.f_CallActor(&CTransportBenchActor::f_GenerateData)(_nBytes, _ChunkSize);
 
-			uint32 PipelineLength = fg_GetSys()->f_GetEnvironmentVariable("PipelineLength").f_ToInt(uint32(8));
+			uint32 PipelineLength = fg_GetSys()->f_GetEnvironmentVariable("PipelineLength").f_ToInt(gc_nPipelineLength);
 
 			uint64 nReceivedBytes = 0;
 			for (auto iData = co_await fg_Move(Generator).f_GetPipelinedIterator(PipelineLength); iData; co_await ++iData)
@@ -224,7 +228,7 @@ namespace NTestTransportPerformance
 		{
 			auto Generator = co_await _Actor.f_CallActor(&CTransportBenchActor::f_GenerateDataStorage)(_nBytes, _ChunkSize);
 
-			uint32 PipelineLength = fg_GetSys()->f_GetEnvironmentVariable("PipelineLength").f_ToInt(uint32(8));
+			uint32 PipelineLength = fg_GetSys()->f_GetEnvironmentVariable("PipelineLength").f_ToInt(gc_nPipelineLength);
 
 			uint64 nReceivedBytes = 0;
 			for (auto iData = co_await fg_Move(Generator).f_GetPipelinedIterator(PipelineLength); iData; co_await ++iData)
@@ -392,9 +396,10 @@ namespace NTestTransportPerformance
 
 			TCActor<CTransportBenchClientActor> ClientActor = fg_ConstructActor<CTransportBenchClientActor>();
 
-			// BenchStorage=1 downloads chunks as binary storages, so payloads spanning
-			// several receive buffers stay disjoint instead of being stitched into one view
-			bool bStorageChunks = fg_GetSys()->f_GetEnvironmentVariable("BenchStorage") == "1";
+			// Chunks download as binary storages by default, so payloads spanning several receive
+			// buffers stay disjoint instead of being stitched into one view; BenchStorage=0 measures
+			// the stitched byte vector path instead
+			bool bStorageChunks = fg_GetSys()->f_GetEnvironmentVariable("BenchStorage") != "0";
 			auto fDownload = [&](uint64 _nBytes) -> uint64
 				{
 					if (bStorageChunks)

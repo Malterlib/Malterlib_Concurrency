@@ -644,6 +644,30 @@ namespace NTestTrustManager
 					}
 					DMibExpect(AllClientConnections, ==, ExpectedClientConnections);
 
+					{
+						DMibTestPath("SendWindow");
+
+						ClientTrustManager(&CDistributedActorTrustManager::f_SetClientConnectionSendWindow, TrustTicket.m_Ticket.m_ServerAddress, uint64(20) << 20)
+							.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
+						;
+
+						auto Connections = ClientTrustManager(&CDistributedActorTrustManager::f_EnumClientConnections).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
+						auto *pConnection = Connections.f_FindEqual(TrustTicket.m_Ticket.m_ServerAddress);
+						DMibExpectTrue(pConnection != nullptr);
+						if (pConnection)
+							DMibExpect(pConnection->m_SendWindowBytes, ==, uint64(20) << 20);
+						ExpectedClientConnections[TrustTicket.m_Ticket.m_ServerAddress].m_SendWindowBytes = uint64(20) << 20;
+						DMibExpect(Connections, ==, ExpectedClientConnections);
+
+						ServerTrustManager(&CDistributedActorTrustManager::f_SetListenSendWindow, ServerAddress, uint64(4) << 20).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
+
+						auto ListenWindows = ServerTrustManager(&CDistributedActorTrustManager::f_EnumListenSendWindows).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
+						NContainer::TCMap<CDistributedActorTrustManager_Address, uint64> ExpectedListenWindows;
+						ExpectedListenWindows[ServerAddress] = uint64(4) << 20;
+						DMibExpect(ListenWindows, ==, ExpectedListenWindows);
+						DMibExpectTrue(ServerTrustManager(&CDistributedActorTrustManager::f_HasListen, ServerAddress).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout));
+					}
+
 					fp_DoTests(ServerTrustManager, ClientTrustManager, RunLoopHelper.m_pRunLoop);
 
 					DMibExpectTrue(ServerTrustManager(&CDistributedActorTrustManager::f_HasClient, ClientHostID).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout));

@@ -119,6 +119,56 @@ namespace
 
 		void f_DoTests()
 		{
+			DMibTestCategory("Send window")
+			{
+				DMibTestSuite("Parse")
+				{
+					auto fParse = [](CStr const &_Text) -> uint64
+						{
+							DMibTestPath(_Text.f_IsEmpty() ? CStr("Empty") : _Text);
+
+							uint64 nBytes = 0;
+							CStr Error;
+							DMibExpectTrue(fg_ParseSendWindow(_Text, nBytes, Error));
+							return nBytes;
+						}
+					;
+
+					DMibExpect(fParse(""), ==, uint64(0));
+					DMibExpect(fParse("default"), ==, uint64(0));
+					DMibExpect(fParse("1048576"), ==, uint64(1048576));
+					DMibExpect(fParse("20 MiB"), ==, uint64(20) << 20);
+					DMibExpect(fParse("2m"), ==, uint64(2) << 20);
+					DMibExpect(fParse("512KB"), ==, uint64(512000));
+					DMibExpect(fParse("1gib"), ==, uint64(1) << 30);
+
+					// Twice the bandwidth-delay product: 10 gbit at 10 ms is 12.5 MB in flight
+					DMibExpect(fParse("10gbit@10ms"), ==, uint64(25000000));
+					DMibExpect(fParse("1gbps@20"), ==, uint64(5000000));
+					DMibExpect(fParse("100mbit@1s"), ==, uint64(25000000));
+					DMibExpect(fParse("8 Mbit @ 500 us"), ==, uint64(1000));
+
+					{
+						DMibTestPath("Invalid");
+
+						uint64 nBytes = 0;
+						CStr Error;
+						DMibExpectTrue(!fg_ParseSendWindow("10 parsecs", nBytes, Error));
+						DMibExpectTrue(!fg_ParseSendWindow("10gbit@", nBytes, Error));
+						DMibExpectTrue(!fg_ParseSendWindow("5 TiB", nBytes, Error));
+					}
+
+					{
+						DMibTestPath("Format");
+
+						DMibExpect(fg_FormatSendWindow(0), ==, CStr("default"));
+						DMibExpect(fg_FormatSendWindow(uint64(20) << 20), ==, CStr("20 MiB"));
+						DMibExpect(fg_FormatSendWindow(1536), ==, CStr("1536 B"));
+						DMibExpect(fg_FormatSendWindow(25000000), ==, CStr("25000000 B"));
+					}
+				};
+			};
+
 			DMibTestCategory("Command line")
 			{
 				DMibTestSuite("Actor")

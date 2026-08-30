@@ -24,6 +24,32 @@ using namespace NMib::NStr;
 using namespace NMib::NTest;
 using namespace NMib::NNetwork;
 
+namespace
+{
+	// SendWindow=<bytes|rate@latency> (see fg_ParseSendWindow) is the default send window of the
+	// benchmark's trust managers, so it reaches every listen and connection they make
+	uint64 fg_BenchSendWindowBytes()
+	{
+		static uint64 s_nBytes =
+			(
+				[]() -> uint64
+				{
+					CStr Text = fg_GetSys()->f_GetEnvironmentVariable("SendWindow");
+					uint64 nBytes = 0;
+					CStr Error;
+					if (!Text.f_IsEmpty() && !fg_ParseSendWindow(Text, nBytes, Error))
+						DMibError("Invalid SendWindow: {}", Error);
+
+					return nBytes;
+				}
+				()
+			)
+		;
+
+		return s_nBytes;
+	}
+}
+
 namespace NTestTransportPerformance
 {
 	static fp64 g_Timeout = 60.0 * gc_TimeoutMultiplier;
@@ -226,6 +252,7 @@ namespace NTestTransportPerformance
 				CStr RootDirectory = NFile::CFile::fs_GetProgramDirectory() / "DistributedActorTransportPerf";
 				fg_TestAddCleanupPath(RootDirectory);
 
+				mp_ServerState.m_DefaultSendWindowBytes = fg_BenchSendWindowBytes();
 				m_ServerTrustManager = mp_ServerState.f_TrustManager("Server");
 
 				CDistributedActorTrustManager_Address ServerAddress;
@@ -264,6 +291,7 @@ namespace NTestTransportPerformance
 					;
 				}
 
+				mp_ClientState.m_DefaultSendWindowBytes = fg_BenchSendWindowBytes();
 				m_ClientTrustManager = mp_ClientState.f_TrustManager("Client");
 
 				auto TrustTicket = m_ServerTrustManager(&CDistributedActorTrustManager::f_GenerateConnectionTicket, ServerAddress, nullptr, nullptr)
@@ -513,6 +541,7 @@ namespace NTestTransportPerformance
 					CActorRunLoopTestHelper RunLoopHelper;
 
 					CTrustManagerTestHelper ServerState;
+					ServerState.m_DefaultSendWindowBytes = fg_BenchSendWindowBytes();
 					TCActor<CDistributedActorTrustManager> ServerTrustManager = ServerState.f_TrustManager("Server");
 
 					CDistributedActorTrustManager_Address ServerAddress;
@@ -563,6 +592,7 @@ namespace NTestTransportPerformance
 					auto Ticket = CDistributedActorTrustManager::CTrustTicket::fs_FromStringTicket(CStrSecure(TicketString));
 
 					CTrustManagerTestHelper ClientState;
+					ClientState.m_DefaultSendWindowBytes = fg_BenchSendWindowBytes();
 					TCActor<CDistributedActorTrustManager> ClientTrustManager = ClientState.f_TrustManager("Client");
 					ClientTrustManager(&CDistributedActorTrustManager::f_AddClientConnection, Ticket, g_Timeout / 2, ConnectionConcurrency)
 						.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)

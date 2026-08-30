@@ -445,6 +445,14 @@ namespace NMib::NConcurrency
 			if (Number.f_IsEmpty())
 				return false;
 
+			// The whole remainder must be the number: a stray word is a mistake, not a count
+			ch8 const *pChars = Number.f_GetStr();
+			for (umint iChar = 0; iChar < Number.f_GetLen(); ++iChar)
+			{
+				if ((pChars[iChar] < '0' || pChars[iChar] > '9') && pChars[iChar] != '.')
+					return false;
+			}
+
 			fp64 Value = Number.f_ToFloat(fp64(-1.0));
 			if (Value < 0.0)
 				return false;

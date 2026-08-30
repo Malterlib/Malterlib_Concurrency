@@ -465,6 +465,7 @@ namespace NMib::NConcurrency
 		Options.m_Enclave = _SessionID;
 		Options.m_TranslateHostnames = {};
 		Options.m_DefaultConnectionConcurrency = 1;
+		Options.m_DefaultSendWindowBytes = m_DefaultSendWindowBytes;
 		Options.m_bSupportAuthentication = _bSupportAuthentication;
 
 		return fg_ConstructActor<CDistributedActorTrustManager>(m_Database, fg_Move(Options));

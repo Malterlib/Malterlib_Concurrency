@@ -91,6 +91,9 @@ namespace NMib::NConcurrency
 		CTrustManagerTestHelper();
 		~CTrustManagerTestHelper();
 
+		// The default send window the managers are constructed with; 0 is the transport's own
+		uint64 m_DefaultSendWindowBytes = 0;
+
 		TCActor<CTrustManagerDatabaseTestHelper> m_Database;
 	};
 

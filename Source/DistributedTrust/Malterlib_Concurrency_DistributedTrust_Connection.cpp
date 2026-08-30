@@ -206,9 +206,7 @@ namespace NMib::NConcurrency
 		auto &Internal = *mp_pInternal;
 		co_await Internal.f_WaitForInit();
 
-		CListenConfig ListenConfig;
-		ListenConfig.m_Address = _Address;
-		auto *pListen = Internal.m_Listen.f_FindEqual(ListenConfig);
+		auto *pListen = Internal.m_Listen.f_FindEqual(_Address);
 		if (!pListen)
 			co_return DMibErrorInstance("Could not find listen with this address");
 
@@ -329,7 +327,7 @@ namespace NMib::NConcurrency
 		}
 	}
 
-	TCFuture<CHostInfo> CDistributedActorTrustManager::f_AddClientConnection(CTrustTicket _TrustTicket, fp64 _Timeout, int32 _ConnectionConcurrency)
+	TCFuture<CHostInfo> CDistributedActorTrustManager::f_AddClientConnection(CTrustTicket _TrustTicket, fp64 _Timeout, int32 _ConnectionConcurrency, uint64 _SendWindowBytes)
 	{
 		// Connect to remote host with anonymous connection
 		// Subscribe to internal interface (time out if no publication arrives)
@@ -459,6 +457,7 @@ namespace NMib::NConcurrency
 		ClientConnection.m_PublicServerCertificate = _TrustTicket.m_ServerPublicCert;
 		ClientConnection.m_PublicClientCertificate = PublicCertificate;
 		ClientConnection.m_ConnectionConcurrency = _ConnectionConcurrency;
+		ClientConnection.m_SendWindowBytes = _SendWindowBytes;
 
 		TCFutureVector<void> DatabaseUpdates;
 
@@ -519,6 +518,7 @@ namespace NMib::NConcurrency
 		FinalConnectionSettings.m_PublicClientCertificate = ClientConnection.m_PublicClientCertificate;
 		FinalConnectionSettings.m_PrivateClientKey = Internal.m_BasicConfig.m_CAPrivateKey;
 		FinalConnectionSettings.m_KeySetting = Internal.m_KeySetting;
+		FinalConnectionSettings.m_SendWindowBytes = ClientConnection.f_GetEffectiveSendWindowBytes(Internal.m_DefaultSendWindowBytes);
 		FinalConnectionSettings.m_bRetryConnectOnFirstFailure = false;
 		FinalConnectionSettings.m_bRetryConnectOnFailure = true;
 
@@ -582,7 +582,57 @@ namespace NMib::NConcurrency
 		co_return {};
 	}
 
-	TCFuture<CHostInfo> CDistributedActorTrustManager::f_AddAdditionalClientConnection(CDistributedActorTrustManager_Address _Address, int32 _ConnectionConcurrency)
+	TCFuture<void> CDistributedActorTrustManager::f_SetClientConnectionSendWindow(CDistributedActorTrustManager_Address _Address, uint64 _SendWindowBytes)
+	{
+		auto &Internal = *mp_pInternal;
+		co_await Internal.f_WaitForInit();
+
+		auto *pClientConnectionState = Internal.m_ClientConnections.f_FindEqual(_Address);
+		if (!pClientConnectionState)
+			co_return DMibErrorInstance("No such client connection");
+
+		if (_SendWindowBytes == pClientConnectionState->m_ClientConnection.m_SendWindowBytes)
+			co_return {};
+
+		auto NewClientConnection = pClientConnectionState->m_ClientConnection;
+		NewClientConnection.m_SendWindowBytes = _SendWindowBytes;
+
+		co_await
+			(
+				Internal.m_Database
+				(
+					&ICDistributedActorTrustManagerDatabase::f_SetClientConnection
+					, _Address
+					, NewClientConnection
+				)
+				% "Failed to save client connection to database"
+			)
+		;
+
+		// The database call suspended, and the entry may have been removed under it: found again
+		// rather than indexed, which would make a hostless connection out of nothing
+		pClientConnectionState = Internal.m_ClientConnections.f_FindEqual(_Address);
+		if (!pClientConnectionState)
+			co_return DMibErrorInstance("Client connection removed while its send window was being saved");
+
+		pClientConnectionState->m_ClientConnection.m_SendWindowBytes = _SendWindowBytes;
+
+		// The connections in place keep the window they were made with. They reconnect with the
+		// settings they hold, so the new window is pushed to them and reaches them then
+		TCFutureVector<void> Updates;
+		auto ConnectionSettings = Internal.f_GetConnectionSettings(*pClientConnectionState);
+		for (auto &ConnectionReference : pClientConnectionState->m_ConnectionReferences)
+		{
+			if (ConnectionReference.f_IsValid())
+				ConnectionReference.f_UpdateConnectionSettings(ConnectionSettings) > Updates;
+		}
+
+		co_await (fg_AllDone(Updates) % "Failed to update the connections with the new send window");
+
+		co_return {};
+	}
+
+	TCFuture<CHostInfo> CDistributedActorTrustManager::f_AddAdditionalClientConnection(CDistributedActorTrustManager_Address _Address, int32 _ConnectionConcurrency, uint64 _SendWindowBytes)
 	{
 		// Connect with insecure connection to server to get server certificate
 		// Connect with server certificate to verify that trust is correct
@@ -645,6 +695,7 @@ namespace NMib::NConcurrency
 		}
 
 		NewClientConnection.m_ConnectionConcurrency = _ConnectionConcurrency;
+		NewClientConnection.m_SendWindowBytes = _SendWindowBytes;
 
 		// Verify connection
 		{
@@ -672,6 +723,7 @@ namespace NMib::NConcurrency
 			ConnectionSettings.m_PublicClientCertificate = NewClientConnection.m_PublicClientCertificate;
 			ConnectionSettings.m_PrivateClientKey = Internal.m_BasicConfig.m_CAPrivateKey;
 			ConnectionSettings.m_KeySetting = Internal.m_KeySetting;
+			ConnectionSettings.m_SendWindowBytes = NewClientConnection.f_GetEffectiveSendWindowBytes(Internal.m_DefaultSendWindowBytes);
 			ConnectionSettings.m_bRetryConnectOnFirstFailure = true;
 			ConnectionSettings.m_bRetryConnectOnFailure = true;
 
@@ -742,9 +794,7 @@ namespace NMib::NConcurrency
 		auto &Internal = *mp_pInternal;
 		co_await Internal.f_WaitForInit();
 
-		CListenConfig Config{_Address};
-
-		auto pListen = Internal.m_Listen.f_FindEqual(Config);
+		auto pListen = Internal.m_Listen.f_FindEqual(_Address);
 		if (!pListen)
 			co_return DMibErrorInstance("Could not find listen for '{}'"_f << _Address);
 
@@ -760,9 +810,7 @@ namespace NMib::NConcurrency
 		auto &Internal = *mp_pInternal;
 		co_await Internal.f_WaitForInit();
 
-		CListenConfig Config{_Address};
-
-		auto pListen = Internal.m_Listen.f_FindEqual(Config);
+		auto pListen = Internal.m_Listen.f_FindEqual(_Address);
 		if (!pListen)
 			co_return DMibErrorInstance("Could not find listen for '{}'"_f << _Address);
 
@@ -815,6 +863,7 @@ namespace NMib::NConcurrency
 				Address.m_HostInfo.m_HostID = ClientConnection.m_pHost->f_GetHostID();
 				Address.m_HostInfo.m_FriendlyName = ClientConnection.m_pHost->m_FriendlyName;
 				Address.m_ConnectionConcurrency = ClientConnection.m_ClientConnection.m_ConnectionConcurrency;
+				Address.m_SendWindowBytes = ClientConnection.m_ClientConnection.m_SendWindowBytes;
 			}
 			else
 				bMissingHost = true;
@@ -842,6 +891,7 @@ namespace NMib::NConcurrency
 				}
 				Client.m_HostInfo.m_FriendlyName = ClientConnection.m_LastFriendlyName;
 				Client.m_ConnectionConcurrency = ClientConnection.m_ConnectionConcurrency;
+				Client.m_SendWindowBytes = ClientConnection.m_SendWindowBytes;
 			}
 		}
 

@@ -58,13 +58,13 @@ namespace
 				else
 					ServerAddress.m_URL = "wss://[UNIX(666):{}]/"_f << fg_GetSafeUnixSocketPath("{}/server.sock"_f << RootDirectory);
 
-				ServerTrustManager(&CDistributedActorTrustManager::f_AddListen, ServerAddress).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
+				ServerTrustManager(&CDistributedActorTrustManager::f_AddListen, ServerAddress, 0).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
 
 				{
 					auto TrustTicket = ServerTrustManager(&CDistributedActorTrustManager::f_GenerateConnectionTicket, ServerAddress, nullptr, nullptr)
 						.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
 					;
-					ClientTrustManager(&CDistributedActorTrustManager::f_AddClientConnection, TrustTicket.m_Ticket, 30.0, -1).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
+					ClientTrustManager(&CDistributedActorTrustManager::f_AddClientConnection, TrustTicket.m_Ticket, 30.0, -1, 0).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
 				}
 
 				TCActor<CDistributedTrustDDPBridge> DdpBridge;

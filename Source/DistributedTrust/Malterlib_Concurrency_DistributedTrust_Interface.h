@@ -26,7 +26,8 @@ namespace NMib::NConcurrency
 			, EProtocolVersion_SupportDebugStatsAndPreserveHost = 0x107
 			, EProtocolVersion_SupportPrimaryListen = 0x108
 			, EProtocolVersion_PriorityDebugStats = 0x109
-			, EProtocolVersion_Current = 0x109
+			, EProtocolVersion_SendWindow = 0x10A
+			, EProtocolVersion_Current = 0x10A
 		};
 
 		struct CTrustTicket
@@ -73,6 +74,18 @@ namespace NMib::NConcurrency
 			TCActorSubscriptionWithID<0> m_NotificationsSubscription;
 		};
 
+		struct CListenInfo
+		{
+			template <typename tf_CStream>
+			void f_Stream(tf_CStream &_Stream);
+			template <typename tf_CString>
+			void f_Format(tf_CString &o_String) const;
+
+			auto operator <=> (CListenInfo const &_Right) const noexcept = default;
+
+			uint64 m_SendWindowBytes = 0;
+		};
+
 		struct CClientConnectionInfo
 		{
 			template <typename tf_CStream>
@@ -84,6 +97,7 @@ namespace NMib::NConcurrency
 
 			CHostInfo m_HostInfo;
 			int32 m_ConnectionConcurrency = -1;
+			uint64 m_SendWindowBytes = 0;
 		};
 
 		struct CChangeNamespaceHosts
@@ -237,6 +251,36 @@ namespace NMib::NConcurrency
 			EAuthenticationFactorCategory m_Category;
 		};
 
+		struct CAddListen
+		{
+			template <typename tf_CStream>
+			void f_Stream(tf_CStream &_Stream);
+
+			CDistributedActorTrustManager_Address m_Address;
+			uint64 m_SendWindowBytes = 0;
+		};
+
+		struct CAddClientConnection
+		{
+			template <typename tf_CStream>
+			void f_Stream(tf_CStream &_Stream);
+
+			CTrustTicket m_TrustTicket;
+			fp64 m_Timeout = 0;
+			int32 m_ConnectionConcurrency = -1;
+			uint64 m_SendWindowBytes = 0;
+		};
+
+		struct CAddAdditionalClientConnection
+		{
+			template <typename tf_CStream>
+			void f_Stream(tf_CStream &_Stream);
+
+			CDistributedActorTrustManager_Address m_Address;
+			int32 m_ConnectionConcurrency = -1;
+			uint64 m_SendWindowBytes = 0;
+		};
+
 		struct CRemoveClientConnection
 		{
 			template <typename tf_CStream>
@@ -259,10 +303,11 @@ namespace NMib::NConcurrency
 
 		virtual TCFuture<NStr::CStr> f_GetHostID() const = 0;
 
-		virtual TCFuture<NContainer::TCSet<CDistributedActorTrustManager_Address>> f_EnumListens() = 0;
-		virtual TCFuture<void> f_AddListen(CDistributedActorTrustManager_Address _Address) = 0;
+		virtual TCFuture<NContainer::TCMap<CDistributedActorTrustManager_Address, CListenInfo>> f_EnumListens() = 0;
+		virtual TCFuture<void> f_AddListen(CAddListen _Command) = 0;
 		virtual TCFuture<void> f_RemoveListen(CDistributedActorTrustManager_Address _Address) = 0;
 		virtual TCFuture<bool> f_HasListen(CDistributedActorTrustManager_Address _Address) = 0;
+		virtual TCFuture<void> f_SetListenSendWindow(CDistributedActorTrustManager_Address _Address, uint64 _SendWindowBytes) = 0;
 
 		virtual TCFuture<void> f_SetPrimaryListen(NStorage::TCOptional<CDistributedActorTrustManager_Address> _Address) = 0;
 		virtual TCFuture<NStorage::TCOptional<CDistributedActorTrustManager_Address>> f_GetPrimaryListen() = 0;
@@ -273,9 +318,10 @@ namespace NMib::NConcurrency
 		virtual TCFuture<bool> f_HasClient(NStr::CStr _HostID) = 0;
 
 		virtual TCFuture<NContainer::TCMap<CDistributedActorTrustManager_Address, CClientConnectionInfo>> f_EnumClientConnections() = 0;
-		virtual TCFuture<CHostInfo> f_AddClientConnection(CTrustTicket _TrustTicket, fp64 _Timeout, int32 _ConnectionConcurrency = -1) = 0;
+		virtual TCFuture<CHostInfo> f_AddClientConnection(CAddClientConnection _Command) = 0;
 		virtual TCFuture<void> f_SetClientConnectionConcurrency(CDistributedActorTrustManager_Address _Address, int32 _ConnectionConcurrency = -1) = 0;
-		virtual TCFuture<CHostInfo> f_AddAdditionalClientConnection(CDistributedActorTrustManager_Address _Address, int32 _ConnectionConcurrency = -1) = 0;
+		virtual TCFuture<void> f_SetClientConnectionSendWindow(CDistributedActorTrustManager_Address _Address, uint64 _SendWindowBytes) = 0;
+		virtual TCFuture<CHostInfo> f_AddAdditionalClientConnection(CAddAdditionalClientConnection _Command) = 0;
 		virtual TCFuture<void> f_RemoveClientConnection(CRemoveClientConnection _Command) = 0;
 		virtual TCFuture<bool> f_HasClientConnection(CDistributedActorTrustManager_Address _Address) = 0;
 

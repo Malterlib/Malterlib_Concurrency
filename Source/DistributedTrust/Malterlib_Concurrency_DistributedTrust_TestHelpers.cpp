@@ -80,29 +80,35 @@ namespace NMib::NConcurrency
 		co_return {};
 	}
 
-	TCFuture<NContainer::TCSet<CListenConfig>> CTrustManagerDatabaseTestHelper::f_EnumListenConfigs()
+	TCFuture<NContainer::TCMap<CDistributedActorTrustManager_Address, CListenConfig>> CTrustManagerDatabaseTestHelper::f_EnumListenConfigs()
 	{
-		NContainer::TCSet<CListenConfig> Return;
-		for (auto iListenConfig = m_ListenConfigs.f_GetIterator(); iListenConfig; ++iListenConfig)
-			Return[iListenConfig.f_GetKey()];
-		co_return Return;
+		co_return m_ListenConfigs;
 	}
 
-	TCFuture<void> CTrustManagerDatabaseTestHelper::f_AddListenConfig(CListenConfig _Config)
+	TCFuture<void> CTrustManagerDatabaseTestHelper::f_AddListenConfig(CDistributedActorTrustManager_Address _Address, CListenConfig _Config)
 	{
-		if (!m_ListenConfigs(_Config).f_WasCreated())
+		if (!m_ListenConfigs(_Address, _Config).f_WasCreated())
 			co_return DMibErrorInstance("Listen config already exists");
 		co_return {};
 	}
 
-	TCFuture<void> CTrustManagerDatabaseTestHelper::f_RemoveListenConfig(CListenConfig _Config)
+	TCFuture<void> CTrustManagerDatabaseTestHelper::f_SetListenConfig(CDistributedActorTrustManager_Address _Address, CListenConfig _Config)
+	{
+		auto pListenConfig = m_ListenConfigs.f_FindEqual(_Address);
+		if (!pListenConfig)
+			co_return DMibErrorInstance("Listen config does not exist");
+		*pListenConfig = _Config;
+		co_return {};
+	}
+
+	TCFuture<void> CTrustManagerDatabaseTestHelper::f_RemoveListenConfig(CDistributedActorTrustManager_Address _Address)
 	{
 		// Clear the primary before removing the config, matching the persisted database so an
 		// interruption never leaves the primary referencing a deleted config
-		if (m_PrimaryListen && *m_PrimaryListen == _Config.m_Address)
+		if (m_PrimaryListen && *m_PrimaryListen == _Address)
 			m_PrimaryListen.f_Clear();
 
-		if (!m_ListenConfigs.f_Remove(_Config))
+		if (!m_ListenConfigs.f_Remove(_Address))
 			co_return DMibErrorInstance("Listen config does not exist");
 
 		co_return {};
@@ -455,6 +461,7 @@ namespace NMib::NConcurrency
 		Options.m_Enclave = _SessionID;
 		Options.m_TranslateHostnames = {};
 		Options.m_DefaultConnectionConcurrency = 1;
+		Options.m_DefaultSendWindowBytes = m_DefaultSendWindowBytes;
 		Options.m_bSupportAuthentication = _bSupportAuthentication;
 
 		return fg_ConstructActor<CDistributedActorTrustManager>(m_Database, fg_Move(Options));

@@ -52,7 +52,7 @@ namespace NMib::NConcurrency::NDistributedActorTrustManagerDatabase
 	void CListenConfig::f_Feed(tf_CStream &_Stream) const
 	{
 		_Stream << EVersion;
-		_Stream << m_Address;
+		_Stream << m_SendWindowBytes;
 	}
 
 	template <typename tf_CStream>
@@ -60,9 +60,10 @@ namespace NMib::NConcurrency::NDistributedActorTrustManagerDatabase
 	{
 		uint32 Version;
 		_Stream >> Version;
-		if (Version > EVersion)
+		// 0x101 carried the address, which now keys the record instead, so it is not readable here
+		if (Version < 0x102 || Version > EVersion)
 			DMibError("Invalid listen config version");
-		_Stream >> m_Address;
+		_Stream >> m_SendWindowBytes;
 	}
 
 	template <typename tf_CStream>
@@ -93,6 +94,7 @@ namespace NMib::NConcurrency::NDistributedActorTrustManagerDatabase
 		_Stream << m_PublicClientCertificate;
 		_Stream << m_LastFriendlyName;
 		_Stream << m_ConnectionConcurrency;
+		_Stream << m_SendWindowBytes;
 	}
 
 	template <typename tf_CStream>
@@ -108,6 +110,8 @@ namespace NMib::NConcurrency::NDistributedActorTrustManagerDatabase
 			_Stream >> m_LastFriendlyName;
 		if (Version >= 0x103)
 			_Stream >> m_ConnectionConcurrency;
+		if (Version >= 0x104)
+			_Stream >> m_SendWindowBytes;
 	}
 
 	template <typename tf_CStream>

@@ -144,7 +144,7 @@ namespace NMib::NConcurrency
 
 		auto TrustTicket = co_await mp_State.m_TrustManager(&CDistributedActorTrustManager::f_GenerateConnectionTicket, LocalListenAddress, nullptr, nullptr);
 
-		co_await TrustManager(&CDistributedActorTrustManager::f_AddClientConnection, TrustTicket.m_Ticket, 60.0, -1);
+		co_await TrustManager(&CDistributedActorTrustManager::f_AddClientConnection, TrustTicket.m_Ticket, 60.0, -1, 0);
 		*pSuccessful = true;
 
 		auto &Setting = mp_State.m_StateDatabase.m_Data["CommandLineHostID"];
@@ -188,7 +188,7 @@ namespace NMib::NConcurrency
 		bool bTakePrimary = !CurrentPrimary || *CurrentPrimary == AlternateListenAddress;
 
 		if (!Listens.f_FindEqual(LocalListenAddress))
-			co_await mp_State.m_TrustManager(&CDistributedActorTrustManager::f_AddListen, LocalListenAddress);
+			co_await mp_State.m_TrustManager(&CDistributedActorTrustManager::f_AddListen, LocalListenAddress, 0);
 
 		if (bTakePrimary)
 			co_await mp_State.m_TrustManager(&CDistributedActorTrustManager::f_SetPrimaryListen, LocalListenAddress);

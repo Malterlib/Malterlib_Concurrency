@@ -23,9 +23,10 @@ namespace NMib::NConcurrency
 		TCFuture<void> f_AddServerCertificate(NStr::CStr _HostName, CServerCertificate _Certificate) override;
 		TCFuture<void> f_SetServerCertificate(NStr::CStr _HostName, CServerCertificate _Certificate) override;
 		TCFuture<void> f_RemoveServerCertificate(NStr::CStr _HostName) override;
-		TCFuture<NContainer::TCSet<CListenConfig>> f_EnumListenConfigs() override;
-		TCFuture<void> f_AddListenConfig(CListenConfig _Config) override;
-		TCFuture<void> f_RemoveListenConfig(CListenConfig _Config) override;
+		TCFuture<NContainer::TCMap<CDistributedActorTrustManager_Address, CListenConfig>> f_EnumListenConfigs() override;
+		TCFuture<void> f_AddListenConfig(CDistributedActorTrustManager_Address _Address, CListenConfig _Config) override;
+		TCFuture<void> f_SetListenConfig(CDistributedActorTrustManager_Address _Address, CListenConfig _Config) override;
+		TCFuture<void> f_RemoveListenConfig(CDistributedActorTrustManager_Address _Address) override;
 		TCFuture<NStorage::TCOptional<CDistributedActorTrustManager_Address>> f_GetPrimaryListen() override;
 		TCFuture<void> f_SetPrimaryListen(NStorage::TCOptional<CDistributedActorTrustManager_Address> _Address) override;
 		TCFuture<NContainer::TCMap<NStr::CStr, CClient>> f_EnumClients(bool _bIncludeFullInfo) override;
@@ -66,7 +67,7 @@ namespace NMib::NConcurrency
 		CDefaultUser m_DefaultUser;
 
 		NContainer::TCMap<NStr::CStr, CServerCertificate> m_ServerCertificates;
-		NContainer::TCSet<CListenConfig> m_ListenConfigs;
+		NContainer::TCMap<CDistributedActorTrustManager_Address, CListenConfig> m_ListenConfigs;
 		NStorage::TCOptional<CDistributedActorTrustManager_Address> m_PrimaryListen;
 		NContainer::TCMap<NStr::CStr, CClient> m_Clients;
 		NContainer::TCMap<CDistributedActorTrustManager_Address, CClientConnection> m_ClientConnections;
@@ -89,6 +90,9 @@ namespace NMib::NConcurrency
 
 		CTrustManagerTestHelper();
 		~CTrustManagerTestHelper();
+
+		// The default send window the managers are constructed with; 0 is the transport's own
+		uint64 m_DefaultSendWindowBytes = 0;
 
 		TCActor<CTrustManagerDatabaseTestHelper> m_Database;
 	};

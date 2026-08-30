@@ -52,16 +52,18 @@ namespace NMib::NConcurrency::NDistributedActorTrustManagerDatabase
 	{
 		enum
 		{
-			EVersion = 0x101
+			EVersion = 0x102
 		};
 
 		template <typename tf_CStream>
 		void f_Feed(tf_CStream &_Stream) const;
 		template <typename tf_CStream>
 		void f_Consume(tf_CStream &_Stream);
-		inline_always auto operator <=> (CListenConfig const &_Right) const noexcept = default;
+		uint64 f_GetEffectiveSendWindowBytes(uint64 _DefaultSendWindowBytes) const;
 
-		CDistributedActorTrustManager_Address m_Address;
+		// Bytes a connection accepted here may have in flight on its sends; 0 takes the trust
+		// manager's default, which is the transport's own of eight frames
+		uint64 m_SendWindowBytes = 0;
 	};
 
 	struct CClient
@@ -84,7 +86,7 @@ namespace NMib::NConcurrency::NDistributedActorTrustManagerDatabase
 	{
 		enum
 		{
-			EVersion = 0x103
+			EVersion = 0x104
 		};
 
 		template <typename tf_CStream>
@@ -93,11 +95,16 @@ namespace NMib::NConcurrency::NDistributedActorTrustManagerDatabase
 		void f_Consume(tf_CStream &_Stream);
 		CHostInfo f_GetHostInfo() const;
 		int32 f_GetEffectiveConnectionConcurrency(int32 _DefaultConcurrency) const;
+		uint64 f_GetEffectiveSendWindowBytes(uint64 _DefaultSendWindowBytes) const;
 
 		NContainer::CByteVector m_PublicServerCertificate;
 		NContainer::CByteVector m_PublicClientCertificate;
 		NStr::CStr m_LastFriendlyName;
 		int32 m_ConnectionConcurrency = -1;
+
+		// Bytes each connection to the address may have in flight on its sends; 0 takes the trust
+		// manager's default, which is the transport's own of eight frames
+		uint64 m_SendWindowBytes = 0;
 	};
 
 	struct CNamespace
@@ -209,11 +216,12 @@ namespace NMib::NConcurrency
 		virtual TCFuture<void> f_SetServerCertificate(NStr::CStr _HostName, CServerCertificate _Certificate) = 0;
 		virtual TCFuture<void> f_RemoveServerCertificate(NStr::CStr _HostName) = 0;
 
-		virtual TCFuture<NContainer::TCSet<CListenConfig>> f_EnumListenConfigs() = 0;
-		virtual TCFuture<void> f_AddListenConfig(CListenConfig _Config) = 0;
-		// Also clears the primary listen record when it references the removed config, so the
+		virtual TCFuture<NContainer::TCMap<CDistributedActorTrustManager_Address, CListenConfig>> f_EnumListenConfigs() = 0;
+		virtual TCFuture<void> f_AddListenConfig(CDistributedActorTrustManager_Address _Address, CListenConfig _Config) = 0;
+		virtual TCFuture<void> f_SetListenConfig(CDistributedActorTrustManager_Address _Address, CListenConfig _Config) = 0;
+		// Also clears the primary listen record when it references the removed address, so the
 		// primary can never point at a config that no longer exists
-		virtual TCFuture<void> f_RemoveListenConfig(CListenConfig _Config) = 0;
+		virtual TCFuture<void> f_RemoveListenConfig(CDistributedActorTrustManager_Address _Address) = 0;
 
 		virtual TCFuture<NStorage::TCOptional<CDistributedActorTrustManager_Address>> f_GetPrimaryListen() = 0;
 		virtual TCFuture<void> f_SetPrimaryListen(NStorage::TCOptional<CDistributedActorTrustManager_Address> _Address) = 0;

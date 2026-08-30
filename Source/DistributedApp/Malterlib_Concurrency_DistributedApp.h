@@ -139,6 +139,7 @@ namespace NMib::NConcurrency
 				, NStr::CStr _Ticket
 				, bool _bIncludeFriendlyHostName
 				, int32 _ConnectionConcurrency
+				, NStr::CStr _SendWindow
 				, NContainer::TCSet<NStr::CStr> _TrustedNamespaces
 			)
 		;
@@ -169,8 +170,10 @@ namespace NMib::NConcurrency
 				, NStr::CStr _URL
 				, bool _bIncludeFriendlyHostName
 				, int32 _ConnectionConcurrency
+				, NStr::CStr _SendWindow
 			)
 		;
+		TCFuture<uint32> f_CommandLine_SetConnectionSendWindow(NStorage::TCSharedPointer<CCommandLineControl> _pCommandLine, NStr::CStr _URL, NStr::CStr _SendWindow);
 		TCFuture<uint32> f_CommandLine_SetConnectionConcurrency
 			(
 				NStorage::TCSharedPointer<CCommandLineControl> _pCommandLine
@@ -179,7 +182,8 @@ namespace NMib::NConcurrency
 			)
 		;
 
-		TCFuture<uint32> f_CommandLine_AddListen(NStorage::TCSharedPointer<CCommandLineControl> _pCommandLine, NStr::CStr _URL, bool _bPrimary);
+		TCFuture<uint32> f_CommandLine_AddListen(NStorage::TCSharedPointer<CCommandLineControl> _pCommandLine, NStr::CStr _URL, bool _bPrimary, NStr::CStr _SendWindow);
+		TCFuture<uint32> f_CommandLine_SetListenSendWindow(NStorage::TCSharedPointer<CCommandLineControl> _pCommandLine, NStr::CStr _URL, NStr::CStr _SendWindow);
 		TCFuture<uint32> f_CommandLine_RemoveListen(NStorage::TCSharedPointer<CCommandLineControl> _pCommandLine, NStr::CStr _URL);
 		TCFuture<uint32> f_CommandLine_SetPrimaryListen(NStorage::TCSharedPointer<CCommandLineControl> _pCommandLine, NStr::CStr _URL);
 		TCFuture<uint32> f_CommandLine_ListListen(NStorage::TCSharedPointer<CCommandLineControl> _pCommandLine, NStr::CStr _TableType);

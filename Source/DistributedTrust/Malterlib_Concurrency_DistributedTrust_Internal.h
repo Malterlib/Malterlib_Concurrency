@@ -31,6 +31,7 @@ namespace NMib::NConcurrency
 
 		struct CListenState
 		{
+			CListenConfig m_ListenConfig;
 			CDistributedActorListenReference m_ListenReference;
 		};
 
@@ -260,7 +261,7 @@ namespace NMib::NConcurrency
 		CBasicConfig m_BasicConfig;
 		CDefaultUser m_DefaultUser;
 
-		NContainer::TCMap<CListenConfig, CListenState> m_Listen;
+		NContainer::TCMap<CDistributedActorTrustManager_Address, CListenState> m_Listen;
 		NContainer::TCMap<NStr::CStr, CServerCertificate> m_ServerCertificates;
 
 		CListenState *m_pPrimaryListen = nullptr;
@@ -302,6 +303,7 @@ namespace NMib::NConcurrency
 		fp64 m_ReconnectDelay;
 
 		int32 m_DefaultConnectionConcurrency = 1;
+		uint64 m_DefaultSendWindowBytes = 0;
 
 		bool m_bRetryOnListenFailureDuringInit = true;
 		bool m_bWaitForConnectionsDuringInit = true;

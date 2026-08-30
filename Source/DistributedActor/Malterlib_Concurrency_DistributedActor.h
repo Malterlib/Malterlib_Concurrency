@@ -234,6 +234,9 @@ namespace NMib::NConcurrency
 
 	NStr::CStr fg_ValidateAuthenticatedUnixAddress(NStr::CStr const &_Scheme, NStr::CStr const &_Host);
 
+	bool fg_ParseSendWindow(NStr::CStr const &_Text, uint64 &o_Bytes, NStr::CStr &o_Error);
+	NStr::CStr fg_FormatSendWindow(uint64 _Bytes);
+
 	struct CActorDistributionConnectionSettings
 	{
 		CActorDistributionConnectionSettings();
@@ -249,6 +252,7 @@ namespace NMib::NConcurrency
 		bool m_bRetryConnectOnFirstFailure = true;
 		bool m_bRetryConnectOnFailure = true;
 		bool m_bAllowInsecureConnection = false; // Only enabled when m_PublicServerCertificate is empty
+		uint64 m_SendWindowBytes = 0; // Bytes in flight allowed on sends; 0 is the transport default of eight frames
 	};
 
 	struct CActorDistributionListenSettings
@@ -266,6 +270,7 @@ namespace NMib::NConcurrency
 		NCryptography::CPublicKeySetting m_KeySetting = CActorDistributionCryptographySettings::fs_DefaultKeySetting(); // Domain policy for the wsa peer-leaf whitelist.
 		NNetwork::ENetFlag m_ListenFlags = NNetwork::ENetFlag_None;
 		bool m_bRetryOnListenFailure = true;
+		uint64 m_SendWindowBytes = 0; // Bytes in flight allowed on each accepted connection's sends; 0 is the transport default of eight frames
 	};
 
 	struct CDistributedActorProtocolVersions

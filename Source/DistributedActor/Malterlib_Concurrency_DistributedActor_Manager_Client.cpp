@@ -247,6 +247,7 @@ namespace NMib::NConcurrency
 		ConnectSettings.m_Protocols = NContainer::fg_CreateVector<NStr::CStr>("MalterlibDistributedActors");
 		ConnectSettings.m_Request = fg_Move(Request);
 		ConnectSettings.m_SocketFactory = fg_Move(SocketFactory);
+		ConnectSettings.m_SendWindowBytes = _pConnection->m_SendWindowBytes;
 		// The CLI exports the listen address so both endpoints derive matching frame limits from the configured host.
 		// Public receive limits are a security contract. Custom connections substituting a loopback host for a public listen
 		// can select incompatible frame sizes and are intentionally rejected during identify.
@@ -756,6 +757,7 @@ namespace NMib::NConcurrency
 
 		pConnection->m_bRetryConnectOnFailure = _Settings.m_bRetryConnectOnFailure;
 		pConnection->m_bRetryConnectOnFirstFailure = _Settings.m_bRetryConnectOnFirstFailure;
+		pConnection->m_SendWindowBytes = _Settings.m_SendWindowBytes;
 
 		pConnection->m_pAuthenticatedUnixContext = fg_Move(pAuthenticatedUnixContext);
 		pConnection->m_pSSLContext = fg_Move(pSSLContext);
@@ -919,6 +921,9 @@ namespace NMib::NConcurrency
 		Connection.m_pSSLContext = fg_Move(pNewSSLContext);
 		Connection.m_pAuthenticatedUnixContext = fg_Move(pNewAuthenticatedUnixContext);
 		Connection.m_ServerURL = _Settings.m_ServerURL;
+
+		// Taken up by the next reconnect; the connection in place keeps its window
+		Connection.m_SendWindowBytes = _Settings.m_SendWindowBytes;
 
 		co_return {};
 	}

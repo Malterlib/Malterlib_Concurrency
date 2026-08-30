@@ -616,7 +616,8 @@ namespace NMib::NConcurrency
 					}
 					, NWeb::CWebSocketListenSocketFactory::fs_PerAddress
 					(
-						[pServerContext, pAuthenticatedUnixContext, AddressKinds = fg_Move(AddressKinds)](umint _iAddress, NNetwork::CNetAddress const &_Address) -> NWeb::CWebSocketListenAddressConfig
+						[pServerContext, pAuthenticatedUnixContext, AddressKinds = fg_Move(AddressKinds), SendWindowBytes = _Settings.m_SendWindowBytes]
+							(umint _iAddress, NNetwork::CNetAddress const &_Address) -> NWeb::CWebSocketListenAddressConfig
 						{
 							auto const &AddressKind = AddressKinds[_iAddress];
 
@@ -638,6 +639,7 @@ namespace NMib::NConcurrency
 										, .m_bAllowUnmaskedFrames = true
 										, .m_FragmentationSize = FragmentationSize
 										, .m_MaxFragmentSize = MaxFragmentSize
+										, .m_SendWindowBytes = SendWindowBytes
 									}
 								;
 							}
@@ -650,6 +652,7 @@ namespace NMib::NConcurrency
 									, .m_bNegotiateUnmaskedFrames = true
 									, .m_FragmentationSize = FragmentationSize
 									, .m_MaxFragmentSize = MaxFragmentSize
+										, .m_SendWindowBytes = SendWindowBytes
 								}
 							;
 						}

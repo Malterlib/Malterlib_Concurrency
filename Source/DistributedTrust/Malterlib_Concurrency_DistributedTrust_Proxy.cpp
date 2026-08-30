@@ -57,18 +57,18 @@ namespace NMib::NConcurrency
 		return true;
 	}
 
-	TCFuture<TCSet<CDistributedActorTrustManager_Address>> CDistributedActorTrustManagerProxy::f_EnumListens()
+	auto CDistributedActorTrustManagerProxy::f_EnumListens() -> TCFuture<TCMap<CDistributedActorTrustManager_Address, CListenInfo>>
 	{
 		if (!fp_CheckPermissions(EPermission_Listen_Read))
 			co_return fp_AccessDenied();
 		co_return co_await mp_TrustManager(&CDistributedActorTrustManager::f_EnumListens);
 	}
 
-	TCFuture<void> CDistributedActorTrustManagerProxy::f_AddListen(CDistributedActorTrustManager_Address _Address)
+	TCFuture<void> CDistributedActorTrustManagerProxy::f_AddListen(CAddListen _Command)
 	{
 		if (!fp_CheckPermissions(EPermission_Listen_Add))
 			co_return fp_AccessDenied();
-		co_return co_await mp_TrustManager(&CDistributedActorTrustManager::f_AddListen, _Address);
+		co_return co_await mp_TrustManager(&CDistributedActorTrustManager::f_AddListen, _Command.m_Address, _Command.m_SendWindowBytes);
 	}
 
 	TCFuture<void> CDistributedActorTrustManagerProxy::f_RemoveListen(CDistributedActorTrustManager_Address _Address)
@@ -76,6 +76,13 @@ namespace NMib::NConcurrency
 		if (!fp_CheckPermissions(EPermission_Listen_Remove))
 			co_return fp_AccessDenied();
 		co_return co_await mp_TrustManager(&CDistributedActorTrustManager::f_RemoveListen, _Address);
+	}
+
+	TCFuture<void> CDistributedActorTrustManagerProxy::f_SetListenSendWindow(CDistributedActorTrustManager_Address _Address, uint64 _SendWindowBytes)
+	{
+		if (!fp_CheckPermissions(EPermission_Listen_Write))
+			co_return fp_AccessDenied();
+		co_return co_await mp_TrustManager(&CDistributedActorTrustManager::f_SetListenSendWindow, _Address, _SendWindowBytes);
 	}
 
 	TCFuture<void> CDistributedActorTrustManagerProxy::f_SetPrimaryListen(NStorage::TCOptional<CDistributedActorTrustManager_Address> _Address)
@@ -166,11 +173,19 @@ namespace NMib::NConcurrency
 		co_return co_await mp_TrustManager(&CDistributedActorTrustManager::f_EnumClientConnections);
 	}
 
-	TCFuture<CHostInfo> CDistributedActorTrustManagerProxy::f_AddClientConnection(CTrustTicket _TrustTicket, fp64 _Timeout, int32 _ConnectionConcurrency)
+	TCFuture<CHostInfo> CDistributedActorTrustManagerProxy::f_AddClientConnection(CAddClientConnection _Command)
 	{
 		if (!fp_CheckPermissions(EPermission_ClientConnection_Write))
 			co_return fp_AccessDenied();
-		co_return co_await mp_TrustManager(&CDistributedActorTrustManager::f_AddClientConnection, _TrustTicket, _Timeout, _ConnectionConcurrency);
+		co_return co_await mp_TrustManager
+			(
+				&CDistributedActorTrustManager::f_AddClientConnection
+				, _Command.m_TrustTicket
+				, _Command.m_Timeout
+				, _Command.m_ConnectionConcurrency
+				, _Command.m_SendWindowBytes
+			)
+		;
 	}
 
 	TCFuture<void> CDistributedActorTrustManagerProxy::f_SetClientConnectionConcurrency(CDistributedActorTrustManager_Address _Address, int32 _ConnectionConcurrency)
@@ -180,11 +195,25 @@ namespace NMib::NConcurrency
 		co_return co_await mp_TrustManager(&CDistributedActorTrustManager::f_SetClientConnectionConcurrency, _Address, _ConnectionConcurrency);
 	}
 
-	TCFuture<CHostInfo> CDistributedActorTrustManagerProxy::f_AddAdditionalClientConnection(CDistributedActorTrustManager_Address _Address, int32 _ConnectionConcurrency)
+	TCFuture<void> CDistributedActorTrustManagerProxy::f_SetClientConnectionSendWindow(CDistributedActorTrustManager_Address _Address, uint64 _SendWindowBytes)
 	{
 		if (!fp_CheckPermissions(EPermission_ClientConnection_Write))
 			co_return fp_AccessDenied();
-		co_return co_await mp_TrustManager(&CDistributedActorTrustManager::f_AddAdditionalClientConnection, _Address, _ConnectionConcurrency);
+		co_return co_await mp_TrustManager(&CDistributedActorTrustManager::f_SetClientConnectionSendWindow, _Address, _SendWindowBytes);
+	}
+
+	TCFuture<CHostInfo> CDistributedActorTrustManagerProxy::f_AddAdditionalClientConnection(CAddAdditionalClientConnection _Command)
+	{
+		if (!fp_CheckPermissions(EPermission_ClientConnection_Write))
+			co_return fp_AccessDenied();
+		co_return co_await mp_TrustManager
+			(
+				&CDistributedActorTrustManager::f_AddAdditionalClientConnection
+				, _Command.m_Address
+				, _Command.m_ConnectionConcurrency
+				, _Command.m_SendWindowBytes
+			)
+		;
 	}
 
 	TCFuture<void> CDistributedActorTrustManagerProxy::f_RemoveClientConnection(CRemoveClientConnection _Command)

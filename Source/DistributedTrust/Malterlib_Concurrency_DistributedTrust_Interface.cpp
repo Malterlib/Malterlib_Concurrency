@@ -13,6 +13,7 @@ namespace NMib::NConcurrency
 		DMibPublishActorFunction(CDistributedActorTrustManagerInterface::f_AddListen);
 		DMibPublishActorFunction(CDistributedActorTrustManagerInterface::f_RemoveListen);
 		DMibPublishActorFunction(CDistributedActorTrustManagerInterface::f_HasListen);
+		DMibPublishActorFunction(CDistributedActorTrustManagerInterface::f_SetListenSendWindow);
 		DMibPublishActorFunction(CDistributedActorTrustManagerInterface::f_SetPrimaryListen);
 		DMibPublishActorFunction(CDistributedActorTrustManagerInterface::f_GetPrimaryListen);
 		DMibPublishActorFunction(CDistributedActorTrustManagerInterface::f_EnumClients);
@@ -23,6 +24,7 @@ namespace NMib::NConcurrency
 		DMibPublishActorFunction(CDistributedActorTrustManagerInterface::f_AddClientConnection);
 		DMibPublishActorFunction(CDistributedActorTrustManagerInterface::f_AddAdditionalClientConnection);
 		DMibPublishActorFunction(CDistributedActorTrustManagerInterface::f_SetClientConnectionConcurrency);
+		DMibPublishActorFunction(CDistributedActorTrustManagerInterface::f_SetClientConnectionSendWindow);
 		DMibPublishActorFunction(CDistributedActorTrustManagerInterface::f_RemoveClientConnection);
 		DMibPublishActorFunction(CDistributedActorTrustManagerInterface::f_HasClientConnection);
 		DMibPublishActorFunction(CDistributedActorTrustManagerInterface::f_GetHostID);
@@ -71,10 +73,22 @@ namespace NMib::NConcurrency
 	}
 
 	template <typename tf_CStream>
+	void CDistributedActorTrustManagerInterface::CListenInfo::f_Stream(tf_CStream &_Stream)
+	{
+		// Streams nothing to peers before the send window, so the listen map reads as the address
+		// set they expect
+		if (_Stream.f_GetVersion() >= EProtocolVersion_SendWindow)
+			_Stream % m_SendWindowBytes;
+	}
+	DMibDistributedStreamImplement(CDistributedActorTrustManagerInterface::CListenInfo);
+
+	template <typename tf_CStream>
 	void CDistributedActorTrustManagerInterface::CClientConnectionInfo::f_Stream(tf_CStream &_Stream)
 	{
 		_Stream % m_HostInfo;
 		_Stream % m_ConnectionConcurrency;
+		if (_Stream.f_GetVersion() >= EProtocolVersion_SendWindow)
+			_Stream % m_SendWindowBytes;
 	}
 	DMibDistributedStreamImplement(CDistributedActorTrustManagerInterface::CClientConnectionInfo);
 
@@ -350,6 +364,36 @@ namespace NMib::NConcurrency
 		_Stream % m_Category;
 	}
 	DMibDistributedStreamImplement(CDistributedActorTrustManagerInterface::CLocalAuthenticationActorInfo);
+
+	template <typename tf_CStream>
+	void CDistributedActorTrustManagerInterface::CAddListen::f_Stream(tf_CStream &_Stream)
+	{
+		_Stream % m_Address;
+		if (_Stream.f_GetVersion() >= EProtocolVersion_SendWindow)
+			_Stream % m_SendWindowBytes;
+	}
+	DMibDistributedStreamImplement(CDistributedActorTrustManagerInterface::CAddListen);
+
+	template <typename tf_CStream>
+	void CDistributedActorTrustManagerInterface::CAddClientConnection::f_Stream(tf_CStream &_Stream)
+	{
+		_Stream % m_TrustTicket;
+		_Stream % m_Timeout;
+		_Stream % m_ConnectionConcurrency;
+		if (_Stream.f_GetVersion() >= EProtocolVersion_SendWindow)
+			_Stream % m_SendWindowBytes;
+	}
+	DMibDistributedStreamImplement(CDistributedActorTrustManagerInterface::CAddClientConnection);
+
+	template <typename tf_CStream>
+	void CDistributedActorTrustManagerInterface::CAddAdditionalClientConnection::f_Stream(tf_CStream &_Stream)
+	{
+		_Stream % m_Address;
+		_Stream % m_ConnectionConcurrency;
+		if (_Stream.f_GetVersion() >= EProtocolVersion_SendWindow)
+			_Stream % m_SendWindowBytes;
+	}
+	DMibDistributedStreamImplement(CDistributedActorTrustManagerInterface::CAddAdditionalClientConnection);
 
 	template <typename tf_CStream>
 	void CDistributedActorTrustManagerInterface::CRemoveClientConnection::f_Stream(tf_CStream &_Stream)

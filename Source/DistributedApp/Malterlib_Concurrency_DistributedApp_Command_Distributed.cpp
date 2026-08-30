@@ -35,6 +35,16 @@ namespace NMib::NConcurrency
 			}
 		;
 
+		auto SendWindowOption = "SendWindow?"_o=
+			{
+				"Names"_o= _o["--send-window"]
+				, "Default"_o= ""
+				, "Description"_o= "The bytes each connection may have in flight on its sends: a byte count with an optional K, M, G, KiB, MiB, GiB, KB, MB or GB suffix, "
+					"or the link to fill as <rate>@<latency> (bit, kbit, mbit or gbit per second at us, ms or s) like 10gbit@10ms, which is twice the bandwidth-delay product. "
+					"Empty or default keeps the transport default of eight frames."
+			}
+		;
+
 		auto PermissionUserAuthenticationFactorsOption = "AuthenticationFactors?"_o=
 			{
 				"Names"_o= _o["--authentication-factors"]
@@ -177,6 +187,7 @@ namespace NMib::NConcurrency
 					, "Options"_o=
 					{
 						ConnectionConcurrencyOption
+						, SendWindowOption
 						, IncludeFriendlyNameOption
 						, "TrustedNamespaces?"_o=
 						{
@@ -206,6 +217,7 @@ namespace NMib::NConcurrency
 										, ConstParams["Ticket"].f_String()
 										, ConstParams["IncludeFriendlyName"].f_Boolean()
 										, ConstParams["ConnectionConcurrency"].f_Integer()
+										, ConstParams["SendWindow"].f_String()
 										, fg_Move(TrustedNamespaces)
 									)
 								;
@@ -266,6 +278,53 @@ namespace NMib::NConcurrency
 		Distributed.f_RegisterCommand
 			(
 				{
+					"Names"_o= _o["--trust-connection-set-send-window"]
+					, "Category"_o= Category
+					, "Description"_o= "Sets the bytes each connection to an address may have in flight on its sends. Connections made from then on use it.\n"
+					, "Parameters"_o=
+					{
+						"SendWindow"_o=
+						{
+							"Type"_o= ""
+							, "Description"_o= "A byte count with an optional K, M, G, KiB, MiB, GiB, KB, MB or GB suffix, <rate>@<latency> like 10gbit@10ms (twice the bandwidth-delay product), or default."
+						}
+					}
+					, "Options"_o=
+					{
+						"Address"_o=
+						{
+							"Names"_o= _o["--address"]
+							, "Type"_o= ""
+							, "Description"_o= "The client connection address to set the send window for."
+						}
+					}
+				}
+				, [this](CEJsonSorted &&_Params, TCSharedPointer<CCommandLineControl> &&_pCommandLine)
+				{
+					return fp_RunCommandLineAndLogError
+						(
+							"Set connection send window"
+							, [this, Params = fg_Move(_Params), pCommandLine = fg_Move(_pCommandLine)]() mutable -> TCFuture<uint32>
+							{
+								auto &ConstParams = fg_Const(Params);
+
+								return f_CommandLine_SetConnectionSendWindow
+									(
+										fg_Move(pCommandLine)
+										, ConstParams["Address"].f_String()
+										, ConstParams["SendWindow"].f_String()
+									)
+								;
+							}
+						)
+					;
+				}
+				, EDistributedAppCommandFlag_WaitForRemotes
+			)
+		;
+		Distributed.f_RegisterCommand
+			(
+				{
 					"Names"_o= _o["--trust-connection-add-additional"]
 					, "Category"_o= Category
 					, "Description"_o= "Add a connection to an already trusted host.\n"
@@ -281,6 +340,7 @@ namespace NMib::NConcurrency
 					, "Options"_o=
 					{
 						ConnectionConcurrencyOption
+						, SendWindowOption
 						, IncludeFriendlyNameOption
 					}
 				}
@@ -299,6 +359,7 @@ namespace NMib::NConcurrency
 										, ConstParams["ConnectionURL"].f_String()
 										, ConstParams["IncludeFriendlyName"].f_Boolean()
 										, ConstParams["ConnectionConcurrency"].f_Integer()
+										, ConstParams["SendWindow"].f_String()
 									)
 								;
 							}
@@ -526,6 +587,7 @@ namespace NMib::NConcurrency
 							, "Description"_o= "Make the new address the primary listen.\n"
 							"If no listen currently exists the new address will always be made primary."
 						}
+						, SendWindowOption
 						, CTableRenderHelper::fs_OutputTypeOption()
 					}
 				}
@@ -538,7 +600,44 @@ namespace NMib::NConcurrency
 							{
 								auto &ConstParams = fg_Const(Params);
 
-								return f_CommandLine_AddListen(fg_Move(pCommandLine), ConstParams["ListenURL"].f_String(), ConstParams["Primary"].f_Boolean());
+								return f_CommandLine_AddListen(fg_Move(pCommandLine), ConstParams["ListenURL"].f_String(), ConstParams["Primary"].f_Boolean(), ConstParams["SendWindow"].f_String());
+							}
+						)
+					;
+				}
+			)
+		;
+		Distributed.f_RegisterCommand
+			(
+				{
+					"Names"_o= _o["--trust-listen-set-send-window"]
+					, "Category"_o= Category
+					, "Description"_o= "Sets the bytes each connection accepted on a listen address may have in flight on its sends. Applies once the listen is next started.\n"
+						+ OverwriteWarning
+					, "Parameters"_o=
+					{
+						"ListenURL"_o=
+						{
+							"Type"_o= ""
+							, "Description"_o= "The listen address to set the send window for."
+						}
+						, "SendWindow"_o=
+						{
+							"Type"_o= ""
+							, "Description"_o= "A byte count with an optional K, M, G, KiB, MiB, GiB, KB, MB or GB suffix, <rate>@<latency> like 10gbit@10ms (twice the bandwidth-delay product), or default."
+						}
+					}
+				}
+				, [this](CEJsonSorted &&_Params, TCSharedPointer<CCommandLineControl> &&_pCommandLine)
+				{
+					return fp_RunCommandLineAndLogError
+						(
+							"Set listen send window"
+							, [this, Params = fg_Move(_Params), pCommandLine = fg_Move(_pCommandLine)]() mutable -> TCFuture<uint32>
+							{
+								auto &ConstParams = fg_Const(Params);
+
+								return f_CommandLine_SetListenSendWindow(fg_Move(pCommandLine), ConstParams["ListenURL"].f_String(), ConstParams["SendWindow"].f_String());
 							}
 						)
 					;

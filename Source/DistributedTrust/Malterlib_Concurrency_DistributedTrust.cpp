@@ -39,6 +39,7 @@ namespace NMib::NConcurrency
 		, m_TranslateHostnames(_Options.m_TranslateHostnames)
 		, m_InitialConnectionTimeout(_Options.m_InitialConnectionTimeout)
 		, m_DefaultConnectionConcurrency(_Options.m_DefaultConnectionConcurrency)
+		, m_DefaultSendWindowBytes(_Options.m_DefaultSendWindowBytes)
 		, m_bRetryOnListenFailureDuringInit(_Options.m_bRetryOnListenFailureDuringInit)
 		, m_bWaitForConnectionsDuringInit(_Options.m_bWaitForConnectionsDuringInit)
 		, m_bSupportAuthentication(_Options.m_bSupportAuthentication)
@@ -175,6 +176,16 @@ namespace NMib::NConcurrency
 		if (ConnectionConcurrency == -1)
 			ConnectionConcurrency = _DefaultConcurrency;
 		return fg_Clamp(ConnectionConcurrency, 1, 128);
+	}
+
+	uint64 NDistributedActorTrustManagerDatabase::CClientConnection::f_GetEffectiveSendWindowBytes(uint64 _DefaultSendWindowBytes) const
+	{
+		return m_SendWindowBytes ? m_SendWindowBytes : _DefaultSendWindowBytes;
+	}
+
+	uint64 NDistributedActorTrustManagerDatabase::CListenConfig::f_GetEffectiveSendWindowBytes(uint64 _DefaultSendWindowBytes) const
+	{
+		return m_SendWindowBytes ? m_SendWindowBytes : _DefaultSendWindowBytes;
 	}
 
 	TCFuture<CHostInfo> CDistributedActorTrustManager::fp_GetHostInfo(NStr::CStr _HostID)

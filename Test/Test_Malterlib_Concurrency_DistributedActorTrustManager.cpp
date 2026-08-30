@@ -367,7 +367,7 @@ namespace NTestTrustManager
 				CDistributedActorTrustManager_Address ServerAddress;
 				ServerAddress.m_URL = m_SocketUrl;
 				if (!m_ServerTrustManager(&CDistributedActorTrustManager::f_HasListen, ServerAddress).f_CallSync(m_pRunLoop, g_Timeout))
-					m_ServerTrustManager(&CDistributedActorTrustManager::f_AddListen, ServerAddress).f_CallSync(m_pRunLoop, g_Timeout);
+					m_ServerTrustManager(&CDistributedActorTrustManager::f_AddListen, ServerAddress, 0).f_CallSync(m_pRunLoop, g_Timeout);
 
 				return m_ServerTrustManager;
 			}
@@ -380,7 +380,7 @@ namespace NTestTrustManager
 				if (!m_ClientTrustManager(&CDistributedActorTrustManager::f_HasClientConnection, ServerAddress).f_CallSync(m_pRunLoop, g_Timeout))
 				{
 					auto TrustTicket = m_ServerTrustManager(&CDistributedActorTrustManager::f_GenerateConnectionTicket, ServerAddress, nullptr, nullptr).f_CallSync(m_pRunLoop, g_Timeout);
-					m_ClientTrustManager(&CDistributedActorTrustManager::f_AddClientConnection, TrustTicket.m_Ticket, g_Timeout / 2, -1).f_CallSync(m_pRunLoop, g_Timeout);
+					m_ClientTrustManager(&CDistributedActorTrustManager::f_AddClientConnection, TrustTicket.m_Ticket, g_Timeout / 2, -1, 0).f_CallSync(m_pRunLoop, g_Timeout);
 				}
 
 				return m_ClientTrustManager;
@@ -615,11 +615,11 @@ namespace NTestTrustManager
 
 					CDistributedActorTrustManager_Address ServerAddress;
 					ServerAddress.m_URL = fg_GetSocketUrl("TrustBasic", _RootDir);
-					ServerTrustManager(&CDistributedActorTrustManager::f_AddListen, ServerAddress).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
+					ServerTrustManager(&CDistributedActorTrustManager::f_AddListen, ServerAddress, 0).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
 					DMibExpectTrue(ServerTrustManager(&CDistributedActorTrustManager::f_HasListen, ServerAddress).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout));
 
 					auto AllListens = ServerTrustManager(&CDistributedActorTrustManager::f_EnumListens).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
-					NContainer::TCSet<CDistributedActorTrustManager_Address> ExpectedListens;
+					NContainer::TCMap<CDistributedActorTrustManager_Address, CDistributedActorTrustManager::CListenInfo> ExpectedListens;
 					ExpectedListens[ServerAddress];
 					DMibExpect(AllListens, ==, ExpectedListens);
 
@@ -627,7 +627,7 @@ namespace NTestTrustManager
 						.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
 					;
 
-					ClientTrustManager(&CDistributedActorTrustManager::f_AddClientConnection, TrustTicket.m_Ticket, g_Timeout / 2, -1).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
+					ClientTrustManager(&CDistributedActorTrustManager::f_AddClientConnection, TrustTicket.m_Ticket, g_Timeout / 2, -1, 0).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
 					DMibExpectTrue
 						(
 							ClientTrustManager(&CDistributedActorTrustManager::f_HasClientConnection, TrustTicket.m_Ticket.m_ServerAddress).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
@@ -643,6 +643,29 @@ namespace NTestTrustManager
 						ExpectedHostInfo.m_ConnectionConcurrency = -1;
 					}
 					DMibExpect(AllClientConnections, ==, ExpectedClientConnections);
+
+					{
+						DMibTestPath("SendWindow");
+
+						ClientTrustManager(&CDistributedActorTrustManager::f_SetClientConnectionSendWindow, TrustTicket.m_Ticket.m_ServerAddress, uint64(20) << 20)
+							.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
+						;
+
+						auto Connections = ClientTrustManager(&CDistributedActorTrustManager::f_EnumClientConnections).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
+						auto *pConnection = Connections.f_FindEqual(TrustTicket.m_Ticket.m_ServerAddress);
+						DMibExpectTrue(pConnection != nullptr);
+						if (pConnection)
+							DMibExpect(pConnection->m_SendWindowBytes, ==, uint64(20) << 20);
+						ExpectedClientConnections[TrustTicket.m_Ticket.m_ServerAddress].m_SendWindowBytes = uint64(20) << 20;
+						DMibExpect(Connections, ==, ExpectedClientConnections);
+
+						ServerTrustManager(&CDistributedActorTrustManager::f_SetListenSendWindow, ServerAddress, uint64(4) << 20).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
+
+						auto Listens = ServerTrustManager(&CDistributedActorTrustManager::f_EnumListens).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
+						ExpectedListens[ServerAddress].m_SendWindowBytes = uint64(4) << 20;
+						DMibExpect(Listens, ==, ExpectedListens);
+						DMibExpectTrue(ServerTrustManager(&CDistributedActorTrustManager::f_HasListen, ServerAddress).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout));
+					}
 
 					fp_DoTests(ServerTrustManager, ClientTrustManager, RunLoopHelper.m_pRunLoop);
 
@@ -684,7 +707,7 @@ namespace NTestTrustManager
 
 					CDistributedActorTrustManager_Address ServerAddress;
 					ServerAddress.m_URL = fg_GetSocketUrl("TrustBasicChanged", _RootDir);
-					ServerTrustManager(&CDistributedActorTrustManager::f_AddListen, ServerAddress).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
+					ServerTrustManager(&CDistributedActorTrustManager::f_AddListen, ServerAddress, 0).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
 
 					CDistributedActorTrustManager_Address OldServerAddress;
 					OldServerAddress.m_URL = fg_GetSocketUrl("TrustBasic", _RootDir);
@@ -693,7 +716,7 @@ namespace NTestTrustManager
 
 					TCActor<CDistributedActorTrustManager> ClientTrustManager = State.f_CreateClientTrustManager();
 
-					ClientTrustManager(&CDistributedActorTrustManager::f_AddAdditionalClientConnection, ServerAddress, -1).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
+					ClientTrustManager(&CDistributedActorTrustManager::f_AddAdditionalClientConnection, ServerAddress, -1, 0).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
 					ClientTrustManager(&CDistributedActorTrustManager::f_RemoveClientConnection, OldServerAddress, false).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
 
 					fp_DoTests(ServerTrustManager, ClientTrustManager, RunLoopHelper.m_pRunLoop);
@@ -747,13 +770,13 @@ namespace NTestTrustManager
 
 				CDistributedActorTrustManager_Address ServerAddress;
 				ServerAddress.m_URL = fg_GetSocketUrl("TrustRemoveClient", _RootDir);
-				ServerTrustManager(&CDistributedActorTrustManager::f_AddListen, ServerAddress).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
+				ServerTrustManager(&CDistributedActorTrustManager::f_AddListen, ServerAddress, 0).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
 
 				auto TrustTicket = ServerTrustManager(&CDistributedActorTrustManager::f_GenerateConnectionTicket, ServerAddress, nullptr, nullptr)
 					.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
 				;
 
-				ClientTrustManager(&CDistributedActorTrustManager::f_AddClientConnection, TrustTicket.m_Ticket, g_Timeout / 2, -1).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
+				ClientTrustManager(&CDistributedActorTrustManager::f_AddClientConnection, TrustTicket.m_Ticket, g_Timeout / 2, -1, 0).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
 
 				fp_DoTests(ServerTrustManager, ClientTrustManager, RunLoopHelper.m_pRunLoop);
 
@@ -790,13 +813,13 @@ namespace NTestTrustManager
 
 				CDistributedActorTrustManager_Address ServerAddress;
 				ServerAddress.m_URL = fg_GetSocketUrl("TrustRemoveDisconnects", _RootDir);
-				ServerTrustManager(&CDistributedActorTrustManager::f_AddListen, ServerAddress).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
+				ServerTrustManager(&CDistributedActorTrustManager::f_AddListen, ServerAddress, 0).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
 
 				{
 					auto TrustTicket = ServerTrustManager(&CDistributedActorTrustManager::f_GenerateConnectionTicket, ServerAddress, nullptr, nullptr)
 						.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
 					;
-					ClientTrustManager(&CDistributedActorTrustManager::f_AddClientConnection, TrustTicket.m_Ticket, g_Timeout / 2, -1).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
+					ClientTrustManager(&CDistributedActorTrustManager::f_AddClientConnection, TrustTicket.m_Ticket, g_Timeout / 2, -1, 0).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
 				}
 
 				CDistributedActorTestHelper ServerHelper{ServerTrustManager, RunLoopHelper.m_pRunLoop};
@@ -887,7 +910,7 @@ namespace NTestTrustManager
 					auto TrustTicket = ServerTrustManager(&CDistributedActorTrustManager::f_GenerateConnectionTicket, ServerAddress, nullptr, nullptr)
 						.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
 					;
-					ClientTrustManager(&CDistributedActorTrustManager::f_AddClientConnection, TrustTicket.m_Ticket, g_Timeout / 2, -1).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
+					ClientTrustManager(&CDistributedActorTrustManager::f_AddClientConnection, TrustTicket.m_Ticket, g_Timeout / 2, -1, 0).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
 
 					bTimedOut = fp_WaitForCondition
 						(
@@ -923,13 +946,13 @@ namespace NTestTrustManager
 
 				CDistributedActorTrustManager_Address ServerAddress;
 				ServerAddress.m_URL = fg_GetSocketUrl("TrustBrokenConnections", _RootDir);
-				ServerTrustManager(&CDistributedActorTrustManager::f_AddListen, ServerAddress).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
+				ServerTrustManager(&CDistributedActorTrustManager::f_AddListen, ServerAddress, 0).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
 
 				{
 					auto TrustTicket = ServerTrustManager(&CDistributedActorTrustManager::f_GenerateConnectionTicket, ServerAddress, nullptr, nullptr)
 						.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
 					;
-					ClientTrustManager(&CDistributedActorTrustManager::f_AddClientConnection, TrustTicket.m_Ticket, g_Timeout / 2, 10).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
+					ClientTrustManager(&CDistributedActorTrustManager::f_AddClientConnection, TrustTicket.m_Ticket, g_Timeout / 2, 10, 0).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
 				}
 
 				CDistributedActorTestHelper ServerHelper{ServerTrustManager, RunLoopHelper.m_pRunLoop};
@@ -1067,14 +1090,14 @@ namespace NTestTrustManager
 
 					CDistributedActorTrustManager_Address ServerAddress;
 					ServerAddress.m_URL = fg_GetSocketUrl("TrustHostCleanup", _RootDir);
-					ServerTrustManager(&CDistributedActorTrustManager::f_AddListen, ServerAddress).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
+					ServerTrustManager(&CDistributedActorTrustManager::f_AddListen, ServerAddress, 0).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
 
 					CHostInfo HostInfo;
 					{
 						auto TrustTicket = ServerTrustManager(&CDistributedActorTrustManager::f_GenerateConnectionTicket, ServerAddress, nullptr, nullptr)
 							.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
 						;
-						HostInfo = ClientTrustManager(&CDistributedActorTrustManager::f_AddClientConnection, TrustTicket.m_Ticket, g_Timeout / 2, -1)
+						HostInfo = ClientTrustManager(&CDistributedActorTrustManager::f_AddClientConnection, TrustTicket.m_Ticket, g_Timeout / 2, -1, 0)
 							.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
 						;
 					}
@@ -1230,20 +1253,21 @@ namespace NTestTrustManager
 
 				CDistributedActorTrustManager_Address ServerAddress;
 				ServerAddress.m_URL = fg_GetSocketUrl("TrustSecurity", _RootDir);
-				ServerTrustManager(&CDistributedActorTrustManager::f_AddListen, ServerAddress).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
+				ServerTrustManager(&CDistributedActorTrustManager::f_AddListen, ServerAddress, 0).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
 
 				{
 					auto TrustTicket = ServerTrustManager(&CDistributedActorTrustManager::f_GenerateConnectionTicket, ServerAddress, nullptr, nullptr)
 						.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
 					;
-					ClientTrustManager(&CDistributedActorTrustManager::f_AddClientConnection, TrustTicket.m_Ticket, g_Timeout / 2, -1).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
+					ClientTrustManager(&CDistributedActorTrustManager::f_AddClientConnection, TrustTicket.m_Ticket, g_Timeout / 2, -1, 0).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
 
 					ClientTrustManager(&CDistributedActorTrustManager::f_RemoveClientConnection, ServerAddress, true).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
 
 					// Check that you cannot reuse old ticket
 					DMibExpectExceptionType
 						(
-							ClientTrustManager(&CDistributedActorTrustManager::f_AddClientConnection, TrustTicket.m_Ticket, g_Timeout / 2, -1).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
+							ClientTrustManager(&CDistributedActorTrustManager::f_AddClientConnection, TrustTicket.m_Ticket, g_Timeout / 2, -1, 0)
+								.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
 							, NException::CException
 						)
 					;
@@ -1252,7 +1276,7 @@ namespace NTestTrustManager
 					TrustTicket = ServerTrustManager(&CDistributedActorTrustManager::f_GenerateConnectionTicket, ServerAddress, nullptr, nullptr)
 						.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
 					;
-					ClientTrustManager(&CDistributedActorTrustManager::f_AddClientConnection, TrustTicket.m_Ticket, g_Timeout / 2, -1).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
+					ClientTrustManager(&CDistributedActorTrustManager::f_AddClientConnection, TrustTicket.m_Ticket, g_Timeout / 2, -1, 0).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
 				}
 
 				{
@@ -1300,7 +1324,8 @@ namespace NTestTrustManager
 				// Test fraudulent client add
 				DMibExpectExceptionType
 					(
-						Client2TrustManager(&CDistributedActorTrustManager::f_AddClientConnection, TrustTicket2.m_Ticket, g_Timeout / 2, -1).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
+						Client2TrustManager(&CDistributedActorTrustManager::f_AddClientConnection, TrustTicket2.m_Ticket, g_Timeout / 2, -1, 0)
+							.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
 						, NException::CException
 					)
 				;
@@ -1325,13 +1350,13 @@ namespace NTestTrustManager
 
 				CDistributedActorTrustManager_Address ServerAddress;
 				ServerAddress.m_URL = fg_GetSocketUrl("TrustMultipleEnclaves", _RootDir);
-				ServerTrustManager(&CDistributedActorTrustManager::f_AddListen, ServerAddress).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
+				ServerTrustManager(&CDistributedActorTrustManager::f_AddListen, ServerAddress, 0).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
 
 				{
 					auto TrustTicket = ServerTrustManager(&CDistributedActorTrustManager::f_GenerateConnectionTicket, ServerAddress, nullptr, nullptr)
 						.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
 					;
-					ClientTrustManager(&CDistributedActorTrustManager::f_AddClientConnection, TrustTicket.m_Ticket, g_Timeout / 2, -1).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
+					ClientTrustManager(&CDistributedActorTrustManager::f_AddClientConnection, TrustTicket.m_Ticket, g_Timeout / 2, -1, 0).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
 				}
 				CDistributedActorTestHelper ServerHelper{ServerTrustManager, RunLoopHelper.m_pRunLoop};
 				CDistributedActorTestHelper ClientHelper{ClientTrustManager, RunLoopHelper.m_pRunLoop};
@@ -1396,13 +1421,13 @@ namespace NTestTrustManager
 
 				CDistributedActorTrustManager_Address ServerAddress;
 				ServerAddress.m_URL = fg_GetSocketUrl("TrustSubscriptions", _RootDir);
-				ServerTrustManager(&CDistributedActorTrustManager::f_AddListen, ServerAddress).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
+				ServerTrustManager(&CDistributedActorTrustManager::f_AddListen, ServerAddress, 0).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
 
 				{
 					auto TrustTicket = ServerTrustManager(&CDistributedActorTrustManager::f_GenerateConnectionTicket, ServerAddress, nullptr, nullptr)
 						.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
 					;
-					ClientTrustManager(&CDistributedActorTrustManager::f_AddClientConnection, TrustTicket.m_Ticket, g_Timeout / 2, -1).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
+					ClientTrustManager(&CDistributedActorTrustManager::f_AddClientConnection, TrustTicket.m_Ticket, g_Timeout / 2, -1, 0).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
 				}
 
 				CDistributedActorTestHelper ServerHelper{ServerTrustManager, RunLoopHelper.m_pRunLoop};
@@ -1833,12 +1858,12 @@ namespace NTestTrustManager
 					{
 						CDistributedActorTrustManager_Address ServerAddress;
 						ServerAddress.m_URL = fg_GetSocketUrl("Trust2HostsNoSub", _RootDir);
-						ServerTrustManager2(&CDistributedActorTrustManager::f_AddListen, ServerAddress).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
+						ServerTrustManager2(&CDistributedActorTrustManager::f_AddListen, ServerAddress, 0).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
 
 						auto TrustTicket = ServerTrustManager2(&CDistributedActorTrustManager::f_GenerateConnectionTicket, ServerAddress, nullptr, nullptr)
 							.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
 						;
-						ClientTrustManager(&CDistributedActorTrustManager::f_AddClientConnection, TrustTicket.m_Ticket, g_Timeout / 2, -1).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
+						ClientTrustManager(&CDistributedActorTrustManager::f_AddClientConnection, TrustTicket.m_Ticket, g_Timeout / 2, -1, 0).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
 					}
 					CStr ServerHostID2 = ServerTrustManager2(&CDistributedActorTrustManager::f_GetHostID).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
 					TCSet<CStr> ServerHosts2;

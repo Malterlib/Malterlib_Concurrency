@@ -90,6 +90,7 @@ namespace NMib::NConcurrency::NActorDistributionManagerInternal
 		bool m_bAnonymous = false;
 		bool m_bRetryConnectOnFailure = false;
 		bool m_bRetryConnectOnFirstFailure = false;
+		uint64 m_SendWindowBytes = 0;
 		NStr::CStr m_LastConnectionError;
 		NTime::CTime m_LastConnectionErrorTime;
 		NStr::CStr m_LastLoggedError;

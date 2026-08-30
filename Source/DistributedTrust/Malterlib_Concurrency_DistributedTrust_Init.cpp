@@ -71,6 +71,7 @@ namespace NMib::NConcurrency
 		ConnectionSettings.m_KeySetting = m_KeySetting;
 		ConnectionSettings.m_bRetryConnectOnFirstFailure = true;
 		ConnectionSettings.m_bRetryConnectOnFailure = true;
+		ConnectionSettings.m_SendWindowBytes = ClientConnection.f_GetEffectiveSendWindowBytes(m_DefaultSendWindowBytes);
 
 		return ConnectionSettings;
 	}
@@ -295,10 +296,12 @@ namespace NMib::NConcurrency
 		;
 		m_HostInfoChangedSubscription = fg_Move(HostInfoChangedSubscription);
 
-		for (auto &Listen : ListenConfigs)
+		for (auto &ListenEntry : ListenConfigs.f_Entries())
 		{
-			auto &NewListen = m_Listen[Listen];
-			if (PrimaryListen && *PrimaryListen == Listen.m_Address)
+			auto &Address = ListenEntry.f_Key();
+			auto &NewListen = m_Listen[Address];
+			NewListen.m_ListenConfig = ListenEntry.f_Value();
+			if (PrimaryListen && *PrimaryListen == Address)
 				m_pPrimaryListen = &NewListen;
 		}
 
@@ -370,13 +373,16 @@ namespace NMib::NConcurrency
 			ClientConnection.m_pHost = &Host;
 		}
 
-		TCFutureMap<CListenConfig, CDistributedActorListenReference> ListenResults;
+		TCFutureMap<CDistributedActorTrustManager_Address, CDistributedActorListenReference> ListenResults;
 
-		for (auto &Listen : m_Listen.f_Keys())
+		for (auto &ListenEntry : m_Listen.f_Entries())
 		{
-			CActorDistributionListenSettings ListenSettings(NContainer::fg_CreateVector<NWeb::NHTTP::CURL>(Listen.m_Address.m_URL));
+			auto &Address = ListenEntry.f_Key();
+			auto &Listen = ListenEntry.f_Value().m_ListenConfig;
 
-			auto *pServerCert = m_ServerCertificates.f_FindEqual(Listen.m_Address.m_URL.f_GetHost());
+			CActorDistributionListenSettings ListenSettings(NContainer::fg_CreateVector<NWeb::NHTTP::CURL>(Address.m_URL));
+
+			auto *pServerCert = m_ServerCertificates.f_FindEqual(Address.m_URL.f_GetHost());
 			if (!pServerCert)
 				co_return DMibErrorInstance("Invalid trust manager address in listen. No server certificate found. Broken database?");
 
@@ -386,8 +392,9 @@ namespace NMib::NConcurrency
 			ListenSettings.m_KeySetting = m_KeySetting;
 			ListenSettings.m_bRetryOnListenFailure = m_bRetryOnListenFailureDuringInit;
 			ListenSettings.m_ListenFlags = m_ListenFlags;
+			ListenSettings.m_SendWindowBytes = Listen.f_GetEffectiveSendWindowBytes(m_DefaultSendWindowBytes);
 
-			m_ActorDistributionManager(&CActorDistributionManager::f_Listen, ListenSettings) > ListenResults[Listen];
+			m_ActorDistributionManager(&CActorDistributionManager::f_Listen, ListenSettings) > ListenResults[Address];
 		}
 
 		TCFutureMap<CDistributedActorTrustManager_Address, void> ConnectResults;

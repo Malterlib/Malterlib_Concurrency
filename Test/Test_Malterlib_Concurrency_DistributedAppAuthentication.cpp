@@ -1252,7 +1252,7 @@ public:
 
 		CDistributedActorTrustManager_Address TestAddress;
 		TestAddress.m_URL = "wss://[UNIX(666):{}]/"_f << fg_GetSafeUnixSocketPath("{}/controller.sock"_f << RootDirectory);
-		TrustManager(&CDistributedActorTrustManager::f_AddListen, TestAddress).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
+		TrustManager(&CDistributedActorTrustManager::f_AddListen, TestAddress, 0).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
 
 		CDistributedApp_LaunchHelperDependencies Dependencies;
 		Dependencies.m_Address = TestAddress.m_URL;
@@ -1298,7 +1298,10 @@ public:
 		CStr ServerHostID = ServerLaunch.m_HostID;
 		CDistributedActorTrustManager_Address ServerAddress;
 		ServerAddress.m_URL = "wss://[UNIX(666):{}]/"_f << fg_GetSafeUnixSocketPath("{}/DistributedAppAuthenticationTestsServer.sock"_f << RootDirectory);
-		ServerTrust.f_CallActor(&CDistributedActorTrustManagerInterface::f_AddListen)(ServerAddress).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
+		ServerTrust.f_CallActor(&CDistributedActorTrustManagerInterface::f_AddListen)
+			(CDistributedActorTrustManagerInterface::CAddListen{.m_Address = ServerAddress})
+			.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
+		;
 
 		TrustManager.f_CallActor(&CDistributedActorTrustManager::f_AllowHostsForNamespace)
 			(
@@ -1328,7 +1331,10 @@ public:
 		CStr ManyServerHostID = ManyServerLaunch.m_HostID;
 		CDistributedActorTrustManager_Address ManyServerAddress;
 		ManyServerAddress.m_URL = "wss://[UNIX(666):{}]/"_f << fg_GetSafeUnixSocketPath("{}/DistributedAppAuthenticationTestsManyServer.sock"_f << RootDirectory);
-		ManyServerTrust.f_CallActor(&CDistributedActorTrustManagerInterface::f_AddListen)(ManyServerAddress).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
+		ManyServerTrust.f_CallActor(&CDistributedActorTrustManagerInterface::f_AddListen)
+			(CDistributedActorTrustManagerInterface::CAddListen{.m_Address = ManyServerAddress})
+			.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
+		;
 
 		TrustManager.f_CallActor(&CDistributedActorTrustManager::f_AllowHostsForNamespace)
 			(
@@ -1358,7 +1364,10 @@ public:
 		CStr SlowServerHostID = SlowServerLaunch.m_HostID;
 		CDistributedActorTrustManager_Address SlowServerAddress;
 		SlowServerAddress.m_URL = "wss://[UNIX(666):{}]/"_f << fg_GetSafeUnixSocketPath("{}/DistributedAppAuthenticationTestsSlowServer.sock"_f << RootDirectory);
-		SlowServerTrust.f_CallActor(&CDistributedActorTrustManagerInterface::f_AddListen)(SlowServerAddress).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
+		SlowServerTrust.f_CallActor(&CDistributedActorTrustManagerInterface::f_AddListen)
+			(CDistributedActorTrustManagerInterface::CAddListen{.m_Address = SlowServerAddress})
+			.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
+		;
 
 		TrustManager.f_CallActor(&CDistributedActorTrustManager::f_AllowHostsForNamespace)
 			(
@@ -1392,7 +1401,10 @@ public:
 
 		CDistributedActorTrustManager_Address ClientAddress;
 		ClientAddress.m_URL = "wss://[UNIX(666):{}]/"_f << fg_GetSafeUnixSocketPath("{}/DistributedAppAuthenticationTestsClient.sock"_f << RootDirectory);
-		ClientTrust.f_CallActor(&CDistributedActorTrustManagerInterface::f_AddListen)(ClientAddress).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
+		ClientTrust.f_CallActor(&CDistributedActorTrustManagerInterface::f_AddListen)
+			(CDistributedActorTrustManagerInterface::CAddListen{.m_Address = ClientAddress})
+			.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
+		;
 
 		auto fNamespaceHosts = [](auto &&_Namespace, auto &&_Hosts)
 			{
@@ -1433,7 +1445,10 @@ public:
 				> Promise / [=](CDistributedActorTrustManagerInterface::CTrustGenerateConnectionTicketResult &&_Ticket)
 				{
 					auto &ClientTrust = *pClientTrust;
-					ClientTrust.f_CallActor(&CDistributedActorTrustManagerInterface::f_AddClientConnection)(_Ticket.m_Ticket, g_Timeout, -1).f_OnResultSet(Promise.f_ReceiveAny());
+					ClientTrust.f_CallActor(&CDistributedActorTrustManagerInterface::f_AddClientConnection)
+						(CDistributedActorTrustManagerInterface::CAddClientConnection{.m_TrustTicket = _Ticket.m_Ticket, .m_Timeout = g_Timeout})
+						.f_OnResultSet(Promise.f_ReceiveAny())
+					;
 				}
 			;
 			Promise.f_MoveFuture().f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
@@ -1447,7 +1462,10 @@ public:
 				> Promise / [=](CDistributedActorTrustManagerInterface::CTrustGenerateConnectionTicketResult &&_Ticket)
 				{
 					auto &ClientTrust = *pClientTrust;
-					ClientTrust.f_CallActor(&CDistributedActorTrustManagerInterface::f_AddClientConnection)(_Ticket.m_Ticket, g_Timeout, -1).f_OnResultSet(Promise.f_ReceiveAny());
+					ClientTrust.f_CallActor(&CDistributedActorTrustManagerInterface::f_AddClientConnection)
+						(CDistributedActorTrustManagerInterface::CAddClientConnection{.m_TrustTicket = _Ticket.m_Ticket, .m_Timeout = g_Timeout})
+						.f_OnResultSet(Promise.f_ReceiveAny())
+					;
 				}
 			;
 			Promise.f_MoveFuture().f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
@@ -1461,7 +1479,10 @@ public:
 				> Promise / [=](CDistributedActorTrustManagerInterface::CTrustGenerateConnectionTicketResult &&_Ticket)
 				{
 					auto &ClientTrust = *pClientTrust;
-					ClientTrust.f_CallActor(&CDistributedActorTrustManagerInterface::f_AddClientConnection)(_Ticket.m_Ticket, g_Timeout, -1).f_OnResultSet(Promise.f_ReceiveAny());
+					ClientTrust.f_CallActor(&CDistributedActorTrustManagerInterface::f_AddClientConnection)
+						(CDistributedActorTrustManagerInterface::CAddClientConnection{.m_TrustTicket = _Ticket.m_Ticket, .m_Timeout = g_Timeout})
+						.f_OnResultSet(Promise.f_ReceiveAny())
+					;
 				}
 			;
 			Promise.f_MoveFuture().f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
@@ -2267,7 +2288,7 @@ public:
 
 		CDistributedActorTrustManager_Address TestAddress;
 		TestAddress.m_URL = "wss://[UNIX(666):{}]/"_f << fg_GetSafeUnixSocketPath("{}/controller.sock"_f << RootDirectory);
-		TrustManager(&CDistributedActorTrustManager::f_AddListen, TestAddress).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
+		TrustManager(&CDistributedActorTrustManager::f_AddListen, TestAddress, 0).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
 
 		CDistributedApp_LaunchHelperDependencies Dependencies;
 		Dependencies.m_Address = TestAddress.m_URL;
@@ -2311,7 +2332,10 @@ public:
 		CStr ServerHostID = ServerLaunch.m_HostID;
 		CDistributedActorTrustManager_Address ServerAddress;
 		ServerAddress.m_URL = "wss://[UNIX(666):{}]/"_f << fg_GetSafeUnixSocketPath("{}/DistributedAppAuthenticationTestsServer.sock"_f << RootDirectory);
-		ServerTrust.f_CallActor(&CDistributedActorTrustManagerInterface::f_AddListen)(ServerAddress).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
+		ServerTrust.f_CallActor(&CDistributedActorTrustManagerInterface::f_AddListen)
+			(CDistributedActorTrustManagerInterface::CAddListen{.m_Address = ServerAddress})
+			.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
+		;
 
 		TrustManager.f_CallActor(&CDistributedActorTrustManager::f_AllowHostsForNamespace)
 			(
@@ -2345,7 +2369,10 @@ public:
 
 		CDistributedActorTrustManager_Address ClientAddress;
 		ClientAddress.m_URL = "wss://[UNIX(666):{}]/"_f << fg_GetSafeUnixSocketPath("{}/DistributedAppAuthenticationTestsClient.sock"_f << RootDirectory);
-		ClientTrust.f_CallActor(&CDistributedActorTrustManagerInterface::f_AddListen)(ClientAddress).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
+		ClientTrust.f_CallActor(&CDistributedActorTrustManagerInterface::f_AddListen)
+			(CDistributedActorTrustManagerInterface::CAddListen{.m_Address = ClientAddress})
+			.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
+		;
 
 		auto fNamespaceHosts = [](auto &&_Namespace, auto &&_Hosts)
 			{
@@ -2373,7 +2400,10 @@ public:
 				> Promise / [=](CDistributedActorTrustManagerInterface::CTrustGenerateConnectionTicketResult &&_Ticket)
 				{
 					auto &ClientTrust = *pClientTrust;
-					ClientTrust.f_CallActor(&CDistributedActorTrustManagerInterface::f_AddClientConnection)(_Ticket.m_Ticket, g_Timeout, -1).f_OnResultSet(Promise.f_ReceiveAny());
+					ClientTrust.f_CallActor(&CDistributedActorTrustManagerInterface::f_AddClientConnection)
+						(CDistributedActorTrustManagerInterface::CAddClientConnection{.m_TrustTicket = _Ticket.m_Ticket, .m_Timeout = g_Timeout})
+						.f_OnResultSet(Promise.f_ReceiveAny())
+					;
 				}
 			;
 			Promise.f_MoveFuture().f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);

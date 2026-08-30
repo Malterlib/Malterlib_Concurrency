@@ -250,6 +250,7 @@ namespace NMib::NConcurrency
 		ConnectSettings.m_Protocols = NContainer::fg_CreateVector<NStr::CStr>("MalterlibDistributedActors");
 		ConnectSettings.m_Request = fg_Move(Request);
 		ConnectSettings.m_SocketFactory = fg_Move(SocketFactory);
+		ConnectSettings.m_SendWindowBytes = _pConnection->m_SendWindowBytes;
 		// The server derives the same sizes from the same address type: a unix path or a loopback
 		// host is a local transport on both ends, where large frames cost nothing on the wire and
 		// halve the per-frame work. Older builds put no upper bound on accepted fragments, so no
@@ -764,6 +765,7 @@ namespace NMib::NConcurrency
 
 		pConnection->m_bRetryConnectOnFailure = _Settings.m_bRetryConnectOnFailure;
 		pConnection->m_bRetryConnectOnFirstFailure = _Settings.m_bRetryConnectOnFirstFailure;
+		pConnection->m_SendWindowBytes = _Settings.m_SendWindowBytes;
 
 		pConnection->m_pAuthenticatedUnixContext = fg_Move(pAuthenticatedUnixContext);
 		pConnection->m_pSSLContext = fg_Move(pSSLContext);
@@ -922,6 +924,9 @@ namespace NMib::NConcurrency
 		Connection.m_pSSLContext = fg_Move(pNewSSLContext);
 		Connection.m_pAuthenticatedUnixContext = fg_Move(pNewAuthenticatedUnixContext);
 		Connection.m_ServerURL = _Settings.m_ServerURL;
+
+		// Taken up by the next reconnect; the connection in place keeps its window
+		Connection.m_SendWindowBytes = _Settings.m_SendWindowBytes;
 
 		co_return {};
 	}

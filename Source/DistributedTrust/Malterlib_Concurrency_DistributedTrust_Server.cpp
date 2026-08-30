@@ -142,7 +142,7 @@ namespace NMib::NConcurrency
 		co_return fDoReturn(&CertOutput);
 	}
 
-	TCFuture<void> CDistributedActorTrustManager::f_AddListen(CDistributedActorTrustManager_Address _Address)
+	TCFuture<void> CDistributedActorTrustManager::f_AddListen(CDistributedActorTrustManager_Address _Address, uint64 _SendWindowBytes)
 	{
 		auto CheckDestroy = co_await f_CheckDestroyedOnResume();
 
@@ -158,30 +158,32 @@ namespace NMib::NConcurrency
 
 		co_await Internal.f_WaitForInit();
 
-		CListenConfig ListenConfig;
-		ListenConfig.m_Address = _Address;
-
-		auto pOld = Internal.m_Listen.f_FindEqual(ListenConfig);
+		auto pOld = Internal.m_Listen.f_FindEqual(_Address);
 		if (pOld)
 			co_return DMibErrorInstance("Already listening to address");
 
+		CListenConfig ListenConfig;
+		ListenConfig.m_SendWindowBytes = _SendWindowBytes;
+
 		auto ListenSettings = co_await f_GetCertificateData(_Address);
+		ListenSettings.m_SendWindowBytes = ListenConfig.f_GetEffectiveSendWindowBytes(Internal.m_DefaultSendWindowBytes);
 
 		auto ListenReference = co_await (Internal.m_ActorDistributionManager(&CActorDistributionManager::f_Listen, fg_Move(ListenSettings)) % "Failed to listen");
 
-		auto &ListenState = Internal.m_Listen[ListenConfig];
+		auto &ListenState = Internal.m_Listen[_Address];
+		ListenState.m_ListenConfig = ListenConfig;
 		ListenState.m_ListenReference = fg_Move(ListenReference);
 
 		auto ConfigAddResult = co_await
 			(
-				Internal.m_Database.f_Bind<&ICDistributedActorTrustManagerDatabase::f_AddListenConfig>(ListenConfig)
+				Internal.m_Database.f_Bind<&ICDistributedActorTrustManagerDatabase::f_AddListenConfig>(_Address, ListenConfig)
 				% "Failed to save new listen config to database"
 			).f_Wrap()
 		;
 
 		if (!ConfigAddResult)
 		{
-			Internal.m_Listen.f_Remove(ListenConfig);
+			Internal.m_Listen.f_Remove(_Address);
 			co_return ConfigAddResult.f_GetException();
 		}
 
@@ -193,12 +195,7 @@ namespace NMib::NConcurrency
 		auto &Internal = *mp_pInternal;
 		co_await Internal.f_WaitForInit();
 
-		ICDistributedActorTrustManagerDatabase::CListenConfig ListenConfig;
-		ListenConfig.m_Address = _Address;
-
-		auto *pListenConfig = Internal.m_Listen.f_FindEqual(ListenConfig);
-
-		co_return pListenConfig != nullptr;
+		co_return Internal.m_Listen.f_FindEqual(_Address) != nullptr;
 	}
 
 	TCFuture<void> CDistributedActorTrustManager::f_SetPrimaryListen(NStorage::TCOptional<CDistributedActorTrustManager_Address> _Address)
@@ -213,10 +210,7 @@ namespace NMib::NConcurrency
 			if (!fg_HasLowerCaseScheme(*_Address))
 				co_return DMibErrorInstance("Listen address scheme must be lower case");
 
-			ICDistributedActorTrustManagerDatabase::CListenConfig ListenConfig;
-			ListenConfig.m_Address = *_Address;
-
-			auto *pListen = Internal.m_Listen.f_FindEqual(ListenConfig);
+			auto *pListen = Internal.m_Listen.f_FindEqual(*_Address);
 			if (!pListen)
 				co_return DMibErrorInstance("Listen address not found");
 
@@ -236,21 +230,54 @@ namespace NMib::NConcurrency
 		co_await Internal.f_WaitForInit();
 
 		if (Internal.m_pPrimaryListen)
-			co_return Internal.m_Listen.fs_GetKey(*Internal.m_pPrimaryListen).m_Address;
+			co_return Internal.m_Listen.fs_GetKey(*Internal.m_pPrimaryListen);
 
 		co_return {};
 	}
 
-	TCFuture<NContainer::TCSet<CDistributedActorTrustManager_Address>> CDistributedActorTrustManager::f_EnumListens()
+	TCFuture<void> CDistributedActorTrustManager::f_SetListenSendWindow(CDistributedActorTrustManager_Address _Address, uint64 _SendWindowBytes)
 	{
 		auto &Internal = *mp_pInternal;
 		co_await Internal.f_WaitForInit();
 
-		NContainer::TCSet<CDistributedActorTrustManager_Address> Addresses;
-		for (auto iClientConnection = Internal.m_Listen.f_GetIterator(); iClientConnection; ++iClientConnection)
-			Addresses[iClientConnection.f_GetKey().m_Address];
+		auto *pListen = Internal.m_Listen.f_FindEqual(_Address);
+		if (!pListen)
+			co_return DMibErrorInstance("No such listen");
 
-		co_return fg_Move(Addresses);
+		if (pListen->m_ListenConfig.m_SendWindowBytes == _SendWindowBytes)
+			co_return {};
+
+		CListenConfig NewListenConfig = pListen->m_ListenConfig;
+		NewListenConfig.m_SendWindowBytes = _SendWindowBytes;
+
+		co_await
+			(
+				Internal.m_Database.f_Bind<&ICDistributedActorTrustManagerDatabase::f_SetListenConfig>(_Address, NewListenConfig)
+				% "Failed to save listen config to database"
+			)
+		;
+
+		// The database call suspended, and the entry may have been removed under it: found again
+		// rather than trusted. The listen that is up keeps its window until it is next started
+		pListen = Internal.m_Listen.f_FindEqual(_Address);
+		if (!pListen)
+			co_return DMibErrorInstance("Listen removed while its send window was being saved");
+
+		pListen->m_ListenConfig.m_SendWindowBytes = _SendWindowBytes;
+
+		co_return {};
+	}
+
+	auto CDistributedActorTrustManager::f_EnumListens() -> TCFuture<NContainer::TCMap<CDistributedActorTrustManager_Address, CListenInfo>>
+	{
+		auto &Internal = *mp_pInternal;
+		co_await Internal.f_WaitForInit();
+
+		NContainer::TCMap<CDistributedActorTrustManager_Address, CListenInfo> Listens;
+		for (auto &ListenEntry : Internal.m_Listen.f_Entries())
+			Listens[ListenEntry.f_Key()].m_SendWindowBytes = ListenEntry.f_Value().m_ListenConfig.m_SendWindowBytes;
+
+		co_return fg_Move(Listens);
 	}
 
 	TCFuture<void> CDistributedActorTrustManager::f_RemoveListen(CDistributedActorTrustManager_Address _Address)
@@ -261,14 +288,11 @@ namespace NMib::NConcurrency
 		if (!fg_HasLowerCaseScheme(_Address))
 			co_return DMibErrorInstance("Listen address scheme must be lower case");
 
-		ICDistributedActorTrustManagerDatabase::CListenConfig ListenConfig;
-		ListenConfig.m_Address = _Address;
-
 		// Remove the entry before the first suspension so a concurrent f_SetPrimaryListen for this
 		// address fails up front. The extracted reference still stops the listen if the database
 		// write below fails (its destructor stops fire and forget)
 		CDistributedActorListenReference ListenReference;
-		if (auto *pListen = Internal.m_Listen.f_FindEqual(ListenConfig))
+		if (auto *pListen = Internal.m_Listen.f_FindEqual(_Address))
 		{
 			ListenReference = fg_Move(pListen->m_ListenReference);
 			if (pListen == Internal.m_pPrimaryListen)
@@ -279,7 +303,7 @@ namespace NMib::NConcurrency
 
 		// By design: the socket stays bound until f_Stop completes, so a racing f_AddListen must
 		// retry. f_RemoveListenConfig also clears the persisted primary
-		auto RemoveDatabaseFuture = Internal.m_Database(&ICDistributedActorTrustManagerDatabase::f_RemoveListenConfig, ListenConfig);
+		auto RemoveDatabaseFuture = Internal.m_Database(&ICDistributedActorTrustManagerDatabase::f_RemoveListenConfig, _Address);
 
 		if (ListenReference.f_IsActive())
 			co_await ((fg_Move(RemoveDatabaseFuture) % "Failed to remove listen config from database") + (ListenReference.f_Stop() % "Failed to stop listen"));

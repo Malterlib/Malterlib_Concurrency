@@ -454,7 +454,7 @@ namespace NMib::NConcurrency
 
 			DMibLogWithCategory(Mib/Concurrency/App, Info, "Got trust ticket, adding client connection");
 
-			auto HostInfo = co_await (mp_State.m_TrustManager(&CDistributedActorTrustManager::f_AddClientConnection, fg_Move(TrustTicket), 60.0, -1) % "Failed to add client connection");
+			auto HostInfo = co_await (mp_State.m_TrustManager(&CDistributedActorTrustManager::f_AddClientConnection, fg_Move(TrustTicket), 60.0, -1, 0) % "Failed to add client connection");
 			DMibLogWithCategory(Mib/Concurrency/App, Info, "Added client connection, trusting host '{}' for app interface namespace", HostInfo.f_GetDesc());
 
 			co_await

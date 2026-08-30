@@ -84,10 +84,11 @@ namespace NMib::NConcurrency
 
 		TCFuture<NStr::CStr> f_GetHostID() const override;
 
-		TCFuture<NContainer::TCSet<CDistributedActorTrustManager_Address>> f_EnumListens() override;
-		TCFuture<void> f_AddListen(CDistributedActorTrustManager_Address _Address) override;
+		TCFuture<NContainer::TCMap<CDistributedActorTrustManager_Address, CListenInfo>> f_EnumListens() override;
+		TCFuture<void> f_AddListen(CAddListen _Command) override;
 		TCFuture<void> f_RemoveListen(CDistributedActorTrustManager_Address _Address) override;
 		TCFuture<bool> f_HasListen(CDistributedActorTrustManager_Address _Address) override;
+		TCFuture<void> f_SetListenSendWindow(CDistributedActorTrustManager_Address _Address, uint64 _SendWindowBytes) override;
 		TCFuture<void> f_SetPrimaryListen(NStorage::TCOptional<CDistributedActorTrustManager_Address> _Address) override;
 		TCFuture<NStorage::TCOptional<CDistributedActorTrustManager_Address>> f_GetPrimaryListen() override;
 
@@ -97,9 +98,10 @@ namespace NMib::NConcurrency
 		TCFuture<bool> f_HasClient(NStr::CStr _HostID) override;
 
 		TCFuture<NContainer::TCMap<CDistributedActorTrustManager_Address, CClientConnectionInfo>> f_EnumClientConnections() override;
-		TCFuture<CHostInfo> f_AddClientConnection(CTrustTicket _TrustTicket, fp64 _Timeout, int32 _ConnectionConcurrency = -1) override;
+		TCFuture<CHostInfo> f_AddClientConnection(CAddClientConnection _Command) override;
 		TCFuture<void> f_SetClientConnectionConcurrency(CDistributedActorTrustManager_Address _Address, int32 _ConnectionConcurrency = -1) override;
-		TCFuture<CHostInfo> f_AddAdditionalClientConnection(CDistributedActorTrustManager_Address _Address, int32 _ConnectionConcurrency = -1) override;
+		TCFuture<void> f_SetClientConnectionSendWindow(CDistributedActorTrustManager_Address _Address, uint64 _SendWindowBytes) override;
+		TCFuture<CHostInfo> f_AddAdditionalClientConnection(CAddAdditionalClientConnection _Command) override;
 		TCFuture<void> f_RemoveClientConnection(CRemoveClientConnection _Command) override;
 		TCFuture<bool> f_HasClientConnection(CDistributedActorTrustManager_Address _Address) override;
 

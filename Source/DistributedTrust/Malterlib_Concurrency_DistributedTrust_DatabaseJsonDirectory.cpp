@@ -34,6 +34,12 @@ namespace NMib::NConcurrency
 			CClientConnection m_ClientConnection;
 		};
 
+		struct CInternalListenConfig
+		{
+			CDistributedActorTrustManager_Address m_Address;
+			CListenConfig m_ListenConfig;
+		};
+
 		struct CInternalServerCertificate
 		{
 			CStr m_HostName;
@@ -86,8 +92,9 @@ namespace NMib::NConcurrency
 		CEJsonSorted f_ToJson(CInternalClientConnection const &_ClientConnection) const;
 		void f_FromJson(CClientConnection &_ClientConnection, CEJsonSorted const &_Json, CStr const &_Name) const;
 		void f_FromJson(CInternalClientConnection &_ClientConnection, CEJsonSorted const &_Json, CStr const &_Name) const;
-		CEJsonSorted f_ToJson(CListenConfig const &_ListenConfig) const;
+		CEJsonSorted f_ToJson(CInternalListenConfig const &_ListenConfig) const;
 		void f_FromJson(CListenConfig &_ListenConfig, CEJsonSorted const &_Json, CStr const &_Name) const;
+		void f_FromJson(CInternalListenConfig &_ListenConfig, CEJsonSorted const &_Json, CStr const &_Name) const;
 		CEJsonSorted f_ToJson(CNamespace const &_Namespace) const;
 		void f_FromJson(CNamespace &_Namespace, CEJsonSorted const &_Json, CStr const &_Name) const;
 		CEJsonSorted f_ToJson(CPermissions const &_Permissions) const;
@@ -406,7 +413,8 @@ namespace NMib::NConcurrency
 		;
 	}
 
-	TCFuture<NContainer::TCSet<CListenConfig>> CDistributedActorTrustManagerDatabase_JsonDirectory::f_EnumListenConfigs()
+	auto CDistributedActorTrustManagerDatabase_JsonDirectory::f_EnumListenConfigs()
+		-> TCFuture<NContainer::TCMap<CDistributedActorTrustManager_Address, CListenConfig>>
 	{
 		auto &Internal = *mp_pInternal;
 		auto SequenceSubscription = co_await Internal.m_Sequencer.f_Sequence();
@@ -419,13 +427,13 @@ namespace NMib::NConcurrency
 					Internal.f_CheckState();
 					auto FileNames = Internal.f_Find("ListenConfigs");
 
-					NContainer::TCSet<CListenConfig> ListenConfigs;
+					NContainer::TCMap<CDistributedActorTrustManager_Address, CListenConfig> ListenConfigs;
 					for (auto const &FileName : FileNames)
 					{
-						CListenConfig ListenConfig;
+						CInternal::CInternalListenConfig ListenConfig;
 						if (!Internal.f_Read(ListenConfig, "ListenConfigs", FileName))
 							DMibError("Internal error reading listen config");
-						ListenConfigs[ListenConfig];
+						ListenConfigs[ListenConfig.m_Address] = ListenConfig.m_ListenConfig;
 					}
 
 					return ListenConfigs;
@@ -434,34 +442,60 @@ namespace NMib::NConcurrency
 		;
 	}
 
-	TCFuture<void> CDistributedActorTrustManagerDatabase_JsonDirectory::f_AddListenConfig(CListenConfig _Config)
+	TCFuture<void> CDistributedActorTrustManagerDatabase_JsonDirectory::f_AddListenConfig(CDistributedActorTrustManager_Address _Address, CListenConfig _Config)
 	{
 		auto &Internal = *mp_pInternal;
 		auto SequenceSubscription = co_await Internal.m_Sequencer.f_Sequence();
 		auto BlockingActorCheckout = fg_BlockingActor();
 		co_return co_await
 			(
-				g_Dispatch(BlockingActorCheckout) / [this, pCanDestroy = Internal.m_pCanDestroyTracker, _Config]
+				g_Dispatch(BlockingActorCheckout) / [this, pCanDestroy = Internal.m_pCanDestroyTracker, _Address, _Config]
 				{
 					auto &Internal = *mp_pInternal;
 					Internal.f_CheckState();
-					auto NameHash = Internal.f_GetNameHash(_Config.m_Address);
+					auto NameHash = Internal.f_GetNameHash(_Address);
 					if (Internal.f_Exists("ListenConfigs", NameHash))
 						DMibError("Listen config already exists");
-					Internal.f_Write(_Config, "ListenConfigs", NameHash);
+					CInternal::CInternalListenConfig ListenConfig;
+					ListenConfig.m_Address = _Address;
+					ListenConfig.m_ListenConfig = _Config;
+					Internal.f_Write(ListenConfig, "ListenConfigs", NameHash);
 				}
 			)
 		;
 	}
 
-	TCFuture<void> CDistributedActorTrustManagerDatabase_JsonDirectory::f_RemoveListenConfig(CListenConfig _Config)
+	TCFuture<void> CDistributedActorTrustManagerDatabase_JsonDirectory::f_SetListenConfig(CDistributedActorTrustManager_Address _Address, CListenConfig _Config)
 	{
 		auto &Internal = *mp_pInternal;
 		auto SequenceSubscription = co_await Internal.m_Sequencer.f_Sequence();
 		auto BlockingActorCheckout = fg_BlockingActor();
 		co_return co_await
 			(
-				g_Dispatch(BlockingActorCheckout) / [this, pCanDestroy = Internal.m_pCanDestroyTracker, _Config]
+				g_Dispatch(BlockingActorCheckout) / [this, pCanDestroy = Internal.m_pCanDestroyTracker, _Address, _Config]
+				{
+					auto &Internal = *mp_pInternal;
+					Internal.f_CheckState();
+					auto NameHash = Internal.f_GetNameHash(_Address);
+					if (!Internal.f_Exists("ListenConfigs", NameHash))
+						DMibError("No such listen config");
+					CInternal::CInternalListenConfig ListenConfig;
+					ListenConfig.m_Address = _Address;
+					ListenConfig.m_ListenConfig = _Config;
+					Internal.f_Write(ListenConfig, "ListenConfigs", NameHash);
+				}
+			)
+		;
+	}
+
+	TCFuture<void> CDistributedActorTrustManagerDatabase_JsonDirectory::f_RemoveListenConfig(CDistributedActorTrustManager_Address _Address)
+	{
+		auto &Internal = *mp_pInternal;
+		auto SequenceSubscription = co_await Internal.m_Sequencer.f_Sequence();
+		auto BlockingActorCheckout = fg_BlockingActor();
+		co_return co_await
+			(
+				g_Dispatch(BlockingActorCheckout) / [this, pCanDestroy = Internal.m_pCanDestroyTracker, _Address]
 				{
 					auto &Internal = *mp_pInternal;
 					Internal.f_CheckState();
@@ -470,10 +504,10 @@ namespace NMib::NConcurrency
 					// primary pointing at a deleted config, and the retry cannot repair it because
 					// the missing config throws first
 					CInternal::CPrimaryListen PrimaryListen;
-					if (Internal.f_Read(PrimaryListen, "PrimaryListen") && PrimaryListen.m_Address == _Config.m_Address)
+					if (Internal.f_Read(PrimaryListen, "PrimaryListen") && PrimaryListen.m_Address == _Address)
 						Internal.f_Delete("PrimaryListen");
 
-					auto NameHash = Internal.f_GetNameHash(_Config.m_Address);
+					auto NameHash = Internal.f_GetNameHash(_Address);
 					if (!Internal.f_Delete("ListenConfigs", NameHash))
 						DMibError("No such listen config");
 				}
@@ -1478,6 +1512,7 @@ namespace NMib::NConcurrency
 		Json["PublicClientCertificate"] = _ClientConnection.m_ClientConnection.m_PublicClientCertificate;
 		Json["LastFriendlyName"] = _ClientConnection.m_ClientConnection.m_LastFriendlyName;
 		Json["ConnectionConcurrency"] = _ClientConnection.m_ClientConnection.m_ConnectionConcurrency;
+		Json["SendWindowBytes"] = (int64)_ClientConnection.m_ClientConnection.m_SendWindowBytes;
 		return Json;
 	}
 
@@ -1493,6 +1528,10 @@ namespace NMib::NConcurrency
 			o_ClientConnection.m_ConnectionConcurrency = pName->f_Integer();
 		else
 			o_ClientConnection.m_ConnectionConcurrency = -1;
+		if (auto *pValue = _Json.f_GetMember("SendWindowBytes"))
+			o_ClientConnection.m_SendWindowBytes = (uint64)pValue->f_Integer();
+		else
+			o_ClientConnection.m_SendWindowBytes = 0;
 	}
 
 	void CDistributedActorTrustManagerDatabase_JsonDirectory::CInternal::f_FromJson(CInternalClientConnection &o_ClientConnection, CEJsonSorted const &_Json, CStr const &_Name) const
@@ -1513,16 +1552,26 @@ namespace NMib::NConcurrency
 		o_ClientConnection.m_Address.m_URL = _Json["Address"].f_String();
 	}
 
-	CEJsonSorted CDistributedActorTrustManagerDatabase_JsonDirectory::CInternal::f_ToJson(CListenConfig const &_ListenConfig) const
+	CEJsonSorted CDistributedActorTrustManagerDatabase_JsonDirectory::CInternal::f_ToJson(CInternalListenConfig const &_ListenConfig) const
 	{
 		CEJsonSorted Json;
 		f_EncodeAddress(Json["Address"], _ListenConfig.m_Address);
+		Json["SendWindowBytes"] = (int64)_ListenConfig.m_ListenConfig.m_SendWindowBytes;
 		return Json;
 	}
 
 	void CDistributedActorTrustManagerDatabase_JsonDirectory::CInternal::f_FromJson(CListenConfig &o_ListenConfig, CEJsonSorted const &_Json, CStr const &_Name) const
 	{
+		if (auto *pValue = _Json.f_GetMember("SendWindowBytes"))
+			o_ListenConfig.m_SendWindowBytes = (uint64)pValue->f_Integer();
+		else
+			o_ListenConfig.m_SendWindowBytes = 0;
+	}
+
+	void CDistributedActorTrustManagerDatabase_JsonDirectory::CInternal::f_FromJson(CInternalListenConfig &o_ListenConfig, CEJsonSorted const &_Json, CStr const &_Name) const
+	{
 		o_ListenConfig.m_Address = f_DecodeAddress(_Json["Address"], _Name);
+		f_FromJson(o_ListenConfig.m_ListenConfig, _Json, _Name);
 	}
 
 	CEJsonSorted CDistributedActorTrustManagerDatabase_JsonDirectory::CInternal::f_ToJson(CNamespace const &_Namespace) const

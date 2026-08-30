@@ -237,6 +237,15 @@ namespace NMib::NConcurrency
 	// socket. Non-wsa schemes always succeed.
 	NStr::CStr fg_ValidateAuthenticatedUnixAddress(NStr::CStr const &_Scheme, NStr::CStr const &_Host);
 
+	// A send window as the command line and the configuration spell it: a byte count with an
+	// optional binary (K, M, G, KiB, MiB, GiB) or decimal (KB, MB, GB) suffix, or the link to fill
+	// as <rate>@<latency> — bit, kbit, mbit or gbit per second at us, ms or s (ms when unitless) —
+	// which is twice the bandwidth-delay product, since a send holds its bytes until the last of
+	// them is acknowledged. "default", empty or 0 is the transport's own eight frames. False with
+	// the reason in o_Error when the text is not one of those
+	bool fg_ParseSendWindow(NStr::CStr const &_Text, uint64 &o_Bytes, NStr::CStr &o_Error);
+	NStr::CStr fg_FormatSendWindow(uint64 _Bytes);
+
 	struct CActorDistributionConnectionSettings
 	{
 		CActorDistributionConnectionSettings();
@@ -252,6 +261,7 @@ namespace NMib::NConcurrency
 		bool m_bRetryConnectOnFirstFailure = true;
 		bool m_bRetryConnectOnFailure = true;
 		bool m_bAllowInsecureConnection = false; // Only enabled when m_PublicServerCertificate is empty
+		uint64 m_SendWindowBytes = 0; // Bytes in flight allowed on sends; 0 is the transport default of eight frames
 	};
 
 	struct CActorDistributionListenSettings
@@ -269,6 +279,7 @@ namespace NMib::NConcurrency
 		NCryptography::CPublicKeySetting m_KeySetting = CActorDistributionCryptographySettings::fs_DefaultKeySetting(); // The domain key setting; the wsa peer verification whitelists the peer leaf against it
 		NNetwork::ENetFlag m_ListenFlags = NNetwork::ENetFlag_None;
 		bool m_bRetryOnListenFailure = true;
+		uint64 m_SendWindowBytes = 0; // Bytes in flight allowed on each accepted connection's sends; 0 is the transport default of eight frames
 	};
 
 	struct CDistributedActorProtocolVersions

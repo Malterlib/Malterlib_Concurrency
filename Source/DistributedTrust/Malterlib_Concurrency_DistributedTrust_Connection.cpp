@@ -548,20 +548,35 @@ namespace NMib::NConcurrency
 		co_return fg_Move(FinalConnection.m_HostInfo);
 	}
 
+	// The setters change the record in memory first and save a copy taken after the change: the
+	// database runs saves in submission order, so a later setter's copy already carries every
+	// earlier change and the last save carries them all, whatever the overlap. A save that fails
+	// leaves memory ahead of the store until a restart, which is the store being broken
 	TCFuture<void> CDistributedActorTrustManager::f_SetClientConnectionConcurrency(CDistributedActorTrustManager_Address _Address, int32 _ConnectionConcurrency)
 	{
 		auto &Internal = *mp_pInternal;
 		co_await Internal.f_WaitForInit();
 
-		auto *pClientConnectionState = Internal.m_ClientConnections.f_FindEqual(_Address);
-		if (!pClientConnectionState)
-			co_return DMibErrorInstance("No such client connection");
+		// Found at once and again on every resumption, since the database call suspends and the
+		// entry may be removed under it; indexing would make a hostless connection out of nothing
+		CInternal::CConnectionState *pClientConnectionState = nullptr;
+		auto OnResume = co_await fg_OnResume
+			(
+				[&]() -> NException::CExceptionPointer
+				{
+					pClientConnectionState = Internal.m_ClientConnections.f_FindEqual(_Address);
+					if (!pClientConnectionState)
+						return DMibErrorInstance("No such client connection");
+
+					return {};
+				}
+			)
+		;
 
 		if (_ConnectionConcurrency == pClientConnectionState->m_ClientConnection.m_ConnectionConcurrency)
 			co_return {};
 
-		auto NewClientConnection = pClientConnectionState->m_ClientConnection;
-		NewClientConnection.m_ConnectionConcurrency = _ConnectionConcurrency;
+		pClientConnectionState->m_ClientConnection.m_ConnectionConcurrency = _ConnectionConcurrency;
 
 		co_await
 			(
@@ -569,15 +584,13 @@ namespace NMib::NConcurrency
 				(
 					&ICDistributedActorTrustManagerDatabase::f_SetClientConnection
 					, _Address
-					, NewClientConnection
+					, fg_TempCopy(pClientConnectionState->m_ClientConnection)
 				)
 				% "Failed to save client connection to database"
 			)
 		;
 
-		auto &LocalClientConnection = Internal.m_ClientConnections[_Address];
-		LocalClientConnection.m_ClientConnection.m_ConnectionConcurrency = _ConnectionConcurrency;
-		Internal.f_ApplyConnectionConcurrency(LocalClientConnection);
+		Internal.f_ApplyConnectionConcurrency(*pClientConnectionState);
 
 		co_return {};
 	}
@@ -587,15 +600,25 @@ namespace NMib::NConcurrency
 		auto &Internal = *mp_pInternal;
 		co_await Internal.f_WaitForInit();
 
-		auto *pClientConnectionState = Internal.m_ClientConnections.f_FindEqual(_Address);
-		if (!pClientConnectionState)
-			co_return DMibErrorInstance("No such client connection");
+		CInternal::CConnectionState *pClientConnectionState = nullptr;
+		auto OnResume = co_await fg_OnResume
+			(
+				[&]() -> NException::CExceptionPointer
+				{
+					pClientConnectionState = Internal.m_ClientConnections.f_FindEqual(_Address);
+					if (!pClientConnectionState)
+						return DMibErrorInstance("No such client connection");
+
+					return {};
+				}
+			)
+		;
 
 		if (_SendWindowBytes == pClientConnectionState->m_ClientConnection.m_SendWindowBytes)
 			co_return {};
 
-		auto NewClientConnection = pClientConnectionState->m_ClientConnection;
-		NewClientConnection.m_SendWindowBytes = _SendWindowBytes;
+		// Memory first, then a copy is saved; see f_SetClientConnectionConcurrency
+		pClientConnectionState->m_ClientConnection.m_SendWindowBytes = _SendWindowBytes;
 
 		co_await
 			(
@@ -603,19 +626,11 @@ namespace NMib::NConcurrency
 				(
 					&ICDistributedActorTrustManagerDatabase::f_SetClientConnection
 					, _Address
-					, NewClientConnection
+					, fg_TempCopy(pClientConnectionState->m_ClientConnection)
 				)
 				% "Failed to save client connection to database"
 			)
 		;
-
-		// The database call suspended, and the entry may have been removed under it: found again
-		// rather than indexed, which would make a hostless connection out of nothing
-		pClientConnectionState = Internal.m_ClientConnections.f_FindEqual(_Address);
-		if (!pClientConnectionState)
-			co_return DMibErrorInstance("Client connection removed while its send window was being saved");
-
-		pClientConnectionState->m_ClientConnection.m_SendWindowBytes = _SendWindowBytes;
 
 		// The connections in place keep the window they were made with. They reconnect with the
 		// settings they hold, so the new window is pushed to them and reaches them then

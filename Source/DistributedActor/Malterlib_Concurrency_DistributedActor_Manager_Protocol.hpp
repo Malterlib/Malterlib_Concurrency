@@ -53,6 +53,12 @@ namespace NMib::NConcurrency
 			else
 				_Stream << m_PriorityQueueStates;
 		}
+
+		if (m_ProtocolVersion >= EDistributedActorProtocolVersion_FrameSizes)
+		{
+			_Stream << m_FragmentationSize;
+			_Stream << m_MaxFragmentSize;
+		}
 	}
 
 	template <typename tf_CStream>
@@ -85,6 +91,12 @@ namespace NMib::NConcurrency
 				_Stream >> m_PriorityQueueStates[Priority];
 				--nStates;
 			}
+		}
+
+		if (m_ProtocolVersion >= EDistributedActorProtocolVersion_FrameSizes)
+		{
+			_Stream >> m_FragmentationSize;
+			_Stream >> m_MaxFragmentSize;
 		}
 	}
 

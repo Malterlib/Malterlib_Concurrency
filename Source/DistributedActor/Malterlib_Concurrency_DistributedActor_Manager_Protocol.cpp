@@ -258,6 +258,44 @@ namespace NMib::NConcurrency
 						Host.m_ActorProtocolVersion = Identify.m_ProtocolVersion;
 					}
 
+					// Each end settles its frame sizes from the host string it was configured with,
+					// and a listen reached through a host string of another kind than its own has
+					// sizes its peer did not settle on. A frame either end would refuse fails the
+					// identify here, naming both sizes, rather than closing the connection at the
+					// first oversized frame and again at every reconnect
+					if (Identify.m_ProtocolVersion >= EDistributedActorProtocolVersion_FrameSizes)
+					{
+						NStr::CStr Error;
+						if (Identify.m_MaxFragmentSize && _pConnection->m_FragmentationSize > Identify.m_MaxFragmentSize)
+						{
+							Error = NStr::fg_Format
+								(
+									"This end fragments frames at {} bytes but the peer accepts frames of at most {} bytes: a listen and a connection get the local frame sizes only when both are configured with a unix path or a loopback host"
+									, _pConnection->m_FragmentationSize
+									, Identify.m_MaxFragmentSize
+								)
+							;
+						}
+						else if (_pConnection->m_MaxFragmentSize && Identify.m_FragmentationSize > _pConnection->m_MaxFragmentSize)
+						{
+							Error = NStr::fg_Format
+								(
+									"The peer fragments frames at {} bytes but this end accepts frames of at most {} bytes: a listen and a connection get the local frame sizes only when both are configured with a unix path or a loopback host"
+									, Identify.m_FragmentationSize
+									, _pConnection->m_MaxFragmentSize
+								)
+							;
+						}
+
+						if (!Error.f_IsEmpty())
+						{
+							DMibLog(DebugVerbose2, " ---- {} {} {}", _pConnection->m_pHost->m_bIncoming, _pConnection->f_GetConnectionID(), Error);
+							if (!_pConnection->m_IdentifyPromise.f_IsSet())
+								_pConnection->m_IdentifyPromise.f_SetException(DMibErrorInstance(Error));
+							return false;
+						}
+					}
+
 					if (!Identify.m_FriendlyName.f_IsEmpty() && Identify.m_FriendlyName != Host.m_FriendlyName)
 					{
 						Host.m_FriendlyName = Identify.m_FriendlyName;
@@ -747,6 +785,8 @@ namespace NMib::NConcurrency
 		Identify.m_FriendlyName = m_FriendlyName;
 		Identify.m_ExecutionID = pHost->m_ExecutionID;
 		Identify.m_LastSeenExecutionID = pHost->m_LastExecutionID;
+		Identify.m_FragmentationSize = _pConnection->m_FragmentationSize;
+		Identify.m_MaxFragmentSize = _pConnection->m_MaxFragmentSize;
 
 		// Build acked packet info for all priority queues
 		for (auto &PriorityQueuesEntry : pHost->m_PriorityQueues.f_Entries())

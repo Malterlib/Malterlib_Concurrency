@@ -23,8 +23,9 @@ namespace NMib::NConcurrency
 		, EDistributedActorProtocolVersion_PipelinedAsyncGenerators = 0x109
 		, EDistributedActorProtocolVersion_MultipleAuthenticationHandlers = 0x10A
 		, EDistributedActorProtocolVersion_PrioritySupport = 0x10B
+		, EDistributedActorProtocolVersion_FrameSizes = 0x10C
 
-		, EDistributedActorProtocolVersion_Current = 0x10B
+		, EDistributedActorProtocolVersion_Current = 0x10C
 	};
 
 	static constexpr const uint32 gc_SubscriptionNotRequired = TCLimitsInt<uint32>::mc_Max - uint32(65536);

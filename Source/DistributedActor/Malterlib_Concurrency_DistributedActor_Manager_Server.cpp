@@ -413,6 +413,8 @@ namespace NMib::NConcurrency
 		auto pConnectionWeak = pConnection.f_Weak();
 		auto Address = NewServerConnection.m_Info.m_PeerAddress;
 
+		pConnection->m_FragmentationSize = uint32(NewServerConnection.m_FragmentationSize);
+		pConnection->m_MaxFragmentSize = uint32(NewServerConnection.m_MaxFragmentSize);
 		pConnection->m_Connection = NewServerConnection.f_Accept
 			(
 				"MalterlibDistributedActors"

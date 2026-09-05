@@ -56,6 +56,14 @@ namespace NMib::NConcurrency
 		NContainer::TCSet<NStr::CStr> m_AllowedNamespaces;
 		NStr::CStr m_FriendlyName;
 		NContainer::TCMap<uint8, CPriorityQueueState> m_PriorityQueueStates;
+
+		// The websocket frame sizes this end settled on from its own configuration: what it
+		// fragments at and the largest frame it accepts. Each end decides them from the host
+		// string it was configured with, so the two can disagree; telling the peer lets a
+		// mismatch fail the identify with a message that names both sizes, instead of the first
+		// oversized frame closing the connection later
+		uint32 m_FragmentationSize = 0;
+		uint32 m_MaxFragmentSize = 0;
 	};
 
 	struct CDistributedActorCommand_Acknowledge

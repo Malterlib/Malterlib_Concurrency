@@ -515,6 +515,8 @@ namespace NMib::NConcurrency
 				pConnection->f_DiscardIdentifyPromise("Reconnected");
 				pConnection->m_IdentifyPromise = TCPromise<bool>();
 				pConnection->m_bPulishFinished = false;
+				pConnection->m_FragmentationSize = uint32(Result.m_FragmentationSize);
+				pConnection->m_MaxFragmentSize = uint32(Result.m_MaxFragmentSize);
 				pConnection->m_Connection = Result.f_Accept
 					(
 						fg_ThisActor(m_pThis)

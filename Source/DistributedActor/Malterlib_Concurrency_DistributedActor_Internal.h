@@ -66,6 +66,10 @@ namespace NMib::NConcurrency::NActorDistributionManagerInternal
 		NContainer::TCVector<TCPromise<void>> m_PublishFinished;
 		DMibListLinkDS_Link(CConnection, m_Link);
 		DMibListLinkDS_Link(CConnection, m_HostLink);
+
+		// The websocket frame sizes this connection settled on, told to the peer in the identify
+		uint32 m_FragmentationSize = 0;
+		uint32 m_MaxFragmentSize = 0;
 		bool m_bIncoming = false;
 		bool m_bIdentified = false;
 		bool m_bPulishFinished = false;

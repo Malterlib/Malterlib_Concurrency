@@ -56,6 +56,9 @@ namespace NMib::NConcurrency
 		NContainer::TCSet<NStr::CStr> m_AllowedNamespaces;
 		NStr::CStr m_FriendlyName;
 		NContainer::TCMap<uint8, CPriorityQueueState> m_PriorityQueueStates;
+
+		uint32 m_FragmentationSize = 0; // Sent during identify so peers can reject incompatible host-derived frame limits.
+		uint32 m_MaxFragmentSize = 0;
 	};
 
 	struct CDistributedActorCommand_Acknowledge

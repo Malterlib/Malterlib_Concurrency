@@ -66,6 +66,9 @@ namespace NMib::NConcurrency::NActorDistributionManagerInternal
 		NContainer::TCVector<TCPromise<void>> m_PublishFinished;
 		DMibListLinkDS_Link(CConnection, m_Link);
 		DMibListLinkDS_Link(CConnection, m_HostLink);
+
+		uint32 m_FragmentationSize = 0; // Sent to the peer during identify to detect incompatible frame limits.
+		uint32 m_MaxFragmentSize = 0;
 		bool m_bIncoming = false;
 		bool m_bIdentified = false;
 		bool m_bPulishFinished = false;

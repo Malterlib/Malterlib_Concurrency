@@ -5,9 +5,12 @@
 
 #include <Mib/Concurrency/RunLoop>
 
-#ifdef DPlatformFamily_macOS
-#	include <CoreFoundation/CFRunLoop.h>
-#endif
+namespace NMib::NConcurrency::NPrivate
+{
+	struct COSMainRunLoopWakeState;
+}
+
+DMibDefineSharedPointerType(NMib::NConcurrency::NPrivate::COSMainRunLoopWakeState, false, false);
 
 namespace NMib::NConcurrency
 {
@@ -27,38 +30,9 @@ namespace NMib::NConcurrency
 		align_cacheline CConcurrentRunQueueNonVirtualNoAlloc mp_RunQueue;
 		align_cacheline CConcurrentRunQueueNonVirtualNoAlloc::CLocalQueueData mp_RunQueueLocal;
 
-		NAtomic::TCAtomic<bool> mp_bPendingWake = false;
+		NStorage::TCSharedPointer<NPrivate::COSMainRunLoopWakeState> mp_pWakeState;
 #if DMibEnableSafeCheck > 0
 		bool mp_bProcessing = false;
-#endif
-
-#ifdef DPlatformFamily_macOS
-		CFRunLoopRef mp_RunLoopRef = nullptr;
-		CFRunLoopSourceContext mp_RunLoopSourceContext
-			{
-				0
-				, this
-				, nullptr
-				, nullptr
-				, nullptr
-				, nullptr
-				, nullptr
-				, nullptr
-				, nullptr
-				, [](void *_pThis)
-				{
-					auto &This = *((COSMainRunLoop *)_pThis);
-					CFRunLoopStop(This.mp_RunLoopRef);
-				}
-			}
-		;
-		CFRunLoopSourceRef mp_pRunLoopSourceRef = CFRunLoopSourceCreate
-			(
-				nullptr
-				, 0
-				, &mp_RunLoopSourceContext
-			)
-		;
 #endif
 	};
 }

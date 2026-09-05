@@ -18,7 +18,7 @@ namespace NMib::NConcurrency
 		m_HelperActor.f_Clear();
 
 		while (m_pRunLoop->m_RefCount.f_Get() > 0)
-			m_pRunLoop->f_WaitOnceTimeout(0.1);
+			m_pRunLoop->f_WaitOnce();
 
 		m_pRunLoop.f_Clear();
 	}

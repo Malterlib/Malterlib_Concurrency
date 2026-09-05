@@ -9,6 +9,24 @@ namespace NMib::NConcurrency
 {
 	struct CRunLoop
 	{
+		struct CReferenceCount : NStorage::CIntrusiveRefCount
+		{
+			auto f_Decrease(DIfRefCountDebugging(NStorage::CRefCountDebugReference &_Reference)) const
+			{
+				// Keep the wake resources alive: another thread may release the last reference
+				// and destroy the run loop after the decrement below.
+				auto fWake = m_fWakeOnReferenceRelease;
+				auto Previous = NStorage::CIntrusiveRefCount::f_Decrease(DIfRefCountDebugging(_Reference));
+				if (Previous == 1 && fWake)
+					fWake();
+
+				return Previous;
+			}
+
+			// Set during subclass construction. Own the wake resources; do not capture the run loop.
+			NFunction::TCFunction<void ()> m_fWakeOnReferenceRelease;
+		};
+
 		virtual ~CRunLoop();
 		virtual void f_Process() = 0;
 		virtual void f_WaitOnce() = 0;
@@ -18,11 +36,13 @@ namespace NMib::NConcurrency
 		virtual NFunction::TCFunctionMovable<void (FActorQueueDispatchNoAlloc &&_Dispatch)> f_Dispatcher() = 0;
 		void f_Sleep(fp64 _Time);
 
-		NStorage::CIntrusiveRefCount m_RefCount;
+		CReferenceCount m_RefCount;
 	};
 
 	struct CDefaultRunLoop final : public CRunLoop
 	{
+		CDefaultRunLoop();
+
 		void f_Process() override;
 		void f_WaitOnce() override;
 		bool f_WaitOnceTimeout(fp64 _Timeout) override;
@@ -31,7 +51,7 @@ namespace NMib::NConcurrency
 		NFunction::TCFunctionMovable<void (FActorQueueDispatchNoAlloc &&_Dispatch)> f_Dispatcher() override;
 
 		align_cacheline CConcurrentRunQueueNonVirtualNoAlloc m_RunQueue;
-		NThread::CEventAutoReset m_Event;
+		NThread::CEventAutoReset &m_Event;
 		align_cacheline CConcurrentRunQueueNonVirtualNoAlloc::CLocalQueueData m_RunQueueLocal;
 #if DMibEnableSafeCheck > 0
 		bool m_bProcessing = false;

@@ -7,6 +7,21 @@
 
 namespace NMib::NConcurrency
 {
+	namespace
+	{
+		NThread::CEventAutoReset &fg_CreateWakeEvent(CRunLoop::CReferenceCount &o_ReferenceCount)
+		{
+			NStorage::TCSharedPointer<NThread::CEventAutoReset> pEvent = fg_Construct();
+			o_ReferenceCount.m_fWakeOnReferenceRelease = [pEvent]
+				{
+					pEvent->f_Signal();
+				}
+			;
+
+			return *pEvent;
+		}
+	}
+
 	CActorRunLoopHelper::~CActorRunLoopHelper()
 	{
 		m_CurrentActor.f_Clear();
@@ -15,12 +30,17 @@ namespace NMib::NConcurrency
 		m_HelperActor.f_Clear();
 
 		while (m_pRunLoop->m_RefCount.f_Get() > 0)
-			m_pRunLoop->f_WaitOnceTimeout(0.1);
+			m_pRunLoop->f_WaitOnce();
 
 		m_pRunLoop.f_Clear();
 	}
 
 	CRunLoop::~CRunLoop() = default;
+
+	CDefaultRunLoop::CDefaultRunLoop()
+		: m_Event(fg_CreateWakeEvent(m_RefCount))
+	{
+	}
 
 	void CRunLoop::f_Sleep(fp64 _Time)
 	{

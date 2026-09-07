@@ -210,6 +210,39 @@ namespace
 		}
 	};
 
+	// Bound concurrent threads: sanitizer stacks can exhaust 32-bit address space before prior actors finish destruction.
+	template <auto t_fFunction>
+	TCFuture<void> fg_DestructSeparateThreadActors()
+	{
+		constexpr umint c_nActors = 200;
+		constexpr umint c_nBatch = 32;
+		for (umint iFirst = 0; iFirst < c_nActors; iFirst += c_nBatch)
+		{
+			TCFutureVector<void> Results;
+			TCFutureVector<void> Destroyed;
+			for (umint iActor = iFirst; iActor < fg_Min(iFirst + c_nBatch, c_nActors); ++iActor)
+			{
+				TCActor<CDestructActorSeparateThread> Actor{fg_Construct(), "TestThread"};
+
+				for (umint iCall = 0; iCall < 200; ++iCall)
+					Actor.f_Bind<t_fFunction>() > Results;
+
+				g_Dispatch(fg_ConcurrentActor()) / [Actor = fg_Move(Actor)]() mutable -> TCFuture<void>
+					{
+						co_await fg_Move(Actor).f_Destroy();
+						co_return {};
+					}
+					> Destroyed
+				;
+			}
+
+			co_await fg_AllDone(Results);
+			co_await fg_AllDone(Destroyed);
+		}
+
+		co_return {};
+	}
+
 	struct CDestructActor : public CActor
 	{
 		void f_NoFuture()
@@ -761,69 +794,15 @@ namespace
 				}
 				{
 					DMibTestPath("SeparateThreadFuture");
-					bool bCrashed = false;
-					TCFutureVector<void> Results;
-					for (umint i = 0; i < 200; ++i)
-					{
-						TCActor<CDestructActorSeparateThread> Actor{fg_Construct(), "TestThread"};
-
-						for (umint i = 0; i < 200; ++i)
-							Actor.f_Bind<&CDestructActorSeparateThread::f_Future>() > Results;
-
-						g_Dispatch(fg_ConcurrentActor()) / [Actor = fg_Move(Actor)]
-							{
-							}
-							> g_DiscardResult
-						;
-					}
-
-					DMibExpectFalse(bCrashed);
-
-					co_await fg_AllDone(Results);
+					co_await fg_DestructSeparateThreadActors<&CDestructActorSeparateThread::f_Future>();
 				}
 				{
 					DMibTestPath("SeparateThreadFutureVirtual");
-					bool bCrashed = false;
-					TCFutureVector<void> Results;
-					for (umint i = 0; i < 200; ++i)
-					{
-						TCActor<CDestructActorSeparateThread> Actor{fg_Construct(), "TestThread"};
-
-						for (umint i = 0; i < 200; ++i)
-							Actor.f_Bind<&CDestructActorSeparateThread::f_FutureVirtual>() > Results;
-
-						g_Dispatch(fg_ConcurrentActor()) / [Actor = fg_Move(Actor)]
-							{
-							}
-							> g_DiscardResult
-						;
-					}
-
-					DMibExpectFalse(bCrashed);
-
-					co_await fg_AllDone(Results);
+					co_await fg_DestructSeparateThreadActors<&CDestructActorSeparateThread::f_FutureVirtual>();
 				}
 				{
 					DMibTestPath("SeparateThreadNoFuture");
-					bool bCrashed = false;
-					TCFutureVector<void> Results;
-					for (umint i = 0; i < 200; ++i)
-					{
-						TCActor<CDestructActorSeparateThread> Actor{fg_Construct(), "TestThread"};
-
-						for (umint i = 0; i < 200; ++i)
-							Actor.f_Bind<&CDestructActorSeparateThread::f_NoFuture>() > Results;
-
-						g_Dispatch(fg_ConcurrentActor()) / [Actor = fg_Move(Actor)]
-							{
-							}
-							> g_DiscardResult
-						;
-					}
-
-					DMibExpectFalse(bCrashed);
-
-					co_await fg_AllDone(Results);
+					co_await fg_DestructSeparateThreadActors<&CDestructActorSeparateThread::f_NoFuture>();
 				}
 
 				co_return {};

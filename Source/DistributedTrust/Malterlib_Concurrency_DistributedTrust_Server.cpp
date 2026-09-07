@@ -47,6 +47,37 @@ namespace NMib::NConcurrency
 		if (pServerCert)
 			co_return fDoReturn(pServerCert);
 
+		// A generation already under way for the host is waited for rather than repeated: the
+		// database keeps one certificate per host and would refuse the second
+		if (auto *pWaiting = Internal.m_ServerCertificateGenerations.f_FindEqual(Host))
+		{
+			co_await pWaiting->f_Insert().f_Future();
+
+			pServerCert = Internal.m_ServerCertificates.f_FindEqual(Host);
+			if (!pServerCert)
+				co_return DMibErrorInstance(fg_Format("Failed to generate a server certificate for '{}'", Host));
+
+			co_return fDoReturn(pServerCert);
+		}
+
+		// Whichever way this generation ends, the waiters wake up and look for the certificate
+		Internal.m_ServerCertificateGenerations[Host];
+		auto WakeWaiting = g_OnScopeExit / [this, Host]
+			{
+				if (!mp_pInternal)
+					return;
+
+				auto *pWaiting = mp_pInternal->m_ServerCertificateGenerations.f_FindEqual(Host);
+				if (!pWaiting)
+					return;
+
+				auto Waiting = fg_Move(*pWaiting);
+				mp_pInternal->m_ServerCertificateGenerations.f_Remove(Host);
+				for (auto &Promise : Waiting)
+					Promise.f_SetResult();
+			}
+		;
+
 		auto Serial = co_await (Internal.m_Database(&ICDistributedActorTrustManagerDatabase::f_GetNewCertificateSerial) % "Failed to get new certificate serial");
 
 		// Because of performance of generating a new key, run on separate actor

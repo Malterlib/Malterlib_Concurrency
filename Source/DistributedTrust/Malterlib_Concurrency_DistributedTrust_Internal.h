@@ -267,6 +267,9 @@ namespace NMib::NConcurrency
 
 		NContainer::TCMap<CDistributedActorTrustManager_Address, CListenState> m_Listen;
 		NContainer::TCMap<NStr::CStr, CServerCertificate> m_ServerCertificates;
+		// Hosts whose server certificate is being generated, with the callers waiting for it: a
+		// second listen on the host meanwhile joins the wait instead of generating one of its own
+		NContainer::TCMap<NStr::CStr, NContainer::TCVector<TCPromise<void>>> m_ServerCertificateGenerations;
 
 		CListenState *m_pPrimaryListen = nullptr;
 

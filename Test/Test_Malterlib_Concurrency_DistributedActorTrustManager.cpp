@@ -3556,6 +3556,44 @@ namespace NTestTrustManager
 					}
 				}
 			}
+			{
+				DMibTestPath("Cancelled ticket");
+				CActorRunLoopTestHelper RunLoopHelper;
+
+				CState State{RunLoopHelper.m_pRunLoop, _fDatabaseFactory, _fCleanup, {}, _RootDir};
+
+				TCActor<CDistributedActorTrustManager> ServerTrustManager = State.f_CreateServerTrustManager();
+				TCActor<CDistributedActorTrustManager> ClientTrustManager = State.f_CreateClientTrustManager();
+
+				CDistributedActorTrustManager_Address ServerAddress;
+				ServerAddress.m_URL = fg_GetSocketUrl("TrustCancelledTicket", _RootDir);
+				ServerTrustManager(&CDistributedActorTrustManager::f_AddListen, ServerAddress, 0).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
+
+				auto TrustTicket = ServerTrustManager
+					(
+						&CDistributedActorTrustManager::f_GenerateConnectionTicket
+						, ServerAddress
+						, g_ActorFunctor(fg_ConcurrentActor()) / [](CStr, CCallingHostInfo, NContainer::CByteVector) -> TCFuture<void>
+						{
+							co_return {};
+						}
+						, nullptr
+					)
+					.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
+				;
+				DMibExpectTrue(TrustTicket.m_NotificationsSubscription);
+				TrustTicket.m_NotificationsSubscription.f_Clear();
+
+				DMibExpectExceptionType
+					(
+						ClientTrustManager(&CDistributedActorTrustManager::f_AddClientConnection, TrustTicket.m_Ticket, g_Timeout / 2, -1, 0).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
+						, NException::CException
+					)
+				;
+
+				ClientTrustManager->f_BlockDestroy(RunLoopHelper.m_pRunLoop->f_ActorDestroyLoop());
+				ServerTrustManager->f_BlockDestroy(RunLoopHelper.m_pRunLoop->f_ActorDestroyLoop());
+			}
 		}
 
 		void fp_DoDatabaseConversionTests()

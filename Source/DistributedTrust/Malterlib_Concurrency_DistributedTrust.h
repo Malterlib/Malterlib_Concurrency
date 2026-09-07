@@ -315,6 +315,7 @@ namespace NMib::NConcurrency
 		TCFuture<void> f_AddListen(CDistributedActorTrustManager_Address _Address, uint64 _SendWindowBytes = 0);
 		TCFuture<void> f_RemoveListen(CDistributedActorTrustManager_Address _Address);
 		TCFuture<bool> f_HasListen(CDistributedActorTrustManager_Address _Address);
+		TCFuture<CDistributedActorTrustManager_Address> f_GetListenAddress(CDistributedActorTrustManager_Address _Address);
 		TCFuture<void> f_SetListenSendWindow(CDistributedActorTrustManager_Address _Address, uint64 _SendWindowBytes);
 		TCFuture<void> f_SetPrimaryListen(NStorage::TCOptional<CDistributedActorTrustManager_Address> _Address);
 		TCFuture<NStorage::TCOptional<CDistributedActorTrustManager_Address>> f_GetPrimaryListen();

@@ -196,9 +196,9 @@ namespace NMib::NConcurrency
 		auto &Internal = *mp_pInternal;
 		co_await Internal.f_WaitForInit();
 
-		auto *pListen = Internal.m_Listen.f_FindEqual(_Address);
-		if (!pListen)
-			co_return DMibErrorInstance("Could not find listen with this address");
+		// The ticket sends the client to the port the listen is bound to, which for a listen
+		// that asked for any port is not the one in its address
+		auto ServerAddress = co_await Internal.f_GetBoundListenAddress(_Address);
 
 		auto *pServerCertificate = Internal.m_ServerCertificates.f_FindEqual(_Address.m_URL.f_GetHost());
 		if (!pServerCertificate)
@@ -207,7 +207,7 @@ namespace NMib::NConcurrency
 		CDistributedActorTrustManager::CTrustTicket TrustTicket;
 
 		TrustTicket.m_Token = NCryptography::fg_RandomID();
-		TrustTicket.m_ServerAddress = _Address;
+		TrustTicket.m_ServerAddress = fg_Move(ServerAddress);
 		TrustTicket.m_ServerPublicCert = Internal.m_BasicConfig.m_CACertificate;
 
 		auto &TicketState = Internal.m_Tickets[TrustTicket.m_Token];

@@ -3594,6 +3594,35 @@ namespace NTestTrustManager
 				ClientTrustManager->f_BlockDestroy(RunLoopHelper.m_pRunLoop->f_ActorDestroyLoop());
 				ServerTrustManager->f_BlockDestroy(RunLoopHelper.m_pRunLoop->f_ActorDestroyLoop());
 			}
+			{
+				DMibTestPath("Concurrent listens on one host");
+				CActorRunLoopTestHelper RunLoopHelper;
+
+				CState State{RunLoopHelper.m_pRunLoop, _fDatabaseFactory, _fCleanup, {}, _RootDir};
+
+				TCActor<CDistributedActorTrustManager> ServerTrustManager = State.f_CreateServerTrustManager();
+
+				CDistributedActorTrustManager_Address FirstAddress;
+				FirstAddress.m_URL = CStr("wss://127.0.0.1:0/");
+				CDistributedActorTrustManager_Address SecondAddress;
+				SecondAddress.m_URL = CStr("wss://127.0.0.1:0/second");
+
+				TCFutureVector<void> Listens;
+				ServerTrustManager(&CDistributedActorTrustManager::f_AddListen, FirstAddress, 0) > Listens;
+				ServerTrustManager(&CDistributedActorTrustManager::f_AddListen, SecondAddress, 0) > Listens;
+
+				// Keep failures nonthrowing so the manager still reaches explicit teardown.
+				for (auto &Result : fg_AllDoneWrapped(Listens).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout))
+				{
+					if (!Result)
+						DMibExpect(Result.f_GetExceptionStr(), ==, "");
+				}
+
+				DMibExpectTrue(ServerTrustManager(&CDistributedActorTrustManager::f_HasListen, FirstAddress).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout));
+				DMibExpectTrue(ServerTrustManager(&CDistributedActorTrustManager::f_HasListen, SecondAddress).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout));
+
+				ServerTrustManager->f_BlockDestroy(RunLoopHelper.m_pRunLoop->f_ActorDestroyLoop());
+			}
 		}
 
 		void fp_DoDatabaseConversionTests()

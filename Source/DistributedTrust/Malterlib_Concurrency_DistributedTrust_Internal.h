@@ -265,6 +265,7 @@ namespace NMib::NConcurrency
 
 		NContainer::TCMap<CDistributedActorTrustManager_Address, CListenState> m_Listen;
 		NContainer::TCMap<NStr::CStr, CServerCertificate> m_ServerCertificates;
+		NContainer::TCMap<NStr::CStr, NContainer::TCVector<TCPromise<void>>> m_ServerCertificateGenerations; // Waiters share one certificate generation per host.
 
 		CListenState *m_pPrimaryListen = nullptr;
 

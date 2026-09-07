@@ -229,7 +229,8 @@ namespace NMib::NConcurrency
 		Result.m_Ticket = fg_Move(TrustTicket);
 		if (TicketState.m_fOnUseTicket || TicketState.m_fOnCertificateSigned)
 		{
-			Result.m_NotificationsSubscription = g_ActorSubscription / [this, Token = TrustTicket.m_Token]() -> TCFuture<void>
+			// The ticket has been moved into the result by now
+			Result.m_NotificationsSubscription = g_ActorSubscription / [this, Token = Result.m_Ticket.m_Token]() -> TCFuture<void>
 				{
 					auto &Internal = *mp_pInternal;
 

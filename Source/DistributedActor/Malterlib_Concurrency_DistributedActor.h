@@ -446,6 +446,11 @@ namespace NMib::NConcurrency
 
 		bool f_IsActive() const;
 
+		// The addresses the listen is bound to: the ones it was started with, where an address
+		// that asked for any port (port 0) carries the port its socket was given. Empty while a
+		// retried listen has not yet succeeded
+		TCFuture<NContainer::TCVector<NWeb::NHTTP::CURL>> f_GetListenAddresses();
+
 #if DMibConfig_Tests_Enable
 		TCFuture<void> f_Debug_BreakAllConnections(fp64 _Timeout, NNetwork::ESocketDebugFlag _DebugFlags);
 		TCFuture<void> f_Debug_SetServerBroken(bool _bBroken);
@@ -895,6 +900,7 @@ namespace NMib::NConcurrency
 		void fp_CleanupRemoteContext(NFunction::TCFunction<void (CActorDistributionManagerInternal &_Internal)> const &_fCleanup);
 		void fp_FlushSendPacketQueue(NStorage::TCSharedPointerSupportWeak<NPrivate::ICHost> _pHost);
 		TCFuture<void> fp_RemoveListen(NStr::CStr _ListenID);
+		TCFuture<NContainer::TCVector<NWeb::NHTTP::CURL>> fp_GetListenAddresses(NStr::CStr _ListenID);
 #if DMibConfig_Tests_Enable
 		TCFuture<void> fp_Debug_BreakAllListenConnections(NStr::CStr _ListenID, fp64 _Timeout, NNetwork::ESocketDebugFlag _DebugFlags);
 		TCFuture<void> fp_Debug_SetListenServerBroken(NStr::CStr _ListenID, bool _bBroken);

@@ -198,6 +198,33 @@ namespace NMib::NConcurrency
 		co_return Internal.m_Listen.f_FindEqual(_Address) != nullptr;
 	}
 
+	TCFuture<CDistributedActorTrustManager_Address> CDistributedActorTrustManager::f_GetListenAddress(CDistributedActorTrustManager_Address _Address)
+	{
+		auto &Internal = *mp_pInternal;
+		co_await Internal.f_WaitForInit();
+
+		co_return co_await Internal.f_GetBoundListenAddress(_Address);
+	}
+
+	// The listen address as peers connect to it: a listen that asked for any port (port 0) is
+	// bound to the one its socket was given, and until it is bound the address stays as configured
+	TCFuture<CDistributedActorTrustManager_Address> CDistributedActorTrustManager::CInternal::f_GetBoundListenAddress(CDistributedActorTrustManager_Address _Address)
+	{
+		auto *pListen = m_Listen.f_FindEqual(_Address);
+		if (!pListen)
+			co_return DMibErrorInstance("Could not find listen with this address");
+
+		if (!_Address.m_URL.f_HasPort() || _Address.m_URL.f_GetPort() || !pListen->m_ListenReference.f_IsActive())
+			co_return _Address;
+
+		// The listen reference is only read before the suspension; the map can change across it
+		auto BoundAddresses = co_await pListen->m_ListenReference.f_GetListenAddresses().f_Wrap();
+		if (!BoundAddresses || BoundAddresses->f_IsEmpty())
+			co_return _Address;
+
+		co_return CDistributedActorTrustManager_Address(BoundAddresses->f_GetFirst());
+	}
+
 	TCFuture<void> CDistributedActorTrustManager::f_SetPrimaryListen(NStorage::TCOptional<CDistributedActorTrustManager_Address> _Address)
 	{
 		auto &Internal = *mp_pInternal;

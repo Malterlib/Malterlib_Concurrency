@@ -317,6 +317,9 @@ namespace NMib::NConcurrency
 		TCFuture<void> f_AddListen(CDistributedActorTrustManager_Address _Address, uint64 _SendWindowBytes = 0);
 		TCFuture<void> f_RemoveListen(CDistributedActorTrustManager_Address _Address);
 		TCFuture<bool> f_HasListen(CDistributedActorTrustManager_Address _Address);
+		// The address peers connect to: a listen that asked for any port (port 0) reports the port
+		// its socket was given
+		TCFuture<CDistributedActorTrustManager_Address> f_GetListenAddress(CDistributedActorTrustManager_Address _Address);
 		// Applies to connections accepted after the listen next starts
 		TCFuture<void> f_SetListenSendWindow(CDistributedActorTrustManager_Address _Address, uint64 _SendWindowBytes);
 		TCFuture<void> f_SetPrimaryListen(NStorage::TCOptional<CDistributedActorTrustManager_Address> _Address);

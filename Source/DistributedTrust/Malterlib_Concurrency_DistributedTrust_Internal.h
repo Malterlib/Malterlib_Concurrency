@@ -212,6 +212,8 @@ namespace NMib::NConcurrency
 
 		TCFuture<void> f_WaitForInit();
 
+		TCFuture<CDistributedActorTrustManager_Address> f_GetBoundListenAddress(CDistributedActorTrustManager_Address _Address);
+
 		void f_RemoveClientConnection(CConnectionState *_pClientConnection);
 
 		TCFuture<NContainer::CByteVector> f_SignCertificate

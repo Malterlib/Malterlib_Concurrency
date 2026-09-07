@@ -60,6 +60,15 @@ namespace NMib::NConcurrency
 		return DistributionManager(&CActorDistributionManager::fp_RemoveListen, mp_ListenID);
 	}
 
+	TCFuture<NContainer::TCVector<NWeb::NHTTP::CURL>> CDistributedActorListenReference::f_GetListenAddresses()
+	{
+		auto DistributionManager = mp_DistributionManager.f_Lock();
+		if (!DistributionManager)
+			return DMibErrorInstance("Listen has been stopped");
+
+		return DistributionManager(&CActorDistributionManager::fp_GetListenAddresses, mp_ListenID);
+	}
+
 #if DMibConfig_Tests_Enable
 	TCFuture<void> CDistributedActorListenReference::f_Debug_BreakAllConnections(fp64 _Timeout, NNetwork::ESocketDebugFlag _DebugFlags)
 	{
@@ -532,7 +541,9 @@ namespace NMib::NConcurrency
 			auto const &TranslatedHost = TranslatedHosts[iResult];
 			++iResult;
 
-			auto Port = ListenURL.f_GetPortFromScheme();
+			// An explicit port 0 asks for any port, which the resolved address already carries;
+			// only an absent port falls back to the scheme's
+			auto Port = ListenURL.f_HasPort() ? ListenURL.f_GetPort() : ListenURL.f_GetPortFromScheme();
 			if (Port)
 				Address.f_SetPort(Port);
 
@@ -691,7 +702,27 @@ namespace NMib::NConcurrency
 
 		Listen.m_ListenCallbackSubscription = fg_Move(StartListenResult.m_Subscription);
 
+		// An address that asked for any port is recorded with the port its socket was given, so
+		// what the reference reports is an address a peer can connect to. The ports come back
+		// one per address, in the addresses' order
+		for (umint iAddress = 0; iAddress < Listen.m_ListenAddresses.f_GetLen() && iAddress < StartListenResult.m_ListenPorts.f_GetLen(); ++iAddress)
+		{
+			auto &ListenURL = Listen.m_ListenAddresses[iAddress];
+			if (ListenURL.f_HasPort() && !ListenURL.f_GetPort() && StartListenResult.m_ListenPorts[iAddress])
+				ListenURL.f_SetPort(StartListenResult.m_ListenPorts[iAddress]);
+		}
+
 		co_return CDistributedActorListenReference(fg_ThisActor(m_pThis), _ListenID);
+	}
+
+	TCFuture<NContainer::TCVector<NWeb::NHTTP::CURL>> CActorDistributionManager::fp_GetListenAddresses(NStr::CStr _ListenID)
+	{
+		auto &Internal = *mp_pInternal;
+		auto *pListen = Internal.m_Listens.f_FindEqual(_ListenID);
+		if (!pListen)
+			co_return NContainer::TCVector<NWeb::NHTTP::CURL>();
+
+		co_return pListen->m_ListenAddresses;
 	}
 
 	TCFuture<CDistributedActorListenReference> CActorDistributionManagerInternal::fp_Listen(NStr::CStr _ListenID, CActorDistributionListenSettings _Settings)

@@ -7,6 +7,8 @@
 #	include <Windows.h>
 #else
 #	include <dirent.h>
+#	include <pthread.h>
+#	include <signal.h>
 #endif
 
 namespace
@@ -240,6 +242,82 @@ namespace
 				// not expectable; a loop leak is dozens to hundreds on any multicore machine
 				DMibExpectTrue(nDescriptorsAfter <= nDescriptorsBefore + 16);
 			};
+
+#ifndef DPlatformFamily_Windows
+			DMibTestSuite("ThreadSignal")
+			{
+				constexpr umint c_iQueue = 0;
+
+				if (!ConcurrencyManager.f_GetQueueIoLoop(c_Priority, c_iQueue))
+					return; // A platform without loops has no thread to deliver on
+
+				ConcurrencyManager.f_EnableQueueIoLoop(c_Priority, c_iQueue);
+
+				NThread::CEvent Delivered;
+				Delivered.f_ResetSignaled();
+
+				pthread_t QueueThread = {};
+				pthread_t RanOnThread = {};
+				COnScopeExitShared pSubscription;
+
+				// Registering needs the queue's own thread: the handler is bound to the loop that
+				// thread drives, so that its functor comes back on the same thread
+				fg_RunOnQueue
+					(
+						c_Priority
+						, c_iQueue
+						, [&]
+						{
+							QueueThread = pthread_self();
+
+							pSubscription = NSys::fg_System_RegisterForThreadSignal
+								(
+									SIGUSR1
+									, [&]
+									{
+										RanOnThread = pthread_self();
+										Delivered.f_SetSignaled();
+									}
+								)
+							;
+						}
+					)
+				;
+
+				DMibExpectTrue(pSubscription);
+
+				// Targeted at the registering thread, which is the only one whose handler reacts
+				DMibExpect(pthread_kill(QueueThread, SIGUSR1), ==, 0);
+
+				// f_WaitTimeout answers true when it gave up, so the delivery is the false case
+				DMibExpectFalse(Delivered.f_WaitTimeout(30.0));
+
+				// The whole point of asking for the thread's own loop rather than a pool binding:
+				// the functor runs where it was registered
+				DMibExpectTrue(pthread_equal(RanOnThread, QueueThread) != 0);
+
+				// The subscription is the thread's, so it is dropped from that thread too
+				fg_RunOnQueue(c_Priority, c_iQueue, [&] { pSubscription.f_Clear(); });
+			};
+
+			DMibTestSuite("ThreadSignalNeedsOwnLoop")
+			{
+				// A thread that drives no loop has nowhere to deliver, and saying so at
+				// registration beats running the functor in the signal handler
+				bool bThrew = false;
+				try
+				{
+					auto pSubscription = NSys::fg_System_RegisterForThreadSignal(SIGUSR1, [] {});
+					(void)pSubscription;
+				}
+				catch (NException::CException const &)
+				{
+					bThrew = true;
+				}
+
+				DMibExpectTrue(bThrew);
+			};
+#endif
 		}
 	};
 

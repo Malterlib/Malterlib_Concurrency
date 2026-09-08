@@ -586,6 +586,10 @@ namespace NMib::NConcurrency
 		// that follows, so its load runs beside the trust manager initialisation and is awaited at
 		// the end. Loading the two together would take a blocking actor each; this way one serves
 		// both, and on macOS the pool is spared a park between them
+		// Looked up on a blocking actor since the constructor. Awaited before the loads so they get
+		// that actor once it is released instead of starting a second one beside it
+		auto LocalHostIdentity = co_await fg_GetLocalHostIdentity();
+
 		co_await mp_State.m_ConfigDatabase.f_Load();
 		auto StateLoad = mp_State.m_StateDatabase.f_Load();
 
@@ -620,9 +624,6 @@ namespace NMib::NConcurrency
 		bool bSupportAuthentication = mp_Settings.m_bSupportUserAuthentication;
 		if (auto *pValue = mp_State.m_ConfigDatabase.m_Data.f_GetMember("SupportAuthentication", EJsonType_Boolean))
 			bSupportAuthentication = pValue->f_Boolean();
-
-		// Looked up on a blocking actor since the constructor; usually long done by now
-		auto LocalHostIdentity = co_await fg_GetLocalHostIdentity();
 
 		CDistributedActorTrustManager::COptions Options;
 

@@ -1320,6 +1320,9 @@ namespace NMib::NConcurrency
  		NTime::CStopwatch DebugBlockDestroyStopwatch{true};
 #endif
 
+		// See the first wait below
+		static constexpr umint mc_nShutdownYields = 4000;
+
 		static constexpr umint c_nDirectDeleteActors
 			= sizeof(m_DirectCallActor) / sizeof(m_DirectCallActor) // NOLINT
 			+ sizeof(m_ThisConcurrentActor) / sizeof(m_ThisConcurrentActor) // NOLINT
@@ -1362,6 +1365,13 @@ namespace NMib::NConcurrency
 
 			bool bLoggedLongTimeShutdown = false;
 
+			// The actors are usually gone within a fraction of a millisecond of the condition
+			// being checked, so the wait yields before it sleeps: a fixed sleep here charged a
+			// whole millisecond to every exit. The budget is a few thousand yields, about a
+			// millisecond or two of one core on an idle machine, which a process on its way out
+			// can afford; a shutdown genuinely waiting on work reaches the same sleep as before
+			NThread::CThreadSpinWaiter SpinWaiter(mc_nShutdownYields);
+
 			while (fHasUserActors())
 			{
 				if (TimerCheckStopwatch.f_GetTime() > 0.010)
@@ -1381,7 +1391,7 @@ namespace NMib::NConcurrency
 					TimerCheckStopwatch.f_Start();
 				}
 
-				NSys::fg_Thread_SmallestSleep();
+				SpinWaiter.f_Wait();
 #if DMibConfig_Concurrency_DebugBlockDestroy
 				if (DebugBlockDestroyStopwatch.f_GetTime() > 10.0)
 				{
@@ -1575,10 +1585,11 @@ namespace NMib::NConcurrency
 			TimerCheckStopwatch.f_Start();
 			{
 				bool bLoggedBlockingActorShutdown = false;
+				NThread::CThreadSpinWaiter SpinWaiter(mc_nShutdownYields);
 				while (fp_NumActors() > nExpectedActors)
 				{
 					fDestroyFreeBlockingActors();
-					NSys::fg_Thread_SmallestSleep();
+					SpinWaiter.f_Wait();
 					if (TimerCheckStopwatch.f_GetTime() > 10.0)
 					{
 						if (m_bShutdownLogging && !bLoggedBlockingActorShutdown)
@@ -1644,8 +1655,10 @@ namespace NMib::NConcurrency
 				m_nThreads = 0;
 			}
 			fg_AllDoneWrapped(Destroys).f_CallSync();
+
+			NThread::CThreadSpinWaiter SpinWaiter(mc_nShutdownYields);
 			while (fp_NumActors() > c_nDirectDeleteActors)
-				NSys::fg_Thread_SmallestSleep();
+				SpinWaiter.f_Wait();
 		}
 
 		// Finally delete the direct call actor
@@ -1676,8 +1689,9 @@ namespace NMib::NConcurrency
 		if (m_bShutdownLogging)
 			DMibLog(Info, "Shutting down concurrency manager: Waiting for low level actors to disappear");
 
+		NThread::CThreadSpinWaiter SpinWaiter(mc_nShutdownYields);
 		while (fp_NumActors() > 0)
-			NSys::fg_Thread_SmallestSleep();
+			SpinWaiter.f_Wait();
 
 		if (m_bShutdownLogging)
 			DMibLog(Info, "Shutting down concurrency manager: Done");

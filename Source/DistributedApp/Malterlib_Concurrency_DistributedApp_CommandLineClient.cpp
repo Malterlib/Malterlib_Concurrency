@@ -494,48 +494,62 @@ namespace NMib::NConcurrency
 					}
 				)
 			;
-			auto TerminationSubscription = NProcess::NPlatform::fg_Process_WaitForTermination
-				(
-					[pState, pCommandLineControl]
-					{
-						pCommandLineControl(&CCommandLineControlActor::f_Cancel) > fg_DirectCallActor() / [pState](TCAsyncResult<bool> &&_Result)
-							{
-								if (!_Result)
-									DMibConErrOut("Failed to cancel: {}\n", _Result.f_GetExceptionStr());
 
-								if (*_Result)
+			// Both watchers turn a signal into a callback, and the signal subsystem dispatches those
+			// on an io loop's thread when the first registration happens inside this scope. Without
+			// it the subsystem keeps a thread of its own, which for a command line that runs once
+			// and exits is a thread started and joined for a resize that will not arrive.
+			// The scope closes as soon as the two registrations are made: it is a thread local, and
+			// leaving it open would bind every io object the command itself creates to this loop
+			COnScopeExitShared TerminationSubscription;
+			COnScopeExitShared ScreenChangeSubscription;
+
+			{
+				CIoLoopCreateScope SignalLoopScope(fg_ConcurrencyManager().f_PickIoLoopBinding(EPriority_Normal));
+
+				TerminationSubscription = NProcess::NPlatform::fg_Process_WaitForTermination
+					(
+						[pState, pCommandLineControl]
+						{
+							pCommandLineControl(&CCommandLineControlActor::f_Cancel) > fg_DirectCallActor() / [pState](TCAsyncResult<bool> &&_Result)
 								{
-									DMibLock(pState->m_ResultLock);
-									pState->m_bAborted = true;
-									pState->m_pRunLoop->f_Wake();
-								}
-							}
-						;
-					}
-				)
-			;
-			auto ScreenChangeSubscription = NCommandLine::NPlatform::fg_Process_WaitForScreenChange
-				(
-					[pState, pCommandLineControl](NSys::CConsoleProperties const &_ConsoleProperties)
-					{
-						ICCommandLineControl::CScreenChange ScreenChange
-							{
-								.m_Width = _ConsoleProperties.m_Width
-								, .m_Height = _ConsoleProperties.m_Height
-								, .m_GlyphWidth = _ConsoleProperties.m_GlyphWidth
-								, .m_GlyphHeight = _ConsoleProperties.m_GlyphHeight
-							}
-						;
+									if (!_Result)
+										DMibConErrOut("Failed to cancel: {}\n", _Result.f_GetExceptionStr());
 
-						pCommandLineControl(&CCommandLineControlActor::f_ScreenChange, ScreenChange) > fg_DirectCallActor() / [pState](TCAsyncResult<void> &&_Result)
-							{
-								if (!_Result)
-									DMibConErrOut("Failed to notify screen change: {}\n", _Result.f_GetExceptionStr());
-							}
-						;
-					}
-				)
-			;
+									if (*_Result)
+									{
+										DMibLock(pState->m_ResultLock);
+										pState->m_bAborted = true;
+										pState->m_pRunLoop->f_Wake();
+									}
+								}
+							;
+						}
+					)
+				;
+				ScreenChangeSubscription = NCommandLine::NPlatform::fg_Process_WaitForScreenChange
+					(
+						[pState, pCommandLineControl](NSys::CConsoleProperties const &_ConsoleProperties)
+						{
+							ICCommandLineControl::CScreenChange ScreenChange
+								{
+									.m_Width = _ConsoleProperties.m_Width
+									, .m_Height = _ConsoleProperties.m_Height
+									, .m_GlyphWidth = _ConsoleProperties.m_GlyphWidth
+									, .m_GlyphHeight = _ConsoleProperties.m_GlyphHeight
+								}
+							;
+
+							pCommandLineControl(&CCommandLineControlActor::f_ScreenChange, ScreenChange) > fg_DirectCallActor() / [pState](TCAsyncResult<void> &&_Result)
+								{
+									if (!_Result)
+										DMibConErrOut("Failed to notify screen change: {}\n", _Result.f_GetExceptionStr());
+								}
+							;
+						}
+					)
+				;
+			}
 
 			bool bStopped = false;
 

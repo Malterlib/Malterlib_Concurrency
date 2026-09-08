@@ -67,7 +67,9 @@ namespace NMib::NConcurrency
 
 				fp_CreateInputActor();
 
-				co_return co_await mp_InputActor(&NProcess::CStdInActor::f_RegisterForInputBinary, fg_Move(_fOnInput), _Flags, CActorDistributionManager::mc_HalfMaxMessageSize);
+				auto Subscription = co_await mp_InputActor(&NProcess::CStdInActor::f_RegisterForInputBinary, fg_Move(_fOnInput), _Flags, CActorDistributionManager::mc_HalfMaxMessageSize);
+
+				co_return fp_TrackStdInRegistration(fg_Move(Subscription));
 			}
 
 			TCFuture<TCActorSubscriptionWithID<>> f_RegisterForCancellation(FOnCancel _fOnCancel) override
@@ -101,11 +103,22 @@ namespace NMib::NConcurrency
 				if (auto Destroyed = fp_CheckDestroyed())
 					co_return Destroyed;
 
+				// Screen changes reach this process through the terminal's input on Windows, where
+				// the console input queue has one head and whoever reads it owns everything queued
+				// ahead of a resize record. Requiring a standard input registration first keeps
+				// that ownership with the reader the command already has, so no watcher ever has
+				// to read, and drop, keystrokes typed ahead. The same rule holds on every platform
+				// so a command behaves alike everywhere
+				if (mp_StdInRegistrations.f_IsEmpty())
+					co_return DMibErrorInstance("Screen change notifications require a registration for standard input first");
+
 				auto SubscriptionID = NCryptography::fg_RandomID(mp_ScreenChangeSubscriptions);
 
 				auto &Subscription = mp_ScreenChangeSubscriptions[SubscriptionID];
 
 				Subscription.m_fOnScreenChange = fg_Move(_fOnScreenChange);
+
+				fp_UpdateScreenChangeWatcher();
 
 				co_return g_ActorSubscription / [this, SubscriptionID]() -> TCFuture<void>
 					{
@@ -113,6 +126,8 @@ namespace NMib::NConcurrency
 							co_await fg_Move(pSubscription->m_fOnScreenChange).f_Destroy();
 
 						mp_ScreenChangeSubscriptions.f_Remove(SubscriptionID);
+
+						fp_UpdateScreenChangeWatcher();
 
 						co_return {};
 					}
@@ -126,7 +141,9 @@ namespace NMib::NConcurrency
 
 				fp_CreateInputActor();
 
-				co_return co_await mp_InputActor(&NProcess::CStdInActor::f_RegisterForInput, fg_Move(_fOnInput), _Flags, CActorDistributionManager::mc_HalfMaxMessageSize);
+				auto Subscription = co_await mp_InputActor(&NProcess::CStdInActor::f_RegisterForInput, fg_Move(_fOnInput), _Flags, CActorDistributionManager::mc_HalfMaxMessageSize);
+
+				co_return fp_TrackStdInRegistration(fg_Move(Subscription));
 			}
 
 			TCFuture<NContainer::CIOByteVector> f_ReadBinary() override
@@ -298,10 +315,29 @@ namespace NMib::NConcurrency
 			TCActor<NProcess::CStdInActor> mp_InputActor;
 			NContainer::TCMap<NStr::CStr, CCancellationSubscription> mp_CancellationSubscriptions;
 			NContainer::TCMap<NStr::CStr, CScreenChangeSubscription> mp_ScreenChangeSubscriptions;
+
+			// The command's live standard input registrations, by a key of this actor's own: the
+			// wrapped subscription handed back tracks its removal here, which is what tells
+			// whether screen change notifications may be offered and whether the watcher that
+			// delivers them should be running
+			NContainer::TCMap<NStr::CStr, TCActorSubscriptionWithID<>> mp_StdInRegistrations;
+
+			// The platform's screen change delivery, held only while both a screen change
+			// subscription and a standard input registration exist
+			COnScopeExitShared mp_ScreenChangeWatcher;
 			bool mp_bCancelled = false;
 
 			TCFuture<void> fp_Destroy() override
 			{
+				// First, so no notification can arrive into an actor that is being torn down
+				mp_ScreenChangeWatcher.f_Clear();
+
+				for (auto &Registration : mp_StdInRegistrations)
+				{
+					if (Registration.f_GetSubscription())
+						co_await Registration.f_GetSubscription()->f_Destroy();
+				}
+
 				if (mp_InputActor)
 					co_await fg_Move(mp_InputActor).f_Destroy();
 
@@ -318,6 +354,91 @@ namespace NMib::NConcurrency
 			{
 				if (!mp_InputActor)
 					mp_InputActor = fg_Construct();
+			}
+
+			// Wraps a standard input registration so its lifetime is known here. The wrapper keeps
+			// the input actor's own subscription and destroys it when the command drops the wrapper
+			TCActorSubscriptionWithID<> fp_TrackStdInRegistration(TCActorSubscriptionWithID<> &&_Subscription)
+			{
+				auto RegistrationID = NCryptography::fg_RandomID(mp_StdInRegistrations);
+				uint32 SubscriptionID = _Subscription.f_GetID();
+
+				mp_StdInRegistrations[RegistrationID] = fg_Move(_Subscription);
+
+				fp_UpdateScreenChangeWatcher();
+
+				TCActorSubscriptionWithID<> Wrapped = g_ActorSubscription / [this, RegistrationID]() -> TCFuture<void>
+					{
+						auto *pRegistration = mp_StdInRegistrations.f_FindEqual(RegistrationID);
+						if (!pRegistration)
+							co_return {};
+
+						auto Registration = fg_Move(*pRegistration);
+						mp_StdInRegistrations.f_Remove(RegistrationID);
+
+						// Without a reader of its own the command cannot be told about the screen
+						// any more, see f_RegisterForScreenChange; its subscriptions stay and come
+						// back to life with its next registration
+						fp_UpdateScreenChangeWatcher();
+
+						if (Registration.f_GetSubscription())
+							co_await Registration.f_GetSubscription()->f_Destroy();
+
+						co_return {};
+					}
+				;
+				Wrapped.f_SetID(SubscriptionID);
+
+				return Wrapped;
+			}
+
+			// Installs the platform's screen change delivery when it has a subscriber and standard
+			// input is read, and drops it when either goes away. Installed from here rather than
+			// for every command the client runs, so a command that never asks costs no watcher:
+			// on Windows that is the console reader forwarding resize records, on POSIX a SIGWINCH
+			// registration whose functor the signal subsystem dispatches on an io loop's thread.
+			// The scope binds that loop to the pool, the same way the termination watcher is bound
+			// when the command starts, so the subsystem never needs a thread of its own
+			void fp_UpdateScreenChangeWatcher()
+			{
+				bool bWanted = !mp_ScreenChangeSubscriptions.f_IsEmpty() && !mp_StdInRegistrations.f_IsEmpty();
+				if (bWanted == bool(mp_ScreenChangeWatcher))
+					return;
+
+				if (!bWanted)
+				{
+					mp_ScreenChangeWatcher.f_Clear();
+					return;
+				}
+
+				CIoLoopCreateScope WatcherLoopScope(fg_ConcurrencyManager().f_PickIoLoopBinding(EPriority_Normal));
+
+				mp_ScreenChangeWatcher = NCommandLine::NPlatform::fg_Process_WaitForScreenChange
+					(
+						[pThisWeak = fg_ThisActorWeak(this)](NSys::CConsoleProperties const &_ConsoleProperties)
+						{
+							auto pThis = pThisWeak.f_Lock();
+							if (!pThis)
+								return;
+
+							CScreenChange ScreenChange
+								{
+									.m_Width = _ConsoleProperties.m_Width
+									, .m_Height = _ConsoleProperties.m_Height
+									, .m_GlyphWidth = _ConsoleProperties.m_GlyphWidth
+									, .m_GlyphHeight = _ConsoleProperties.m_GlyphHeight
+								}
+							;
+
+							pThis(&CCommandLineControlActor::f_ScreenChange, ScreenChange) > fg_DirectCallActor() / [](TCAsyncResult<void> &&_Result)
+								{
+									if (!_Result)
+										DMibConErrOut("Failed to notify screen change: {}\n", _Result.f_GetExceptionStr());
+								}
+							;
+						}
+					)
+				;
 			}
 		};
 	}
@@ -495,14 +616,15 @@ namespace NMib::NConcurrency
 				)
 			;
 
-			// Both watchers turn a signal into a callback, and the signal subsystem dispatches those
-			// on an io loop's thread when the first registration happens inside this scope. Without
+			// The watcher turns a signal into a callback, and the signal subsystem dispatches it on
+			// an io loop's thread when the first registration happens inside this scope. Without
 			// it the subsystem keeps a thread of its own, which for a command line that runs once
-			// and exits is a thread started and joined for a resize that will not arrive.
-			// The scope closes as soon as the two registrations are made: it is a thread local, and
-			// leaving it open would bind every io object the command itself creates to this loop
+			// and exits is a thread started and joined for a signal that will not arrive.
+			// The scope closes as soon as the registration is made: it is a thread local, and
+			// leaving it open would bind every io object the command itself creates to this loop.
+			// Screen changes are not watched here: the control actor installs that watcher when
+			// a command subscribes, so a command that never asks pays nothing for it
 			COnScopeExitShared TerminationSubscription;
-			COnScopeExitShared ScreenChangeSubscription;
 
 			{
 				CIoLoopCreateScope SignalLoopScope(fg_ConcurrencyManager().f_PickIoLoopBinding(EPriority_Normal));
@@ -522,28 +644,6 @@ namespace NMib::NConcurrency
 										pState->m_bAborted = true;
 										pState->m_pRunLoop->f_Wake();
 									}
-								}
-							;
-						}
-					)
-				;
-				ScreenChangeSubscription = NCommandLine::NPlatform::fg_Process_WaitForScreenChange
-					(
-						[pState, pCommandLineControl](NSys::CConsoleProperties const &_ConsoleProperties)
-						{
-							ICCommandLineControl::CScreenChange ScreenChange
-								{
-									.m_Width = _ConsoleProperties.m_Width
-									, .m_Height = _ConsoleProperties.m_Height
-									, .m_GlyphWidth = _ConsoleProperties.m_GlyphWidth
-									, .m_GlyphHeight = _ConsoleProperties.m_GlyphHeight
-								}
-							;
-
-							pCommandLineControl(&CCommandLineControlActor::f_ScreenChange, ScreenChange) > fg_DirectCallActor() / [pState](TCAsyncResult<void> &&_Result)
-								{
-									if (!_Result)
-										DMibConErrOut("Failed to notify screen change: {}\n", _Result.f_GetExceptionStr());
 								}
 							;
 						}

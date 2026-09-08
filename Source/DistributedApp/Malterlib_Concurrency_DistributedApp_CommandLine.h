@@ -138,6 +138,9 @@ namespace NMib::NConcurrency
 		virtual NConcurrency::TCFuture<NConcurrency::TCActorSubscriptionWithID<>> f_RegisterForStdIn(FOnInput _fOnInput, NProcess::EStdInReaderFlag _Flags) = 0;
 		virtual NConcurrency::TCFuture<NConcurrency::TCActorSubscriptionWithID<>> f_RegisterForStdInBinary(FOnBinaryInput _fOnInput, NProcess::EStdInReaderFlag _Flags) = 0;
 		virtual NConcurrency::TCFuture<NConcurrency::TCActorSubscriptionWithID<>> f_RegisterForCancellation(FOnCancel _fOnCancel) = 0;
+
+		// Fails unless a standard input registration is live: the client watches the screen
+		// through its reader of the terminal's input, and stops watching while none is registered
 		virtual NConcurrency::TCFuture<NConcurrency::TCActorSubscriptionWithID<>> f_RegisterForScreenChange(FOnScreenChange _fOnScreenChange) = 0;
 
 		virtual NConcurrency::TCFuture<NContainer::CIOByteVector> f_ReadBinary() = 0;

@@ -6,6 +6,7 @@
 #include <Mib/Cryptography/UUID>
 #include <Mib/Cryptography/Hashes/SHA>
 #include <Mib/Process/Platform>
+#include <Mib/Concurrency/LocalHostIdentity>
 
 namespace NMib::NConcurrency
 {
@@ -112,17 +113,28 @@ namespace NMib::NConcurrency
 	{
 		// Fallback directory selection belongs to this instance's m_Enclave; another instance needs its own settings.
 		umint MaxLength = NSys::NNetwork::fg_GetMaxUnixSocketNameLength();
-		if (fp_GetLocalSocketPath(m_RootDirectory, _Flags | ELocalSocketFlag::mc_EnclaveSpecific, m_Enclave).f_GetLen() <= aint(MaxLength))
-			return fp_GetLocalSocketPath(m_RootDirectory, _Flags, _Enclave);
+		CStr RootDirectory = m_RootDirectory;
+#ifdef DPlatformFamily_Windows
+		RootDirectory = CFile::fs_GetExpandedPath(RootDirectory);
+#endif
+		if (fp_GetLocalSocketPath(RootDirectory, _Flags | ELocalSocketFlag::mc_EnclaveSpecific, m_Enclave).f_GetLen() <= aint(MaxLength))
+			return fp_GetLocalSocketPath(RootDirectory, _Flags, _Enclave);
 
-		CStr ConfigHash = fg_GetHashedUuidString(m_RootDirectory, g_HostnameRootUUID, EUniversallyUniqueIdentifierFormat_AlphaNum);
+		CStr ConfigHash = fg_GetHashedUuidString(RootDirectory, g_HostnameRootUUID, EUniversallyUniqueIdentifierFormat_AlphaNum);
 		CStr TempDir = CFile::fs_GetRawTemporaryDirectory();
+#ifdef DPlatformFamily_Windows
+		TempDir = CFile::fs_GetExpandedPath(TempDir);
+#endif
 		CStr Prefix = TempDir / ConfigHash;
 		if (fp_GetLocalSocketPath(Prefix, _Flags | ELocalSocketFlag::mc_EnclaveSpecific, m_Enclave).f_GetLen() <= aint(MaxLength))
 			return fp_GetLocalSocketPath(Prefix, _Flags, _Enclave);
 
 		Prefix = fg_Format("/tmp/{}", ConfigHash);
+#ifdef DPlatformFamily_Windows
+		Prefix = CFile::fs_GetExpandedPath(Prefix);
+#endif
 		DMibCheck(fp_GetLocalSocketPath(Prefix, _Flags | ELocalSocketFlag::mc_EnclaveSpecific, m_Enclave).f_GetLen() <= aint(MaxLength));
+
 		return fp_GetLocalSocketPath(Prefix, _Flags, _Enclave);
 	}
 
@@ -269,11 +281,22 @@ namespace NMib::NConcurrency
 		return fg_Move(*this);
 	}
 
+	// May synchronously query the local identity when no friendly name is configured.
 	NStr::CStr CDistributedAppActor_Settings::f_GetCompositeFriendlyName() const
+	{
+		if (!m_FriendlyName.f_IsEmpty())
+			return fg_Format("{}/{}", m_FriendlyName, m_AppName);
+
+		return f_GetCompositeFriendlyName(fg_GetLocalHostIdentityNow());
+	}
+
+	// Uses the supplied identity for an unconfigured friendly name; performs no lookup.
+	NStr::CStr CDistributedAppActor_Settings::f_GetCompositeFriendlyName(CLocalHostIdentity const &_Identity) const
 	{
 		CStr FriendlyName = m_FriendlyName;
 		if (FriendlyName.f_IsEmpty())
-			FriendlyName = fg_Format("{}@{}", NProcess::NPlatform::fg_Process_GetUserName(), NProcess::NPlatform::fg_Process_GetComputerName());
+			FriendlyName = _Identity.f_UserAtComputer();
+
 		return fg_Format("{}/{}", FriendlyName, m_AppName);
 	}
 }

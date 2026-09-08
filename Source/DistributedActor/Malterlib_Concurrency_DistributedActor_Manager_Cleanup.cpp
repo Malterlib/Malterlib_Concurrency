@@ -43,6 +43,13 @@ namespace NMib::NConcurrency
 		Internal.m_HostTimeout = _HostTimeout;
 		Internal.fp_CleanupUpdateTimer(true);
 
+		// The grace period protects hosts and potential connections; without either, shutdown can begin immediately.
+		if (Internal.m_Hosts.f_IsEmpty() && Internal.m_ClientConnections.f_IsEmpty() && Internal.m_Listens.f_IsEmpty())
+		{
+			Internal.m_bPreShutdown = true;
+			return;
+		}
+
 		self / [this, _KillHostsTimeout]() -> TCFuture<void>
 			{
 				auto &Internal = *mp_pInternal;

@@ -19,6 +19,7 @@ namespace NMib::NConcurrency
 
 	void CDistributedAppActor::fp_BuildDefaultCommandLine_DistributedLog(CDistributedAppCommandLineSpecification &o_CommandLine)
 	{
+#if (DMibSysLogSeverities) != 0
 		fp_BuildDefaultCommandLine_DistributedLog_Customizable
 			(
 				o_CommandLine.f_AddSection("Distributed Log", "Use these commands to manage the local store of distributed logs.")
@@ -53,6 +54,7 @@ namespace NMib::NConcurrency
 				, EDistributedAppCommandFlag_None
 			)
 		;
+#endif
 	}
 
 	void CDistributedAppActor::fp_BuildDefaultCommandLine_DistributedLog_Customizable

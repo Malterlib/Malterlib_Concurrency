@@ -7,6 +7,7 @@
 #include "Malterlib_Concurrency_DistributedActor_Internal.h"
 
 #include <Mib/Process/Platform>
+#include <Mib/Concurrency/LocalHostIdentity>
 #include <Mib/Cryptography/Certificate>
 #include <Mib/Concurrency/LogError>
 
@@ -79,7 +80,7 @@ namespace NMib::NConcurrency
 	}
 
 	CActorDistributionManagerInitSettings::CActorDistributionManagerInitSettings(NStr::CStr const &_HostID, NStr::CStr const &_Enclave)
-		: CActorDistributionManagerInitSettings{_HostID, _Enclave, fg_Format("{}@{}", NProcess::NPlatform::fg_Process_GetUserName(), NProcess::NPlatform::fg_Process_GetComputerName())}
+		: CActorDistributionManagerInitSettings{_HostID, _Enclave, NStr::CStr()}
 	{
 	}
 
@@ -367,6 +368,7 @@ namespace NMib::NConcurrency
 	CActorDistributionManagerInternal::CActorDistributionManagerInternal(CActorDistributionManager *_pThis, CActorDistributionManagerInitSettings const &_InitSettings)
 		: m_pThis(_pThis)
 		, m_FriendlyName(_InitSettings.m_FriendlyName)
+		, m_fGetFriendlyName(_InitSettings.m_fGetFriendlyName)
 		, m_HostID(_InitSettings.m_HostID)
 		, m_Enclave(_InitSettings.m_Enclave)
 		, m_HostTimeout(_InitSettings.m_HostTimeout)
@@ -374,9 +376,20 @@ namespace NMib::NConcurrency
 		, m_HostDaemonTimeout(_InitSettings.m_HostDaemonTimeout)
 	{
 		m_WebsocketSettings.m_bTimeoutForUnixSockets = _InitSettings.m_bTimeoutForUnixSockets;
+	}
 
+	// Resolves and caches an unconfigured friendly name only when a peer needs it.
+	NStr::CStr const &CActorDistributionManagerInternal::fp_GetFriendlyName()
+	{
 		if (m_FriendlyName.f_IsEmpty())
-			m_FriendlyName = fg_Format("{}@{}", NProcess::NPlatform::fg_Process_GetUserName(), NProcess::NPlatform::fg_Process_GetComputerName());
+		{
+			if (m_fGetFriendlyName)
+				m_FriendlyName = m_fGetFriendlyName();
+			else
+				m_FriendlyName = fg_GetLocalHostIdentityNow().f_UserAtComputer();
+		}
+
+		return m_FriendlyName;
 	}
 
 	CActorDistributionManagerInternal::~CActorDistributionManagerInternal()

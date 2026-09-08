@@ -5,6 +5,7 @@
 #include <Mib/Process/Platform>
 #include <Mib/Concurrency/DistributedActorTrustManagerDatabases/JsonDirectory>
 #include <Mib/Concurrency/DistributedAppInterface>
+#include <Mib/Concurrency/LocalHostIdentity>
 #include <Mib/Concurrency/LogError>
 #include <Mib/Network/Socket>
 #include <Mib/Network/Sockets/AuthenticatedUnix>
@@ -25,6 +26,16 @@ namespace NMib::NConcurrency
 	using namespace NStorage;
 	using namespace NNetwork;
 	using namespace NCryptography;
+
+	namespace
+	{
+		TCFuture<void> fg_LoadStartupDatabase(CSimpleJsonDatabase *_pDatabase, NStorage::TCSharedPointer<CBlockingActorCheckout> _pCheckout)
+		{
+			co_await _pDatabase->f_Load(*_pCheckout);
+
+			co_return {};
+		}
+	}
 
 	namespace NPrivate
 	{
@@ -73,9 +84,17 @@ namespace NMib::NConcurrency
 		, mp_Settings(_Settings)
 		, mp_pInternal(fg_Construct())
 	{
-		mp_State.m_LocalAddress = fp_GetLocalAddress();
-
 		auto &Internal = *mp_pInternal;
+
+		// Queue database loads before the potentially slow name service on one blocking actor.
+		// In-process-only commands defer identity lookup until a peer needs it.
+		NStorage::TCSharedPointer<CBlockingActorCheckout> pStartupBlockingActor = fg_Construct(fg_BlockingActor());
+		Internal.m_ConfigLoad = fg_LoadStartupDatabase(&mp_State.m_ConfigDatabase, pStartupBlockingActor);
+		Internal.m_StateLoad = fg_LoadStartupDatabase(&mp_State.m_StateDatabase, pStartupBlockingActor);
+		if (!_Settings.m_bInProcessCommandLineOnly)
+			fg_PrefetchLocalHostIdentity(pStartupBlockingActor);
+
+		mp_State.m_LocalAddress = fp_GetLocalAddress();
 
 		if (Internal.m_AppType != EDistributedAppType_InProcess)
 		{
@@ -228,6 +247,7 @@ namespace NMib::NConcurrency
 			CDistributedAppActor::fs_LogAudit(_AuditParams, mp_Settings.m_AuditCategory);
 		}
 
+#if (DMibSysLogSeverities) != 0
 		switch (Internal.m_AppType)
 		{
 		case EDistributedAppType_InProcess:
@@ -255,6 +275,9 @@ namespace NMib::NConcurrency
 			DMibNeverGetHere;
 			break;
 		}
+#else
+		(void)Internal;
+#endif
 	}
 
 	CCallingHostInfoScope CDistributedAppActor::fp_PopulateCurrentHostInfoIfMissing(CStr _Description)
@@ -264,7 +287,7 @@ namespace NMib::NConcurrency
 
 		if (CurrentCallingHostInfo.f_GetRealHostID().f_IsEmpty())
 		{
-			CStr LocalName = fg_Format("{}@{}/{}", NProcess::NPlatform::fg_Process_GetUserName(), NProcess::NPlatform::fg_Process_GetComputerName(), mp_Settings.m_AppName);
+			CStr LocalName = fg_Format("{}/{}", fg_GetLocalHostIdentityNow().f_UserAtComputer(), mp_Settings.m_AppName);
 			if (_Description.f_IsEmpty())
 				FriendlyName = fg_Format("{} (Local)", LocalName);
 			else
@@ -421,6 +444,10 @@ namespace NMib::NConcurrency
 		if (mp_Settings.m_Enclave.f_IsEmpty())
 			return;
 
+		// In-process-only commands have no command-line listener to sweep; other local listeners must clean up their own sockets.
+		if (mp_Settings.m_bInProcessCommandLineOnly)
+			return;
+
 		auto BlockingActorCheckout = fg_BlockingActor();
 		auto BlockingActor = BlockingActorCheckout.f_Actor();
 
@@ -430,14 +457,20 @@ namespace NMib::NConcurrency
 		WildcardPaths.f_Insert(mp_Settings.f_GetLocalSocketWildcard(ELocalSocketFlag::mc_EnclaveSpecific | ELocalSocketFlag::mc_AuthenticatedUnix));
 
 		NContainer::TCSet<NStr::CStr> OwnSocketPaths;
-		OwnSocketPaths.f_Insert(mp_Settings.f_GetLocalSocketFileName(ELocalSocketFlag::mc_EnclaveSpecific, mp_Settings.m_Enclave));
-		OwnSocketPaths.f_Insert(mp_Settings.f_GetLocalSocketFileName(ELocalSocketFlag::mc_EnclaveSpecific | ELocalSocketFlag::mc_AuthenticatedUnix, mp_Settings.m_Enclave));
+		auto fExcludeSocket = [&OwnSocketPaths](CStr const &_Path)
+			{
+				// Directory enumeration expands rooted Windows paths such as /tmp to include the drive.
+				OwnSocketPaths.f_Insert(CFile::fs_GetExpandedPath(_Path));
+			}
+		;
+		fExcludeSocket(mp_Settings.f_GetLocalSocketFileName(ELocalSocketFlag::mc_EnclaveSpecific, mp_Settings.m_Enclave));
+		fExcludeSocket(mp_Settings.f_GetLocalSocketFileName(ELocalSocketFlag::mc_EnclaveSpecific | ELocalSocketFlag::mc_AuthenticatedUnix, mp_Settings.m_Enclave));
 
 		// The enclave wildcard also matches the base .wsa socket. Derive its excluded paths with base-instance settings.
 		auto BaseSettings = mp_Settings;
 		BaseSettings.m_Enclave = NStr::CStr();
-		OwnSocketPaths.f_Insert(BaseSettings.f_GetLocalSocketFileName(ELocalSocketFlag::mc_None, NStr::CStr()));
-		OwnSocketPaths.f_Insert(BaseSettings.f_GetLocalSocketFileName(ELocalSocketFlag::mc_AuthenticatedUnix, NStr::CStr()));
+		fExcludeSocket(BaseSettings.f_GetLocalSocketFileName(ELocalSocketFlag::mc_None, NStr::CStr()));
+		fExcludeSocket(BaseSettings.f_GetLocalSocketFileName(ELocalSocketFlag::mc_AuthenticatedUnix, NStr::CStr()));
 
 		(
 			g_Dispatch(BlockingActor) / [WildcardPaths = fg_Move(WildcardPaths), OwnSocketPaths = fg_Move(OwnSocketPaths)]
@@ -525,6 +558,8 @@ namespace NMib::NConcurrency
 
 	TCFuture<void> CDistributedAppActor::fp_InitializeDistributedTrust()
 	{
+		auto &Internal = *mp_pInternal;
+
 		DMibLogWithCategory(Mib/Concurrency/App, Debug, "Loading config file and state");
 
 		fp_CleanupEnclaveSockets();
@@ -548,7 +583,8 @@ namespace NMib::NConcurrency
 			)
 		;
 
-		co_await (mp_State.m_StateDatabase.f_Load() + mp_State.m_ConfigDatabase.f_Load());
+		// Config must be loaded before trust initialization. State is first read by command-line setup, so await it at the end.
+		co_await fg_Move(Internal.m_ConfigLoad);
 
 		DMibLogWithCategory(Mib/Concurrency/App, Debug, "Initializing trust manager");
 		NFunction::TCFunctionMovable<NConcurrency::TCActor<NConcurrency::CActorDistributionManager> (CActorDistributionManagerInitSettings const &_Settings)> fManagerFactory;
@@ -587,7 +623,17 @@ namespace NMib::NConcurrency
 		Options.m_fConstructManager = fg_Move(fManagerFactory);
 		Options.m_KeySetting = mp_Settings.m_KeySetting;
 		Options.m_ListenFlags = mp_Settings.m_ListenFlags;
-		Options.m_FriendlyName = mp_Settings.f_GetCompositeFriendlyName();
+		// Local-only commands normally have no peer that needs a friendly name; resolve it on demand.
+		if (mp_Settings.m_bInProcessCommandLineOnly)
+		{
+			Options.m_fGetFriendlyName = [Settings = mp_Settings]
+				{
+					return Settings.f_GetCompositeFriendlyName();
+				}
+			;
+		}
+		else
+			Options.m_FriendlyName = mp_Settings.f_GetCompositeFriendlyName(co_await fg_GetLocalHostIdentity());
 		Options.m_Enclave = mp_Settings.m_Enclave;
 		Options.m_TranslateHostnames = fp_GetTranslateHostnames();
 		Options.m_InitialConnectionTimeout = InitialConnectionTimeout;
@@ -597,8 +643,6 @@ namespace NMib::NConcurrency
 		Options.m_bSupportAuthentication = bSupportAuthentication;
 		Options.m_bTimeoutForUnixSockets = mp_Settings.m_bTimeoutForUnixSockets;
 		Options.m_ReconnectDelay = mp_Settings.m_ReconnectDelay;
-
-		auto &Internal = *mp_pInternal;
 
 		mp_State.m_TrustManager = fg_ConstructActor<CDistributedActorTrustManager>(Internal.m_TrustManagerDatabase, fg_Move(Options));
 
@@ -616,6 +660,8 @@ namespace NMib::NConcurrency
 
 		mp_State.m_DistributionManager = fg_Move(DistributionManager);
 		mp_State.m_HostID = fg_Move(HostID);
+
+		co_await fg_Move(Internal.m_StateLoad);
 
 		co_return {};
 	}
@@ -689,6 +735,8 @@ namespace NMib::NConcurrency
 
 	void CDistributedAppActor::f_LogApplicationInfo()
 	{
+		// Reading version information maps the executable; avoid that work when the log is compiled out.
+#if (DMibSysLogSeverities) & DMibLogSeverity_Info
 		CStr ProgramPath = CFile::fs_GetProgramPath();
 
 		NProcess::CVersionInfo VersionInfo;
@@ -730,6 +778,7 @@ namespace NMib::NConcurrency
 				)
 			;
 		}
+#endif
 	}
 
 	void CDistributedAppActor::f_SetAppType(EDistributedAppType _AppType)
@@ -931,6 +980,12 @@ namespace NMib::NConcurrency
 		Internal.m_bDestroyCalled = true;
 #endif
 		CLogError LogError("Mib/Concurrency/App");
+
+		// Drain constructor-started loads even when application initialization never ran.
+		if (Internal.m_ConfigLoad.f_IsValid())
+			co_await fg_Move(Internal.m_ConfigLoad).f_Wrap() > LogError.f_Warning("Failed to load config database");
+		if (Internal.m_StateLoad.f_IsValid())
+			co_await fg_Move(Internal.m_StateLoad).f_Wrap() > LogError.f_Warning("Failed to load state database");
 
 		{
 			auto Future = fg_Exchange(Internal.m_pCanDestroyAuditLogs, fg_Construct())->f_Future();

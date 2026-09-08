@@ -9,6 +9,8 @@
 
 namespace NMib::NConcurrency
 {
+	struct CLocalHostIdentity;
+
 	enum class ELocalSocketFlag : uint32
 	{
 		mc_None = 0
@@ -24,6 +26,7 @@ namespace NMib::NConcurrency
 		static CDistributedAppActor_SettingsProperties &fs_GetGlobalDefaultSettings();
 
 		NStr::CStr f_GetCompositeFriendlyName() const;
+		NStr::CStr f_GetCompositeFriendlyName(CLocalHostIdentity const &_Identity) const;
 		NStr::CStr f_GetLocalSocketHostname(ELocalSocketFlag _Flags) const;
 		NStr::CStr f_GetLocalSocketFileName(ELocalSocketFlag _Flags, NStr::CStr const &_Enclave) const;
 		NStr::CStr f_GetLocalSocketWildcard(ELocalSocketFlag _Flags) const;

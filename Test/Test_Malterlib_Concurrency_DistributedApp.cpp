@@ -187,6 +187,44 @@ namespace
 
 		void f_DoTests()
 		{
+			DMibTestSuite("Local socket paths")
+			{
+				using NFile::CFile;
+
+				CDistributedAppActor_Settings Settings("SocketPaths");
+				Settings.m_Enclave = "c2x3u37jzzYBtQGDh";
+				Settings.m_RootDirectory = CFile::fs_GetProgramDirectory();
+				while (Settings.m_RootDirectory.f_GetLen() < 200)
+					Settings.m_RootDirectory /= "LongDeploymentDirectory";
+
+				CStr PlainPath;
+				for (bool bAuthenticated : {false, true})
+				{
+					DMibTestPath(bAuthenticated ? "Authenticated" : "Plain");
+					auto Flags = ELocalSocketFlag::mc_EnclaveSpecific;
+					if (bAuthenticated)
+						Flags |= ELocalSocketFlag::mc_AuthenticatedUnix;
+
+					CStr Path = Settings.f_GetLocalSocketFileName(Flags, Settings.m_Enclave);
+					DMibExpect(Path.f_GetLen(), <=, aint(NSys::NNetwork::fg_GetMaxUnixSocketNameLength()));
+					DMibExpect(Settings.f_GetLocalSocketWildcard(Flags), ==, Path.f_Replace(Settings.m_Enclave, "*"));
+					if (bAuthenticated)
+						DMibExpect(Path, !=, PlainPath);
+					else
+						PlainPath = Path;
+#ifdef DPlatformFamily_Windows
+					DMibExpectFalse(CFile::fs_GetDrive(Path).f_IsEmpty());
+					DMibExpect(Path, ==, CFile::fs_GetExpandedPath(Path));
+#endif
+					CDistributedAppActor_Settings OtherRoot = Settings;
+					OtherRoot.m_RootDirectory /= "Other";
+					DMibExpect(OtherRoot.f_GetLocalSocketFileName(Flags, OtherRoot.m_Enclave), !=, Path);
+					CDistributedAppActor_Settings OtherApp = Settings;
+					OtherApp.m_AppName += "Other";
+					DMibExpect(OtherApp.f_GetLocalSocketFileName(Flags, OtherApp.m_Enclave), !=, Path);
+				}
+			};
+
 			DMibTestCategory("Send window")
 			{
 				DMibTestSuite("Parse")

@@ -52,6 +52,9 @@ namespace NMib::NConcurrency
 
 	TCFuture<TCActor<CDistributedAppLogStoreLocal>> CDistributedAppActor::fp_OpenLogStoreLocal()
 	{
+#if (DMibSysLogSeverities) == 0
+		co_return DMibErrorInstance("The log system is compiled out, DMibSysLogSeverities is 0");
+#else
 		auto &Internal = *mp_pInternal;
 		if (Internal.m_AppLogStoreLocal)
 			co_return Internal.m_AppLogStoreLocal;
@@ -149,6 +152,7 @@ namespace NMib::NConcurrency
 		;
 
 		co_return Internal.m_AppLogStoreLocal;
+#endif
 	}
 
 	auto CDistributedAppActor::fp_OpenLogReporter(CDistributedAppLogReporter::CLogInfo _LogInfo)

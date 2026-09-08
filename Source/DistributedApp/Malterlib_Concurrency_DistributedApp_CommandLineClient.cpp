@@ -30,6 +30,7 @@ namespace NMib::NConcurrency
 		CDistributedAppActor_Settings m_Settings;
 		NContainer::TCMap<NStr::CStr, NStr::CStr> m_TranslateHostnames;
 		NStorage::TCSharedPointer<CRunLoop> m_pRunLoop;
+		TCWeakActor<CDistributedAppActor> m_AppActor; // Only set when the app lives in this process
 		bool m_bInitialized = false;
 	};
 
@@ -421,16 +422,39 @@ namespace NMib::NConcurrency
 			if (mp_fLazyStartApp)
 				fStopApp = mp_fLazyStartApp(_Params, Command.m_Flags);
 
-			fp_Init(_Params);
-
 			auto &Internal = *mp_pInternal;
 
-			TCDistributedActor<CCommandLineControlActor> pCommandLineControl = Internal.m_DistributionManager->f_ConstructActor<CCommandLineControlActor>();
+			TCActor<CActorDistributionManager> DistributionManager;
+			TCDistributedActor<ICCommandLine> CommandLineActor;
 
-			auto CommandLineActor = Internal.m_CommandLineSubscription(&TCDistributedActorSingleSubscription<ICCommandLine>::f_GetActor)
-				.f_Timeout(30.0, "Timed out waiting for command line actor to appear")
-				.f_CallSync(Internal.m_pRunLoop)
-			;
+			// An app that runs in this process hands us its command line actor directly. Calls on a
+			// distributed actor that was constructed locally are ordinary actor calls, so this skips
+			// the client side trust manager and distribution manager, the connection to the app's
+			// local socket, and the wait for the command line publication to arrive over it.
+			// f_GetInProcessCommandLine returns nothing unless the app opted in with
+			// f_InProcessCommandLineOnly and actually started in this process, so every other case
+			// falls through to the connecting path below
+			if (auto AppActor = Internal.m_AppActor.f_Lock())
+			{
+				auto InProcess = AppActor(&CDistributedAppActor::f_GetInProcessCommandLine).f_CallSync(Internal.m_pRunLoop);
+
+				CommandLineActor = fg_Move(InProcess.m_CommandLine);
+				DistributionManager = fg_Move(InProcess.m_DistributionManager);
+			}
+
+			if (!CommandLineActor)
+			{
+				fp_Init(_Params);
+
+				DistributionManager = Internal.m_DistributionManager;
+
+				CommandLineActor = Internal.m_CommandLineSubscription(&TCDistributedActorSingleSubscription<ICCommandLine>::f_GetActor)
+					.f_Timeout(30.0, "Timed out waiting for command line actor to appear")
+					.f_CallSync(Internal.m_pRunLoop)
+				;
+			}
+
+			TCDistributedActor<CCommandLineControlActor> pCommandLineControl = DistributionManager->f_ConstructActor<CCommandLineControlActor>();
 
 			CCommandLineControl CommandLineControl;
 			CommandLineControl.m_ControlActor = pCommandLineControl->f_ShareInterface<ICCommandLineControl>();
@@ -470,7 +494,6 @@ namespace NMib::NConcurrency
 					}
 				)
 			;
-
 			auto TerminationSubscription = NProcess::NPlatform::fg_Process_WaitForTermination
 				(
 					[pState, pCommandLineControl]
@@ -513,6 +536,7 @@ namespace NMib::NConcurrency
 					}
 				)
 			;
+
 			bool bStopped = false;
 
 			TCAsyncResult<uint32> Result;
@@ -580,6 +604,7 @@ namespace NMib::NConcurrency
 			, NStorage::TCSharedPointer<CDistributedAppCommandLineSpecification> const &_pCommandLineSpecification
 			, NContainer::TCMap<NStr::CStr, NStr::CStr> &&_TranslateHostnames
 			, NStorage::TCSharedPointer<CRunLoop> const &_pRunLoop
+			, TCWeakActor<CDistributedAppActor> const &_AppActor
 		)
 		: NCommandLine::TCCommandLineClient<CCommandLineSpecificationDistributedAppCustomization, CDistributedAppCommandLineClient>(_pCommandLineSpecification)
 		, mp_pInternal(fg_Construct())
@@ -588,6 +613,7 @@ namespace NMib::NConcurrency
 		Internal.m_Settings = _Settings;
 		Internal.m_TranslateHostnames = fg_Move(_TranslateHostnames);
 		Internal.m_pRunLoop = _pRunLoop;
+		Internal.m_AppActor = _AppActor;
 	}
 
 	CDistributedAppCommandLineClient::~CDistributedAppCommandLineClient()
@@ -683,7 +709,7 @@ namespace NMib::NConcurrency
 	{
 		auto &Internal = *mp_pInternal;
 
-		co_return CDistributedAppCommandLineClient(mp_Settings, Internal.m_pCommandLineSpec, fp_GetTranslateHostnames(), _pRunLoop);
+		co_return CDistributedAppCommandLineClient(mp_Settings, Internal.m_pCommandLineSpec, fp_GetTranslateHostnames(), _pRunLoop, fg_ThisActor(this));
 	}
 
 	CDistributedAppCommandLineClient::CDistributedAppCommandLineClient(CDistributedAppCommandLineClient &&_Other) = default;

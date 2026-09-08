@@ -159,6 +159,23 @@ namespace NMib::NConcurrency
 		co_return {};
 	}
 
+	TCFuture<void> CDistributedAppActor::fp_RemoveCommandLineListen()
+	{
+		CDistributedActorTrustManager_Address ListenAddresses[2];
+		ListenAddresses[0].m_URL = fp_GetLocalAddressForTransport(true);
+		ListenAddresses[1].m_URL = fp_GetLocalAddressForTransport(false);
+
+		auto Listens = co_await mp_State.m_TrustManager(&CDistributedActorTrustManager::f_EnumListens);
+
+		for (auto &ListenAddress : ListenAddresses)
+		{
+			if (Listens.f_FindEqual(ListenAddress))
+				co_await mp_State.m_TrustManager(&CDistributedActorTrustManager::f_RemoveListen, ListenAddress);
+		}
+
+		co_return {};
+	}
+
 	TCFuture<void> CDistributedAppActor::fp_SetupCommandLineListen()
 	{
 		bool bAuthenticatedUnix = fp_UseAuthenticatedUnixForLocalSockets();
@@ -201,6 +218,16 @@ namespace NMib::NConcurrency
 		auto &Internal = *mp_pInternal;
 
 		Internal.m_CommandLine = mp_State.m_DistributionManager->f_ConstructActor<CCommandLine>(fg_ThisActor(this));
+
+		// Publishing exists so a command line in another process can find the actor. An in process
+		// only command line is handed the actor directly by f_GetInProcessCommandLine, so the
+		// publication, and the subscription the client would need to observe it, are both pointless
+		if (mp_Settings.m_bInProcessCommandLineOnly)
+		{
+			DMibLogWithCategory(Mib/Concurrency/App, Debug, "Command line actor constructed for in process use, skipping publication");
+			co_return {};
+		}
+
 		DMibLogWithCategory(Mib/Concurrency/App, Debug, "Publishing command line actor");
 
 		Internal.m_CommandLinePublication = co_await Internal.m_CommandLine->f_Publish<ICCommandLine>("com.malterlib/Concurrency/Commandline", 0.0);
@@ -209,9 +236,39 @@ namespace NMib::NConcurrency
 		co_return {};
 	}
 
+	TCFuture<CDistributedAppActor::CInProcessCommandLine> CDistributedAppActor::f_GetInProcessCommandLine()
+	{
+		auto &Internal = *mp_pInternal;
+
+		if (!mp_Settings.m_bInProcessCommandLineOnly || !Internal.m_CommandLine)
+			co_return CInProcessCommandLine{};
+
+		co_return CInProcessCommandLine
+			{
+				.m_CommandLine = Internal.m_CommandLine->f_ShareInterface<ICCommandLine>().f_GetActor()
+				, .m_DistributionManager = mp_State.m_DistributionManager
+			}
+		;
+	}
+
 	TCFuture<void> CDistributedAppActor::fp_SetupCommandLineTrust()
 	{
 		auto &Internal = *mp_pInternal;
+
+		// All of this exists to let a command line in another process reach us: an address to listen
+		// on, a trust database holding a ticket for it and a permission to run commands. None of it
+		// is reachable when the command line only ever runs in this process
+		if (mp_Settings.m_bInProcessCommandLineOnly)
+		{
+			DMibLogWithCategory(Mib/Concurrency/App, Debug, "Command line is in process only, removing any local command line listen");
+
+			// A trust database written before the setting was turned on still holds the local listen
+			// addresses, and those are opened on every start. Drop them so turning the setting on
+			// stops the listening for an existing installation too, not only for a fresh one
+			co_await fp_RemoveCommandLineListen();
+
+			co_return {};
+		}
 
 		DMibLogWithCategory(Mib/Concurrency/App, Debug, "Setting up command line trust");
 

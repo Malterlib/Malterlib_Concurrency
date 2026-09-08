@@ -37,6 +37,7 @@ namespace NMib::NConcurrency
 				, NStorage::TCSharedPointer<CDistributedAppCommandLineSpecification> const &_pCommandLineSpecification
 				, NContainer::TCMap<NStr::CStr, NStr::CStr> &&_TranslateHostnames
 				, NStorage::TCSharedPointer<CRunLoop> const &_pRunLoop
+				, TCWeakActor<CDistributedAppActor> const &_AppActor = {}
 			)
 		;
 		~CDistributedAppCommandLineClient();

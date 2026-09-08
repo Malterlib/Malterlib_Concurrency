@@ -104,5 +104,12 @@ namespace NMib::NConcurrency
 		bool m_bCommandLineBeforeAppStart = false;
 		bool m_bTimeoutForUnixSockets = true;
 		bool m_bTLSForLocalSockets = true; // Selects the local socket address scheme: wss (TLS, compatible with older builds) or wsa (authenticated unix handshake)
+
+		// The command line is only ever run from inside the process that hosts the app. The app then
+		// skips the local listen, the command line trust database and the command line publication,
+		// and the command line client calls the app's command line actor directly instead of
+		// connecting to it. Rules out --remote-command-line and attaching a command line to an
+		// already running instance, so it only suits self contained tools
+		bool m_bInProcessCommandLineOnly = false;
 	};
 }

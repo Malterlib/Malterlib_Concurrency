@@ -1418,6 +1418,11 @@ namespace NMib::NConcurrency
 			)
 		;
 
+		// Reaching a command line in another process needs the listen address and the trust database
+		// that f_InProcessCommandLineOnly leaves unconfigured, so those options would only ever fail
+		if (mp_Settings.m_bInProcessCommandLineOnly)
+			return;
+
 		o_CommandLine.f_RegisterGlobalOptions
 			(
 				{

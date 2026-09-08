@@ -239,6 +239,12 @@ namespace NMib::NConcurrency
 		return fg_Move(*this);
 	}
 
+	CDistributedAppActor_Settings &&CDistributedAppActor_Settings::f_InProcessCommandLineOnly(bool _bInProcessCommandLineOnly) &&
+	{
+		m_bInProcessCommandLineOnly = _bInProcessCommandLineOnly;
+		return fg_Move(*this);
+	}
+
 	CDistributedAppActor_Settings &&CDistributedAppActor_Settings::f_ReconnectDelay(fp64 _ReconnectDelay) &&
 	{
 		m_ReconnectDelay = _ReconnectDelay;

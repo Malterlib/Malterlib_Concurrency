@@ -159,6 +159,23 @@ namespace NMib::NConcurrency
 		co_return {};
 	}
 
+	TCFuture<void> CDistributedAppActor::fp_RemoveCommandLineListen()
+	{
+		CDistributedActorTrustManager_Address ListenAddresses[2];
+		ListenAddresses[0].m_URL = fp_GetLocalAddressForTransport(true);
+		ListenAddresses[1].m_URL = fp_GetLocalAddressForTransport(false);
+
+		auto Listens = co_await mp_State.m_TrustManager(&CDistributedActorTrustManager::f_EnumListens);
+
+		for (auto &ListenAddress : ListenAddresses)
+		{
+			if (Listens.f_FindEqual(ListenAddress))
+				co_await mp_State.m_TrustManager(&CDistributedActorTrustManager::f_RemoveListen, ListenAddress);
+		}
+
+		co_return {};
+	}
+
 	TCFuture<void> CDistributedAppActor::fp_SetupCommandLineListen()
 	{
 		bool bAuthenticatedUnix = fp_UseAuthenticatedUnixForLocalSockets();
@@ -196,6 +213,13 @@ namespace NMib::NConcurrency
 		auto &Internal = *mp_pInternal;
 
 		Internal.m_CommandLine = mp_State.m_DistributionManager->f_ConstructActor<CCommandLine>(fg_ThisActor(this));
+
+		if (mp_Settings.m_bInProcessCommandLineOnly)
+		{
+			DMibLogWithCategory(Mib/Concurrency/App, Debug, "Command line actor constructed for in process use, skipping publication");
+			co_return {};
+		}
+
 		DMibLogWithCategory(Mib/Concurrency/App, Debug, "Publishing command line actor");
 
 		Internal.m_CommandLinePublication = co_await Internal.m_CommandLine->f_Publish<ICCommandLine>("com.malterlib/Concurrency/Commandline", 0.0);
@@ -204,9 +228,35 @@ namespace NMib::NConcurrency
 		co_return {};
 	}
 
+	// Returns empty actors unless an in-process-only command line has been constructed.
+	TCFuture<CDistributedAppActor::CInProcessCommandLine> CDistributedAppActor::f_GetInProcessCommandLine()
+	{
+		auto &Internal = *mp_pInternal;
+
+		if (!mp_Settings.m_bInProcessCommandLineOnly || !Internal.m_CommandLine)
+			co_return CInProcessCommandLine{};
+
+		co_return CInProcessCommandLine
+			{
+				.m_CommandLine = Internal.m_CommandLine->f_ShareInterface<ICCommandLine>().f_GetActor()
+				, .m_DistributionManager = mp_State.m_DistributionManager
+			}
+		;
+	}
+
 	TCFuture<void> CDistributedAppActor::fp_SetupCommandLineTrust()
 	{
 		auto &Internal = *mp_pInternal;
+
+		if (mp_Settings.m_bInProcessCommandLineOnly)
+		{
+			DMibLogWithCategory(Mib/Concurrency/App, Debug, "Command line is in process only, removing any local command line listen");
+
+			// Persisted listener addresses reopen at startup; remove them when enabling in-process-only operation.
+			co_await fp_RemoveCommandLineListen();
+
+			co_return {};
+		}
 
 		DMibLogWithCategory(Mib/Concurrency/App, Debug, "Setting up command line trust");
 

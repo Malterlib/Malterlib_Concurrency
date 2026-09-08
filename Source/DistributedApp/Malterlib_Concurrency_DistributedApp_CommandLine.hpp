@@ -28,7 +28,16 @@ namespace NMib::NConcurrency
 		_Stream % m_TerminalProgramVersion;
 		_Stream % m_ColorTerm;
 		_Stream % m_Locale;
-		_Stream % m_UTCOffsetSeconds;
+		if (_Stream.f_GetVersion() >= ICCommandLine::EProtocolVersion_SupportOptionalUTCOffset)
+			_Stream % m_UTCOffsetSeconds;
+		else if constexpr (tf_CStream::mc_bConsume)
+		{
+			int32 UTCOffsetSeconds;
+			_Stream >> UTCOffsetSeconds;
+			m_UTCOffsetSeconds = UTCOffsetSeconds;
+		}
+		else
+			_Stream << m_UTCOffsetSeconds.f_Get(int32(0)); // Older peers have no representation for an unset offset.
 		_Stream % m_bClipboardSupported;
 	}
 

@@ -563,6 +563,8 @@ namespace NMib::NConcurrency
 				DistributionManager = fg_Move(InProcess.m_DistributionManager);
 			}
 
+			bool bRemoteApp = !CommandLineActor;
+
 			if (!CommandLineActor)
 			{
 				fp_Init(_Params);
@@ -585,7 +587,7 @@ namespace NMib::NConcurrency
 			CommandLineControl.m_CommandLineGlyphWidth = mp_CommandLineGlyphWidth;
 			CommandLineControl.m_CommandLineGlyphHeight = mp_CommandLineGlyphHeight;
 			CommandLineControl.m_AnsiFlags = mp_AnsiFlags;
-			CommandLineControl.m_ClientInfo = CCommandLineClientInfo::fs_CollectLocal();
+			CommandLineControl.m_ClientInfo = CCommandLineClientInfo::fs_CollectLocal(bRemoteApp);
 
 			struct CState
 			{

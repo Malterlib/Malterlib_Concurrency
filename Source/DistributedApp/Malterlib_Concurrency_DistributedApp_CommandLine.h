@@ -38,7 +38,10 @@ namespace NMib::NConcurrency
 		template <typename tf_CStream>
 		void f_Stream(tf_CStream &_Stream);
 
-		static CCommandLineClientInfo fs_CollectLocal();
+		// The clock offset is only collected for a remote app. An app in the same process shares
+		// the client's time subsystem and asks it directly, and the first zone lookup in a process
+		// is expensive on macOS
+		static CCommandLineClientInfo fs_CollectLocal(bool _bRemoteApp);
 
 		NStr::CStr m_PlatformFamily; // Exact compile time platform family, DMibStringize(DPlatformFamily)
 		NStr::CStr m_Terminal; // $TERM

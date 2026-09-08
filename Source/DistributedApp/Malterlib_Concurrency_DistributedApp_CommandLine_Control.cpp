@@ -183,7 +183,7 @@ namespace NMib::NConcurrency
 		return m_ControlActor.f_GetProtocolVersions().m_MaxSupported >= ICCommandLineControl::EProtocolVersion_SupportScreenChange;
 	}
 
-	CCommandLineClientInfo CCommandLineClientInfo::fs_CollectLocal()
+	CCommandLineClientInfo CCommandLineClientInfo::fs_CollectLocal(bool _bRemoteApp)
 	{
 		CSystem &System = *fg_GetSys();
 
@@ -199,10 +199,13 @@ namespace NMib::NConcurrency
 		if (Info.m_Locale.f_IsEmpty())
 			Info.m_Locale = System.f_GetEnvironmentVariable("LANG");
 
-		NTime::CTimeSpan UTCOffset;
+		if (_bRemoteApp)
+		{
+			NTime::CTimeSpan UTCOffset;
 
-		NTime::CSystem_Time::fs_TimeGetUTCOffset(&UTCOffset);
-		Info.m_UTCOffsetSeconds = int32(UTCOffset.f_GetSeconds());
+			NTime::CSystem_Time::fs_TimeGetUTCOffset(&UTCOffset);
+			Info.m_UTCOffsetSeconds = int32(UTCOffset.f_GetSeconds());
+		}
 
 		Info.m_bClipboardSupported = NSys::fg_Clipboard_Supported();
 

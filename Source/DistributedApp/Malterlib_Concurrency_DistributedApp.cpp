@@ -437,6 +437,13 @@ namespace NMib::NConcurrency
 		if (mp_Settings.m_Enclave.f_IsEmpty())
 			return;
 
+		// The sockets swept here are the local listens left behind by earlier instances. An app whose
+		// command line only runs in this process sets up no command line listen, so the scan finds
+		// nothing and would only be the first blocking actor of the run. Such an app that listens
+		// locally for other reasons is left to clean up after itself
+		if (mp_Settings.m_bInProcessCommandLineOnly)
+			return;
+
 		auto BlockingActorCheckout = fg_BlockingActor();
 		auto BlockingActor = BlockingActorCheckout.f_Actor();
 

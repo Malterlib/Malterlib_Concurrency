@@ -77,11 +77,9 @@ namespace NMib::NConcurrency
 		void fp_CallTimerCallback(CTimeMeasure &_Timer, CTimerSubscriptionState &_Callback);
 		void fp_CallTimer(CTimeMeasure &_Timer);
 		void fp_ProcessTimers();
-		void fp_StartThread();
 		void fp_InsertTimerInQueue(CTimeMeasure &_Timer);
 
 		CTimerActor *m_pThis;
-		NStorage::TCUniquePointer<NThread::CThreadObject> m_pTimerThread;
 		NContainer::TCMap<fp64, CTimeMeasure> m_RegisteredTimers;
 		NContainer::TCLinkedList<CTimeMeasure> m_OneshotTimers;
 		NContainer::TCLinkedList<CTimeMeasure> m_ExactTimers;
@@ -93,12 +91,71 @@ namespace NMib::NConcurrency
 #if DMibEnableSafeCheck > 0
 		umint m_ProcessingThread = 0;
 #endif
-		align_cacheline NAtomic::TCAtomic<smint> m_WaitTime;
 	};
 
 	TCActor<CTimerActor> fg_TimerActor()
 	{
 		return fg_ConcurrencyManager().f_GetTimerActor();
+	}
+
+	///
+	/// CTimerActorHolder
+	///
+
+	void CTimerActorHolder::f_SetNextElapse(fp64 _SecondsFromNow)
+	{
+		if (_SecondsFromNow < 0.0)
+			_SecondsFromNow = 0.0;
+
+		mp_NextElapse = mp_Stopwatch.f_GetTime() + _SecondsFromNow;
+	}
+
+	void CTimerActorHolder::f_ClearNextElapse()
+	{
+		mp_NextElapse = -1.0;
+	}
+
+	void CTimerActorHolder::fp_RunThread(NThread::CThreadObject *_pThread, CConcurrencyThreadLocal &_ThreadLocal)
+	{
+		while (_pThread->f_GetState() != NThread::EThreadState_EventWantQuit)
+		{
+			fp_RunQueue(_ThreadLocal);
+
+			if (mp_NextElapse < 0.0)
+			{
+				_pThread->m_EventWantQuit.f_Wait();
+				continue;
+			}
+
+			fp64 Remaining = mp_NextElapse - mp_Stopwatch.f_GetTime();
+			if (Remaining > 0.0 && !_pThread->m_EventWantQuit.f_WaitTimeout(Remaining))
+				continue; // Signalled: a job arrived or the thread is asked to quit
+
+			// The deadline passed. Process the timers as an actor job so callbacks run inside the
+			// actor; the job republishes the next deadline. Clear it first so a destroyed actor
+			// does not get redispatched every round
+			f_ClearNextElapse();
+			auto *pActor = static_cast<CTimerActor *>(fp_GetActorRelaxed());
+			if (!pActor)
+				continue;
+
+			fg_ThisActor(pActor)(&CTimerActor::fp_ProcessTimers).f_DiscardResult();
+		}
+	}
+
+	///
+	/// CTimerActor
+	///
+
+	TCFuture<void> CTimerActor::fp_ProcessTimers()
+	{
+		mp_pInternal->fp_ProcessTimers();
+		co_return {};
+	}
+
+	CTimerActorHolder &CTimerActor::fp_GetHolder() const
+	{
+		return static_cast<CTimerActorHolder &>(*self.m_pThis.f_Get());
 	}
 
 	void CTimerActor::CInternal::fp_InsertTimerInQueue(CTimeMeasure &_Timer)
@@ -244,63 +301,12 @@ namespace NMib::NConcurrency
 			pTimer = m_TimerQueue.f_FindSmallest();
 		}
 
-		if (m_pTimerThread)
-		{
-			auto *pTimer = m_TimerQueue.f_FindSmallest();
-			if (pTimer)
-			{
-				aint WaitTime = ((pTimer->m_NextElapse - m_Stopwatch.f_GetTime()) * 1000000.0).f_ToIntRound();
-				if (WaitTime == 0)
-					WaitTime = -1;
-				m_WaitTime.f_Exchange(WaitTime);
-				m_pTimerThread->m_EventWantQuit.f_Signal();
-			}
-		}
-	}
-
-	void CTimerActor::CInternal::fp_StartThread()
-	{
-		if (!m_pTimerThread)
-		{
-			m_pTimerThread
-				= NThread::CThreadObject::fs_StartThread
-				(
-					[this, ThisActor = fg_ThisActor(m_pThis)](NThread::CThreadObject *_pThread) -> aint
-					{
-						aint MicroSecondsOld = 0;
-						while (_pThread->f_GetState() != NThread::EThreadState_EventWantQuit)
-						{
-							aint MicroSeconds = m_WaitTime.f_Exchange(0);
-							if (MicroSeconds == 0)
-								MicroSeconds = MicroSecondsOld;
-							if (MicroSeconds)
-							{
-								MicroSecondsOld = 0;
-								// Reset semaphore
-								if (MicroSeconds < 0 || _pThread->m_EventWantQuit.f_WaitTimeout(fp64(MicroSeconds) / fp64(1000000.0)))
-								{
-									g_Dispatch(ThisActor) / [this]
-										{
-											fp_ProcessTimers();
-										}
-										> g_DiscardResult
-									;
-								}
-								else
-								{
-									MicroSecondsOld = MicroSeconds;
-								}
-							}
-							else
-								_pThread->m_EventWantQuit.f_Wait();
-						}
-						return 0;
-					}
-					, "Timer timeouts"
-				)
-			;
-		}
-		fp_ProcessTimers();
+		// Publish the next deadline to the holder, whose thread this runs on
+		auto *pNext = m_TimerQueue.f_FindSmallest();
+		if (pNext)
+			m_pThis->fp_GetHolder().f_SetNextElapse(pNext->m_NextElapse - m_Stopwatch.f_GetTime());
+		else
+			m_pThis->fp_GetHolder().f_ClearNextElapse();
 	}
 
 	CTimerActor::CTimerActor()
@@ -312,7 +318,7 @@ namespace NMib::NConcurrency
 	{
 		auto &Internal = *mp_pInternal;
 
-		Internal.m_pTimerThread.f_Clear();
+		fp_GetHolder().f_ClearNextElapse();
 #if DMibEnableSafeCheck > 0
 		Internal.m_ProcessingThread = NSys::fg_Thread_GetCurrentUID();
 		auto Cleanup = g_OnScopeExit / [&]
@@ -453,7 +459,7 @@ namespace NMib::NConcurrency
 
 		Timer.m_fOneshotCallback = g_ActorFunctorWeak(_Actor) / fg_Move(_fCallback);
 
-		Internal.fp_StartThread();
+		Internal.fp_ProcessTimers();
 	}
 
 	CActorSubscription CTimerActor::f_OneshotTimerAbortable(fp64 _Period, TCActor<CActor> const &_Actor, FUnitVoidFutureFunction &&_fCallback)
@@ -476,7 +482,7 @@ namespace NMib::NConcurrency
 
 		Timer.m_fOneshotCallback = g_ActorFunctorWeak(_Actor) / fg_Move(_fCallback);
 
-		Internal.fp_StartThread();
+		Internal.fp_ProcessTimers();
 
 		return g_ActorSubscription / [this, pTimer, pDestroyed]() -> TCFuture<void>
 			{
@@ -516,7 +522,7 @@ namespace NMib::NConcurrency
 		auto &Callback = Timer.m_Callbacks.f_Insert();
 		Callback.m_fCallback = g_ActorFunctorWeak(_Actor) / fg_Move(_fCallback);
 
-		Internal.fp_StartThread();
+		Internal.fp_ProcessTimers();
 
 		return g_ActorSubscription / [this, pTimer = &Timer, &Callback, pDestroyed = Callback.m_pDestroyed]() -> TCFuture<void>
 			{
@@ -569,7 +575,7 @@ namespace NMib::NConcurrency
 		auto &Callback = Timer.m_Callbacks.f_Insert();
 		Callback.m_fCallback = g_ActorFunctorWeak(_Actor) / fg_Move(_fCallback);
 
-		Internal.fp_StartThread();
+		Internal.fp_ProcessTimers();
 
 		return g_ActorSubscription / [this, pTimer = &Timer, &Callback, pDestroyed = Callback.m_pDestroyed]() -> TCFuture<void>
 			{

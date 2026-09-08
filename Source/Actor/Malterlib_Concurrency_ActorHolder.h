@@ -346,10 +346,19 @@ namespace NMib::NConcurrency
 		void fp_QueueJob(FActorQueueDispatchNoAlloc &&_ToQueue, CConcurrencyThreadLocal &_ThreadLocal);
 		void fp_RunQueue(CConcurrencyThreadLocal &_ThreadLocal);
 
+		// The body of the holder's thread. The default drains the queue and parks on the thread's
+		// quit event until a job or a quit request signals it. A subclass that needs to wake for
+		// other reasons overrides it, and must return once the thread state is
+		// EThreadState_EventWantQuit
+		virtual void fp_RunThread(NThread::CThreadObject *_pThread, CConcurrencyThreadLocal &_ThreadLocal);
+
 		CConcurrentRunQueueNonVirtualNoAlloc::CLocalQueueData mp_JobQueueLocal;
 		NThread::CLowLevelLock mp_ThreadLock;
 		NStorage::TCUniquePointer<NThread::CThreadObject> mp_pThread;
 		NStr::CStr mp_ThreadName;
+#if DMibConfig_Tests_Enable && !defined(DTests_PerfTests)
+		fp64 mp_BusyWaitTime = 0.0;
+#endif
 
 		align_cacheline CConcurrentRunQueueNonVirtualNoAlloc mp_JobQueue;
 		NAtomic::TCAtomic<umint> mp_JobQueueWorking;

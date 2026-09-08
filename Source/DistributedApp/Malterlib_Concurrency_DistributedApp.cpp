@@ -575,7 +575,13 @@ namespace NMib::NConcurrency
 			)
 		;
 
-		co_await (mp_State.m_StateDatabase.f_Load() + mp_State.m_ConfigDatabase.f_Load());
+		// The config database feeds the trust manager options below, so it is awaited here. Nothing
+		// in this function reads the state database and its first reader is the command line setup
+		// that follows, so its load runs beside the trust manager initialisation and is awaited at
+		// the end. Loading the two together would take a blocking actor each; this way one serves
+		// both, and on macOS the pool is spared a park between them
+		co_await mp_State.m_ConfigDatabase.f_Load();
+		auto StateLoad = mp_State.m_StateDatabase.f_Load();
 
 		DMibLogWithCategory(Mib/Concurrency/App, Debug, "Initializing trust manager");
 		NFunction::TCFunctionMovable<NConcurrency::TCActor<NConcurrency::CActorDistributionManager> (CActorDistributionManagerInitSettings const &_Settings)> fManagerFactory;
@@ -643,6 +649,8 @@ namespace NMib::NConcurrency
 
 		mp_State.m_DistributionManager = fg_Move(DistributionManager);
 		mp_State.m_HostID = fg_Move(HostID);
+
+		co_await fg_Move(StateLoad);
 
 		co_return {};
 	}

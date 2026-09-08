@@ -43,6 +43,17 @@ namespace NMib::NConcurrency
 		Internal.m_HostTimeout = _HostTimeout;
 		Internal.fp_CleanupUpdateTimer(true);
 
+		// The timeout is a grace period for connected hosts before they are killed. With no host,
+		// no client connection that could produce one and no listen a peer could arrive through,
+		// there is nothing for the period to protect, so the shutdown state is entered at once.
+		// That also keeps a process without remotes from its first timer, which would construct
+		// the timer actor and its two threads just to wait out the grace period at exit
+		if (Internal.m_Hosts.f_IsEmpty() && Internal.m_ClientConnections.f_IsEmpty() && Internal.m_Listens.f_IsEmpty())
+		{
+			Internal.m_bPreShutdown = true;
+			return;
+		}
+
 		self / [this, _KillHostsTimeout]() -> TCFuture<void>
 			{
 				auto &Internal = *mp_pInternal;

@@ -1164,6 +1164,8 @@ namespace NMib::NConcurrency
 
 		bool f_IsValid() const;
 
+		bool f_IsSet() const;
+
 		template<typename tf_CFunctor>
 		void operator > (tf_CFunctor &&_Functor) &&
 			requires (NTraits::cIsCallableWith<NTraits::TCRemoveReferenceAndQualifiers<tf_CFunctor>, void (TCAsyncResult<t_CReturnValue> &&)>)

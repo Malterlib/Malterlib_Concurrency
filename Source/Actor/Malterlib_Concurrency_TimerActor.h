@@ -11,9 +11,26 @@ namespace NMib::NConcurrency
 #	define DMibErrorAsyncTimeout(d_Description) DMibImpError(NMib::NConcurrency::CExceptionAsyncTimeout, d_Description, false)
 #	define DMibErrorInstanceAsyncTimeout(d_Description) DMibImpExceptionInstance(NMib::NConcurrency::CExceptionAsyncTimeout, d_Description, false)
 
+	struct CTimerActor;
+
+	// Timer jobs and deadline updates run on the holder thread, so the deadline needs no synchronization.
+	struct CTimerActorHolder : public CSeparateThreadActorHolder
+	{
+		using CSeparateThreadActorHolder::CSeparateThreadActorHolder;
+
+		void f_SetNextElapse(fp64 _SecondsFromNow);
+		void f_ClearNextElapse();
+
+	protected:
+		void fp_RunThread(NThread::CThreadObject *_pThread, CConcurrencyThreadLocal &_ThreadLocal) override;
+
+		NTime::CStopwatch mp_Stopwatch{true};
+		fp64 mp_NextElapse = -1.0; // Time on mp_Stopwatch, negative when no timer is armed
+	};
+
 	struct CTimerActor : public CActor
 	{
-		using CActorHolder = CSeparateThreadActorHolder;
+		using CActorHolder = CTimerActorHolder;
 		CTimerActor();
 		~CTimerActor();
 
@@ -25,9 +42,13 @@ namespace NMib::NConcurrency
 		CActorSubscription f_RegisterExactTimer(fp64 _Period, TCActor<CActor> const &_Actor, FUnitVoidFutureFunction &&_fCallback);
 
 	private:
+		friend struct CTimerActorHolder;
+
 		struct CInternal;
 
 		TCFuture<void> fp_Destroy();
+		TCFuture<void> fp_ProcessTimers();
+		CTimerActorHolder &fp_GetHolder() const;
 
 		NStorage::TCUniquePointer<CInternal> mp_pInternal;
 	};

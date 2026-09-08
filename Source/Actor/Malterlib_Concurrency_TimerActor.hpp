@@ -10,6 +10,9 @@ namespace NMib::NConcurrency
 	template <typename t_CReturnValue>
 	TCFuture<t_CReturnValue> TCFuture<t_CReturnValue>::f_Timeout(fp64 _Timeout, NStr::CStr const &_TimeoutMessage, bool _bFireAtExit) &&
 	{
+		if (f_IsSet())
+			return fg_Move(*this);
+
 		TCPromiseFuturePair<t_CReturnValue> Promise;
 		NStorage::TCSharedPointer<NAtomic::CAtomicFlag> pReplied = fg_Construct();
 		auto This = fg_Move(*this);

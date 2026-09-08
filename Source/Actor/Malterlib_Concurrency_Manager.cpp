@@ -1288,7 +1288,20 @@ namespace NMib::NConcurrency
 		if (m_bDestroyed)
 			return;
 		fp_InitConcurrentActors(); // Make sure concurrent actors are created
-		auto &TimerActor = f_GetTimerActor();
+
+		// The timer actor is created by the first timer, so while none exists there is nothing to
+		// fire at exit and no reason to start its two threads now just to find that out. A timer
+		// registered during the shutdown creates it late, so every use looks again. The flag is
+		// published after the actor under m_TimerActorLock, and the actor is only moved out by
+		// this thread further down, so an acquire load is enough here
+		auto fCallTimerActor = [this](void (CTimerActor::*_fMember)())
+			{
+				if (!m_bTimerActorInit.f_Load(NAtomic::gc_MemoryOrder_Acquire))
+					return;
+
+				m_pTimerActor(_fMember).f_CallSync();
+			}
+		;
 
 		m_bDestroyed = true;
 
@@ -1336,7 +1349,7 @@ namespace NMib::NConcurrency
 #if DMibConfig_Concurrency_DebugBlockDestroy
 			volatile static bool s_AbortLoop = false;
 #endif
-			TimerActor(&CTimerActor::f_FireAtExit).f_CallSync();
+			fCallTimerActor(&CTimerActor::f_FireAtExit);
 
 			bool bLoggedLongTimeShutdown = false;
 
@@ -1346,7 +1359,7 @@ namespace NMib::NConcurrency
 				{
 					if (FireTimersStopwatch.f_GetTime() > 10.0)
 					{
-						TimerActor(&CTimerActor::f_FireAllTimeouts).f_CallSync();
+						fCallTimerActor(&CTimerActor::f_FireAllTimeouts);
 						if (m_bShutdownLogging && !bLoggedLongTimeShutdown)
 						{
 							bLoggedLongTimeShutdown = true;
@@ -1355,9 +1368,7 @@ namespace NMib::NConcurrency
 						FireTimersStopwatch.f_Start();
 					}
 					else
-					{
-						TimerActor(&CTimerActor::f_FireAtExit).f_CallSync();
-					}
+						fCallTimerActor(&CTimerActor::f_FireAtExit);
 					TimerCheckStopwatch.f_Start();
 				}
 

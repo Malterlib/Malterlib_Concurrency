@@ -382,9 +382,16 @@ namespace NMib::NConcurrency
 		, m_HostDaemonTimeout(_InitSettings.m_HostDaemonTimeout)
 	{
 		m_WebsocketSettings.m_bTimeoutForUnixSockets = _InitSettings.m_bTimeoutForUnixSockets;
+	}
 
+	NStr::CStr const &CActorDistributionManagerInternal::fp_GetFriendlyName()
+	{
+		// Looked up here rather than at construction: a manager that never identifies itself to a
+		// peer never pays for the name service
 		if (m_FriendlyName.f_IsEmpty())
 			m_FriendlyName = fg_GetLocalHostIdentityNow().f_UserAtComputer();
+
+		return m_FriendlyName;
 	}
 
 	CActorDistributionManagerInternal::~CActorDistributionManagerInternal()

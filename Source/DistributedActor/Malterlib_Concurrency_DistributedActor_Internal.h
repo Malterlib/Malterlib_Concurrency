@@ -599,6 +599,8 @@ namespace NMib::NConcurrency
 
 		bool fp_HandleProtocolIncoming(CConnection *_pConnection, NStorage::TCSharedPointer<NStream::CBinaryStorage const> const &_pMessage);
 		void fp_Identify(CConnection *_pConnection);
+		// The friendly name sent to peers, looked up on first use when none was configured
+		NStr::CStr const &fp_GetFriendlyName();
 		NContainer::TCSet<NStr::CStr> const &fp_GetAllowedNamespacesForHost(NStorage::TCSharedPointerSupportWeak<CHost> const &_pHost, bool &o_bAllowAll);
 		void fp_NotifyNewActor
 			(

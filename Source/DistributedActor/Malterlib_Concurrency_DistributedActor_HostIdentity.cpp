@@ -33,6 +33,11 @@ namespace NMib::NConcurrency
 
 	void fg_PrefetchLocalHostIdentity()
 	{
+		fg_PrefetchLocalHostIdentity(fg_Construct(fg_BlockingActor()));
+	}
+
+	void fg_PrefetchLocalHostIdentity(NStorage::TCSharedPointer<CBlockingActorCheckout> const &_pBlockingActorCheckout)
+	{
 		auto &State = *g_LocalHostIdentity;
 		{
 			DMibLock(State.m_Lock);
@@ -42,9 +47,9 @@ namespace NMib::NConcurrency
 			State.m_bStarted = true;
 		}
 
-		// The checkout lives until the lookup has answered, so the loads that follow it at start-up
-		// get a blocking actor of their own instead of queueing behind the name service
-		NStorage::TCSharedPointer<CBlockingActorCheckout> pBlockingActorCheckout = fg_Construct(fg_BlockingActor());
+		// The checkout lives until the lookup has answered, so file work dispatched after it gets a
+		// blocking actor of its own instead of queueing behind the name service
+		auto pBlockingActorCheckout = _pBlockingActorCheckout;
 		(
 			g_Dispatch(*pBlockingActorCheckout) / []
 			{

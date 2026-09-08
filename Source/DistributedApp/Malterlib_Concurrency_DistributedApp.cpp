@@ -74,14 +74,21 @@ namespace NMib::NConcurrency
 		, mp_Settings(_Settings)
 		, mp_pInternal(fg_Construct())
 	{
-		// The trust manager names this host after the local user and computer. The lookup loads
-		// name service libraries on some hosts, so it starts here, on the run's first blocking
-		// actor, and is collected when the trust manager is initialised
-		fg_PrefetchLocalHostIdentity();
+		auto &Internal = *mp_pInternal;
+
+		// The run's first file work goes on one blocking actor, queued so the two database loads, a
+		// stat each, come before the host identity lookup, which takes a millisecond where the user
+		// name goes through a name service. The loads are collected by the trust initialisation. A
+		// command line that only runs in this process has no peer that ever reads the friendly
+		// name, so it skips the lookup; the distribution manager looks the name up itself should a
+		// peer turn up after all
+		NStorage::TCSharedPointer<CBlockingActorCheckout> pStartupBlockingActor = fg_Construct(fg_BlockingActor());
+		Internal.m_ConfigLoad = mp_State.m_ConfigDatabase.f_Load(*pStartupBlockingActor);
+		Internal.m_StateLoad = mp_State.m_StateDatabase.f_Load(*pStartupBlockingActor);
+		if (!_Settings.m_bInProcessCommandLineOnly)
+			fg_PrefetchLocalHostIdentity(pStartupBlockingActor);
 
 		mp_State.m_LocalAddress = fp_GetLocalAddress();
-
-		auto &Internal = *mp_pInternal;
 
 		if (Internal.m_AppType != EDistributedAppType_InProcess)
 		{
@@ -558,6 +565,8 @@ namespace NMib::NConcurrency
 
 	TCFuture<void> CDistributedAppActor::fp_InitializeDistributedTrust()
 	{
+		auto &Internal = *mp_pInternal;
+
 		DMibLogWithCategory(Mib/Concurrency/App, Debug, "Loading config file and state");
 
 		fp_CleanupEnclaveSockets();
@@ -586,12 +595,10 @@ namespace NMib::NConcurrency
 		// that follows, so its load runs beside the trust manager initialisation and is awaited at
 		// the end. Loading the two together would take a blocking actor each; this way one serves
 		// both, and on macOS the pool is spared a park between them
-		// Looked up on a blocking actor since the constructor. Awaited before the loads so they get
-		// that actor once it is released instead of starting a second one beside it
-		auto LocalHostIdentity = co_await fg_GetLocalHostIdentity();
-
-		co_await mp_State.m_ConfigDatabase.f_Load();
-		auto StateLoad = mp_State.m_StateDatabase.f_Load();
+		// Both loads were started in the constructor. The config database feeds the trust manager
+		// options below; nothing here reads the state database and its first reader is the command
+		// line setup that follows, so its load is collected at the end
+		co_await fg_Move(Internal.m_ConfigLoad);
 
 		DMibLogWithCategory(Mib/Concurrency/App, Debug, "Initializing trust manager");
 		NFunction::TCFunctionMovable<NConcurrency::TCActor<NConcurrency::CActorDistributionManager> (CActorDistributionManagerInitSettings const &_Settings)> fManagerFactory;
@@ -630,7 +637,8 @@ namespace NMib::NConcurrency
 		Options.m_fConstructManager = fg_Move(fManagerFactory);
 		Options.m_KeySetting = mp_Settings.m_KeySetting;
 		Options.m_ListenFlags = mp_Settings.m_ListenFlags;
-		Options.m_FriendlyName = mp_Settings.f_GetCompositeFriendlyName(LocalHostIdentity);
+		if (!mp_Settings.m_bInProcessCommandLineOnly)
+			Options.m_FriendlyName = mp_Settings.f_GetCompositeFriendlyName(co_await fg_GetLocalHostIdentity());
 		Options.m_Enclave = mp_Settings.m_Enclave;
 		Options.m_TranslateHostnames = fp_GetTranslateHostnames();
 		Options.m_InitialConnectionTimeout = InitialConnectionTimeout;
@@ -640,8 +648,6 @@ namespace NMib::NConcurrency
 		Options.m_bSupportAuthentication = bSupportAuthentication;
 		Options.m_bTimeoutForUnixSockets = mp_Settings.m_bTimeoutForUnixSockets;
 		Options.m_ReconnectDelay = mp_Settings.m_ReconnectDelay;
-
-		auto &Internal = *mp_pInternal;
 
 		mp_State.m_TrustManager = fg_ConstructActor<CDistributedActorTrustManager>(Internal.m_TrustManagerDatabase, fg_Move(Options));
 
@@ -660,7 +666,7 @@ namespace NMib::NConcurrency
 		mp_State.m_DistributionManager = fg_Move(DistributionManager);
 		mp_State.m_HostID = fg_Move(HostID);
 
-		co_await fg_Move(StateLoad);
+		co_await fg_Move(Internal.m_StateLoad);
 
 		co_return {};
 	}
@@ -980,6 +986,12 @@ namespace NMib::NConcurrency
 		Internal.m_bDestroyCalled = true;
 #endif
 		CLogError LogError("Mib/Concurrency/App");
+
+		// Loads no initialisation collected, in a run that never started the app
+		if (Internal.m_ConfigLoad.f_IsValid())
+			co_await fg_Move(Internal.m_ConfigLoad).f_Wrap() > LogError.f_Warning("Failed to load config database");
+		if (Internal.m_StateLoad.f_IsValid())
+			co_await fg_Move(Internal.m_StateLoad).f_Wrap() > LogError.f_Warning("Failed to load state database");
 
 		{
 			auto Future = fg_Exchange(Internal.m_pCanDestroyAuditLogs, fg_Construct())->f_Future();

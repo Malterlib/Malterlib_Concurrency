@@ -20,6 +20,9 @@ namespace NMib::NConcurrency
 	// process that will need the names can manage, so the lookup, which on some hosts loads the
 	// name service libraries, overlaps the rest of the start-up on a thread nothing waits for
 	void fg_PrefetchLocalHostIdentity();
+	// The same, queued on the given blocking actor behind whatever is queued there already; the
+	// checkout is held until the lookup has answered
+	void fg_PrefetchLocalHostIdentity(NStorage::TCSharedPointer<CBlockingActorCheckout> const &_pBlockingActorCheckout);
 
 	// Resolves with the names once the lookup has finished, starting it if it has not
 	TCFuture<CLocalHostIdentity> fg_GetLocalHostIdentity();

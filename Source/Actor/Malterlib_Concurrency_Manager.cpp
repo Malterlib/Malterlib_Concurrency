@@ -443,6 +443,15 @@ namespace NMib::NConcurrency
 			}
 		).f_CallSync();
 #endif
+
+		// The timer actor is created here rather than by the first timer. Nearly every program
+		// registers one eventually, if only through the timeout guards on its shutdown path, and
+		// creating it there put the actor's thread start, thread locals and first arena inside a
+		// wait on the critical path of exit. Constructing it returns as soon as the thread has
+		// been created, so from here the thread comes up alongside the rest of the start-up
+		// instead. The manager pointer is already published by the caller, which the thread
+		// needs when it asks for the manager
+		f_GetTimerActor();
 	}
 
 	void CConcurrencyManager::f_Stop()

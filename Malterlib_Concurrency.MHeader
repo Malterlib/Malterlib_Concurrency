@@ -347,6 +347,10 @@ Property
 	MalterlibConcurrency_DebugFutures: bool = false // User(Debug)=true: Set to true to enable future reference debugging
 	MalterlibConcurrency_DebugUnobservedException: bool = false // User(Debug)=true: Set to true to enable unobserved exception callstack debugging
 	MalterlibConcurrency_DebugSubscriptions: bool = false // User(Debug)=true: Set to true to enable logging of actor subscriptions
+
+	// Number of worker threads the concurrency manager creates. 0 uses the number of virtual cores.
+	// Short lived tools pay for every worker thread at startup and shutdown, so they can pin this low.
+	MalterlibConcurrency_ThreadCount: int = 0 // User(Concurrency)=0: Number of concurrency worker threads. 0 uses the number of virtual cores.
 }
 
 Compile
@@ -383,6 +387,10 @@ Compile
 		}
 	}
 
+	PreprocessorDefines += `DMibConcurrency=@(MalterlibConcurrency_ThreadCount->ToString())`
+	{
+		!MalterlibConcurrency_ThreadCount 0
+	}
 	PreprocessorDefines += "DMibConfig_Concurrency_DebugActorCallstacks=1"
 	{
 		!!MalterlibConcurrency_DebugActorCallstacks true

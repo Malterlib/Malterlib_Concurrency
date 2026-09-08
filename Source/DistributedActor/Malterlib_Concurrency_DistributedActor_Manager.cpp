@@ -85,7 +85,7 @@ namespace NMib::NConcurrency
 	}
 
 	CActorDistributionManagerInitSettings::CActorDistributionManagerInitSettings(NStr::CStr const &_HostID, NStr::CStr const &_Enclave)
-		: CActorDistributionManagerInitSettings{_HostID, _Enclave, fg_Format("{}@{}", NProcess::NPlatform::fg_Process_GetUserName(), NProcess::NPlatform::fg_Process_GetComputerName())}
+		: CActorDistributionManagerInitSettings{_HostID, _Enclave, NStr::CStr()} // Named after the local user and computer on first use
 	{
 	}
 
@@ -375,6 +375,7 @@ namespace NMib::NConcurrency
 	CActorDistributionManagerInternal::CActorDistributionManagerInternal(CActorDistributionManager *_pThis, CActorDistributionManagerInitSettings const &_InitSettings)
 		: m_pThis(_pThis)
 		, m_FriendlyName(_InitSettings.m_FriendlyName)
+		, m_fGetFriendlyName(_InitSettings.m_fGetFriendlyName)
 		, m_HostID(_InitSettings.m_HostID)
 		, m_Enclave(_InitSettings.m_Enclave)
 		, m_HostTimeout(_InitSettings.m_HostTimeout)
@@ -386,10 +387,15 @@ namespace NMib::NConcurrency
 
 	NStr::CStr const &CActorDistributionManagerInternal::fp_GetFriendlyName()
 	{
-		// Looked up here rather than at construction: a manager that never identifies itself to a
+		// Resolved here rather than at construction: a manager that never identifies itself to a
 		// peer never pays for the name service
 		if (m_FriendlyName.f_IsEmpty())
-			m_FriendlyName = fg_GetLocalHostIdentityNow().f_UserAtComputer();
+		{
+			if (m_fGetFriendlyName)
+				m_FriendlyName = m_fGetFriendlyName();
+			else
+				m_FriendlyName = fg_GetLocalHostIdentityNow().f_UserAtComputer();
+		}
 
 		return m_FriendlyName;
 	}

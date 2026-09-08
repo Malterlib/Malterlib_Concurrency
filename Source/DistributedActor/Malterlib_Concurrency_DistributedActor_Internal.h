@@ -486,6 +486,7 @@ namespace NMib::NConcurrency
 		CActorDistributionManager *m_pThis;
 		NStr::CStr m_HostID;
 		NStr::CStr m_FriendlyName;
+		NFunction::TCFunction<NStr::CStr ()> m_fGetFriendlyName;
 		NStr::CStr m_Enclave;
 
 		struct COnHostInfoChanged

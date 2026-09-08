@@ -260,6 +260,7 @@ namespace NMib::NConcurrency
 		CActorSubscription m_HostInfoChangedSubscription;
 
 		NStr::CStr m_FriendlyName;
+		NFunction::TCFunction<NStr::CStr ()> m_fGetFriendlyName;
 		NStr::CStr m_Enclave;
 
 		CBasicConfig m_BasicConfig;

@@ -284,6 +284,7 @@ namespace NMib::NConcurrency
 			NCryptography::CPublicKeySetting m_KeySetting = CActorDistributionCryptographySettings::fs_DefaultKeySetting();
 			NNetwork::ENetFlag m_ListenFlags = NNetwork::ENetFlag_None;
 			NStr::CStr m_FriendlyName;
+			NFunction::TCFunction<NStr::CStr ()> m_fGetFriendlyName; // Asked for the name on first use when m_FriendlyName is empty
 			NStr::CStr m_Enclave;
 			NContainer::TCMap<NStr::CStr, NStr::CStr> m_TranslateHostnames;
 			fp64 m_InitialConnectionTimeout = 5_seconds;

@@ -1007,7 +1007,12 @@ namespace NMib::NConcurrency
 		co_await Internal.f_WaitForInit();
 
 		if (_HostID == Internal.m_BasicConfig.m_HostID)
+		{
+			if (Internal.m_FriendlyName.f_IsEmpty() && Internal.m_fGetFriendlyName)
+				Internal.m_FriendlyName = Internal.m_fGetFriendlyName();
+
 			co_return Internal.m_FriendlyName;
+		}
 
 		auto FrientlyName = co_await Internal.m_ActorDistributionManager(&CActorDistributionManager::f_GetHostFriendlyName, _HostID);
 

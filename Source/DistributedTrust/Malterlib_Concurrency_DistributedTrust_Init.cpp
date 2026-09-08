@@ -170,6 +170,7 @@ namespace NMib::NConcurrency
 			co_return DMibErrorInstance("Invalid trust manager basic config. Broken database?");
 
 		CActorDistributionManagerInitSettings DistributionManagerInitSettings{m_BasicConfig.m_HostID, m_Enclave, m_FriendlyName};
+		DistributionManagerInitSettings.m_fGetFriendlyName = m_fGetFriendlyName;
 
 		DistributionManagerInitSettings.m_HostTimeout = m_HostTimeout;
 		DistributionManagerInitSettings.m_HostDaemonTimeout = m_HostDaemonTimeout;

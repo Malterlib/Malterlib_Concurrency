@@ -35,6 +35,7 @@ namespace NMib::NConcurrency
 		, m_KeySetting(_Options.m_KeySetting)
 		, m_ListenFlags(_Options.m_ListenFlags)
 		, m_FriendlyName(_Options.m_FriendlyName)
+		, m_fGetFriendlyName(fg_Move(_Options.m_fGetFriendlyName))
 		, m_Enclave(_Options.m_Enclave)
 		, m_TranslateHostnames(_Options.m_TranslateHostnames)
 		, m_InitialConnectionTimeout(_Options.m_InitialConnectionTimeout)

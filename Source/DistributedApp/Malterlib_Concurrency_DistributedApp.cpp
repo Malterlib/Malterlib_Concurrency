@@ -637,7 +637,18 @@ namespace NMib::NConcurrency
 		Options.m_fConstructManager = fg_Move(fManagerFactory);
 		Options.m_KeySetting = mp_Settings.m_KeySetting;
 		Options.m_ListenFlags = mp_Settings.m_ListenFlags;
-		if (!mp_Settings.m_bInProcessCommandLineOnly)
+		// A command line that only runs in this process, with no listen and no trust to identify
+		// itself to, normally has no peer that ever reads the friendly name, so the name is only
+		// provided on demand, for the peer that turns up after all; it is looked up then
+		if (mp_Settings.m_bInProcessCommandLineOnly)
+		{
+			Options.m_fGetFriendlyName = [Settings = mp_Settings]
+				{
+					return Settings.f_GetCompositeFriendlyName();
+				}
+			;
+		}
+		else
 			Options.m_FriendlyName = mp_Settings.f_GetCompositeFriendlyName(co_await fg_GetLocalHostIdentity());
 		Options.m_Enclave = mp_Settings.m_Enclave;
 		Options.m_TranslateHostnames = fp_GetTranslateHostnames();

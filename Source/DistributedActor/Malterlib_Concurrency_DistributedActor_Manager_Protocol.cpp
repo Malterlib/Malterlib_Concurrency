@@ -774,7 +774,7 @@ namespace NMib::NConcurrency
 		auto &pHost = _pConnection->m_pHost;
 
 		CDistributedActorCommand_Identify Identify;
-		Identify.m_FriendlyName = m_FriendlyName;
+		Identify.m_FriendlyName = fp_GetFriendlyName();
 		Identify.m_ExecutionID = pHost->m_ExecutionID;
 		Identify.m_LastSeenExecutionID = pHost->m_LastExecutionID;
 		Identify.m_FragmentationSize = _pConnection->m_FragmentationSize;

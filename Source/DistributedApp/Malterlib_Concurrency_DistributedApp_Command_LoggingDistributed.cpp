@@ -17,6 +17,11 @@ namespace NMib::NConcurrency
 	using namespace NEncoding;
 	using namespace NTime;
 
+#if (DMibSysLogSeverities) == 0
+	void CDistributedAppActor::fp_BuildDefaultCommandLine_DistributedLog(CDistributedAppCommandLineSpecification &)
+	{
+	}
+#else
 	void CDistributedAppActor::fp_BuildDefaultCommandLine_DistributedLog(CDistributedAppCommandLineSpecification &o_CommandLine)
 	{
 		fp_BuildDefaultCommandLine_DistributedLog_Customizable
@@ -54,6 +59,7 @@ namespace NMib::NConcurrency
 			)
 		;
 	}
+#endif
 
 	void CDistributedAppActor::fp_BuildDefaultCommandLine_DistributedLog_Customizable
 		(

@@ -474,6 +474,7 @@ namespace NMib::NConcurrency
 		CActorDistributionManager *m_pThis;
 		NStr::CStr m_HostID;
 		NStr::CStr m_FriendlyName;
+		NFunction::TCFunction<NStr::CStr ()> m_fGetFriendlyName;
 		NStr::CStr m_Enclave;
 
 		struct COnHostInfoChanged
@@ -587,6 +588,7 @@ namespace NMib::NConcurrency
 
 		bool fp_HandleProtocolIncoming(CConnection *_pConnection, NStorage::TCSharedPointer<NStream::CBinaryStorage const> const &_pMessage);
 		void fp_Identify(CConnection *_pConnection);
+		NStr::CStr const &fp_GetFriendlyName();
 		NContainer::TCSet<NStr::CStr> const &fp_GetAllowedNamespacesForHost(NStorage::TCSharedPointerSupportWeak<CHost> const &_pHost, bool &o_bAllowAll);
 		void fp_NotifyNewActor
 			(

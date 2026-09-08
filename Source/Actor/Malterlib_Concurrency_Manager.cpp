@@ -435,6 +435,10 @@ namespace NMib::NConcurrency
 			}
 		).f_CallSync();
 #endif
+
+		// Start the timer thread during manager initialization so shutdown does not pay its startup cost.
+		// The manager pointer must already be published before the thread starts.
+		f_GetTimerActor();
 	}
 
 	void CConcurrencyManager::f_Stop()
@@ -1251,7 +1255,17 @@ namespace NMib::NConcurrency
 		if (m_bDestroyed)
 			return;
 		fp_InitConcurrentActors(); // Make sure concurrent actors are created
-		auto &TimerActor = f_GetTimerActor();
+
+		// The init flag is published after the actor under m_TimerActorLock; acquire-load it before access.
+		// Only this shutdown thread moves the actor out.
+		auto fCallTimerActor = [this](void (CTimerActor::*_fMember)())
+			{
+				if (!m_bTimerActorInit.f_Load(NAtomic::gc_MemoryOrder_Acquire))
+					return;
+
+				m_pTimerActor(_fMember).f_CallSync();
+			}
+		;
 
 		m_bDestroyed = true;
 
@@ -1260,6 +1274,8 @@ namespace NMib::NConcurrency
 #if DMibConfig_Concurrency_DebugBlockDestroy
  		NTime::CStopwatch DebugBlockDestroyStopwatch{true};
 #endif
+
+		static constexpr umint c_nShutdownYields = 4000;
 
 		static constexpr umint c_nDirectDeleteActors
 			= sizeof(m_DirectCallActor) / sizeof(m_DirectCallActor) // NOLINT
@@ -1299,9 +1315,12 @@ namespace NMib::NConcurrency
 #if DMibConfig_Concurrency_DebugBlockDestroy
 			volatile static bool s_AbortLoop = false;
 #endif
-			TimerActor(&CTimerActor::f_FireAtExit).f_CallSync();
+			fCallTimerActor(&CTimerActor::f_FireAtExit);
 
 			bool bLoggedLongTimeShutdown = false;
+
+			// Yield before sleeping to keep short shutdown waits responsive; prolonged waits eventually sleep.
+			NThread::CThreadSpinWaiter SpinWaiter(c_nShutdownYields);
 
 			while (fHasUserActors())
 			{
@@ -1309,7 +1328,7 @@ namespace NMib::NConcurrency
 				{
 					if (FireTimersStopwatch.f_GetTime() > 10.0)
 					{
-						TimerActor(&CTimerActor::f_FireAllTimeouts).f_CallSync();
+						fCallTimerActor(&CTimerActor::f_FireAllTimeouts);
 						if (m_bShutdownLogging && !bLoggedLongTimeShutdown)
 						{
 							bLoggedLongTimeShutdown = true;
@@ -1318,13 +1337,11 @@ namespace NMib::NConcurrency
 						FireTimersStopwatch.f_Start();
 					}
 					else
-					{
-						TimerActor(&CTimerActor::f_FireAtExit).f_CallSync();
-					}
+						fCallTimerActor(&CTimerActor::f_FireAtExit);
 					TimerCheckStopwatch.f_Start();
 				}
 
-				NSys::fg_Thread_SmallestSleep();
+				SpinWaiter.f_Wait();
 #if DMibConfig_Concurrency_DebugBlockDestroy
 				if (DebugBlockDestroyStopwatch.f_GetTime() > 10.0)
 				{
@@ -1518,10 +1535,11 @@ namespace NMib::NConcurrency
 			TimerCheckStopwatch.f_Start();
 			{
 				bool bLoggedBlockingActorShutdown = false;
+				NThread::CThreadSpinWaiter SpinWaiter(c_nShutdownYields);
 				while (fp_NumActors() > nExpectedActors)
 				{
 					fDestroyFreeBlockingActors();
-					NSys::fg_Thread_SmallestSleep();
+					SpinWaiter.f_Wait();
 					if (TimerCheckStopwatch.f_GetTime() > 10.0)
 					{
 						if (m_bShutdownLogging && !bLoggedBlockingActorShutdown)
@@ -1587,8 +1605,10 @@ namespace NMib::NConcurrency
 				m_nThreads = 0;
 			}
 			fg_AllDoneWrapped(Destroys).f_CallSync();
+
+			NThread::CThreadSpinWaiter SpinWaiter(c_nShutdownYields);
 			while (fp_NumActors() > c_nDirectDeleteActors)
-				NSys::fg_Thread_SmallestSleep();
+				SpinWaiter.f_Wait();
 		}
 
 		// Finally delete the direct call actor
@@ -1619,8 +1639,9 @@ namespace NMib::NConcurrency
 		if (m_bShutdownLogging)
 			DMibLog(Info, "Shutting down concurrency manager: Waiting for low level actors to disappear");
 
+		NThread::CThreadSpinWaiter SpinWaiter(c_nShutdownYields);
 		while (fp_NumActors() > 0)
-			NSys::fg_Thread_SmallestSleep();
+			SpinWaiter.f_Wait();
 
 		if (m_bShutdownLogging)
 			DMibLog(Info, "Shutting down concurrency manager: Done");

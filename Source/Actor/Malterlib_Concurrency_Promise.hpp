@@ -899,6 +899,13 @@ namespace NMib::NConcurrency
 		return !!mp_pData;
 	}
 
+	// Relaxed snapshot: false may already be stale; true is final.
+	template <typename t_CReturnValue>
+	bool TCFuture<t_CReturnValue>::f_IsSet() const
+	{
+		return mp_pData && mp_pData->f_IsSet();
+	}
+
 #if DMibEnableSafeCheck > 0
 	template <typename t_CReturnValue>
 	void const *TCPromise<t_CReturnValue>::f_Debug_GetData()

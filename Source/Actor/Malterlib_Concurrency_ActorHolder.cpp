@@ -993,6 +993,10 @@ namespace NMib::NConcurrency
 	void CSeparateThreadActorHolder::fp_RunQueue(CConcurrencyThreadLocal &_ThreadLocal)
 	{
 		auto &ThreadLocal = fg_ConcurrencyThreadLocal();
+#if DMibConfig_Tests_Enable && !defined(DTests_PerfTests)
+		NTime::CCyclesStopwatch BusyWaitStopwatch;
+		BusyWaitStopwatch.f_Start();
+#endif
 #if DMibPPtrBits > 32
 		auto Checkout = fg_GetSys()->f_MemoryManager_Checkout();
 #if DMibConfig_Concurrency_EagerArenaGC
@@ -1054,6 +1058,10 @@ namespace NMib::NConcurrency
 #endif
 			Checkout = NMemory::CMemoryManagerCheckout(nullptr);
 #endif
+#if DMibConfig_Tests_Enable && !defined(DTests_PerfTests)
+			if (mp_BusyWaitTime != 0.0 && BusyWaitStopwatch.f_GetTime() <= mp_BusyWaitTime)
+				continue;
+#endif
 #ifdef DDoWorkPolling
 			if (Stopwatch.f_GetTime() > 0.000'035) // Loop for at least 35 µs before going to kernel
 				break;
@@ -1066,46 +1074,34 @@ namespace NMib::NConcurrency
 	void CSeparateThreadActorHolder::fp_StartQueueProcessing()
 	{
 #if DMibConfig_Tests_Enable && !defined(DTests_PerfTests)
-		fp64 BusyWaitTime = 0.0;
 		if (fg_ConcurrencyThreadLocal().m_bForceBusyWait)
-			BusyWaitTime = 0.1;
+			mp_BusyWaitTime = 0.1;
 #endif
 		DMibLock(mp_ThreadLock);
 		mp_pThread = NThread::CThreadObject::fs_StartThread
 			(
-				[
-					this
-#if DMibConfig_Tests_Enable && !defined(DTests_PerfTests)
-					, BusyWaitTime
-#endif
-				](NThread::CThreadObject *_pThread) -> aint
+				[this](NThread::CThreadObject *_pThread) -> aint
 				{
 					{
 						DMibLock(mp_ThreadLock);
 					}
-					auto &ThreadLocal = fg_ConcurrencyThreadLocal();
-					while (_pThread->f_GetState() != NThread::EThreadState_EventWantQuit)
-					{
-#if DMibConfig_Tests_Enable && !defined(DTests_PerfTests)
-						NTime::CCyclesStopwatch Stopwatch;
-						Stopwatch.f_Start();
-						while (true)
-						{
-							fp_RunQueue(ThreadLocal);
-							if (BusyWaitTime == 0.0 || Stopwatch.f_GetTime() > BusyWaitTime)
-								break;
-						}
-#else
-						fp_RunQueue(ThreadLocal);
-#endif
-						_pThread->m_EventWantQuit.f_Wait();
-					}
+					fp_RunThread(_pThread, fg_ConcurrencyThreadLocal());
 					return 0;
 				}
 				, mp_ThreadName
 				, f_ConcurrencyManager().f_GetExecutionPriority(f_GetPriority())
 			)
 		;
+	}
+
+	// Overrides may wait for additional wake sources, but must return when the thread requests quit.
+	void CSeparateThreadActorHolder::fp_RunThread(NThread::CThreadObject *_pThread, CConcurrencyThreadLocal &_ThreadLocal)
+	{
+		while (_pThread->f_GetState() != NThread::EThreadState_EventWantQuit)
+		{
+			fp_RunQueue(_ThreadLocal);
+			_pThread->m_EventWantQuit.f_Wait();
+		}
 	}
 
 	void CSeparateThreadActorHolder::fp_QueueProcessDestroy(FActorQueueDispatch &&_Functor, CConcurrencyThreadLocal &_ThreadLocal)

@@ -7,6 +7,9 @@
 #	include <Windows.h>
 #else
 #	include <dirent.h>
+#	include <pthread.h>
+#	include <signal.h>
+#	include <unistd.h>
 #endif
 
 namespace
@@ -52,6 +55,138 @@ namespace
 		{
 			auto &ConcurrencyManager = fg_ConcurrencyManager();
 			constexpr EPriority c_Priority = EPriority_NormalHighCPU;
+
+#ifndef DPlatformFamily_Windows
+			DMibTestSuite("ReadinessBeforeRegistration")
+			{
+				auto *pLoop = NSys::fg_CreateIoLoop();
+				DMibAssertTrue(pLoop != nullptr);
+				auto *pPreviousLoop = NSys::fg_GetOwnedIoLoop();
+				auto DestroyLoop = g_OnScopeExit / [pLoop, pPreviousLoop]
+					{
+						NSys::fg_DestroyIoLoop(pLoop);
+						NSys::fg_SetOwnedIoLoop(pPreviousLoop);
+					}
+				;
+				pLoop->f_SetOwnerThreadToCurrent();
+
+				int Pipe[2];
+				DMibAssert(pipe(Pipe), ==, 0);
+				auto Close = g_OnScopeExit / [&]
+					{
+						close(Pipe[0]);
+						close(Pipe[1]);
+					}
+				;
+				DMibAssert(write(Pipe[1], "x", 1), ==, 1);
+
+				umint Reports = 0;
+				auto *pRegistration = pLoop->f_Register
+					(
+						Pipe[0]
+						, &Reports
+						, NSys::EIoLoopEvent::mc_None
+						, [](void *_pToken, NSys::EIoLoopEvent _Events, int)
+						{
+							if (fg_IsSet(_Events, NSys::EIoLoopEvent::mc_Read))
+								++*static_cast<umint *>(_pToken);
+						}
+						, false
+						, {.m_bReadinessOnly = true, .m_bLevelReadiness = true}
+					)
+				;
+				auto Deregister = g_OnScopeExit / [&]
+					{
+						pLoop->f_Deregister(pRegistration);
+					}
+				;
+
+				pLoop->f_RequestReadiness(pRegistration, NSys::EIoLoopEvent::mc_Read);
+				for (umint i = 0; i < 5000 && !Reports; ++i)
+				{
+					pLoop->f_PollAndDispatch();
+					if (!Reports)
+						NSys::fg_Thread_Sleep(0.001);
+				}
+
+				DMibExpect(Reports, ==, 1);
+			};
+
+			DMibTestSuite("LevelReadiness")
+			{
+				auto *pLoop = NSys::fg_CreateIoLoop();
+				if (!pLoop)
+					return;
+
+				auto *pPreviousLoop = NSys::fg_GetOwnedIoLoop();
+				auto DestroyLoop = g_OnScopeExit / [pLoop, pPreviousLoop]
+					{
+						NSys::fg_DestroyIoLoop(pLoop);
+						NSys::fg_SetOwnedIoLoop(pPreviousLoop);
+					}
+				;
+				pLoop->f_SetOwnerThreadToCurrent();
+
+				int Pipe[2];
+
+				DMibAssert(pipe(Pipe), ==, 0);
+
+				auto Close = g_OnScopeExit / [&]
+					{
+						close(Pipe[0]);
+						close(Pipe[1]);
+					}
+				;
+
+				umint Reports = 0;
+				auto *pRegistration = pLoop->f_Register
+					(
+						Pipe[0]
+						, &Reports
+						, NSys::EIoLoopEvent::mc_Read
+						, [](void *_pToken, NSys::EIoLoopEvent _Events, int)
+						{
+							if (fg_IsSet(_Events, NSys::EIoLoopEvent::mc_Read))
+								++*static_cast<umint *>(_pToken);
+						}
+						, false
+						, {.m_bReadinessOnly = true, .m_bLevelReadiness = true}
+					)
+				;
+
+				DMibExpect(write(Pipe[1], "x", 1), ==, 1);
+				while (!Reports)
+					pLoop->f_WaitAndDispatch();
+				pLoop->f_PollAndDispatch();
+
+				DMibExpect(Reports, ==, 1);
+
+				// Leave the byte unread: there is no new edge and no would-block observation.
+				pLoop->f_RequestReadiness(pRegistration, NSys::EIoLoopEvent::mc_Read);
+				while (Reports == 1)
+					pLoop->f_WaitAndDispatch();
+
+				DMibExpect(Reports, ==, 2);
+
+				DMibTestPath("Deregister");
+				bool bRemoved = false;
+				pLoop->f_DeregisterAsync
+					(
+						pRegistration
+						, [&]
+						{
+							bRemoved = true;
+						}
+					)
+				;
+
+				while (!bRemoved)
+					pLoop->f_WaitAndDispatch();
+				pLoop->f_PollAndDispatch();
+
+				DMibExpect(Reports, ==, 2);
+			};
+#endif
 
 			DMibTestSuite("DispatchToQueue")
 			{
@@ -218,6 +353,89 @@ namespace
 				// Concurrent suites can change the descriptor count; allow bounded noise.
 				DMibExpectTrue(nDescriptorsAfter <= nDescriptorsBefore + 16);
 			};
+
+#ifndef DPlatformFamily_Windows
+			DMibTestSuite("ThreadSignal")
+			{
+				constexpr umint c_iQueue = 0;
+
+				if (!ConcurrencyManager.f_GetQueueIoLoop(c_Priority, c_iQueue))
+					return;
+
+				ConcurrencyManager.f_EnableQueueIoLoop(c_Priority, c_iQueue);
+
+				NThread::CEvent Delivered;
+				Delivered.f_ResetSignaled();
+
+				pthread_t QueueThread = {};
+				NAtomic::TCAtomic<pthread_t> RanOnThread = {};
+				COnScopeExitShared pSubscription;
+
+				// Register on the queue's own thread to bind signal delivery to that thread's loop.
+				fg_RunOnQueue
+					(
+						c_Priority
+						, c_iQueue
+						, [&]
+						{
+							QueueThread = pthread_self();
+
+							pSubscription = NSys::fg_System_RegisterForThreadSignal
+								(
+									SIGUSR1
+									, [&]
+									{
+										RanOnThread.f_Store(pthread_self());
+										Delivered.f_SetSignaled();
+									}
+								)
+							;
+						}
+					)
+				;
+
+				auto RemoveSubscription = g_OnScopeExit / [&]
+					{
+						fg_RunOnQueue(c_Priority, c_iQueue, [&] { pSubscription.f_Clear(); });
+					}
+				;
+
+				DMibExpectTrue(pSubscription);
+
+				DMibExpect(pthread_kill(QueueThread, SIGUSR1), ==, 0);
+
+				// f_WaitTimeout answers true when it gave up, so the delivery is the false case
+				DMibAssertFalse(Delivered.f_WaitTimeout(30.0));
+
+				DMibExpectTrue(pthread_equal(RanOnThread.f_Load(), QueueThread) != 0);
+
+				{
+					DMibTestPath("SecondSignal");
+					Delivered.f_ResetSignaled();
+
+					DMibExpect(pthread_kill(QueueThread, SIGUSR1), ==, 0);
+					DMibAssertFalse(Delivered.f_WaitTimeout(30.0));
+					DMibExpectTrue(pthread_equal(RanOnThread.f_Load(), QueueThread) != 0);
+				}
+
+			};
+
+			DMibTestSuite("ThreadSignalNeedsOwnLoop")
+			{
+				bool bThrew = false;
+				try
+				{
+					auto pSubscription = NSys::fg_System_RegisterForThreadSignal(SIGUSR1, [] {});
+					(void)pSubscription;
+				}
+				catch (NException::CException const &)
+				{
+					bThrew = true;
+				}
+
+				DMibExpectTrue(bThrew);
+			};
+#endif
 		}
 	};
 

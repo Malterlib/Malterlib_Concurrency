@@ -6,6 +6,7 @@
 #include <Mib/Cryptography/UUID>
 #include <Mib/Cryptography/Hashes/SHA>
 #include <Mib/Process/Platform>
+#include <Mib/Concurrency/LocalHostIdentity>
 
 namespace NMib::NConcurrency
 {
@@ -277,9 +278,18 @@ namespace NMib::NConcurrency
 
 	NStr::CStr CDistributedAppActor_Settings::f_GetCompositeFriendlyName() const
 	{
+		if (!m_FriendlyName.f_IsEmpty())
+			return fg_Format("{}/{}", m_FriendlyName, m_AppName);
+
+		return f_GetCompositeFriendlyName(fg_GetLocalHostIdentityNow());
+	}
+
+	NStr::CStr CDistributedAppActor_Settings::f_GetCompositeFriendlyName(CLocalHostIdentity const &_Identity) const
+	{
 		CStr FriendlyName = m_FriendlyName;
 		if (FriendlyName.f_IsEmpty())
-			FriendlyName = fg_Format("{}@{}", NProcess::NPlatform::fg_Process_GetUserName(), NProcess::NPlatform::fg_Process_GetComputerName());
+			FriendlyName = _Identity.f_UserAtComputer();
+
 		return fg_Format("{}/{}", FriendlyName, m_AppName);
 	}
 }

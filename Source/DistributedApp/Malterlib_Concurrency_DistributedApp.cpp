@@ -5,6 +5,7 @@
 #include <Mib/Process/Platform>
 #include <Mib/Concurrency/DistributedActorTrustManagerDatabases/JsonDirectory>
 #include <Mib/Concurrency/DistributedAppInterface>
+#include <Mib/Concurrency/LocalHostIdentity>
 #include <Mib/Concurrency/LogError>
 #include <Mib/Network/Socket>
 #include <Mib/Network/Sockets/AuthenticatedUnix>
@@ -73,6 +74,11 @@ namespace NMib::NConcurrency
 		, mp_Settings(_Settings)
 		, mp_pInternal(fg_Construct())
 	{
+		// The trust manager names this host after the local user and computer. The lookup loads
+		// name service libraries on some hosts, so it starts here, on the run's first blocking
+		// actor, and is collected when the trust manager is initialised
+		fg_PrefetchLocalHostIdentity();
+
 		mp_State.m_LocalAddress = fp_GetLocalAddress();
 
 		auto &Internal = *mp_pInternal;
@@ -270,7 +276,7 @@ namespace NMib::NConcurrency
 
 		if (CurrentCallingHostInfo.f_GetRealHostID().f_IsEmpty())
 		{
-			CStr LocalName = fg_Format("{}@{}/{}", NProcess::NPlatform::fg_Process_GetUserName(), NProcess::NPlatform::fg_Process_GetComputerName(), mp_Settings.m_AppName);
+			CStr LocalName = fg_Format("{}/{}", fg_GetLocalHostIdentityNow().f_UserAtComputer(), mp_Settings.m_AppName);
 			if (_Description.f_IsEmpty())
 				FriendlyName = fg_Format("{} (Local)", LocalName);
 			else
@@ -615,12 +621,15 @@ namespace NMib::NConcurrency
 		if (auto *pValue = mp_State.m_ConfigDatabase.m_Data.f_GetMember("SupportAuthentication", EJsonType_Boolean))
 			bSupportAuthentication = pValue->f_Boolean();
 
+		// Looked up on a blocking actor since the constructor; usually long done by now
+		auto LocalHostIdentity = co_await fg_GetLocalHostIdentity();
+
 		CDistributedActorTrustManager::COptions Options;
 
 		Options.m_fConstructManager = fg_Move(fManagerFactory);
 		Options.m_KeySetting = mp_Settings.m_KeySetting;
 		Options.m_ListenFlags = mp_Settings.m_ListenFlags;
-		Options.m_FriendlyName = mp_Settings.f_GetCompositeFriendlyName();
+		Options.m_FriendlyName = mp_Settings.f_GetCompositeFriendlyName(LocalHostIdentity);
 		Options.m_Enclave = mp_Settings.m_Enclave;
 		Options.m_TranslateHostnames = fp_GetTranslateHostnames();
 		Options.m_InitialConnectionTimeout = InitialConnectionTimeout;
@@ -724,6 +733,9 @@ namespace NMib::NConcurrency
 
 	void CDistributedAppActor::f_LogApplicationInfo()
 	{
+		// The version numbers come from mapping the whole executable, which is only worth doing
+		// when the line they go into is compiled in
+#if (DMibSysLogSeverities) & DMibLogSeverity_Info
 		CStr ProgramPath = CFile::fs_GetProgramPath();
 
 		NProcess::CVersionInfo VersionInfo;
@@ -765,6 +777,7 @@ namespace NMib::NConcurrency
 				)
 			;
 		}
+#endif
 	}
 
 	void CDistributedAppActor::f_SetAppType(EDistributedAppType _AppType)

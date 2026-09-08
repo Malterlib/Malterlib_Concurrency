@@ -7,6 +7,7 @@
 #include "Malterlib_Concurrency_DistributedActor_Internal.h"
 
 #include <Mib/Process/Platform>
+#include <Mib/Concurrency/LocalHostIdentity>
 #include <Mib/Cryptography/Certificate>
 #include <Mib/Concurrency/LogError>
 
@@ -383,7 +384,7 @@ namespace NMib::NConcurrency
 		m_WebsocketSettings.m_bTimeoutForUnixSockets = _InitSettings.m_bTimeoutForUnixSockets;
 
 		if (m_FriendlyName.f_IsEmpty())
-			m_FriendlyName = fg_Format("{}@{}", NProcess::NPlatform::fg_Process_GetUserName(), NProcess::NPlatform::fg_Process_GetComputerName());
+			m_FriendlyName = fg_GetLocalHostIdentityNow().f_UserAtComputer();
 	}
 
 	CActorDistributionManagerInternal::~CActorDistributionManagerInternal()

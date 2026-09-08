@@ -9,6 +9,8 @@
 
 namespace NMib::NConcurrency
 {
+	struct CLocalHostIdentity;
+
 	enum class ELocalSocketFlag : uint32
 	{
 		mc_None = 0
@@ -25,7 +27,11 @@ namespace NMib::NConcurrency
 
 		static CDistributedAppActor_SettingsProperties &fs_GetGlobalDefaultSettings();
 
+		// The friendly name with the app name appended. Without a configured friendly name it is
+		// the local user and computer, looked up now by the first form and taken from an identity
+		// already looked up by the second
 		NStr::CStr f_GetCompositeFriendlyName() const;
+		NStr::CStr f_GetCompositeFriendlyName(CLocalHostIdentity const &_Identity) const;
 		NStr::CStr f_GetLocalSocketHostname(ELocalSocketFlag _Flags) const;
 		NStr::CStr f_GetLocalSocketFileName(ELocalSocketFlag _Flags, NStr::CStr const &_Enclave) const;
 		NStr::CStr f_GetLocalSocketWildcard(ELocalSocketFlag _Flags) const; // Enclave wildcard for one transport; the transports can fall back to different directories

@@ -121,6 +121,14 @@ namespace NMib::NConcurrency
 		void f_SetAppType(EDistributedAppType _AppType);
 		void f_LogApplicationInfo();
 
+		struct CInProcessCommandLine
+		{
+			TCDistributedActor<ICCommandLine> m_CommandLine;
+			TCActor<CActorDistributionManager> m_DistributionManager;
+		};
+
+		TCFuture<CInProcessCommandLine> f_GetInProcessCommandLine();
+
 		TCFuture<CDistributedAppCommandLineClient> f_GetCommandLineClient(NStorage::TCSharedPointer<CRunLoop> _pRunLoop);
 
 		TCFuture<uint32> f_RunCommandLine
@@ -605,6 +613,7 @@ namespace NMib::NConcurrency
 		;
 
 		TCFuture<void> fp_PublishCommandLine();
+		TCFuture<void> fp_RemoveCommandLineListen();
 
 		bool fp_HasCommandLineAccess(NStr::CStr const &_HostID);
 

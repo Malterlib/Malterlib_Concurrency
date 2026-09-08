@@ -33,7 +33,7 @@ namespace NMib::NConcurrency
 		template <typename tf_CStream>
 		void f_Stream(tf_CStream &_Stream);
 
-		static CCommandLineClientInfo fs_CollectLocal();
+		static CCommandLineClientInfo fs_CollectLocal(bool _bRemoteApp);
 
 		NStr::CStr m_PlatformFamily; // Exact compile time platform family, DMibStringize(DPlatformFamily)
 		NStr::CStr m_Terminal; // $TERM
@@ -42,7 +42,7 @@ namespace NMib::NConcurrency
 		NStr::CStr m_ColorTerm; // $COLORTERM
 		NStr::CStr m_Locale; // $LC_ALL falling back to $LANG
 		EClientPlatform m_Platform = EClientPlatform::mc_Unknown;
-		int32 m_UTCOffsetSeconds = 0; // Client local time offset from UTC when the command started
+		int32 m_UTCOffsetSeconds = 0; // Client UTC offset when a remote session started; zero for local sessions
 		bool m_bClipboardSupported = false;
 	};
 
@@ -133,6 +133,7 @@ namespace NMib::NConcurrency
 		virtual NConcurrency::TCFuture<NConcurrency::TCActorSubscriptionWithID<>> f_RegisterForStdIn(FOnInput _fOnInput, NProcess::EStdInReaderFlag _Flags) = 0;
 		virtual NConcurrency::TCFuture<NConcurrency::TCActorSubscriptionWithID<>> f_RegisterForStdInBinary(FOnBinaryInput _fOnInput, NProcess::EStdInReaderFlag _Flags) = 0;
 		virtual NConcurrency::TCFuture<NConcurrency::TCActorSubscriptionWithID<>> f_RegisterForCancellation(FOnCancel _fOnCancel) = 0;
+
 		virtual NConcurrency::TCFuture<NConcurrency::TCActorSubscriptionWithID<>> f_RegisterForScreenChange(FOnScreenChange _fOnScreenChange) = 0;
 
 		virtual NConcurrency::TCFuture<NContainer::CIOByteVector> f_ReadBinary() = 0;

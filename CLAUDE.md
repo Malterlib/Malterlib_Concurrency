@@ -506,6 +506,13 @@ TCFuture<void> f_Process(CStr _Key)
 - These helpers schedule destruction on the owning actor.
 - Pair `fg_OnResume` with any pointer captures when the coroutine is going to suspend before dereferencing actor-owned data. While the coroutine is cancelled if the actor dies, other actor calls can mutate or erase those structures during the suspension, so re-validation on resume avoids stale references.
 
+## Local Command Sessions
+
+For local command-line control, register for standard input before calling
+`f_RegisterForScreenChange`. Keep a stdin subscription alive while resize notifications
+are needed: Windows delivers resize events through the console input queue. Releasing
+all stdin subscriptions pauses resize delivery until a reader is registered again.
+
 ## Safety Considerations
 
 ### Coroutine Safety

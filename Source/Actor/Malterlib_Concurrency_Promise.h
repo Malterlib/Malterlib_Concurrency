@@ -1164,6 +1164,10 @@ namespace NMib::NConcurrency
 
 		bool f_IsValid() const;
 
+		// Whether the result is already in. A relaxed peek, so a false answer may already be
+		// stale by the time it is read; a true one is final
+		bool f_IsSet() const;
+
 		template<typename tf_CFunctor>
 		void operator > (tf_CFunctor &&_Functor) &&
 			requires (NTraits::cIsCallableWith<NTraits::TCRemoveReferenceAndQualifiers<tf_CFunctor>, void (TCAsyncResult<t_CReturnValue> &&)>)

@@ -10,6 +10,13 @@ namespace NMib::NConcurrency
 	template <typename t_CReturnValue>
 	TCFuture<t_CReturnValue> TCFuture<t_CReturnValue>::f_Timeout(fp64 _Timeout, NStr::CStr const &_TimeoutMessage, bool _bFireAtExit) &&
 	{
+		// A result already in has nothing to wait out. Skipping the timer matters more than one
+		// timer's worth: the first timer of the process constructs the timer actor, which starts
+		// two threads, and a shutdown that only guards already settled futures would otherwise
+		// pay for them at exit
+		if (f_IsSet())
+			return fg_Move(*this);
+
 		TCPromiseFuturePair<t_CReturnValue> Promise;
 		NStorage::TCSharedPointer<NAtomic::CAtomicFlag> pReplied = fg_Construct();
 		auto This = fg_Move(*this);

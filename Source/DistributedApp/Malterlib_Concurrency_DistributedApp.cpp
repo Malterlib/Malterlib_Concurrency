@@ -228,6 +228,7 @@ namespace NMib::NConcurrency
 			CDistributedAppActor::fs_LogAudit(_AuditParams, mp_Settings.m_AuditCategory);
 		}
 
+#if (DMibSysLogSeverities) != 0
 		switch (Internal.m_AppType)
 		{
 		case EDistributedAppType_InProcess:
@@ -255,6 +256,11 @@ namespace NMib::NConcurrency
 			DMibNeverGetHere;
 			break;
 		}
+#else
+		// fs_LogAudit above is compiled out for the same reason, and the store would refuse to open,
+		// so this would only open the log store on startup to be told there is nowhere to write
+		(void)Internal;
+#endif
 	}
 
 	CCallingHostInfoScope CDistributedAppActor::fp_PopulateCurrentHostInfoIfMissing(CStr _Description)

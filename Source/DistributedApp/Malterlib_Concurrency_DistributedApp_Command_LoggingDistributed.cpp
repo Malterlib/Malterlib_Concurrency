@@ -19,6 +19,11 @@ namespace NMib::NConcurrency
 
 	void CDistributedAppActor::fp_BuildDefaultCommandLine_DistributedLog(CDistributedAppCommandLineSpecification &o_CommandLine)
 	{
+#if (DMibSysLogSeverities) == 0
+		// These read the local log store, which is not opened when the log system is compiled out.
+		// Offering them would only produce a command that reports why it cannot work
+		(void)o_CommandLine;
+#else
 		fp_BuildDefaultCommandLine_DistributedLog_Customizable
 			(
 				o_CommandLine.f_AddSection("Distributed Log", "Use these commands to manage the local store of distributed logs.")
@@ -53,6 +58,7 @@ namespace NMib::NConcurrency
 				, EDistributedAppCommandFlag_None
 			)
 		;
+#endif
 	}
 
 	void CDistributedAppActor::fp_BuildDefaultCommandLine_DistributedLog_Customizable

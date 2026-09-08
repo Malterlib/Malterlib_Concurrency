@@ -52,6 +52,12 @@ namespace NMib::NConcurrency
 
 	TCFuture<TCActor<CDistributedAppLogStoreLocal>> CDistributedAppActor::fp_OpenLogStoreLocal()
 	{
+#if (DMibSysLogSeverities) == 0
+		// No severity is compiled in, so nothing can ever reach the store. Opening it would create
+		// the database and its lock file on every run to hold entries that cannot exist. This is the
+		// only place the store is constructed, so refusing here keeps every caller from creating it
+		co_return DMibErrorInstance("The log system is compiled out, DMibSysLogSeverities is 0");
+#else
 		auto &Internal = *mp_pInternal;
 		if (Internal.m_AppLogStoreLocal)
 			co_return Internal.m_AppLogStoreLocal;
@@ -149,6 +155,7 @@ namespace NMib::NConcurrency
 		;
 
 		co_return Internal.m_AppLogStoreLocal;
+#endif
 	}
 
 	auto CDistributedAppActor::fp_OpenLogReporter(CDistributedAppLogReporter::CLogInfo _LogInfo)

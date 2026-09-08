@@ -78,6 +78,18 @@ namespace NMib::NConcurrency
 
 	namespace NPrivate
 	{
+		constinit NAtomic::TCAtomic<umint> g_nDefaultThreadCount{0}; // Read while the concurrency subsystem's thread locals are being constructed.
+
+		umint fg_DefaultThreadCount()
+		{
+#ifdef DMibConcurrency
+			return DMibConcurrency;
+#else
+			umint nThreads = g_nDefaultThreadCount.f_Load(NAtomic::gc_MemoryOrder_Relaxed);
+			return nThreads ? nThreads : NSys::fg_Thread_GetVirtualCores();
+#endif
+		}
+
 		struct CSubSystem_ConcurrencyInit : public CSubSystem
 		{
 			CSubSystem_ConcurrencyInit()
@@ -135,6 +147,13 @@ namespace NMib::NConcurrency
 	void fg_SetConcurrencyManagerDefaultExecutionPriority(EPriority _Priority, EExecutionPriority _ExecutionPriority)
 	{
 		NPrivate::g_SubSystem_Concurrency->m_DefaultExecutionPriority[_Priority] = _ExecutionPriority;
+	}
+
+	// Configure before creating actors. Zero uses the virtual-core count; existing managers keep their count.
+	// DMibConcurrency overrides this default. The MibConcurrencyThreads override is clamped to 1..2 * virtual cores when a manager is constructed.
+	void fg_SetConcurrencyManagerDefaultThreadCount(umint _nThreads)
+	{
+		NPrivate::g_nDefaultThreadCount.f_Store(_nThreads, NAtomic::gc_MemoryOrder_Relaxed);
 	}
 
 	NConcurrency::CConcurrencyManager &fg_ConcurrencyManager()
@@ -212,14 +231,13 @@ namespace NMib::NConcurrency
 		return fg_ConcurrencyManager().f_GetDynamicConcurrentActorHighCPU();
 	}
 
-//#define DMibConcurrency 1
-
 	CConcurrencyThreadLocal::CConcurrencyThreadLocal(NThread::CThreadLocalConstructionContext const &_Context)
 		: m_SystemThreadLocal(fg_SystemThreadLocal(_Context.m_ThreadID))
 	{
 
 		m_SystemThreadLocal.m_PromiseThreadLocal.m_pConcurrencyThreadLocal = this;
 
+		umint nThreads = NPrivate::fg_DefaultThreadCount();
 		for (umint iQueue = 0; iQueue < EPriority_Max; ++iQueue)
 		{
 			NMisc::CRandomShiftRNG RandomGenerator
@@ -229,11 +247,6 @@ namespace NMib::NConcurrency
 					, uint32(NTime::NPlatform::fg_Timer_CyclesFast() & constant_int64(0xFFFFFFFF))
 				}
 			;
-#ifdef DMibConcurrency
-			umint nThreads = DMibConcurrency;
-#else
-			umint nThreads = NSys::fg_Thread_GetVirtualCores();
-#endif
 			m_JobQueueIndex[iQueue] = RandomGenerator.f_GetValue<uint32>(0, nThreads);
 			m_iConcurrentActor[iQueue] = RandomGenerator.f_GetValue<uint32>(0, nThreads);
 		}
@@ -276,18 +289,13 @@ namespace NMib::NConcurrency
 		// Init time before starting any threads
 		NTime::CSystem_Time::fs_TimeInitDone();
 
-#ifdef DMibConcurrency
-		umint nThreads = DMibConcurrency;
-#else
-		umint nThreads = NSys::fg_Thread_GetVirtualCores();
-#endif
+		umint nThreads = NPrivate::fg_DefaultThreadCount();
 		{
-			NStr::CStrNonTracked ThreadOverride = NSys::fg_Process_GetEnvironmentVariable_NonProtected(NStr::gc_Str<"MibConcurrencyThreads">.m_Str);
-			if (ThreadOverride != "")
+			auto ThreadOverride = fg_GetSys()->f_GetEnvironmentVariable("MibConcurrencyThreads");
+			if (!ThreadOverride.f_IsEmpty())
 			{
-				// Parse signed so a negative override is rejected instead of wrapping to a huge count
-				if (smint nOverride = ThreadOverride.f_ToInt(smint(0)); nOverride > 0)
-					nThreads = umint(nOverride);
+				smint MaxThreads = smint(NSys::fg_Thread_GetVirtualCores()) * 2;
+				nThreads = umint(fg_Clamp(ThreadOverride.f_ToIntExact(smint(nThreads)), smint(1), MaxThreads));
 			}
 		}
 		m_nThreads = nThreads;
@@ -319,7 +327,7 @@ namespace NMib::NConcurrency
 			// Publish loop pointers before starting workers; readers rely on them being startup constants.
 			{
 #if DMibConfig_IoDebug_Enable
-				smint nLoops = NSys::fg_Process_GetEnvironmentVariable_NonProtected(NStr::gc_Str<"MalterlibIoLoops">.m_Str).f_ToInt(smint(-1));
+				smint nLoops = fg_GetSys()->f_GetEnvironmentVariable("MalterlibIoLoops").f_ToInt(smint(-1));
 #else
 				smint nLoops = -1;
 #endif

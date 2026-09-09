@@ -507,7 +507,7 @@ namespace NMib::NConcurrency
 
 	TCFuture<CDistributedActorListenReference> CActorDistributionManagerInternal::fp_ListenTry(NStr::CStr _ListenID, CActorDistributionListenSettings _Settings)
 	{
-		TCFutureVector<NMib::NNetwork::CNetAddress> ResolvedAddresses;
+		TCFutureVector<NNetwork::CResolveActor::CLookup> LookupFutures;
 		NContainer::TCVector<NStr::CStr> TranslatedHosts;
 		for (auto &Address : _Settings.m_ListenAddresses)
 		{
@@ -515,11 +515,16 @@ namespace NMib::NConcurrency
 			// failure from here on is treated as potentially transient
 			auto TranslatedAddress = fp_TranslateHostname(Address.f_GetHost());
 
-			m_ResolveActor(&NNetwork::CResolveActor::f_Resolve, TranslatedAddress, NNetwork::ENetAddressType_None) > ResolvedAddresses;
+			m_ResolveActor(&NNetwork::CResolveActor::f_Resolve, TranslatedAddress, NNetwork::ENetAddressType_None) > LookupFutures;
 			TranslatedHosts.f_Insert(fg_Move(TranslatedAddress));
 		}
 
 		auto CheckDestory = co_await m_pThis->f_CheckDestroyedOnResume();
+
+		auto Lookups = co_await (fg_AllDone(LookupFutures) % "Failed to start address lookups");
+		TCFutureVector<NNetwork::CResolveActor::CAddresses> ResolvedAddresses;
+		for (auto &Lookup : Lookups)
+			fg_Move(Lookup.m_Result) > ResolvedAddresses;
 
 		auto ResolveResults = co_await (fg_AllDone(ResolvedAddresses) % "Failed to resolve addresses");
 
@@ -537,8 +542,9 @@ namespace NMib::NConcurrency
 		bool bAnyTls = false;
 
 		umint iResult = 0;
-		for (auto &Address : ResolveResults)
+		for (auto &Resolved : ResolveResults)
 		{
+			auto &Address = Resolved[0];
 			auto &ListenURL = _Settings.m_ListenAddresses[iResult];
 			auto const &TranslatedHost = TranslatedHosts[iResult];
 			++iResult;

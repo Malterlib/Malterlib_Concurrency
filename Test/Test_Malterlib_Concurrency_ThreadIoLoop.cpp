@@ -9,6 +9,7 @@
 #	include <dirent.h>
 #	include <pthread.h>
 #	include <signal.h>
+#	include <unistd.h>
 #endif
 
 namespace
@@ -56,6 +57,83 @@ namespace
 		{
 			auto &ConcurrencyManager = fg_ConcurrencyManager();
 			constexpr EPriority c_Priority = EPriority_NormalHighCPU;
+
+#ifndef DPlatformFamily_Windows
+			DMibTestSuite("LevelReadiness")
+			{
+				auto *pLoop = NSys::fg_CreateIoLoop();
+				if (!pLoop)
+					return;
+
+				auto *pPreviousLoop = NSys::fg_GetOwnedIoLoop();
+				auto DestroyLoop = g_OnScopeExit / [pLoop, pPreviousLoop]
+					{
+						NSys::fg_DestroyIoLoop(pLoop);
+						NSys::fg_SetOwnedIoLoop(pPreviousLoop);
+					}
+				;
+				pLoop->f_SetOwnerThreadToCurrent();
+
+				int Pipe[2];
+
+				DMibAssert(pipe(Pipe), ==, 0);
+
+				auto Close = g_OnScopeExit / [&]
+					{
+						close(Pipe[0]);
+						close(Pipe[1]);
+					}
+				;
+
+				umint Reports = 0;
+				auto *pRegistration = pLoop->f_Register
+					(
+						Pipe[0]
+						, &Reports
+						, NSys::EIoLoopEvent::mc_Read
+						, [](void *_pToken, NSys::EIoLoopEvent _Events, int)
+						{
+							if (fg_IsSet(_Events, NSys::EIoLoopEvent::mc_Read))
+								++*static_cast<umint *>(_pToken);
+						}
+						, false
+						, {.m_bReadinessOnly = true, .m_bLevelReadiness = true}
+					)
+				;
+
+				DMibExpect(write(Pipe[1], "x", 1), ==, 1);
+				while (!Reports)
+					pLoop->f_WaitAndDispatch();
+				pLoop->f_PollAndDispatch();
+
+				DMibExpect(Reports, ==, 1);
+
+				// Leave the byte unread: there is no new edge and no would-block observation.
+				pLoop->f_RequestReadiness(pRegistration, NSys::EIoLoopEvent::mc_Read);
+				while (Reports == 1)
+					pLoop->f_WaitAndDispatch();
+
+				DMibExpect(Reports, ==, 2);
+
+				DMibTestPath("Deregister");
+				bool bRemoved = false;
+				pLoop->f_DeregisterAsync
+					(
+						pRegistration
+						, [&]
+						{
+							bRemoved = true;
+						}
+					)
+				;
+
+				while (!bRemoved)
+					pLoop->f_WaitAndDispatch();
+				pLoop->f_PollAndDispatch();
+
+				DMibExpect(Reports, ==, 2);
+			};
+#endif
 
 			DMibTestSuite("DispatchToQueue")
 			{

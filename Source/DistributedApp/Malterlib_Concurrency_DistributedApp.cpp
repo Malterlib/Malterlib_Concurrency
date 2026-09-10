@@ -574,7 +574,7 @@ namespace NMib::NConcurrency
 				DMibLogWithCategory(Mib/Concurrency/App, Warning, "Ignoring DefaultSendWindow '{}': {}", pValue->f_String(), Error);
 		}
 
-		fp64 InitialConnectionTimeout = 5.0;
+		fp64 InitialConnectionTimeout = fg_DefaultInitialConnectionTimeout();
 		if (auto *pValue = mp_State.m_ConfigDatabase.m_Data.f_GetMember("InitialConnectionTimeout", EJsonType_Float))
 			InitialConnectionTimeout = fg_Clamp(pValue->f_Float(), 0.1, 3600.0);
 

@@ -9,6 +9,16 @@
 
 namespace NMib::NConcurrency
 {
+	// A test run is contended, so the framework running it sets the budget through the environment
+	fp64 fg_DefaultInitialConnectionTimeout()
+	{
+#if DMibConfig_Tests_Enable
+		return NSys::fg_Process_GetEnvironmentVariable_NonProtected(NStr::gc_Str<"MalterlibInitialConnectionTimeout">.m_Str).f_ToFloat(fp64(5_seconds));
+#else
+		return 5_seconds;
+#endif
+	}
+
 	CDistributedActorTrustManager::CDistributedActorTrustManager
 		(
 			NConcurrency::TCActor<ICDistributedActorTrustManagerDatabase> const &_Database

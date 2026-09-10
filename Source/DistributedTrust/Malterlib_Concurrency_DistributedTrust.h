@@ -18,6 +18,7 @@ namespace NMib::NConcurrency
 {
 	struct CCommandLineControl;
 	class CDistributedActorTrustManager;
+
 	struct CAuthenticationActorInfo;
 	struct CDistributedActorTrustManagerAuthenticationCache;
 
@@ -43,11 +44,6 @@ namespace NMib::NConcurrency
 		friend struct TCTrustedActorSubscription;
 		TCFuture<void> mp_OnNewActorFinished;
 	};
-
-	namespace NPrivate
-	{
-		void fg_HandleUndestroyedSubscription(TCFuture<void> &&_Result);
-	}
 
 	template <typename t_CActor>
 	struct TCTrustedActorSubscription
@@ -237,6 +233,13 @@ namespace NMib::NConcurrency
 		auto f_SubscribeTrustedActors(uint32 _MinSupportedVersion = 0, uint32 _MaxSupportedVersion = TCLimitsInt<uint32>::mc_Max, TCActor<CActor> &&_Actor = fg_CurrentActor());
 	};
 
+	namespace NPrivate
+	{
+		void fg_HandleUndestroyedSubscription(TCFuture<void> &&_Result);
+	}
+
+	fp64 fg_DefaultInitialConnectionTimeout();
+
 	class CDistributedActorTrustManager : public NConcurrency::CActor
 	{
 	public:
@@ -286,7 +289,7 @@ namespace NMib::NConcurrency
 			NStr::CStr m_FriendlyName;
 			NStr::CStr m_Enclave;
 			NContainer::TCMap<NStr::CStr, NStr::CStr> m_TranslateHostnames;
-			fp64 m_InitialConnectionTimeout = 5_seconds;
+			fp64 m_InitialConnectionTimeout = fg_DefaultInitialConnectionTimeout();
 			fp64 m_HostTimeout = 10_minutes;
 			fp64 m_HostDaemonTimeout = 4_hours;
 			fp64 m_ReconnectDelay = 500_ms;

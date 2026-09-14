@@ -726,6 +726,24 @@ namespace NMib::NConcurrency
 		umint m_iCheckout = 0;
 	};
 
+	// A bounded set of blocking actors that callers on different threads take turns on. A
+	// checkout is made the first time its turn comes, so a set that is little used costs
+	// little, and the set never holds more than its capacity.
+	struct CSharedRoundRobinBlockingActors
+	{
+		explicit CSharedRoundRobinBlockingActors(umint _Capacity);
+
+		CBlockingActorCheckout &f_Next();
+		CBlockingActorCheckout &operator *();
+		umint f_GetNumCheckouts() const;
+
+	private:
+		mutable NThread::CLowLevelLock mp_Lock;
+		NContainer::TCVector<CBlockingActorCheckout> mp_Checkouts;	// Reserved to the capacity and never grown past it, so a returned reference stays valid.
+		umint mp_Capacity = 1;
+		umint mp_iCheckout = 0;
+	};
+
 	TCFuture<void> fg_DestroySubscription(CActorSubscription &_Subscription);
 	CConcurrencyManager &fg_CurrentConcurrencyManager();
 	void fg_SetConcurrencyManagerDefaultExecutionPriority(EPriority _Priority, EExecutionPriority _ExecutionPriority);

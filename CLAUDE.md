@@ -349,6 +349,26 @@ TCFuture<void> f_ParallelWork()
 }
 ```
 
+### Bounded Blocking Actors
+
+Every `fg_BlockingActor()` checkout that is not free is a thread, so code that queues
+many operations at once takes turns on a bounded set instead of checking one out per
+operation. `CRoundRobinBlockingActors` serves one actor or coroutine;
+`CSharedRoundRobinBlockingActors` serves callers on different threads.
+
+```cpp
+TCSharedPointer<CSharedRoundRobinBlockingActors> pBlockingActors = fg_Construct(umint(4));
+
+CStr Content = co_await
+	(
+		g_Dispatch(pBlockingActors->f_Next()) / [Path]() -> CStr
+		{
+			return CFile::fs_ReadStringFromFile(Path);
+		}
+	)
+;
+```
+
 ### Actor Destruction
 
 ```cpp

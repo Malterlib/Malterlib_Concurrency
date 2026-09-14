@@ -2356,6 +2356,62 @@ namespace NMib::NConcurrency
 		return m_Checkouts[iCheckout];
 	}
 
+	CSharedRoundRobinBlockingActors::CSharedRoundRobinBlockingActors(umint _Capacity)
+		: mp_Capacity(fg_Max(_Capacity, umint(1)))
+	{
+		mp_Checkouts.f_Reserve(mp_Capacity);
+		for (umint i = 0; i < mp_Capacity; ++i)
+			mp_Checkouts.f_Insert(CBlockingActorCheckout(nullptr, nullptr));
+	}
+
+	// The reference outlives the lock: the vector holds a slot per turn from the start, and a
+	// slot is filled once. Checking out can create the actor's thread, which on Linux may wait
+	// for a run loop that is itself asking for a turn, so it happens outside the lock, and a
+	// caller never waits for another's checkout, which could be that wait. Of callers filling
+	// the same slot the first wins and the others' checkouts go back to the manager's free
+	// list, where later checkouts anywhere reuse them: only the first turns can overshoot the
+	// capacity, by the callers that race for them, and the set never holds more.
+	CBlockingActorCheckout &CSharedRoundRobinBlockingActors::f_Next()
+	{
+		umint iCheckout = 0;
+		{
+			DMibLock(mp_Lock);
+
+			iCheckout = mp_iCheckout;
+			++mp_iCheckout;
+			if (mp_iCheckout >= mp_Capacity)
+				mp_iCheckout = 0;
+
+			if (mp_Checkouts[iCheckout].f_IsValid())
+				return mp_Checkouts[iCheckout];
+		}
+
+		auto Checkout = fg_BlockingActor();
+
+		DMibLock(mp_Lock);
+
+		auto &Slot = mp_Checkouts[iCheckout];
+		if (!Slot.f_IsValid())
+		{
+			Slot = fg_Move(Checkout);
+			++mp_nCheckouts;
+		}
+
+		return Slot;
+	}
+
+	CBlockingActorCheckout &CSharedRoundRobinBlockingActors::operator *()
+	{
+		return f_Next();
+	}
+
+	umint CSharedRoundRobinBlockingActors::f_GetNumCheckouts() const
+	{
+		DMibLock(mp_Lock);
+
+		return mp_nCheckouts;
+	}
+
 	CBlockingActorCheckout CConcurrencyManager::f_GetBlockingActor()
 	{
 		using namespace NStr;

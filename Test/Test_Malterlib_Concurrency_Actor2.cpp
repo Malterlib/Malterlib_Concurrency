@@ -1030,12 +1030,48 @@ namespace NTestActor2
 			};
 		}
 
+		void f_BlockingActorTests()
+		{
+			DMibTestSuite("SharedRoundRobinBlockingActors") -> TCFuture<void>
+			{
+				CSharedRoundRobinBlockingActors BlockingActors(3);
+				NAtomic::TCAtomic<umint> nRuns{0};
+				TCFutureVector<void> Results;
+				for (umint iRun = 0; iRun < 64; ++iRun)
+				{
+					g_Dispatch(fg_ConcurrentActor()) / [&BlockingActors, &nRuns]() -> TCFuture<void>
+						{
+							co_await
+								(
+									g_Dispatch(BlockingActors.f_Next()) / [&nRuns]
+									{
+										++nRuns;
+									}
+								)
+							;
+							co_return {};
+						}
+						> Results
+					;
+				}
+
+				co_await fg_AllDone(Results);
+
+				DMibExpect(nRuns.f_Load(), ==, 64);
+				DMibExpect(BlockingActors.f_GetNumCheckouts(), <=, 3);
+				DMibExpect(BlockingActors.f_GetNumCheckouts(), >=, 1);
+
+				co_return {};
+			};
+		}
+
 		void f_DoTests()
 		{
 			f_TestAsyncResult();
 			f_DestroyTests();
 			f_GeneralTests();
 			f_OverAlignTests();
+			f_BlockingActorTests();
 		}
 	};
 

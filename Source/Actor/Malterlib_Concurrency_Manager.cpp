@@ -2256,6 +2256,41 @@ namespace NMib::NConcurrency
 		return m_Checkouts[iCheckout];
 	}
 
+	CSharedRoundRobinBlockingActors::CSharedRoundRobinBlockingActors(umint _Capacity)
+		: mp_Capacity(fg_Max(_Capacity, umint(1)))
+	{
+		mp_Checkouts.f_Reserve(mp_Capacity);
+	}
+
+	// The reference outlives the lock: the vector was reserved to the capacity and the turn
+	// never passes it, so a later checkout cannot move the earlier ones.
+	CBlockingActorCheckout &CSharedRoundRobinBlockingActors::f_Next()
+	{
+		DMibLock(mp_Lock);
+
+		umint iCheckout = mp_iCheckout;
+		++mp_iCheckout;
+		if (mp_iCheckout >= mp_Capacity)
+			mp_iCheckout = 0;
+
+		if (mp_Checkouts.f_GetLen() <= iCheckout)
+			mp_Checkouts.f_Insert(fg_BlockingActor());
+
+		return mp_Checkouts[iCheckout];
+	}
+
+	CBlockingActorCheckout &CSharedRoundRobinBlockingActors::operator *()
+	{
+		return f_Next();
+	}
+
+	umint CSharedRoundRobinBlockingActors::f_GetNumCheckouts() const
+	{
+		DMibLock(mp_Lock);
+
+		return mp_Checkouts.f_GetLen();
+	}
+
 	CBlockingActorCheckout CConcurrencyManager::f_GetBlockingActor()
 	{
 		using namespace NStr;

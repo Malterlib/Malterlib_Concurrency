@@ -13,44 +13,65 @@ namespace NMib::NConcurrency
 
 	struct CTimerActor;
 
-	// Timer jobs and deadline updates run on the holder thread, so the deadline needs no synchronization.
-	struct CTimerActorHolder : public CSeparateThreadActorHolder
+	struct CTimerActorHolder : public CDefaultActorHolder
 	{
-		using CSeparateThreadActorHolder::CSeparateThreadActorHolder;
+		CTimerActorHolder
+			(
+				CConcurrencyManager *_pManager
+				, bool _bImmediateDelete
+				, EPriority _Priority
+				, NStorage::TCSharedPointer<ICDistributedActorData> &&_pDistributedActorData
+				, CConcurrencyManager::CQueue *_pQueue
+			)
+		;
 
-		void f_SetNextElapse(fp64 _SecondsFromNow);
+		void f_SetNextElapse(fp64 _NextElapse);
 		void f_ClearNextElapse();
+		void f_StopTimers();
 
-	protected:
-		void fp_RunThread(NThread::CThreadObject *_pThread, CConcurrencyThreadLocal &_ThreadLocal) override;
+	private:
+		void fp_QueueRunProcess(CConcurrencyThreadLocal &_ThreadLocal) override;
 
-		NTime::CStopwatch mp_Stopwatch{true};
-		fp64 mp_NextElapse = -1.0; // Time on mp_Stopwatch, negative when no timer is armed
+		CConcurrencyManager::CQueue *mp_pQueue;
 	};
+
 
 	struct CTimerActor : public CActor
 	{
 		using CActorHolder = CTimerActorHolder;
+
+		static constexpr bool mc_bImmediateDelete = true;
+		static constexpr bool mc_bIsAlwaysAlive = true;
+		static constexpr bool mc_bIsAlwaysAliveImpl = true;
+
 		CTimerActor();
 		~CTimerActor();
 
 		void f_FireAllTimeouts();
 		void f_FireAtExit();
-		void f_OneshotTimer(fp64 _Period, TCActor<CActor> const &_Actor, FUnitVoidFutureFunction &&_fCallback, bool _bFireAtExit);
-		CActorSubscription f_OneshotTimerAbortable(fp64 _Period, TCActor<CActor> const &_Actor, FUnitVoidFutureFunction &&_fCallback);
-		CActorSubscription f_RegisterTimer(fp64 _Period, TCActor<CActor> const &_Actor, FUnitVoidFutureFunction &&_fCallback);
-		CActorSubscription f_RegisterExactTimer(fp64 _Period, TCActor<CActor> const &_Actor, FUnitVoidFutureFunction &&_fCallback);
+		void f_OneshotTimer(fp64 _Period, int64 _StartTicks, TCActor<CActor> const &_Actor, FUnitVoidFutureFunction &&_fCallback, bool _bFireAtExit);
+		CActorSubscription f_OneshotTimerAbortable(fp64 _Period, int64 _StartTicks, TCActor<CActor> const &_Actor, FUnitVoidFutureFunction &&_fCallback);
+		CActorSubscription f_RegisterTimer(fp64 _Period, int64 _StartTicks, TCActor<CActor> const &_Actor, FUnitVoidFutureFunction &&_fCallback);
+		CActorSubscription f_RegisterExactTimer(fp64 _Period, int64 _StartTicks, TCActor<CActor> const &_Actor, FUnitVoidFutureFunction &&_fCallback);
 
 	private:
 		friend struct CTimerActorHolder;
+		friend class CConcurrencyManager;
 
 		struct CInternal;
 
 		TCFuture<void> fp_Destroy();
+		void fp_PrepareShutdown();
 		TCFuture<void> fp_ProcessTimers();
 		CTimerActorHolder &fp_GetHolder() const;
 
 		NStorage::TCUniquePointer<CInternal> mp_pInternal;
+	};
+
+	struct CTimerActorImpl : public CTimerActor
+	{
+		static constexpr bool mc_bIsAlwaysAliveImpl = false;
+		~CTimerActorImpl();
 	};
 
 	struct CTimeoutHelper

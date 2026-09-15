@@ -229,7 +229,13 @@ namespace NMib::NConcurrency
 		noexcept
 #endif
 	{
-		DMibFastCheck(m_pPromiseData->m_pCoroutineOwner != fg_DirectCallActor().f_Get()); // It's not safe to suspend on the direct call actor
+		// It's not safe to suspend on the direct call actor
+		DMibFastCheck
+			(
+				!m_pPromiseData->m_pCoroutineOwner
+				|| m_pPromiseData->m_pCoroutineOwner != m_pPromiseData->m_pCoroutineOwner->f_ConcurrencyManager().f_GetDirectCallActor().f_Get()
+			)
+		;
 
 		DMibFastCheck(m_CoroutineHandlers.m_nThreadLocalScopes == 0); // Oustanding thread local scopes cannot escape suspension point,
 		// if needed convert thread local scope to CCoroutineThreadLocalHandler interface

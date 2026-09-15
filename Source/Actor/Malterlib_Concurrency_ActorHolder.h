@@ -193,12 +193,13 @@ namespace NMib::NConcurrency
 			}
 		};
 
-		// Alignment zone 1 (Static data, set at init) = 8 + 8 * 4 + 4 + 1 = 46 => 64 bytes
+		// Alignment zone 1 (Mostly immutable, shared by producers and the actor) = 8 + 8 * 4 + 4 * 2 + 1 = 49 => 64 bytes on x64
 		NStorage::TCSharedPointer<ICDistributedActorData> mp_pDistributedActorData;
 		NContainer::TCSet<COnTerminate> mp_OnTerminate;
 		CConcurrencyManager *mp_pConcurrencyManager;
 		NAtomic::TCAtomic<CActor *> mp_pActorUnsafe{nullptr}; // Changed at destruction only once
 		uint32 mp_iFixedQueue{gc_InvalidQueue};
+		NAtomic::TCAtomic<uint32> mp_iTimerQueue{gc_InvalidQueue}; // Selected once; registrations may originate on other threads.
 
 		// Note: Changing these is not thread safe
 		static_assert(EPriority_Max <= 4);
@@ -207,7 +208,7 @@ namespace NMib::NConcurrency
 		uint8 mp_bIsAlwaysAlive:1 = false;
 		uint8 mp_bHasOverriddenDestroy:1 = false;
 
-		static constexpr umint mc_AligmentZone1Size = sizeof(void *) + sizeof(void *) * 4 + sizeof(uint32) + sizeof(uint8);
+		static constexpr umint mc_AligmentZone1Size = sizeof(void *) + sizeof(void *) * 4 + sizeof(uint32) * 2 + sizeof(uint8);
 
 		uint8 mp_PaddingZone1[fg_AlignUpConstExpr(mc_AligmentZone1Size, DMibPMemoryCacheLineSize) - mc_AligmentZone1Size];
 

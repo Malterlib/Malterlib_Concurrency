@@ -394,6 +394,8 @@ namespace NTestActor2
 
 				{
 					auto pLocalActor = fg_DirectCallActor();
+					// These cases replace shared subscription slots and require one ordered timer queue.
+					auto TimerActor = ConcurrencyManager.f_GetTimerActor();
 					auto pActor = fg_ConstructActor<CTestActor>();
 					auto pLockActor = fg_ConstructActor<TCLockActor<int, NThread::CMutual>>(fg_Construct("MalterlibTestSeparateActorThread"), Object, Lock);
 
@@ -433,9 +435,10 @@ namespace NTestActor2
 					}
 
 					++nExpectedHandlers;
-					ConcurrencyManager.f_GetTimerActor().f_Bind<&CTimerActor::f_OneshotTimer>
+					TimerActor.f_Bind<&CTimerActor::f_OneshotTimer>
 						(
 							0.2
+							, NTime::CSystem_Time::fs_GetTimerValue()
 							, pLocalActor
 							, [&]() -> TCFuture<void>
 							{
@@ -452,10 +455,11 @@ namespace NTestActor2
 
 					{
 						++nExpectedHandlers;
-						ConcurrencyManager.f_GetTimerActor()
+						TimerActor
 							(
 								&CTimerActor::f_OneshotTimerAbortable
 								, 1000000.0
+								, NTime::CSystem_Time::fs_GetTimerValue()
 								, pLocalActor
 								, [&]() -> TCFuture<void>
 								{
@@ -476,10 +480,11 @@ namespace NTestActor2
 						;
 
 						nExpectedHandlers += 2;
-						ConcurrencyManager.f_GetTimerActor()
+						TimerActor
 							(
 								&CTimerActor::f_OneshotTimerAbortable
 								, 0.1
+								, NTime::CSystem_Time::fs_GetTimerValue()
 								, pLocalActor
 								, [&]() -> TCFuture<void>
 								{
@@ -502,10 +507,11 @@ namespace NTestActor2
 						;
 
 						++nExpectedHandlers;
-						ConcurrencyManager.f_GetTimerActor()
+						TimerActor
 							(
 								&CTimerActor::f_RegisterTimer
 								, 1000000.0
+								, NTime::CSystem_Time::fs_GetTimerValue()
 								, pLocalActor
 								, [&]() -> TCFuture<void>
 								{
@@ -525,10 +531,11 @@ namespace NTestActor2
 						;
 
 						nExpectedHandlers += 2;
-						ConcurrencyManager.f_GetTimerActor()
+						TimerActor
 							(
 								&CTimerActor::f_RegisterTimer
 								, 0.5
+								, NTime::CSystem_Time::fs_GetTimerValue()
 								, pLocalActor
 								, [&]() -> TCFuture<void>
 								{
@@ -551,10 +558,11 @@ namespace NTestActor2
 						;
 
 						nExpectedHandlers += 2;
-						ConcurrencyManager.f_GetTimerActor()
+						TimerActor
 							(
 								&CTimerActor::f_RegisterTimer
 								, 0.5
+								, NTime::CSystem_Time::fs_GetTimerValue()
 								, pLocalActor
 								, [&]() -> TCFuture<void>
 								{

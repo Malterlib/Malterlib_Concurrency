@@ -107,6 +107,7 @@ namespace NMib::NConcurrency
 		TCActor<CConcurrentActor> const &f_GetConcurrentActorForOtherThread(EPriority _Priority);
 		CBlockingActorCheckout f_GetBlockingActor();
 		TCActor<CTimerActor> const &f_GetTimerActor();
+		TCActor<CTimerActor> const &f_GetTimerActor(TCActor<CActor> const &_Actor);
 		TCActor<CDirectCallActor> const &f_GetDirectCallActor();
 		TCActor<CThisConcurrentActor> const &f_GetThisConcurrentActor();
 		TCActor<CThisConcurrentActorLowPrio> const &f_GetThisConcurrentActorLowPrio();
@@ -179,6 +180,8 @@ namespace NMib::NConcurrency
 		friend class CActorHolder;
 		friend struct CActorCommon;
 		friend struct CActor;
+		friend struct CTimerActor;
+		friend struct CTimerActorHolder;
 		friend class CDefaultActorHolder;
 		friend struct CCurrentActorScope;
 		friend struct CCurrentlyProcessingActorScope;
@@ -218,6 +221,10 @@ namespace NMib::NConcurrency
 
 			align_cacheline CConcurrentRunQueueNonVirtualNoAlloc::CLocalQueueData m_JobQueueLocal;
 			umint m_iQueue;
+			TCActor<CTimerActorImpl> m_TimerActor;
+			TCActor<CTimerActor> m_TimerActorRef;
+			bool m_bTimerWorkEnabled = true; // Cleared by timer teardown before releasing its holder.
+			fp64 m_TimerDeadline = -1.0; // Owner-only deadline on the manager clock; negative when disarmed.
 			EPriority m_Priority;
 			bool m_bIoLoopParkActive = false; // Only the owner thread reads or writes this park choice.
 
@@ -251,6 +258,7 @@ namespace NMib::NConcurrency
 #endif
 #endif
 		void fp_DrainCheckpoint(CQueue &_Queue, umint _OfferTargetSize);
+		bool fp_CheckTimers(CQueue &_Queue);
 
 		inline_never umint fp_InitConcurrentActors();
 		void fp_DispatchOnCurrentThreadOrConcurrent(EPriority _Priority, FActorQueueDispatchNoAlloc &&_ToQueue, CConcurrencyThreadLocal &_ThreadLocal);
@@ -317,9 +325,8 @@ namespace NMib::NConcurrency
 		DMibListLinkDS_List(CBlockingActorStorage, m_Link) m_FreeBlockingActors;
 		umint m_nBlockingActors = 0;
 
-		NAtomic::TCAtomic<bool> m_bTimerActorInit;
-		NThread::CLowLevelLock m_TimerActorLock;
-		TCActor<CTimerActor> m_pTimerActor;
+		NTime::CStopwatch m_TimerStopwatch;
+		NAtomic::TCAtomic<umint> m_iNextTimerQueue[EPriority_Max] = {};
 
 		NThread::CLowLevelLock m_ThreadCreateLock;
 

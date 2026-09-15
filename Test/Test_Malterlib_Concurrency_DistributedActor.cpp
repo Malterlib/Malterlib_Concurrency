@@ -264,6 +264,7 @@ public:
 		m_Callback[0] = fg_Construct();
 		m_Callback[1] = fg_Construct();
 
+		DMibPublishActorFunction(CDistributedActor::f_Nop);
 		DMibPublishActorFunction(CDistributedActor::f_AddInt);
 		DMibPublishActorFunction(CDistributedActor::f_GetResult);
 		DMibPublishActorFunction(CDistributedActor::f_AddIntVirtual);
@@ -327,6 +328,10 @@ public:
 		DMibPublishActorFunction(CDistributedActor::f_TestPacketSizeLimit);
 		DMibPublishActorFunction(CDistributedActor::f_TestGeneral);
 		DMibPublishActorFunction(CDistributedActor::f_TestReturnPacketSize);
+	}
+
+	void f_Nop()
+	{
 	}
 
 	void f_AddInt(uint32 _Value)
@@ -1140,14 +1145,20 @@ class CDistributedActor_Tests : public NMib::NTest::CTest
 					Actor.f_CallActor(&CDistributedActor::f_SetSubscriptionNonPublished)(fSubscription(), _bException).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
 				}
 			;
+			auto fSynchronizeActors = [&]
+				{
+					// Parameter destruction must queue subscription cleanup before synchronizing with its target actor.
+					Actor.f_CallActor(&CDistributedActor::f_Nop)().f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
+					fg_Dispatch(TestActor, [] {}).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
+				}
+			;
 			{
 				DMibTestPath("Normal");
 				fSetSubscription(false);
-				NSys::fg_Thread_Sleep(0.1f);
+				fSynchronizeActors();
 				DMibExpect(TestValue.f_Load(), ==, 0);
 
 				Actor.f_CallActor(&CDistributedActor::f_ClearSubscription)().f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
-				NSys::fg_Thread_Sleep(0.1f);
 				DMibExpect(TestValue.f_Load(), ==, 1);
 
 				TestValue.f_Exchange(0);
@@ -1155,7 +1166,7 @@ class CDistributedActor_Tests : public NMib::NTest::CTest
 			{
 				DMibTestPath("Exception");
 				DMibExpectException(fSetSubscription(true), DMibErrorInstance("Error"));
-				NSys::fg_Thread_Sleep(0.1f);
+				fSynchronizeActors();
 				DMibExpect(TestValue.f_Load(), ==, 1);
 
 				TestValue.f_Exchange(0);
@@ -1164,7 +1175,7 @@ class CDistributedActor_Tests : public NMib::NTest::CTest
 			{
 				DMibTestPath("ExceptionBeforeCall");
 				DMibExpectException(fSetSubscriptionNonPublished(true), DMibErrorInstance("Function does not exist on remote actor"));
-				NSys::fg_Thread_Sleep(0.1f);
+				fSynchronizeActors();
 				DMibExpect(TestValue.f_Load(), ==, 1);
 
 				TestValue.f_Exchange(0);
@@ -1173,7 +1184,6 @@ class CDistributedActor_Tests : public NMib::NTest::CTest
 		{
 			DMibTestPath("GetSubscription");
 			TCDistributedActor<CDistributedActor> Actor = pState->f_CreateActor();
-			auto TestActor = fg_ConcurrentActor();
 			auto &TestValue = g_TestValueGetSubscription;
 			auto fGetSubscription = [&]()
 				{
@@ -1183,7 +1193,7 @@ class CDistributedActor_Tests : public NMib::NTest::CTest
 			{
 				DMibTestPath("Normal");
 				auto Subscription = fGetSubscription();
-				NSys::fg_Thread_Sleep(0.1f);
+				Actor.f_CallActor(&CDistributedActor::f_Nop)().f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
 				DMibExpect(TestValue.f_Load(), ==, 0);
 
 				Subscription->f_Destroy().f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);

@@ -256,7 +256,7 @@ namespace NTestTrustManager
 
 		struct CState
 		{
-			auto f_CreateServerTrustManager(CDistributedActorTrustManager::COptions &&_Options = {.m_ReconnectDelay = 1_ms}) const
+			auto f_CreateServerTrustManager(CDistributedActorTrustManager::COptions &&_Options = {.m_ReconnectDelay = 1_ms})
 			{
 				CDistributedActorTrustManager::COptions Options(fg_Move(_Options));
 				Options.m_fConstructManager = [](CActorDistributionManagerInitSettings const &_Settings)
@@ -270,10 +270,13 @@ namespace NTestTrustManager
 				Options.m_InitialConnectionTimeout = g_Timeout / 2;
 				Options.m_bRetryOnListenFailureDuringInit = false;
 
-				return fg_ConstructActor<CDistributedActorTrustManager>(m_ServerDatabase, fg_Move(Options));
+				auto Manager = fg_ConstructActor<CDistributedActorTrustManager>(m_ServerDatabase, fg_Move(Options));
+				m_TrustManagers.f_Insert(Manager);
+
+				return Manager;
 			}
 
-			auto f_CreateClientTrustManager(CDistributedActorTrustManager::COptions &&_Options = {.m_ReconnectDelay = 1_ms}) const
+			auto f_CreateClientTrustManager(CDistributedActorTrustManager::COptions &&_Options = {.m_ReconnectDelay = 1_ms})
 			{
 				CDistributedActorTrustManager::COptions Options(fg_Move(_Options));
 				Options.m_fConstructManager = [](CActorDistributionManagerInitSettings const &_Settings)
@@ -287,7 +290,10 @@ namespace NTestTrustManager
 				Options.m_InitialConnectionTimeout = g_Timeout / 2;
 				Options.m_bRetryOnListenFailureDuringInit = false;
 
-				return fg_ConstructActor<CDistributedActorTrustManager>(m_ClientDatabase, fg_Move(Options));
+				auto Manager = fg_ConstructActor<CDistributedActorTrustManager>(m_ClientDatabase, fg_Move(Options));
+				m_TrustManagers.f_Insert(Manager);
+
+				return Manager;
 			}
 
 			CState
@@ -309,6 +315,13 @@ namespace NTestTrustManager
 			}
 			~CState()
 			{
+				for (auto &Manager : m_TrustManagers)
+				{
+					if (!Manager->f_IsHolderDestroyed())
+						Manager->f_BlockDestroy(m_pRunLoop->f_ActorDestroyLoop());
+				}
+				m_TrustManagers.f_Clear();
+
 				m_ServerDatabase->f_BlockDestroy(m_pRunLoop->f_ActorDestroyLoop());
 				m_ClientDatabase->f_BlockDestroy(m_pRunLoop->f_ActorDestroyLoop());
 				if (m_fCleanup)
@@ -316,6 +329,7 @@ namespace NTestTrustManager
 			}
 
 
+			TCVector<TCActor<CDistributedActorTrustManager>> m_TrustManagers;
 			TCActor<ICDistributedActorTrustManagerDatabase> m_ServerDatabase;
 			TCActor<ICDistributedActorTrustManagerDatabase> m_ClientDatabase;
 			TCFunction<void ()> m_fCleanup;
@@ -599,6 +613,38 @@ namespace NTestTrustManager
 				, CStr const &_RootDir
 			)
 		{
+			{
+				DMibTestPath("FixtureTeardownOnException");
+				CActorRunLoopTestHelper RunLoopHelper;
+				TCActor<CDistributedActorTrustManager> Server;
+				TCActor<CDistributedActorTrustManager> Client;
+				auto Cleanup = g_OnScopeExit / [&]
+					{
+						for (auto *pManager : {&Server, &Client})
+						{
+							if (*pManager && !(*pManager)->f_IsHolderDestroyed())
+								(*pManager)->f_BlockDestroy(RunLoopHelper.m_pRunLoop->f_ActorDestroyLoop());
+						}
+					}
+				;
+
+				auto fAbort = [&]
+					{
+						CState State{RunLoopHelper.m_pRunLoop, _fDatabaseFactory, _fCleanup, {}, _RootDir};
+						Server = State.f_CreateServerTrustManager();
+						Client = State.f_CreateClientTrustManager();
+						Server(&CDistributedActorTrustManager::f_Initialize).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
+						Client(&CDistributedActorTrustManager::f_Initialize).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
+
+						DMibError("Abort trust-manager fixture");
+					}
+				;
+
+				DMibExpectException(fAbort(), DMibErrorInstance("Abort trust-manager fixture"));
+				DMibAssertTrue(Server && Client);
+				DMibExpectTrue(Server->f_IsHolderDestroyed());
+				DMibExpectTrue(Client->f_IsHolderDestroyed());
+			}
 			{
 				DMibTestPath("Basic");
 				CActorRunLoopTestHelper RunLoopHelper;
@@ -1077,16 +1123,8 @@ namespace NTestTrustManager
 
 					CState State{RunLoopHelper.m_pRunLoop, _fDatabaseFactory, _fCleanup, {}, _RootDir};
 
-					CDistributedActorTrustManager::COptions ServerOptions{.m_ReconnectDelay = 1_ms};
-					CDistributedActorTrustManager::COptions ClientOptions{.m_ReconnectDelay = 1_ms};
-
-					if (i == 0)
-						ServerOptions.m_HostTimeout = ServerOptions.m_HostDaemonTimeout = 500_ms;
-					else
-						ClientOptions.m_HostTimeout = ClientOptions.m_HostDaemonTimeout = 500_ms;
-
-					TCActor<CDistributedActorTrustManager> ServerTrustManager = State.f_CreateServerTrustManager(fg_Move(ServerOptions));
-					TCActor<CDistributedActorTrustManager> ClientTrustManager = State.f_CreateClientTrustManager(fg_Move(ClientOptions));
+					TCActor<CDistributedActorTrustManager> ServerTrustManager = State.f_CreateServerTrustManager();
+					TCActor<CDistributedActorTrustManager> ClientTrustManager = State.f_CreateClientTrustManager();
 
 					CDistributedActorTrustManager_Address ServerAddress;
 					ServerAddress.m_URL = fg_GetSocketUrl("TrustHostCleanup", _RootDir);
@@ -1180,6 +1218,12 @@ namespace NTestTrustManager
 						.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
 					;
 					ServerTrustManager(&CDistributedActorTrustManager::f_Debug_BreakListenConnections, ServerAddress, 0.1, ESocketDebugFlag_StopProcessing)
+						.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
+					;
+
+					// Keep setup and connection handshakes outside the short host-retention window.
+					auto const &CleanupManager = i == 0 ? ServerHelper.f_GetManager() : ClientHelper.f_GetManager();
+					CleanupManager(&CActorDistributionManager::f_Debug_SetHostTimeouts, fp64(500_ms), fp64(500_ms))
 						.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
 					;
 
@@ -1317,6 +1361,7 @@ namespace NTestTrustManager
 				Options.m_FriendlyName = "ClientTrustManager2";
 
 				TCActor<CDistributedActorTrustManager> Client2TrustManager = fg_ConstructActor<CDistributedActorTrustManager>(Client2Database, fg_Move(Options));
+				State.m_TrustManagers.f_Insert(Client2TrustManager);
 
 				auto TrustTicket2 = ServerTrustManager(&CDistributedActorTrustManager::f_GenerateConnectionTicket, ServerAddress, nullptr, nullptr)
 					.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)

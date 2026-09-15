@@ -836,6 +836,9 @@ namespace NMib::NConcurrency
 		;
 
 		void f_PrepareShutdown(fp64 _HostTimeout, fp64 _KillHostsTimeout);
+#if DMibConfig_Tests_Enable
+		void f_Debug_SetHostTimeouts(fp64 _HostTimeout, fp64 _HostDaemonTimeout);
+#endif
 
 		static CCallingHostInfo const &fs_GetCallingHostInfo();
 		static NStr::CStr fs_GetCertificateHostID(NContainer::CByteVector const &_Certificate);

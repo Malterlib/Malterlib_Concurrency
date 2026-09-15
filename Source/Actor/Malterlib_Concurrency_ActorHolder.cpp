@@ -1550,19 +1550,7 @@ namespace NMib::NConcurrency
 			}
 #endif
 			DMibFastCheck(m_RefCount.m_RefCount.f_Load() >= 0);
-			mp_pConcurrencyManager->fp_QueueJob
-				(
-					this->f_GetPriority()
-					, this->mp_iFixedQueue
-					, this->mp_iLastQueue.f_Load(NAtomic::gc_MemoryOrder_Relaxed)
-					, [pThis = TCActorHolderSharedPointer<CDefaultActorHolder>(fg_Explicit(this))](CConcurrencyThreadLocal &_ThreadLocal)
-					{
-						DMibFastCheck(pThis->m_RefCount.m_RefCount.f_Load() >= 0);
-						pThis->fp_RunProcess(_ThreadLocal);
-					}
-					, _ThreadLocal
-				)
-			;
+			fp_QueueRunProcess(_ThreadLocal);
 		}
 	}
 
@@ -1580,19 +1568,7 @@ namespace NMib::NConcurrency
 			}
 #endif
 			DMibFastCheck(m_RefCount.m_RefCount.f_Load() >= 0);
-			mp_pConcurrencyManager->fp_QueueJob
-				(
-					this->f_GetPriority()
-					, this->mp_iFixedQueue
-					, this->mp_iLastQueue.f_Load(NAtomic::gc_MemoryOrder_Relaxed)
-					, [pThis = TCActorHolderSharedPointer<CDefaultActorHolder>(fg_Explicit(this))](CConcurrencyThreadLocal &_ThreadLocal)
-					{
-						DMibFastCheck(pThis->m_RefCount.m_RefCount.f_Load() >= 0);
-						pThis->fp_RunProcess(_ThreadLocal);
-					}
-					, _ThreadLocal
-				)
-			;
+			fp_QueueRunProcess(_ThreadLocal);
 		}
 	}
 

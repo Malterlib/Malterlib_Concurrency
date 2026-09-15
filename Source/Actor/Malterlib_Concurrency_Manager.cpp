@@ -275,6 +275,7 @@ namespace NMib::NConcurrency
 	{
 		// Init time before starting any threads
 		NTime::CSystem_Time::fs_TimeInitDone();
+		m_TimerStopwatch.f_Start();
 
 #ifdef DMibConcurrency
 		umint nThreads = DMibConcurrency;
@@ -299,6 +300,15 @@ namespace NMib::NConcurrency
 				{
 					for (auto &Queue : m_Queues[Priority])
 					{
+						if (Queue.m_TimerActor)
+						{
+							// Unpublished actors have no jobs or timers; dispose directly without starting workers.
+							m_bDestroyingAlwaysAliveActors.f_Store(true);
+							Queue.m_TimerActor->mp_Destroyed.f_Store(2);
+							Queue.m_TimerActor.f_Clear();
+							Queue.m_TimerActorRef.f_Clear();
+						}
+
 						if (!Queue.m_pIoLoop)
 							continue;
 
@@ -368,6 +378,23 @@ namespace NMib::NConcurrency
 		m_ActorsOtherMask = fg_RoundPowerOfTwoUp(nThreads) - 1;
 		m_nActorsOther = NContainer::TCVector<CNumActorsOther>(m_ActorsOtherMask + 1);
 
+		for (auto &Queues : m_Queues)
+		{
+			for (auto &Queue : Queues)
+			{
+				TCActorHolderSharedPointer<TCActorInternal<CTimerActorImpl>> pTimer = fg_Construct(this, nullptr, &Queue);
+				auto ConstructionCleanup = g_OnScopeExit / [&]
+					{
+						if (pTimer)
+							pTimer->mp_Destroyed.f_Store(2);
+					}
+				;
+				Queue.m_TimerActor = f_ConstructFromInternalActor<CTimerActorImpl>(fg_Move(pTimer), fg_Construct<CTimerActorImpl>());
+				ConstructionCleanup.f_Clear();
+				Queue.m_TimerActorRef = Queue.m_TimerActor;
+			}
+		}
+
 		LoopCleanup.f_Clear();
 
 		// Signalling may start workers, so all loops and queues must exist first.
@@ -412,25 +439,22 @@ namespace NMib::NConcurrency
 
 #endif
 
+	// Lazy construction can run on a worker of another manager, so the calls below must target this one.
 	void CConcurrencyManager::f_Init()
 	{
 #if DMibEnableSafeCheck > 0
 		// Initialize callstack locations for valid reference coroutines
 
-		TCActor<CCoroutineActor> CoroutineActor = fg_Construct();
+		TCActor<CCoroutineActor> CoroutineActor = f_ConstructActor(fg_Construct<CCoroutineActor>());
 		CoroutineActor.f_Bind<&CCoroutineActor::f_ReferenceCoroutine, EVirtualCall::mc_NotVirtual>(5).f_CallSync();
 
 		(
-			g_ConcurrentDispatch / []() -> TCFuture<uint32>
+			g_Dispatch(f_GetConcurrentActor()) / []() -> TCFuture<uint32>
 			{
 				co_return 0;
 			}
 		).f_CallSync();
 #endif
-
-		// Start the timer thread during manager initialization so shutdown does not pay its startup cost.
-		// The manager pointer must already be published before the thread starts.
-		f_GetTimerActor();
 	}
 
 	void CConcurrencyManager::f_Stop()
@@ -484,13 +508,6 @@ namespace NMib::NConcurrency
 					Queue.m_pThread.f_Clear();
 				}
 			}
-		}
-
-		// Delete the timer actor
-		{
-			DMibLock(m_TimerActorLock);
-			if (m_pTimerActor)
-				fg_Move(m_pTimerActor).f_Destroy().f_DiscardResult();
 		}
 
 		auto &ThreadLocal = fg_ConcurrencyThreadLocal();
@@ -912,10 +929,33 @@ namespace NMib::NConcurrency
 		return Value == 0;
 	}
 
+	bool CConcurrencyManager::fp_CheckTimers(CQueue &_Queue)
+	{
+		if (!_Queue.m_bTimerWorkEnabled)
+			return false;
+
+		auto *pTimer = _Queue.m_TimerActorRef.f_Get();
+		auto &Owner = pTimer->f_ConcurrencyManager();
+		if (_Queue.m_TimerDeadline >= 0.0 && _Queue.m_TimerDeadline <= Owner.m_TimerStopwatch.f_GetTime())
+		{
+			_Queue.m_TimerDeadline = -1.0;
+			_Queue.m_TimerActorRef.f_Bind<&CTimerActor::fp_ProcessTimers>().f_DiscardResult();
+			return true;
+		}
+
+		return false;
+	}
+
 	// Long job and mailbox drains must offer queued work and poll bound I/O without returning to the pool loop.
 	// Short drains retain the batching threshold to avoid adding a wakeup to each exchange.
 	void CConcurrencyManager::fp_DrainCheckpoint(CQueue &_Queue, umint _OfferTargetSize)
 	{
+		if (fp_CheckTimers(_Queue))
+		{
+			auto *pCurrent = fg_ConcurrencyThreadLocal().m_pCurrentlyProcessingActorHolder;
+			if (pCurrent)
+				pCurrent->f_Yield();
+		}
 #if DMibConfig_Concurrency_LocalFirstScheduler && DMibConfig_Concurrency_LocalFirstDistribution
 		fp_OfferExcessWork(_Queue, true, _OfferTargetSize);
 #else
@@ -1081,6 +1121,8 @@ namespace NMib::NConcurrency
 #if DMibConfig_Concurrency_LocalFirstScheduler
 			fp_ClearQueueIdle(_Queue);
 #endif
+			fp_CheckTimers(_Queue);
+
 #if DMibConfig_Concurrency_EagerArenaGC && DMibPPtrBits > 32
 			// Collect the backlog that accumulated while this thread slept before it starts
 			// allocating for new work
@@ -1173,6 +1215,9 @@ namespace NMib::NConcurrency
 				break;
 #endif
 			}
+			if (fp_CheckTimers(_Queue))
+				continue;
+
 #if DMibConfig_Concurrency_LocalFirstScheduler
 			fp_SetQueueIdle(_Queue);
 #endif
@@ -1183,10 +1228,15 @@ namespace NMib::NConcurrency
 				if (_pThread->f_GetState() == NThread::EThreadState_EventWantQuit)
 					break;
 
-				pIoLoop->f_WaitAndDispatch();
+				if (_Queue.m_TimerDeadline < 0.0)
+					pIoLoop->f_WaitAndDispatch();
+				else
+					pIoLoop->f_WaitAndDispatchTimeout(fg_Max(fp64(0.0), _Queue.m_TimerDeadline - m_TimerStopwatch.f_GetTime()).f_Get());
 			}
-			else
+			else if (_Queue.m_TimerDeadline < 0.0)
 				_Queue.m_Event.f_Wait();
+			else
+				_Queue.m_Event.f_WaitTimeout(fg_Max(fp64(0.0), _Queue.m_TimerDeadline - m_TimerStopwatch.f_GetTime()));
 		}
 
 		// Drain to quiescence before the owner exits; multistage cancellation and deferred destruction need further iterations.
@@ -1248,14 +1298,18 @@ namespace NMib::NConcurrency
 			return;
 		fp_InitConcurrentActors(); // Make sure concurrent actors are created
 
-		// The init flag is published after the actor under m_TimerActorLock; acquire-load it before access.
-		// Only this shutdown thread moves the actor out.
-		auto fCallTimerActor = [this](void (CTimerActor::*_fMember)())
+		auto fCallTimerActors = [this](void (CTimerActor::*_fMember)())
 			{
-				if (!m_bTimerActorInit.f_Load(NAtomic::gc_MemoryOrder_Acquire))
-					return;
-
-				m_pTimerActor(_fMember).f_CallSync();
+				TCFutureVector<void> Results;
+				for (auto &Queues : m_Queues)
+				{
+					for (auto &Queue : Queues)
+					{
+						if (Queue.m_bThreadCreated.f_Load())
+							Queue.m_TimerActorRef(_fMember) > Results;
+					}
+				}
+				fg_AllDone(Results).f_CallSync();
 			}
 		;
 
@@ -1268,6 +1322,7 @@ namespace NMib::NConcurrency
 #endif
 
 		static constexpr umint c_nShutdownYields = 4000;
+		umint nTimerActors = m_nThreads * EPriority_Max;
 
 		static constexpr umint c_nDirectDeleteActors
 			= sizeof(m_DirectCallActor) / sizeof(m_DirectCallActor) // NOLINT
@@ -1296,7 +1351,7 @@ namespace NMib::NConcurrency
 					umint nExpectedActors = m_ConcurrentActors[EPriority_Normal].f_GetLen()
 						+ m_ConcurrentActors[EPriority_NormalHighCPU].f_GetLen()
 						+ m_ConcurrentActors[EPriority_Low].f_GetLen()
-						+ 1
+						+ nTimerActors
 						+ c_nDirectDeleteActors
 						+ m_nBlockingActors
 					;
@@ -1307,7 +1362,7 @@ namespace NMib::NConcurrency
 #if DMibConfig_Concurrency_DebugBlockDestroy
 			volatile static bool s_AbortLoop = false;
 #endif
-			fCallTimerActor(&CTimerActor::f_FireAtExit);
+			fCallTimerActors(&CTimerActor::f_FireAtExit);
 
 			bool bLoggedLongTimeShutdown = false;
 
@@ -1320,7 +1375,7 @@ namespace NMib::NConcurrency
 				{
 					if (FireTimersStopwatch.f_GetTime() > 10.0)
 					{
-						fCallTimerActor(&CTimerActor::f_FireAllTimeouts);
+						fCallTimerActors(&CTimerActor::f_FireAllTimeouts);
 						if (m_bShutdownLogging && !bLoggedLongTimeShutdown)
 						{
 							bLoggedLongTimeShutdown = true;
@@ -1329,7 +1384,7 @@ namespace NMib::NConcurrency
 						FireTimersStopwatch.f_Start();
 					}
 					else
-						fCallTimerActor(&CTimerActor::f_FireAtExit);
+						fCallTimerActors(&CTimerActor::f_FireAtExit);
 					TimerCheckStopwatch.f_Start();
 				}
 
@@ -1459,11 +1514,14 @@ namespace NMib::NConcurrency
 				for (bool bAllDone = false; !bAllDone;)
 				{
 					TCFutureVector<bool> ConcurrentActorSyncs;
+					for (auto &Queues : m_Queues)
 					{
-						DMibLock(m_TimerActorLock);
-						if (m_pTimerActor)
+						for (auto &Queue : Queues)
 						{
-							g_Dispatch(m_pTimerActor) / []() -> bool
+							if (!Queue.m_TimerActor || !Queue.m_bThreadCreated.f_Load())
+								continue;
+
+							g_Dispatch(Queue.m_TimerActorRef) / []() -> bool
 								{
 									auto pInternalActor = fg_GetActorInternal(fg_CurrentActor());
 									return pInternalActor->mp_ConcurrentRunQueue.f_OneOrLessInQueue(pInternalActor->mp_ConcurrentRunQueueLocal);
@@ -1512,16 +1570,12 @@ namespace NMib::NConcurrency
 			DMibLog(Info, "Shutting down concurrency manager: Waiting for built in actors to exit");
 		fWaitForAllDone();
 
-		// Delete the timer actor
+		// Blocking actors can still depend on timers while releasing their checkouts.
 		{
-			{
-				DMibLock(m_TimerActorLock);
-				if (m_pTimerActor)
-					fg_Move(m_pTimerActor).f_Destroy().f_CallSync();
-			}
 			umint nExpectedActors = m_ConcurrentActors[EPriority_Normal].f_GetLen()
 				+ m_ConcurrentActors[EPriority_NormalHighCPU].f_GetLen()
 				+ m_ConcurrentActors[EPriority_Low].f_GetLen()
+				+ nTimerActors
 				+ c_nDirectDeleteActors
 			;
 			TimerCheckStopwatch.f_Start();
@@ -1561,6 +1615,10 @@ namespace NMib::NConcurrency
 			DMibLog(Info, "Shutting down concurrency manager: Waiting for blocking actors to exit");
 		fWaitForAllDone(); // Sync up to make sure nothing is still waiting to process on actors
 
+		// Callback destruction can dispatch to concurrent actors, so release pending callbacks while those actors are alive.
+		fCallTimerActors(&CTimerActor::fp_PrepareShutdown);
+		fWaitForAllDone();
+
 		m_bFinishedDestroying = true;
 
 		m_bDestroyingAlwaysAliveActors = true;
@@ -1582,10 +1640,7 @@ namespace NMib::NConcurrency
 						DMibFastCheck(Actor->mp_iFixedQueue != gc_InvalidQueue);
 						DMibLock(m_ThreadCreateLock);
 						if (!m_Queues[Prio][Actor->mp_iFixedQueue].m_bThreadCreated.f_Load())
-						{
-							Actor.f_Unsafe_AccessInternal()->mp_Priority = EPriority_Normal; // Force to normal priority so we don't create threads just for this
 							fg_Move(Actor).fp_DestroyUnused() > Destroys;
-						}
 						else
 							fg_Move(Actor).f_Destroy() > Destroys;
 					}
@@ -1593,11 +1648,44 @@ namespace NMib::NConcurrency
 
 				for (umint Prio = EPriority_Low; Prio < EPriority_Max; ++Prio)
 					m_ConcurrentActors[Prio].f_Clear();
-
-				m_nThreads = 0;
 			}
 			fg_AllDoneWrapped(Destroys).f_CallSync();
 
+			NThread::CThreadSpinWaiter SpinWaiter(c_nShutdownYields);
+			while (fp_NumActors() > c_nDirectDeleteActors + nTimerActors)
+				SpinWaiter.f_Wait();
+		}
+
+		// Concurrent-actor destruction can still use timers; their queues have now drained.
+		{
+			TCFutureVector<void> Results;
+			for (auto &Queues : m_Queues)
+			{
+				for (auto &Queue : Queues)
+				{
+					DMibLock(m_ThreadCreateLock);
+					if (Queue.m_bThreadCreated.f_Load())
+						fg_Move(Queue.m_TimerActor).f_Destroy() > Results;
+					else
+					{
+						Queue.m_bTimerWorkEnabled = false;
+						fg_Move(Queue.m_TimerActor).fp_DestroyUnused() > Results;
+					}
+				}
+			}
+			fg_AllDoneWrapped(Results).f_CallSync();
+			for (auto &Queues : m_Queues)
+			{
+				for (auto &Queue : Queues)
+				{
+					Queue.m_TimerActor.f_Clear();
+					Queue.m_TimerActorRef.f_Clear();
+				}
+			}
+		}
+
+		m_nThreads = 0;
+		{
 			NThread::CThreadSpinWaiter SpinWaiter(c_nShutdownYields);
 			while (fp_NumActors() > c_nDirectDeleteActors)
 				SpinWaiter.f_Wait();
@@ -2165,7 +2253,7 @@ namespace NMib::NConcurrency
 		auto iBlockingActor = m_nBlockingActors++;
 		{
 			DMibUnlock(m_BlockingActorsLock);
-			pNewActorRawPtr->m_Actor = fg_Construct(fg_Construct(), "Blocking {}"_f << iBlockingActor);
+			pNewActorRawPtr->m_Actor = f_ConstructActor(fg_Construct<CBlockingActor>(), "Blocking {}"_f << iBlockingActor);
 		}
 
 		return CBlockingActorCheckout(this, pNewActorRawPtr);
@@ -2223,17 +2311,47 @@ namespace NMib::NConcurrency
 
 	TCActor<CTimerActor> const &CConcurrencyManager::f_GetTimerActor()
 	{
-		if (!m_bTimerActorInit.f_Load(NAtomic::gc_MemoryOrder_Acquire))
+		return f_GetTimerActor(nullptr);
+	}
+
+	TCActor<CTimerActor> const &CConcurrencyManager::f_GetTimerActor(TCActor<CActor> const &_Actor)
+	{
+		auto &ThreadLocal = fg_ConcurrencyThreadLocal();
+		CActorHolder *pHolder = _Actor ? static_cast<CActorHolder *>(_Actor.f_Get()) : ThreadLocal.m_pCurrentlyProcessingActorHolder;
+		EPriority Priority = pHolder ? pHolder->f_GetPriority() : ThreadLocal.m_pThisQueue ? ThreadLocal.m_pThisQueue->m_Priority : EPriority_Normal;
+		if (pHolder && (&pHolder->f_ConcurrencyManager() != this || pHolder == m_DirectCallActor.f_Get()))
+			pHolder = nullptr;
+
+		uint32 iQueue = pHolder ? pHolder->mp_iTimerQueue.f_Load(NAtomic::gc_MemoryOrder_Relaxed) : gc_InvalidQueue;
+		if (iQueue == gc_InvalidQueue)
 		{
-			DMibLock(m_TimerActorLock);
-			if (!m_bTimerActorInit.f_Load())
+			if (pHolder && pHolder->mp_iFixedQueue != gc_InvalidQueue)
+				iQueue = pHolder->mp_iFixedQueue;
+			else if
+			(
+				ThreadLocal.m_pThisQueue && ThreadLocal.m_pThisQueue->m_Priority == Priority
+				&& ThreadLocal.m_pThisQueue->m_iQueue < m_nThreads
+				&& &m_Queues[Priority][ThreadLocal.m_pThisQueue->m_iQueue] == ThreadLocal.m_pThisQueue
+				&& (!pHolder || pHolder == ThreadLocal.m_pCurrentlyProcessingActorHolder)
+			)
 			{
-				m_pTimerActor = fg_Construct(fg_Construct(), "Timer");
-				m_bTimerActorInit.f_Store(true);
+				iQueue = uint32(ThreadLocal.m_pThisQueue->m_iQueue);
+			}
+			else
+				iQueue = uint32(m_iNextTimerQueue[Priority].f_FetchAdd(1, NAtomic::gc_MemoryOrder_Relaxed) % m_nThreads);
+
+			if (pHolder)
+			{
+				uint32 Expected = gc_InvalidQueue;
+				if (!pHolder->mp_iTimerQueue.f_CompareExchangeStrong(Expected, iQueue))
+					iQueue = Expected;
 			}
 		}
-		return m_pTimerActor;
+
+		DMibFastCheck(iQueue < m_Queues[Priority].f_GetLen());
+		return m_Queues[Priority][iQueue].m_TimerActorRef;
 	}
+
 
 	CFutureCoroutineContextOnResumeScopeAwaiter fg_CurrentActorCheckDestroyedOnResume()
 	{
@@ -2254,7 +2372,7 @@ namespace NMib::NConcurrency
 
 		TCActor<> Actor(fg_Explicit(static_cast<TCActorInternal<CActor> *>(_ThreadLocal.m_pCurrentlyProcessingActorHolder)));
 
-		DMibFastCheck(Actor != fg_DirectCallActor()); // It's not safe to use the direct call actor
+		DMibFastCheck(Actor != _ThreadLocal.m_pCurrentlyProcessingActorHolder->f_ConcurrencyManager().f_GetDirectCallActor()); // It's not safe to use the direct call actor
 
 		return Actor;
 	}
@@ -2271,7 +2389,7 @@ namespace NMib::NConcurrency
 
 		TCWeakActor<> Actor(TCActorHolderWeakPointer<TCActorInternal<CActor>>(static_cast<TCActorInternal<CActor> *>(_ThreadLocal.m_pCurrentlyProcessingActorHolder)));
 
-		DMibFastCheck(Actor != fg_DirectCallActor()); // It's not safe to use the direct call actor
+		DMibFastCheck(Actor != _ThreadLocal.m_pCurrentlyProcessingActorHolder->f_ConcurrencyManager().f_GetDirectCallActor()); // It's not safe to use the direct call actor
 
 		return Actor;
 	}

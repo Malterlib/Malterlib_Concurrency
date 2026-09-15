@@ -663,6 +663,7 @@ namespace NMib::NConcurrency
 	struct CConcurrentActorLowPrio;
 	struct CConcurrentActorHighCPU;
 	struct CTimerActor;
+	struct CTimerActorImpl;
 	struct CThisConcurrentActor;
 	struct CThisConcurrentActorLowPrio;
 	struct CThisConcurrentActorHighCPU;
@@ -743,7 +744,18 @@ namespace NMib::NConcurrency
 	CFutureCoroutineContextOnResumeScopeAwaiter fg_CurrentActorCheckDestroyedOnResume(CConcurrencyThreadLocal &_ThreadLocal);
 
 	TCActor<CTimerActor> fg_TimerActor();
+	TCActor<CTimerActor> fg_TimerActor(TCActor<CActor> const &_Actor);
 }
+
+DMibDefineActorType(NMib::NConcurrency::CTimerActor, true);
+
+// Queues store the owning handle before the implementation type is complete.
+template <>
+struct NMib::NConcurrency::TCIsActorAlwaysAlive<NMib::NConcurrency::CTimerActorImpl>
+{
+	static constexpr bool mc_Value = true;
+	static constexpr bool mc_bImpl = false;
+};
 
 DMibDefineActorType(NMib::NConcurrency::CConcurrentActor, true);
 DMibDefineActorType(NMib::NConcurrency::CConcurrentActorLowPrio, true);

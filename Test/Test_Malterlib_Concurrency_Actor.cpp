@@ -3236,56 +3236,47 @@ namespace
 
 		void f_PromiseLimits()
 		{
-#if DMibEnableSafeCheck > 0 && !defined(DMibDebug) && DMibPPtrBits > 32
+#if DMibEnableSafeCheck > 0
 			DMibTestSuite("Promise Limits")
 			{
-				umint nToTest = 512 * 1024 * 1024 - 2; // 4 GB memory
-				TCPromise<void> Promise;
-				TCVector<TCPromise<void>> Promises;
-				Promises.f_Reserve(nToTest + 1);
-				for (umint i = 0; i < nToTest; ++i)
-					Promises.f_Insert(Promise);
+				using CRefCount = NConcurrency::NPrivate::CPromiseDataBaseRefCount;
 
-				auto fTestPromise = [&]
+				auto fIncreasePromiseCount = [](int32 _InitialCount)
 					{
+						CRefCount RefCount(_InitialCount);
+						DIfRefCountDebugging(NStorage::CRefCountDebugReference Reference);
 						auto Cleanup = g_OnScopeExit / [&]
 							{
-								Promise.f_Unsafe_PromiseData()->m_RefCount.f_Decrease();
+								DIfRefCountDebugging(if (Reference.m_pCallstack) RefCount.f_Remove(Reference));
+								RefCount.m_RefCount.f_Store(0);
 							}
 						;
-						auto PromiseTest = Promise;
-						Cleanup.f_Clear();
-					}
-				;
-				DMibExpectViolatesSafeCheck(fTestPromise(), "(Return & mc_PromiseMask) == mc_PromiseMask || (Return & mc_PromiseMask) < (mc_PromiseMask - 1) 'Promise reference overflow'");
-				auto fForceFutureReference = [&]
-					{
-						auto Cleanup = g_OnScopeExit / [&]
-							{
-								Promise.f_Unsafe_PromiseData()->m_RefCount.m_RefCount.f_FetchSub
-									(
-										NConcurrency::NPrivate::CPromiseDataBaseRefCount::mc_FutureBit
-										, NAtomic::gc_MemoryOrder_Release
-									)
-								;
-							}
-						;
-						Promise.f_Unsafe_PromiseData()->m_RefCount.f_IncreaseFuture();
 
-						Cleanup.f_Clear();
-						return Promise.fp_AttachFutureIgnoreFutureGotten();
+						return RefCount.f_Increase(DIfRefCountDebugging(Reference));
 					}
 				;
 
-				auto Future1 = Promise.f_Future();
-				auto Future2 = fForceFutureReference();
-				auto Future3 = fForceFutureReference();
-				auto fTestFuture = [&]
+				DMibExpect(fIncreasePromiseCount(CRefCount::mc_PromiseMask - 2), ==, CRefCount::mc_PromiseMask - 2);
+				DMibExpectViolatesSafeCheck
+					(
+						fIncreasePromiseCount(CRefCount::mc_PromiseMask - 1)
+						, "(Return & mc_PromiseMask) == mc_PromiseMask || (Return & mc_PromiseMask) < (mc_PromiseMask - 1) 'Promise reference overflow'"
+					)
+				;
+
+				CRefCount RefCount;
+				auto Cleanup = g_OnScopeExit / [&]
 					{
-						auto Future = fForceFutureReference();
+						RefCount.m_RefCount.f_Store(0);
 					}
 				;
-				DMibExpectViolatesSafeCheck(fTestFuture(), "fs_GetFutureCount(Return) <= 2 'Maximum three futures'");
+
+				RefCount.f_IncreaseFuture();
+				RefCount.f_IncreaseFuture();
+				RefCount.f_IncreaseFuture();
+
+				DMibExpect(RefCount.f_GetFutureCount(), ==, 3);
+				DMibExpectViolatesSafeCheck(RefCount.f_IncreaseFuture(), "fs_GetFutureCount(Return) <= 2 'Maximum three futures'");
 			};
 #endif
 		}

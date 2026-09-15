@@ -730,6 +730,7 @@ namespace NMib::NConcurrency
 	TCFuture<void> fg_DestroySubscription(CActorSubscription &_Subscription);
 	CConcurrencyManager &fg_CurrentConcurrencyManager();
 	void fg_SetConcurrencyManagerDefaultExecutionPriority(EPriority _Priority, EExecutionPriority _ExecutionPriority);
+	void fg_SetConcurrencyManagerPriorityClamp(EPriority _MinimumPriority);
 	CConcurrencyManager &fg_ConcurrencyManager();
 	TCActor<CConcurrentActor> const &fg_ConcurrentActor();
 	TCActor<CConcurrentActor> const &fg_ConcurrentActorLowPrio();

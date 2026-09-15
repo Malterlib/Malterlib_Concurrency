@@ -5,6 +5,11 @@
 
 namespace NMib::NConcurrency
 {
+	inline_always EPriority CConcurrencyManager::f_ClampPriority(EPriority _Priority) const
+	{
+		return _Priority < m_PriorityClamp ? m_PriorityClamp : _Priority;
+	}
+
 	template <typename tf_CActor>
 	consteval bool CConcurrencyManager::fs_HasOverridenDestroy()
 		requires (!NTraits::cIsSame<decltype(&CActor::fp_Destroy), decltype(&tf_CActor::fp_Destroy)>)

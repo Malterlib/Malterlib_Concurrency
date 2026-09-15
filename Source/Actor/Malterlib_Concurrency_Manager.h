@@ -68,7 +68,7 @@ namespace NMib::NConcurrency
 	class CConcurrencyManager
 	{
 	public:
-		CConcurrencyManager(EExecutionPriority _ExecutionPriority[EPriority_Max]);
+		CConcurrencyManager(EExecutionPriority _ExecutionPriority[EPriority_Max], EPriority _PriorityClamp = EPriority_Low);
 		~CConcurrencyManager();
 		void f_Init();
 		void f_Stop();
@@ -130,6 +130,7 @@ namespace NMib::NConcurrency
 
 		CIoLoopBinding f_PickIoLoopBinding(EPriority _Priority);
 
+		inline_always EPriority f_ClampPriority(EPriority _Priority) const;
 		EPriority f_GetQueuePriority() const;
 		umint f_GetNumQueues(EPriority _Priority) const;
 
@@ -352,6 +353,7 @@ namespace NMib::NConcurrency
 		TCActor<CDynamicConcurrentActorLowPrio> m_DynamicConcurrentActorLowPrioRef;
 		TCActor<CDynamicConcurrentActorHighCPU> m_DynamicConcurrentActorHighCPURef;
 
+		EPriority m_PriorityClamp = EPriority_Low; // Bands below this are raised to it, so a clamped band never gets a worker thread.
 		NAtomic::TCAtomic<bool> m_bDestroyingAlwaysAliveActors = false;
 		EExecutionPriority m_ExecutionPriority[EPriority_Max] = {EExecutionPriority_Lowest, EExecutionPriority_Normal, EExecutionPriority_Normal};
 	};

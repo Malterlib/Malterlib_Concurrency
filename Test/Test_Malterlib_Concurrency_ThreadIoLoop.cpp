@@ -225,6 +225,18 @@ namespace
 				if (!ConcurrencyManager.f_GetQueueIoLoop(c_Priority, 0))
 					return;
 
+				for (auto Priority : {EPriority_Low, EPriority_Normal})
+				{
+					DMibTestPath("Explicit priority {}"_f << Priority);
+					auto Binding = ConcurrencyManager.f_PickIoLoopBinding(Priority);
+					DMibExpectTrue(Binding);
+					if (Binding)
+					{
+						DMibExpect(Binding.m_Priority, ==, Priority);
+						DMibExpectTrue(Binding.m_pLoop == ConcurrencyManager.f_GetQueueIoLoop(Priority, Binding.m_iQueue));
+					}
+				}
+
 				umint nQueues = ConcurrencyManager.f_GetNumQueues(c_Priority);
 
 				// Match the manager: non-debug builds ignore the environment override.

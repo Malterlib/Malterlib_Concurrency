@@ -122,7 +122,7 @@ namespace NMib::NConcurrency
 					DMibLock(m_ConcurrencyManagerLock);
 					if (!m_pConcurrencyManager)
 					{
-						m_pConcurrencyManager = fg_Construct(m_DefaultExecutionPriority);
+						m_pConcurrencyManager = fg_Construct(m_DefaultExecutionPriority, m_PriorityClamp);
 						m_pConcurrencyManager->f_Init();
 					}
 
@@ -139,6 +139,7 @@ namespace NMib::NConcurrency
 				= {EExecutionPriority_Lowest, EExecutionPriority_Normal, EExecutionPriority_Normal}
 #endif
 			;
+			EPriority m_PriorityClamp = EPriority_Low;
 		};
 
 		constinit TCSubSystem<CSubSystem_Concurrency, ESubSystemDestruction_BeforeMemoryManager> g_SubSystem_Concurrency = {DAggregateInit};
@@ -147,6 +148,11 @@ namespace NMib::NConcurrency
 	void fg_SetConcurrencyManagerDefaultExecutionPriority(EPriority _Priority, EExecutionPriority _ExecutionPriority)
 	{
 		NPrivate::g_SubSystem_Concurrency->m_DefaultExecutionPriority[_Priority] = _ExecutionPriority;
+	}
+
+	void fg_SetConcurrencyManagerDefaultPriorityClamp(EPriority _MinimumPriority)
+	{
+		NPrivate::g_SubSystem_Concurrency->m_PriorityClamp = _MinimumPriority;
 	}
 
 	// Configure before creating actors. Zero uses the virtual-core count; existing managers keep their count.
@@ -284,7 +290,7 @@ namespace NMib::NConcurrency
 	/// CConcurrencyManager
 	/// ===================
 
-	CConcurrencyManager::CConcurrencyManager(EExecutionPriority _ExecutionPriority[EPriority_Max])
+	CConcurrencyManager::CConcurrencyManager(EExecutionPriority _ExecutionPriority[EPriority_Max], EPriority _PriorityClamp)
 	{
 		// Init time before starting any threads
 		NTime::CSystem_Time::fs_TimeInitDone();
@@ -300,6 +306,7 @@ namespace NMib::NConcurrency
 			}
 		}
 		m_nThreads = nThreads;
+		m_PriorityClamp = _PriorityClamp;
 
 		// Constructor failure skips the destructor. No workers exist yet, so raw loop handles can be destroyed directly.
 		auto LoopCleanup = g_OnScopeExit / [&]
@@ -1783,6 +1790,7 @@ namespace NMib::NConcurrency
 	// Only the queue's owner may claim its loop and change its park state; enable requests are dispatched to that queue.
 	void CConcurrencyManager::f_EnableQueueIoLoop(EPriority _Priority, umint _iQueue)
 	{
+		_Priority = f_ClampPriority(_Priority);
 		DMibSafeCheck(m_Queues[_Priority][_iQueue].m_pIoLoop, "Enabling a queue that has no io loop");
 
 		f_DispatchToQueue
@@ -1814,6 +1822,7 @@ namespace NMib::NConcurrency
 	// Distributes bindings across this priority's loop-owning queues. Empty if loops are unavailable or disabled.
 	auto CConcurrencyManager::f_PickIoLoopBinding(EPriority _Priority) -> CIoLoopBinding
 	{
+		_Priority = f_ClampPriority(_Priority);
 		umint nLoopQueues = m_nIoLoopQueues[_Priority];
 		if (!nLoopQueues)
 			return CIoLoopBinding();
@@ -2039,6 +2048,7 @@ namespace NMib::NConcurrency
 
 	TCActor<CConcurrentActor> const &CConcurrencyManager::f_GetConcurrentActorForThisThread(EPriority _Priority)
 	{
+		_Priority = f_ClampPriority(_Priority);
 		umint nActors = m_nConcurrentActors.f_Load(NAtomic::gc_MemoryOrder_Acquire);
 		if (!nActors)
 			nActors = fp_InitConcurrentActors();
@@ -2059,6 +2069,7 @@ namespace NMib::NConcurrency
 
 	TCActor<CConcurrentActor> const &CConcurrencyManager::f_GetConcurrentActorForOtherThread(EPriority _Priority)
 	{
+		_Priority = f_ClampPriority(_Priority);
 		umint nActors = m_nConcurrentActors.f_Load(NAtomic::gc_MemoryOrder_Acquire);
 		if (!nActors)
 			nActors = fp_InitConcurrentActors();
@@ -2326,7 +2337,7 @@ namespace NMib::NConcurrency
 	{
 		auto &ThreadLocal = fg_ConcurrencyThreadLocal();
 		CActorHolder *pHolder = _Actor ? static_cast<CActorHolder *>(_Actor.f_Get()) : ThreadLocal.m_pCurrentlyProcessingActorHolder;
-		EPriority Priority = pHolder ? pHolder->f_GetPriority() : ThreadLocal.m_pThisQueue ? ThreadLocal.m_pThisQueue->m_Priority : EPriority_Normal;
+		EPriority Priority = f_ClampPriority(pHolder ? pHolder->f_GetPriority() : ThreadLocal.m_pThisQueue ? ThreadLocal.m_pThisQueue->m_Priority : EPriority_Normal);
 		if (pHolder && (&pHolder->f_ConcurrencyManager() != this || pHolder == m_DirectCallActor.f_Get()))
 			pHolder = nullptr;
 

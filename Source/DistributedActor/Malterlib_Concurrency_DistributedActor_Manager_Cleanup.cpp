@@ -34,6 +34,16 @@ namespace NMib::NConcurrency
 		co_return {};
 	}
 
+#if DMibConfig_Tests_Enable
+	void CActorDistributionManager::f_Debug_SetHostTimeouts(fp64 _HostTimeout, fp64 _HostDaemonTimeout)
+	{
+		auto &Internal = *mp_pInternal;
+		Internal.m_HostTimeout = _HostTimeout;
+		Internal.m_HostDaemonTimeout = _HostDaemonTimeout;
+		Internal.fp_CleanupUpdateTimer(true);
+	}
+#endif
+
 	void CActorDistributionManager::f_PrepareShutdown(fp64 _HostTimeout, fp64 _KillHostsTimeout)
 	{
 		using namespace NStr;

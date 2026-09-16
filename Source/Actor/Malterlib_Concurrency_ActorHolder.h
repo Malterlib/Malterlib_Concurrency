@@ -9,6 +9,8 @@
 
 namespace NMib::NConcurrency::NPrivate
 {
+	struct CDelegatedActorDestroyState;
+
 	template <typename t_CReturn>
 	struct TCGetReturnType;
 
@@ -34,6 +36,18 @@ namespace NMib::NConcurrency::NPrivate
 		-> typename TCCallActorGetReturnType<typename TCGetMemberOrNonMemberFunctionPointerTraits<tf_CFunctor>::CType::CReturn, NTraits::TCDecay<tf_CPromiseParam>>::CType
 	;
 }
+
+template <>
+struct NMib::NStorage::TCHasIntrusiveRefCountOverride<NMib::NConcurrency::NPrivate::CDelegatedActorDestroyState>
+{
+	constexpr static bool mc_bValue = true;
+};
+
+template <>
+struct NMib::NTraits::TCHasVirtualDestructorOverride<NMib::NConcurrency::NPrivate::CDelegatedActorDestroyState>
+{
+	constexpr static bool mc_Value = false;
+};
 
 namespace NMib::NConcurrency
 {
@@ -120,6 +134,9 @@ namespace NMib::NConcurrency
 		static auto fsp_DestroyHandler(TCActorHolderSharedPointer<CActorHolder> &&_pActorHolder, TCPromise<void> &&_Promise);
 
 		void fp_DeleteActor();
+		virtual void fp_ActorDestroyed();
+		virtual void fp_SetDestroyResult(TCAsyncResult<void> const &_Result);
+		TCFuture<void> fp_DestroyDelegates();
 		void fp_DetachActor();
 		CActor *fp_GetActorRelaxed() const;
 
@@ -179,15 +196,15 @@ namespace NMib::NConcurrency
 		bool fp_DequeueProcess(CConcurrencyThreadLocal &_ThreadLocal);
 
 	protected:
-		struct COnTerminate
+		struct COnDestroy
 		{
-			COnTerminate() = default;
-			COnTerminate(COnTerminate const &) = delete;
-			COnTerminate(COnTerminate &&) = default;
+			COnDestroy() = default;
+			COnDestroy(COnDestroy const &) = delete;
+			COnDestroy(COnDestroy &&) = default;
 
-			NFunction::TCFunctionMutable<void ()> m_fOnTerminate;
+			NFunction::TCFunctionMutable<TCFuture<void> ()> m_fOnDestroy;
 
-			COrdering_Strong operator <=> (COnTerminate const &_Other) const noexcept
+			COrdering_Strong operator <=> (COnDestroy const &_Other) const noexcept
 			{
 				return this <=> &_Other;
 			}
@@ -195,7 +212,7 @@ namespace NMib::NConcurrency
 
 		// Alignment zone 1 (Mostly immutable, shared by producers and the actor) = 8 + 8 * 4 + 4 * 2 + 1 = 49 => 64 bytes on x64
 		NStorage::TCSharedPointer<ICDistributedActorData> mp_pDistributedActorData;
-		NContainer::TCSet<COnTerminate> mp_OnTerminate;
+		NContainer::TCSet<COnDestroy> mp_OnDestroy;
 		CConcurrencyManager *mp_pConcurrencyManager;
 		NAtomic::TCAtomic<CActor *> mp_pActorUnsafe{nullptr}; // Changed at destruction only once
 		uint32 mp_iFixedQueue{gc_InvalidQueue};
@@ -311,14 +328,18 @@ namespace NMib::NConcurrency
 		~CDelegatedActorHolder();
 
 	protected:
+		void fp_ActorDestroyed() override;
+		void fp_SetDestroyResult(TCAsyncResult<void> const &_Result) override;
+
 		void fp_QueueProcessDestroy(FActorQueueDispatch &&_Functor, CConcurrencyThreadLocal &_ThreadLocal) override;
 		void fp_QueueRunProcess(CConcurrencyThreadLocal &_ThreadLocal) override;
 		void fp_Yield() override;
 		void fp_QueueProcess(FActorQueueDispatch &&_Functor, CConcurrencyThreadLocal &_ThreadLocal) override;
 		void fp_QueueProcessEntry(CConcurrentRunQueueEntryHolder &&_Entry, CConcurrencyThreadLocal &_ThreadLocal) override;
 
+		NStorage::TCSharedPointer<NPrivate::CDelegatedActorDestroyState> mp_pDestroyState;
 		TCActorHolderSharedPointer<CActorHolder> mp_pDelegateTo;
-		COnTerminate const *mp_pOnTerminateEntry = nullptr;
+		COnDestroy const *mp_pOnDestroyEntry = nullptr;
 	};
 
 	class CSeparateThreadActorHolder : public CDefaultActorHolder

@@ -4,6 +4,7 @@
 #include <Mib/Core/Core>
 #include <Mib/Concurrency/ConcurrencyManager>
 #include <Mib/Concurrency/AsyncGenerator>
+#include <Mib/Concurrency/AsyncDestroy>
 
 namespace NMib::NConcurrency
 {
@@ -109,6 +110,17 @@ namespace NMib::NConcurrency
 			co_return DMibImpExceptionInstance(CExceptionActorAlreadyDestroyed, "Actor has already been destroyed");
 
 		self.m_pThis.f_SetBits(1);
+
+		auto DestroyDelegates = co_await fg_AsyncDestroy
+			(
+				[pHolder = self.m_pThis.f_Get()]
+				{
+					return pHolder->fp_DestroyDelegates();
+				}
+			)
+		;
+		if (self.m_pThis->mp_OnDestroy.f_IsEmpty())
+			DestroyDelegates.f_Clear();
 
 		co_await fp_Destroy();
 

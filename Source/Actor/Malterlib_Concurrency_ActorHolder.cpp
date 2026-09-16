@@ -114,6 +114,32 @@ namespace NMib::NConcurrency
 			pActor->~CActor();
 	}
 
+	void CActorHolder::fp_ActorDestroyed()
+	{
+	}
+
+	void CActorHolder::fp_SetDestroyResult(TCAsyncResult<void> const &)
+	{
+	}
+
+	TCFuture<void> CActorHolder::fp_DestroyDelegates()
+	{
+		TCFutureVector<void> Results;
+		mp_OnDestroy.f_ExtractAll
+			(
+				[&](auto &&_Handle)
+				{
+					_Handle->m_fOnDestroy() > Results;
+				}
+			)
+		;
+
+		if (Results.f_IsEmpty())
+			return g_Void;
+
+		return fg_AllDone(Results);
+	}
+
 	void CActorHolder::fp_DetachActor()
 	{
 		mp_pActorUnsafe.f_Store(nullptr, NAtomic::gc_MemoryOrder_Relaxed);
@@ -496,6 +522,7 @@ namespace NMib::NConcurrency
 				auto &ActorInternal = *pActorInternal;
 				if (uint8 Expected = 0; ActorInternal.mp_Destroyed.f_CompareExchangeStrong(Expected, 1))
 				{
+					ActorInternal.fp_SetDestroyResult(_Result);
 #if DMibEnableSafeCheck > 0
 					if (auto *pActor = ActorInternal.fp_GetActorRelaxed())
 						pActor->fp_CheckDestroy();
@@ -544,22 +571,6 @@ namespace NMib::NConcurrency
 			Result.f_SetException(CAsyncResult::fs_ActorCalledDeletedException());
 			CActorHolder::fsp_DestroyHandler(fg_Move(pActorInternal), fg_Move(Promise.m_Promise))(fg_Move(Result));
 		}
-
-		return fg_Move(Promise.m_Future);
-	}
-
-	TCFuture<void> CActorCommon::f_ForceDestroy() &&
-	{
-		auto pActorInternal = (static_cast<TCActor<> &>(*this)).m_pInternalActor;
-		if (!pActorInternal)
-			return g_Void;
-
-		// No mp_DestroyInitiated check - always proceed
-		// Always use immediate destruction path (like the "else" case in f_Destroy)
-		TCPromiseFuturePair<void> Promise;
-		TCAsyncResult<void> Result;
-		Result.f_SetException(CAsyncResult::fs_ActorCalledDeletedException());
-		CActorHolder::fsp_DestroyHandler(fg_Move(pActorInternal), fg_Move(Promise.m_Promise))(fg_Move(Result));
 
 		return fg_Move(Promise.m_Future);
 	}
@@ -633,7 +644,7 @@ namespace NMib::NConcurrency
 		if (!pActor)
 			return false;
 
-		if (!_pActorHolder->mp_bHasOverriddenDestroy && pActor->mp_SuspendedCoroutines.f_IsEmpty())
+		if (!_pActorHolder->mp_bHasOverriddenDestroy && pActor->mp_SuspendedCoroutines.f_IsEmpty() && _pActorHolder->mp_OnDestroy.f_IsEmpty())
 			return false;
 
 		if (pActor->f_IsDestroyed())
@@ -756,14 +767,7 @@ namespace NMib::NConcurrency
 
 			auto &This = *m_pThis;
 
-			This.mp_OnTerminate.f_ExtractAll
-				(
-					[&](auto &&_Handle)
-					{
-						_Handle->m_fOnTerminate();
-					}
-				)
-			;
+			DMibFastCheck(This.mp_OnDestroy.f_IsEmpty());
 
 			auto &ThreadLocal = fg_ConcurrencyThreadLocal();
 
@@ -785,6 +789,7 @@ namespace NMib::NConcurrency
 				This.fp_DeleteActor();
 			}
 			This.mp_Destroyed.f_Exchange(2);
+			This.fp_ActorDestroyed();
 
 			bool bShouldDelete;
 
@@ -1284,6 +1289,19 @@ namespace NMib::NConcurrency
 	/// CDelegatedActorHolder
 	///
 
+	struct NPrivate::CDelegatedActorDestroyState
+	{
+		CDelegatedActorDestroyState()
+		{
+			m_Result.f_SetResult();
+		}
+
+		NStorage::CIntrusiveRefCount m_RefCount;
+		TCPromise<void> m_Promise = CPromiseConstructEmpty();
+		TCAsyncResult<void> m_Result;
+		bool m_bDestroyed = false; // The actor destructor has finished; holder references may remain.
+	};
+
 	CDelegatedActorHolder::CDelegatedActorHolder
 		(
 			CConcurrencyManager *_pConcurrencyManager
@@ -1293,24 +1311,40 @@ namespace NMib::NConcurrency
 			, TCActor<> const &_DelegateToActor
 		)
 		: CDefaultActorHolder(_pConcurrencyManager, _bImmediateDelete, _Priority, fg_Move(_pDistributedActorData))
+		, mp_pDestroyState(fg_Construct())
 		, mp_pDelegateTo(_DelegateToActor.m_pInternalActor)
 	{
+		if (mp_pDelegateTo->mp_DestroyInitiated.f_Load())
+			throw DMibImpExceptionInstance(CExceptionActorIsBeingDestroyed, "Cannot register a delegated actor while its parent is being destroyed");
+
 		_DelegateToActor.m_pInternalActor->f_QueueProcess
 			(
 				[pDelegateTo = _DelegateToActor.m_pInternalActor, pThis = TCActorHolderSharedPointer<CDelegatedActorHolder>{this}](CConcurrencyThreadLocal &_ThreadLocal)
 				{
 					DMibFastCheck(!pDelegateTo->f_IsHolderDestroyed());
-					COnTerminate OnTerminate;
-					OnTerminate.m_fOnTerminate = [pThisWeak = pThis->fp_GetAsActor<CActor>().f_Weak(), pThisHolder = pThis.f_Get()]
+					DMibFastCheck(!pDelegateTo->fp_GetActorRelaxed()->f_IsDestroyed());
+					COnDestroy OnDestroy;
+					OnDestroy.m_fOnDestroy =
+						[pThisWeak = pThis->fp_GetAsActor<CActor>().f_Weak(), pThisHolder = pThis.f_Get(), pState = pThis->mp_pDestroyState]() -> TCFuture<void>
 						{
 							auto pThis = pThisWeak.f_Lock();
-							if (!pThis)
-								return;
-							pThisHolder->mp_pOnTerminateEntry = nullptr;
-							fg_Move(pThis).f_ForceDestroy().f_DiscardResult();
+							if (pThis)
+								pThisHolder->mp_pOnDestroyEntry = nullptr;
+
+							if (pState->m_bDestroyed)
+								return g_Void;
+
+							// An expired weak reference can still have actor deletion queued on the parent.
+							pState->m_Promise = {};
+							auto Future = pState->m_Promise.f_Future();
+							if (pThis)
+								fg_Move(pThis).f_Destroy().f_DiscardResult();
+
+							return Future;
 						}
 					;
-					pThis->mp_pOnTerminateEntry = &pDelegateTo->mp_OnTerminate[fg_Move(OnTerminate)];
+
+					pThis->mp_pOnDestroyEntry = &pDelegateTo->mp_OnDestroy[fg_Move(OnDestroy)];
 				}
 			)
 		;
@@ -1318,17 +1352,31 @@ namespace NMib::NConcurrency
 
 	CDelegatedActorHolder::~CDelegatedActorHolder()
 	{
-		if (!mp_pOnTerminateEntry)
+		if (!mp_pOnDestroyEntry)
 			return;
 
 		mp_pDelegateTo->f_QueueProcess
 			(
-				[pOnTerminateEntry = mp_pOnTerminateEntry, pDelegateTo = mp_pDelegateTo](CConcurrencyThreadLocal &_ThreadLocal)
+				[pOnDestroyEntry = mp_pOnDestroyEntry, pDelegateTo = mp_pDelegateTo](CConcurrencyThreadLocal &_ThreadLocal)
 				{
-					pDelegateTo->mp_OnTerminate.f_TryRemovePointerBasedComparison(pOnTerminateEntry);
+					pDelegateTo->mp_OnDestroy.f_TryRemovePointerBasedComparison(pOnDestroyEntry);
 				}
 			)
 		;
+	}
+
+	void CDelegatedActorHolder::fp_SetDestroyResult(TCAsyncResult<void> const &_Result)
+	{
+		mp_pDestroyState->m_Result = _Result;
+	}
+
+	void CDelegatedActorHolder::fp_ActorDestroyed()
+	{
+		auto pDestroyState = fg_Move(mp_pDestroyState);
+		pDestroyState->m_bDestroyed = true;
+		if (pDestroyState->m_Promise.f_IsValid())
+			pDestroyState->m_Promise.f_SetResult(fg_Move(pDestroyState->m_Result));
+		pDestroyState->m_Result.f_Clear();
 	}
 
 	void CDelegatedActorHolder::fp_QueueProcessDestroy(FActorQueueDispatch &&_Functor, CConcurrencyThreadLocal &_ThreadLocal)

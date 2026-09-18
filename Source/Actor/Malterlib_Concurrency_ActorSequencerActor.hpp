@@ -130,7 +130,8 @@ namespace NMib::NConcurrency
 		auto Promise = ToSequence.m_Promise;
 		ToSequence.m_fToSequence
 			(
-				g_ActorSubscription / [this]
+				// The release callback must retain the sequencer so its weak dispatch remains valid after the last external owner leaves.
+				g_ActorSubscription / [this, KeepAlive = TCActor<>(self)]
 				{
 					--m_nRunning;
 

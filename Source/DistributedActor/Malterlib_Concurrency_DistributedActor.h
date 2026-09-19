@@ -16,6 +16,7 @@
 #include <Mib/Cryptography/PublicCrypto>
 #include <Mib/CommandLine/AnsiEncoding>
 #include <Mib/Network/DebugFlags>
+#include <Mib/Cryptography/Strength>
 
 #if DMibConfig_Concurrency_DebugSubscriptions
 #	define SubscriptionLogVerbosity Debug
@@ -249,6 +250,7 @@ namespace NMib::NConcurrency
 		NContainer::CByteVector m_PublicClientCertificate;
 		NContainer::CSecureByteVector m_PrivateClientKey;
 		NCryptography::CPublicKeySetting m_KeySetting = CActorDistributionCryptographySettings::fs_DefaultKeySetting(); // Domain policy for the wsa peer-leaf whitelist.
+		NCryptography::ECryptoStrength m_MinimumCryptoStrength = NCryptography::ECryptoStrength::mc_EquivalentSymmetric256bit;
 		bool m_bRetryConnectOnFirstFailure = true;
 		bool m_bRetryConnectOnFailure = true;
 		bool m_bAllowInsecureConnection = false; // Only enabled when m_PublicServerCertificate is empty
@@ -268,6 +270,7 @@ namespace NMib::NConcurrency
 		NContainer::CByteVector m_CACertificate;
 		NContainer::CByteVector m_PublicCertificate;
 		NCryptography::CPublicKeySetting m_KeySetting = CActorDistributionCryptographySettings::fs_DefaultKeySetting(); // Domain policy for the wsa peer-leaf whitelist.
+		NCryptography::ECryptoStrength m_MinimumCryptoStrength = NCryptography::ECryptoStrength::mc_EquivalentSymmetric256bit;
 		NNetwork::ENetFlag m_ListenFlags = NNetwork::ENetFlag_None;
 		bool m_bRetryOnListenFailure = true;
 		uint64 m_SendWindowBytes = 0; // Bytes in flight allowed on each accepted connection's sends; 0 is the transport default of eight frames

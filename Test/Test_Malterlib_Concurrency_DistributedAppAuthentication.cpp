@@ -124,6 +124,7 @@ namespace NTestAuthentication
 				.f_RootDirectory(NFile::CFile::fs_GetProgramDirectory() + "/DistributedAppAuthenticationTests/Server")
 				.f_SeparateDistributionManager(true)
 				.f_KeySetting(NConcurrency::CDistributedActorTestKeySettings{})
+				.f_MinimumCryptoStrength(NCryptography::ECryptoStrength::mc_EquivalentSymmetric128bit)
 			)
 		{
 		}
@@ -275,6 +276,7 @@ namespace NTestAuthentication
 				.f_RootDirectory(NFile::CFile::fs_GetProgramDirectory() + "/DistributedAppAuthenticationTests/ManyServer")
 				.f_SeparateDistributionManager(true)
 				.f_KeySetting(NConcurrency::CDistributedActorTestKeySettings{})
+				.f_MinimumCryptoStrength(NCryptography::ECryptoStrength::mc_EquivalentSymmetric128bit)
 			)
 		{
 		}
@@ -458,6 +460,7 @@ namespace NTestAuthentication
 				.f_RootDirectory(NFile::CFile::fs_GetProgramDirectory() + "/DistributedAppAuthenticationTests/SlowServer")
 				.f_SeparateDistributionManager(true)
 				.f_KeySetting(NConcurrency::CDistributedActorTestKeySettings{})
+				.f_MinimumCryptoStrength(NCryptography::ECryptoStrength::mc_EquivalentSymmetric128bit)
 			)
 		{
 		}
@@ -554,6 +557,7 @@ namespace NTestAuthentication
 				.f_RootDirectory(NFile::CFile::fs_GetProgramDirectory() + "/DistributedAppAuthenticationTests/Client")
 				.f_SeparateDistributionManager(true)
 				.f_KeySetting(NConcurrency::CDistributedActorTestKeySettings{})
+				.f_MinimumCryptoStrength(NCryptography::ECryptoStrength::mc_EquivalentSymmetric128bit)
 				.f_SupportUserAuthentication(false)
 			)
 			, m_DefaultUserID(_DefaultUserID)

@@ -217,6 +217,20 @@ TCFuture<void> f_HandleErrors()
 }
 ```
 
+### Distributed TLS strength
+
+Distribution-manager listen and connection settings default
+`m_MinimumCryptoStrength` to
+`NCryptography::ECryptoStrength::mc_EquivalentSymmetric256bit`.
+The same setting is available in trust-manager options and through
+`CDistributedAppActor_Settings::f_MinimumCryptoStrength`. It is applied when TLS
+contexts are created; updating connection settings affects the next reconnect.
+
+Tests that deliberately use P-256 credentials set
+`mc_EquivalentSymmetric128bit` explicitly. Ordinary `CSSLContext` users retain
+the compatible policy unless they opt into a minimum; see Network/CLAUDE.md for
+its algorithm checks and TLS protocol limits.
+
 ### Distributed Actors
 
 ```cpp

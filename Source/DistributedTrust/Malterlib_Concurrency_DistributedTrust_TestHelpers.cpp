@@ -454,6 +454,7 @@ namespace NMib::NConcurrency
 			}
 		;
 		Options.m_KeySetting = _KeySetting;
+		Options.m_MinimumCryptoStrength = NCryptography::ECryptoStrength::mc_EquivalentSymmetric128bit;
 		Options.m_ListenFlags = NNetwork::ENetFlag_None;
 		Options.m_FriendlyName = _FriendlyName;
 		Options.m_Enclave = _SessionID;

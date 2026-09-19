@@ -1911,6 +1911,7 @@ class CDistributedActor_Tests : public NMib::NTest::CTest
 
 		CActorDistributionListenSettings ListenSettings{fg_CreateVector(ConnectAddress)};
 		ListenSettings.f_SetCryptography(ServerCryptography);
+		ListenSettings.m_MinimumCryptoStrength = NCryptography::ECryptoStrength::mc_EquivalentSymmetric128bit;
 		ListenSettings.m_bRetryOnListenFailure = false;
 		ListenSettings.m_ListenFlags = ENetFlag_None;
 		CDistributedActorListenReference ListenReference = ServerManager(&CActorDistributionManager::f_Listen, ListenSettings).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
@@ -1931,6 +1932,7 @@ class CDistributedActor_Tests : public NMib::NTest::CTest
 		ClientCryptography.f_AddRemoteServer(ConnectionSettings.m_ServerURL, ServerCryptography.m_PublicCertificate, SignedRequest);
 
 		ConnectionSettings.f_SetCryptography(ClientCryptography);
+		ConnectionSettings.m_MinimumCryptoStrength = NCryptography::ECryptoStrength::mc_EquivalentSymmetric128bit;
 		ConnectionSettings.m_bRetryConnectOnFirstFailure = false;
 		ConnectionSettings.m_bRetryConnectOnFailure = false;
 

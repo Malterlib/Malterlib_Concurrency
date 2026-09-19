@@ -561,6 +561,7 @@ namespace NMib::NConcurrency
 		}
 
 		NNetwork::CSSLSettings ServerSettings;
+		ServerSettings.m_MinimumCryptoStrength = _Settings.m_MinimumCryptoStrength;
 
 		ServerSettings.m_PublicCertificateData = _Settings.m_PublicCertificate;
 		ServerSettings.m_PrivateKeyData = _Settings.m_PrivateKey;

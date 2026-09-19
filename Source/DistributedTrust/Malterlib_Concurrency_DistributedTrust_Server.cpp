@@ -34,6 +34,7 @@ namespace NMib::NConcurrency
 				ListenSettings.m_CACertificate = Internal.m_BasicConfig.m_CACertificate;
 				ListenSettings.m_PublicCertificate = _pServerCert->m_PublicCertificate;
 				ListenSettings.m_KeySetting = Internal.m_KeySetting;
+				ListenSettings.m_MinimumCryptoStrength = Internal.m_MinimumCryptoStrength;
 				ListenSettings.m_bRetryOnListenFailure = false;
 				ListenSettings.m_ListenFlags = Internal.m_ListenFlags;
 

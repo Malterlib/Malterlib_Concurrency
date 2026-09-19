@@ -356,6 +356,7 @@ namespace NMib::NConcurrency
 		ConnectionSettings.m_bRetryConnectOnFailure = false;
 		ConnectionSettings.m_PublicServerCertificate = _TrustTicket.m_ServerPublicCert;
 		ConnectionSettings.m_KeySetting = Internal.m_KeySetting;
+		ConnectionSettings.m_MinimumCryptoStrength = Internal.m_MinimumCryptoStrength;
 
 		auto ConnectionResult = co_await (Internal.m_ActorDistributionManager(&CActorDistributionManager::f_Connect, ConnectionSettings, _Timeout) % "Failed to connect to server");
 
@@ -506,6 +507,7 @@ namespace NMib::NConcurrency
 		FinalConnectionSettings.m_PublicClientCertificate = ClientConnection.m_PublicClientCertificate;
 		FinalConnectionSettings.m_PrivateClientKey = Internal.m_BasicConfig.m_CAPrivateKey;
 		FinalConnectionSettings.m_KeySetting = Internal.m_KeySetting;
+		FinalConnectionSettings.m_MinimumCryptoStrength = Internal.m_MinimumCryptoStrength;
 		FinalConnectionSettings.m_SendWindowBytes = ClientConnection.f_GetEffectiveSendWindowBytes(Internal.m_DefaultSendWindowBytes);
 		FinalConnectionSettings.m_bRetryConnectOnFirstFailure = false;
 		FinalConnectionSettings.m_bRetryConnectOnFailure = true;
@@ -660,6 +662,7 @@ namespace NMib::NConcurrency
 			NMib::NConcurrency::CActorDistributionConnectionSettings ConnectionSettings;
 			ConnectionSettings.m_ServerURL = _Address.m_URL;
 			ConnectionSettings.m_KeySetting = Internal.m_KeySetting;
+			ConnectionSettings.m_MinimumCryptoStrength = Internal.m_MinimumCryptoStrength;
 			ConnectionSettings.m_bRetryConnectOnFirstFailure = false;
 			ConnectionSettings.m_bRetryConnectOnFailure = false;
 			ConnectionSettings.m_bAllowInsecureConnection = true;
@@ -703,6 +706,7 @@ namespace NMib::NConcurrency
 			ConnectionSettings.m_ServerURL = _Address.m_URL;
 			ConnectionSettings.m_PublicServerCertificate = NewClientConnection.m_PublicServerCertificate;
 			ConnectionSettings.m_KeySetting = Internal.m_KeySetting;
+			ConnectionSettings.m_MinimumCryptoStrength = Internal.m_MinimumCryptoStrength;
 			ConnectionSettings.m_bRetryConnectOnFirstFailure = false;
 			ConnectionSettings.m_bRetryConnectOnFailure = false;
 
@@ -723,6 +727,7 @@ namespace NMib::NConcurrency
 			ConnectionSettings.m_PublicClientCertificate = NewClientConnection.m_PublicClientCertificate;
 			ConnectionSettings.m_PrivateClientKey = Internal.m_BasicConfig.m_CAPrivateKey;
 			ConnectionSettings.m_KeySetting = Internal.m_KeySetting;
+			ConnectionSettings.m_MinimumCryptoStrength = Internal.m_MinimumCryptoStrength;
 			ConnectionSettings.m_SendWindowBytes = NewClientConnection.f_GetEffectiveSendWindowBytes(Internal.m_DefaultSendWindowBytes);
 			ConnectionSettings.m_bRetryConnectOnFirstFailure = true;
 			ConnectionSettings.m_bRetryConnectOnFailure = true;

@@ -4,6 +4,7 @@
 #pragma once
 
 #include <Mib/Core/Core>
+#include <Mib/Cryptography/Strength>
 #include <Mib/Concurrency/ActorFunctor>
 
 namespace NMib::NConcurrency
@@ -88,6 +89,7 @@ namespace NMib::NConcurrency
 		NStr::CStr m_RunAsGroup;
 		NStr::CStr m_Enclave;
 		NCryptography::CPublicKeySetting m_KeySetting = CActorDistributionCryptographySettings::fs_DefaultKeySetting();
+		NCryptography::ECryptoStrength m_MinimumCryptoStrength = NCryptography::ECryptoStrength::mc_EquivalentSymmetric256bit;
 		NNetwork::ENetFlag m_ListenFlags = NNetwork::ENetFlag_None;
 		EDistributedAppUpdateType m_UpdateType = EDistributedAppUpdateType_Independent;
 		CDistributedAppActor_InterfaceSettings m_InterfaceSettings;

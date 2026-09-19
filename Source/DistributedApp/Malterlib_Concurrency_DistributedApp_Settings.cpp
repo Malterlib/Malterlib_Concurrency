@@ -167,6 +167,13 @@ namespace NMib::NConcurrency
 		return fg_Move(*this);
 	}
 
+	CDistributedAppActor_Settings &&CDistributedAppActor_Settings::f_MinimumCryptoStrength(NCryptography::ECryptoStrength _Strength) &&
+	{
+		m_MinimumCryptoStrength = _Strength;
+
+		return fg_Move(*this);
+	}
+
 	CDistributedAppActor_Settings &&CDistributedAppActor_Settings::f_FriendlyName(CStr const &_FriendlyName) &&
 	{
 		m_FriendlyName = _FriendlyName;

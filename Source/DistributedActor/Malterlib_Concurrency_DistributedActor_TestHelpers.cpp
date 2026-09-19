@@ -136,6 +136,7 @@ namespace NMib::NConcurrency
 
 		mp_ListenSettings.f_SetCryptography(mp_ServerCryptography);
 		mp_ListenSettings.m_KeySetting = CDistributedActorTestKeySettings{};
+		mp_ListenSettings.m_MinimumCryptoStrength = NCryptography::ECryptoStrength::mc_EquivalentSymmetric128bit;
 		mp_ListenSettings.m_bRetryOnListenFailure = false;
 		mp_ListenSettings.m_ListenFlags = NNetwork::ENetFlag_None;
 		mp_ListenReference = ServerManager(&CActorDistributionManager::f_Listen, mp_ListenSettings).f_CallSync(mp_pRunLoop, 60.0);
@@ -182,6 +183,7 @@ namespace NMib::NConcurrency
 		}
 		ConnectionSettings.f_SetCryptography(mp_ClientCryptography);
 		ConnectionSettings.m_KeySetting = CDistributedActorTestKeySettings{};
+		ConnectionSettings.m_MinimumCryptoStrength = NCryptography::ECryptoStrength::mc_EquivalentSymmetric128bit;
 		ConnectionSettings.m_bRetryConnectOnFirstFailure = false;
 		ConnectionSettings.m_bRetryConnectOnFailure = _bReconnect;
 
@@ -211,6 +213,7 @@ namespace NMib::NConcurrency
 		ConnectionSettings.m_ServerURL = _Server.mp_ListenSettings.m_ListenAddresses[0];
 		ConnectionSettings.m_PublicServerCertificate = _Server.mp_ListenSettings.m_CACertificate;
 		ConnectionSettings.m_KeySetting = CDistributedActorTestKeySettings{};
+		ConnectionSettings.m_MinimumCryptoStrength = NCryptography::ECryptoStrength::mc_EquivalentSymmetric128bit;
 		ConnectionSettings.m_bRetryConnectOnFirstFailure = false;
 		ConnectionSettings.m_bRetryConnectOnFailure = false;
 

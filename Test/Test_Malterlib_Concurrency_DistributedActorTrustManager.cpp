@@ -265,6 +265,7 @@ namespace NTestTrustManager
 					}
 				;
 				Options.m_KeySetting = CDistributedActorTestKeySettings{};
+				Options.m_MinimumCryptoStrength = NCryptography::ECryptoStrength::mc_EquivalentSymmetric128bit;
 				Options.m_ListenFlags = NNetwork::ENetFlag_None;
 				Options.m_FriendlyName = "TestServer";
 				Options.m_InitialConnectionTimeout = g_Timeout / 2;
@@ -285,6 +286,7 @@ namespace NTestTrustManager
 					}
 				;
 				Options.m_KeySetting = CDistributedActorTestKeySettings{};
+				Options.m_MinimumCryptoStrength = NCryptography::ECryptoStrength::mc_EquivalentSymmetric128bit;
 				Options.m_ListenFlags = NNetwork::ENetFlag_None;
 				Options.m_FriendlyName = "TestClient";
 				Options.m_InitialConnectionTimeout = g_Timeout / 2;
@@ -1357,6 +1359,7 @@ namespace NTestTrustManager
 					}
 				;
 				Options.m_KeySetting = CDistributedActorTestKeySettings{};
+				Options.m_MinimumCryptoStrength = NCryptography::ECryptoStrength::mc_EquivalentSymmetric128bit;
 				Options.m_ListenFlags = NNetwork::ENetFlag_None;
 				Options.m_FriendlyName = "ClientTrustManager2";
 

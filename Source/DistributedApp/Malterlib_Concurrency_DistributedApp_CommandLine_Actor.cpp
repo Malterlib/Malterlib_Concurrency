@@ -117,6 +117,7 @@ namespace NMib::NConcurrency
 			}
 		;
 		Options.m_KeySetting = mp_Settings.m_KeySetting;
+		Options.m_MinimumCryptoStrength = mp_Settings.m_MinimumCryptoStrength;
 		Options.m_ListenFlags = mp_Settings.m_ListenFlags;
 		Options.m_FriendlyName = mp_Settings.f_GetCompositeFriendlyName();
 		Options.m_Enclave = CStr();

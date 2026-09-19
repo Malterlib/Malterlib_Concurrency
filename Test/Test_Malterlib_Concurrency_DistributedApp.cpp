@@ -46,6 +46,7 @@ namespace
 				.f_SeparateDistributionManager(true)
 				.f_InProcessCommandLineOnly(_bInProcessOnly)
 				.f_KeySetting(NConcurrency::CDistributedActorTestKeySettings{})
+				.f_MinimumCryptoStrength(NCryptography::ECryptoStrength::mc_EquivalentSymmetric128bit)
 				.f_DefaultCommandLineFunctionalies(EDefaultCommandLineFunctionality_None)
 			)
 		{

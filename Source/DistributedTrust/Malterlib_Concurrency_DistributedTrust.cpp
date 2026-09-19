@@ -43,6 +43,7 @@ namespace NMib::NConcurrency
 		, m_Database(_Database)
 		, m_fDistributionManagerFactory(fg_Move(_Options.m_fConstructManager))
 		, m_KeySetting(_Options.m_KeySetting)
+		, m_MinimumCryptoStrength(_Options.m_MinimumCryptoStrength)
 		, m_ListenFlags(_Options.m_ListenFlags)
 		, m_FriendlyName(_Options.m_FriendlyName)
 		, m_fGetFriendlyName(fg_Move(_Options.m_fGetFriendlyName))

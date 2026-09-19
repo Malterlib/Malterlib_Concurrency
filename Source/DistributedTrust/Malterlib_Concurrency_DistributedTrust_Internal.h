@@ -293,6 +293,7 @@ namespace NMib::NConcurrency
 		NTime::CTimeMeasure m_TicketTimer;
 
 		NCryptography::CPublicKeySetting const m_KeySetting;
+		NCryptography::ECryptoStrength const m_MinimumCryptoStrength;
 		NNetwork::ENetFlag const m_ListenFlags;
 		NContainer::TCMap<NStr::CStr, NStr::CStr> m_TranslateHostnames;
 

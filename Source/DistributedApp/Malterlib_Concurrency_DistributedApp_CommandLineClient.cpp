@@ -744,6 +744,7 @@ namespace NMib::NConcurrency
 				}
 			;
 			Options.m_KeySetting = Internal.m_Settings.m_KeySetting;
+			Options.m_MinimumCryptoStrength = Internal.m_Settings.m_MinimumCryptoStrength;
 			Options.m_ListenFlags = Internal.m_Settings.m_ListenFlags;
 			Options.m_FriendlyName = Internal.m_Settings.f_GetCompositeFriendlyName() + "_CommandLine";
 			Options.m_Enclave = NCryptography::fg_RandomID();

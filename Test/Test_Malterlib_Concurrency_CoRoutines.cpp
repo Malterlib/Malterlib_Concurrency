@@ -45,6 +45,7 @@ namespace NMib::NConcurrency::NTest
 				.f_RootDirectory(NFile::CFile::fs_GetProgramDirectory() / _Name)
 				.f_SeparateDistributionManager(true)
 				.f_KeySetting(NConcurrency::CDistributedActorTestKeySettings{})
+				.f_MinimumCryptoStrength(NCryptography::ECryptoStrength::mc_EquivalentSymmetric128bit)
 				.f_DefaultCommandLineFunctionalies(EDefaultCommandLineFunctionality_None)
 			)
 		{

@@ -648,6 +648,7 @@ namespace NMib::NConcurrency
 		bool &bAnonymous = o_DecodedSettings.m_bAnonymous;
 		NStr::CStr &RealHostID = o_DecodedSettings.m_RealHostID;
 		NNetwork::CSSLSettings &ClientSettings = o_DecodedSettings.m_ClientSettings;
+		ClientSettings.m_MinimumCryptoStrength = _Settings.m_MinimumCryptoStrength;
 
 		// Validate after translation because logical hosts may map to Unix paths.
 		if (auto Error = fg_ValidateAuthenticatedUnixAddress(_Settings.m_ServerURL.f_GetScheme(), fp_TranslateHostname(_Settings.m_ServerURL.f_GetHost())); !Error.f_IsEmpty())

@@ -285,6 +285,7 @@ namespace NMib::NConcurrency
 			> m_fConstructManager = nullptr;
 
 			NCryptography::CPublicKeySetting m_KeySetting = CActorDistributionCryptographySettings::fs_DefaultKeySetting();
+			NCryptography::ECryptoStrength m_MinimumCryptoStrength = NCryptography::ECryptoStrength::mc_EquivalentSymmetric256bit;
 			NNetwork::ENetFlag m_ListenFlags = NNetwork::ENetFlag_None;
 			NStr::CStr m_FriendlyName;
 			NFunction::TCFunction<NStr::CStr ()> m_fGetFriendlyName; // Asked for the name on first use when m_FriendlyName is empty

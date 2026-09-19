@@ -69,6 +69,7 @@ namespace NMib::NConcurrency
 		ConnectionSettings.m_PublicClientCertificate = ClientConnection.m_PublicClientCertificate;
 		ConnectionSettings.m_PrivateClientKey = m_BasicConfig.m_CAPrivateKey;
 		ConnectionSettings.m_KeySetting = m_KeySetting;
+		ConnectionSettings.m_MinimumCryptoStrength = m_MinimumCryptoStrength;
 		ConnectionSettings.m_bRetryConnectOnFirstFailure = true;
 		ConnectionSettings.m_bRetryConnectOnFailure = true;
 		ConnectionSettings.m_SendWindowBytes = ClientConnection.f_GetEffectiveSendWindowBytes(m_DefaultSendWindowBytes);
@@ -389,6 +390,7 @@ namespace NMib::NConcurrency
 			ListenSettings.m_PublicCertificate = pServerCert->m_PublicCertificate;
 			ListenSettings.m_CACertificate = m_BasicConfig.m_CACertificate;
 			ListenSettings.m_KeySetting = m_KeySetting;
+			ListenSettings.m_MinimumCryptoStrength = m_MinimumCryptoStrength;
 			ListenSettings.m_bRetryOnListenFailure = m_bRetryOnListenFailureDuringInit;
 			ListenSettings.m_ListenFlags = m_ListenFlags;
 			ListenSettings.m_SendWindowBytes = Listen.f_GetEffectiveSendWindowBytes(m_DefaultSendWindowBytes);

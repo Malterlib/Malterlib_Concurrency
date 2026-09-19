@@ -622,6 +622,7 @@ namespace NMib::NConcurrency
 
 		Options.m_fConstructManager = fg_Move(fManagerFactory);
 		Options.m_KeySetting = mp_Settings.m_KeySetting;
+		Options.m_MinimumCryptoStrength = mp_Settings.m_MinimumCryptoStrength;
 		Options.m_ListenFlags = mp_Settings.m_ListenFlags;
 		// Local-only commands normally have no peer that needs a friendly name; resolve it on demand.
 		if (mp_Settings.m_bInProcessCommandLineOnly)

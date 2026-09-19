@@ -924,6 +924,21 @@ namespace NTestActor2
 					bool bTimedOutWatingForTimerHandlers = HandlersFinished.f_WaitTimeout(g_Timeout * 3.0);
 					DMibTest(!DMibExpr(bTimedOutWatingForTimerHandlers));
 
+					// The repeating timers reference the locals above and keep firing until their subscriptions are destroyed
+					NContainer::TCVector<CActorSubscription> TimerSubscriptions;
+					{
+						DMibLock(TimersLock);
+						TimerSubscriptions.f_Insert(fg_Move(OneshotAbortableTimer));
+						TimerSubscriptions.f_Insert(fg_Move(ExactTimer));
+						TimerSubscriptions.f_Insert(fg_Move(NormalTimer));
+					}
+
+					for (auto &Subscription : TimerSubscriptions)
+					{
+						if (Subscription)
+							fg_Exchange(Subscription, nullptr)->f_Destroy().f_CallSync(g_Timeout);
+					}
+
 					pActor->f_BlockDestroy();
 					pLockActor->f_BlockDestroy();
 

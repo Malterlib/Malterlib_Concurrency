@@ -58,6 +58,23 @@ namespace NMib::NConcurrency
 #endif
 	};
 
+	struct CRunLoopThreadSpawnServer
+	{
+		CRunLoopThreadSpawnServer(NStorage::TCSharedPointer<CRunLoop> const &_pRunLoop);
+		~CRunLoopThreadSpawnServer();
+
+		CRunLoopThreadSpawnServer(CRunLoopThreadSpawnServer const &) = delete;
+		CRunLoopThreadSpawnServer &operator = (CRunLoopThreadSpawnServer const &) = delete;
+
+		bool f_IsServing() const;
+
+	private:
+		static void fsp_Wake(void *_pContext);
+
+		NFunction::TCFunctionMovable<void (FActorQueueDispatchNoAlloc &&_Dispatch)> mp_fDispatch;
+		bool mp_bRegistered = false;
+	};
+
 	struct CActorRunLoopHelper
 	{
 		~CActorRunLoopHelper();

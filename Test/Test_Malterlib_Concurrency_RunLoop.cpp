@@ -5,6 +5,10 @@
 #include <Mib/Test/Test>
 #include <Mib/Concurrency/ConcurrencyManager>
 #include <Mib/Concurrency/RunLoop>
+#ifdef DPlatformFamily_Linux
+#	include <Mib/File/File>
+#	include <sys/resource.h>
+#endif
 #ifdef DPlatformFamily_macOS
 #	include <Mib/Concurrency/OSMainRunLoop>
 #	include <mach/mach.h>
@@ -220,6 +224,67 @@ namespace NMib::NConcurrency
 
 				DMibExpect(MainThreadGrowth, <, c_MaxGrowth);
 				DMibExpect(OtherThreadGrowth, <, c_MaxGrowth);
+			};
+#endif
+
+#ifdef DPlatformFamily_Linux
+			DMibTestSuite("ThreadSpawnServer")
+			{
+				NStorage::TCSharedPointer<CDefaultRunLoop> pLoop = fg_Construct();
+				int BaseNice = getpriority(PRIO_PROCESS, 0);
+				NAtomic::TCAtomic<int> ChildNice{100};
+				NAtomic::TCAtomic<bool> bDone{false};
+				bool bServing = false;
+				{
+					CRunLoopThreadSpawnServer SpawnServer(pLoop);
+					bServing = SpawnServer.f_IsServing();
+
+					auto pThread = NThread::CThreadObject::fs_StartThread
+						(
+							[&](NThread::CThreadObject *) -> aint
+							{
+								auto pChildThread = NThread::CThreadObject::fs_StartThread
+									(
+										[&](NThread::CThreadObject *) -> aint
+										{
+											ChildNice = getpriority(PRIO_PROCESS, 0);
+											return 0;
+										}
+										, "Spawned child"
+										, EExecutionPriority_Normal
+									)
+								;
+								pChildThread->f_Stop();
+
+								bDone = true;
+								pLoop->f_Wake();
+
+								return 0;
+							}
+							, "Lowered parent"
+							, EExecutionPriority_Low
+						)
+					;
+
+					while (!bDone.f_Load())
+						pLoop->f_WaitOnce();
+
+					pThread->f_Stop();
+				}
+
+				DMibExpect(ChildNice.f_Load(), ==, fg_Max(0, BaseNice));
+
+				if (bServing)
+				{
+					bool bFoundSpawnHelper = false;
+					for (auto &CommFile : NFile::CFile::fs_FindFiles("/proc/self/task/*/comm"))
+					{
+						if (NFile::CFile::fs_ReadStringFromFile(CommFile).f_Trim() == "Thread spawner")
+							bFoundSpawnHelper = true;
+					}
+
+					DMibExpectFalse(bFoundSpawnHelper);
+				}
 			};
 #endif
 		}

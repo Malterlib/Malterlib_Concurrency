@@ -656,6 +656,7 @@ namespace NMib::NConcurrency
 		void f_Stop();
 
 		NStorage::TCSharedPointer<CRunLoop> m_pRunLoop;
+		NStorage::TCOptional<CRunLoopThreadSpawnServer> m_ThreadSpawnServer;
 		TCActor<CDistributedAppActor> m_AppActor;
 		CApplyLoggingResults m_ApplyLoggingResults;
 		bool m_bStartedApp = false;

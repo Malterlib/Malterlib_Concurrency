@@ -727,6 +727,12 @@ their reference instead of destroying the actor. The wrapped result carries the 
 for a manager that is already destroying, so awaiting it forwards that error without a
 catch; outside a coroutine, unpacking the result throws it instead.
 
+### Thread Creation From Lowered Threads
+
+`fg_RunApp` serves Linux thread creation for lowered threads from its run loop through
+`CRunLoopThreadSpawnServer`. See `../Core/Documentation/ThreadPriority.md` before holding one on
+another run loop.
+
 ### Weak Actor References
 ```cpp
 TCWeakActor<CMyActor> WeakRef = Actor;

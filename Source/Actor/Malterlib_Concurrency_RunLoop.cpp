@@ -35,6 +35,38 @@ namespace NMib::NConcurrency
 		m_pRunLoop.f_Clear();
 	}
 
+	// Construct and destroy on the thread that pumps _pRunLoop, and keep only while it is pumped
+	CRunLoopThreadSpawnServer::CRunLoopThreadSpawnServer(NStorage::TCSharedPointer<CRunLoop> const &_pRunLoop)
+		: mp_fDispatch(_pRunLoop->f_Dispatcher())
+	{
+		mp_bRegistered = NSys::fg_Thread_RegisterSpawnServer(&fsp_Wake, this);
+	}
+
+	CRunLoopThreadSpawnServer::~CRunLoopThreadSpawnServer()
+	{
+		if (mp_bRegistered)
+			NSys::fg_Thread_UnregisterSpawnServer(this);
+	}
+
+	// False where threads never need another thread to create them, or when the spawn helper thread already serves
+	bool CRunLoopThreadSpawnServer::f_IsServing() const
+	{
+		return mp_bRegistered;
+	}
+
+	void CRunLoopThreadSpawnServer::fsp_Wake(void *_pContext)
+	{
+		auto &This = *static_cast<CRunLoopThreadSpawnServer *>(_pContext);
+		This.mp_fDispatch
+			(
+				[](CConcurrencyThreadLocal &)
+				{
+					NSys::fg_Thread_ServeSpawnRequests();
+				}
+			)
+		;
+	}
+
 	CRunLoop::~CRunLoop() = default;
 
 	CDefaultRunLoop::CDefaultRunLoop()

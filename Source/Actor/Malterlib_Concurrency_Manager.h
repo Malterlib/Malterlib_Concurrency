@@ -395,7 +395,7 @@ namespace NMib::NConcurrency
 
 		EPriority m_PriorityClamp = EPriority_Low; // Bands below this are raised to it, so a clamped band never gets a worker thread.
 		NAtomic::TCAtomic<bool> m_bDestroyingAlwaysAliveActors = false;
-		EExecutionPriority m_ExecutionPriority[EPriority_Max] = {EExecutionPriority_Lowest, EExecutionPriority_Normal, EExecutionPriority_Normal};
+		EExecutionPriority m_ExecutionPriority[EPriority_Max] = {EExecutionPriority_Low, EExecutionPriority_Normal, EExecutionPriority_Normal};
 	};
 
 	struct CCaptureExceptionSettings

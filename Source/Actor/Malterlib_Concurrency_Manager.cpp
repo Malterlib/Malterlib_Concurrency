@@ -134,9 +134,10 @@ namespace NMib::NConcurrency
 			NThread::TCThreadLocal<CConcurrencyThreadLocal, NMemory::CAllocator_Heap, NThread::EThreadLocalFlag_AlwaysCreated> m_ThreadLocal;
 			EExecutionPriority m_DefaultExecutionPriority[EPriority_Max]
 #ifdef DPlatformFamily_macOS
+				// Low is the background quality of service class there, which also throttles I/O
 				= {EExecutionPriority_BelowNormal, EExecutionPriority_Normal, EExecutionPriority_Normal}
 #else
-				= {EExecutionPriority_Lowest, EExecutionPriority_Normal, EExecutionPriority_Normal}
+				= {EExecutionPriority_Low, EExecutionPriority_Normal, EExecutionPriority_Normal}
 #endif
 			;
 			EPriority m_PriorityClamp = EPriority_Low;

@@ -1235,6 +1235,8 @@ namespace NMib::NConcurrency
 		)
 	{
 		m_pRunLoop = _pRunLoop;
+		m_ThreadSpawnServer.f_Clear();
+		m_ThreadSpawnServer = fg_Construct(m_pRunLoop);
 
 		aint Ret = 1;
 		try
@@ -1412,6 +1414,7 @@ namespace NMib::NConcurrency
 
 		m_ApplyLoggingResults = {};
 		m_AppActor.f_Clear();
+		m_ThreadSpawnServer.f_Clear();
 		m_pRunLoop.f_Clear();
 	}
 

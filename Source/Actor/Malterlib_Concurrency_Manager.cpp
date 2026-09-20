@@ -691,10 +691,17 @@ namespace NMib::NConcurrency
 	void CConcurrencyManager::f_SetExecutionPriority(EPriority _Priority, EExecutionPriority _ExecutionPriority)
 	{
 		m_ExecutionPriority[_Priority] = _ExecutionPriority;
+
+		bool bLoggedRefusal = false;
+
 		for (auto &Queue : m_Queues[_Priority])
 		{
-			if (Queue.m_pThread)
-				Queue.m_pThread->f_SetPriority(_ExecutionPriority);
+			// Unprivileged processes cannot raise thread priority on most systems, and the queues then keep the priority they have
+			if (Queue.m_pThread && !Queue.m_pThread->f_TrySetPriority(_ExecutionPriority) && !bLoggedRefusal)
+			{
+				bLoggedRefusal = true;
+				DMibLog(Info, "The OS refused the execution priority of the concurrency queue threads");
+			}
 		}
 	}
 

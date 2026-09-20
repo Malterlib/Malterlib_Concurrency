@@ -1266,6 +1266,29 @@ namespace NMib::NConcurrency
 			pIoLoop->f_DrainForShutdown();
 	}
 
+	// One singleton at a time in reverse creation order, so a singleton that was created from another one
+	// has finished its teardown before that one starts destroying. Static, as a coroutine that keeps a this
+	// pointer across a suspension may only be called through the actor that owns it
+	TCFuture<void> CConcurrencyManager::fsp_DestroySingletons
+		(
+			NContainer::TCVector<NStorage::TCUniquePointer<CSingleton>> _Singletons
+			, NContainer::TCVector<umint> _CreationOrder
+		)
+	{
+		for (auto &iSingleton : fg_Move(_CreationOrder).f_Reverse())
+		{
+			// Wrapped, as a teardown that fails must not leave the remaining singletons alive
+			auto Result = co_await _Singletons[iSingleton]->f_Destroy().f_Wrap();
+
+			if (!Result)
+				DMibLog(Info, "Shutting down concurrency manager: A singleton failed to destroy: {}", Result.f_GetExceptionStr());
+
+			_Singletons[iSingleton].f_Clear();
+		}
+
+		co_return {};
+	}
+
 	void CConcurrencyManager::fp_AddedActor()
 	{
 		DMibFastCheck(!m_bFinishedDestroying);
@@ -1314,11 +1337,63 @@ namespace NMib::NConcurrency
 		m_bShutdownLogging = _bEnabled;
 	}
 
+	CConcurrencyManager::CSingleton::~CSingleton()
+	{
+	}
+
+	namespace NPrivate
+	{
+		// Allocating under the lock keeps one index per type even when several threads ask for it at once
+		umint fg_AllocateSingletonIndex(NAtomic::TCAtomic<umint> &_Index)
+		{
+			static constinit NThread::CLowLevelLockAggregate s_Lock; // Constant initialized, as Windows builds compile without thread safe function local statics
+			static constinit umint s_nSingletons = 0;
+
+			DMibLock(s_Lock);
+
+			umint Index = _Index.f_Load(NAtomic::gc_MemoryOrder_Relaxed);
+
+			if (!Index)
+			{
+				Index = ++s_nSingletons; // The stored value is the index plus one
+				_Index.f_Store(Index, NAtomic::gc_MemoryOrder_Relaxed);
+			}
+
+			return Index;
+		}
+	}
+
 	void CConcurrencyManager::f_BlockOnDestroy()
 	{
 		if (m_bDestroyed)
 			return;
 		fp_InitConcurrentActors(); // Make sure concurrent actors are created
+
+		// Destroyed here so that a singleton is torn down while the actor system still runs, and so that
+		// whatever outlives it is part of the wait for user actors below
+		{
+			NContainer::TCVector<NStorage::TCUniquePointer<CSingleton>> Singletons;
+			NContainer::TCVector<umint> CreationOrder;
+
+			{
+				DMibLockTyped(NThread::CMutual, m_SingletonLock);
+
+				m_bSingletonsDestroyed = true;
+				Singletons = fg_Move(m_Singletons);
+				CreationOrder = fg_Move(m_SingletonCreationOrder);
+			}
+
+			// On a concurrent actor, as this thread is not an actor and a coroutine has nothing to suspend
+			// on here, and outside the lock, as a teardown can ask for the singleton lock. The destroys are
+			// not waited for, so that the wait below, which keeps firing timeouts, is what drives them
+			(
+				g_Dispatch(f_GetConcurrentActor())
+				/ [Singletons = fg_Move(Singletons), CreationOrder = fg_Move(CreationOrder)]() mutable
+				{
+					fsp_DestroySingletons(fg_Move(Singletons), fg_Move(CreationOrder)).f_DiscardResult();
+				}
+			).f_DiscardResult();
+		}
 
 		auto fCallTimerActors = [this](void (CTimerActor::*_fMember)())
 			{

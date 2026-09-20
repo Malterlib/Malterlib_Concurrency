@@ -694,6 +694,39 @@ MalterlibConcurrency_DebugSubscriptions true    // Subscription logging
 
 ## Advanced Features
 
+### Manager Singletons
+
+```cpp
+// Created on first use and destroyed by the concurrency manager, in reverse creation
+// order, before it waits for the remaining actors to disappear. The create function
+// runs under the singleton lock and may ask the manager for other singletons
+TCWrapped<TCActor<CMyActor>> fg_GetSharedMyActor(CConcurrencyManager &_Manager)
+{
+	return _Manager.f_GetSingleton<CMyActor>
+		(
+			[&_Manager]
+			{
+				return _Manager.f_ConstructActor(fg_Construct<CMyActor>());
+			}
+		)
+	;
+}
+
+TCFuture<void> f_UseSharedMyActor()
+{
+	// A manager that has started destroying resolves this coroutine with that error
+	TCActor<CMyActor> MyActor = co_await fg_GetSharedMyActor(fg_ConcurrencyManager());
+
+	co_await MyActor(&CMyActor::f_Work);
+	co_return {};
+}
+```
+
+Singletons are actors, one per actor type per manager. Users of a shared actor release
+their reference instead of destroying the actor. The wrapped result carries the error
+for a manager that is already destroying, so awaiting it forwards that error without a
+catch; outside a coroutine, unpacking the result throws it instead.
+
 ### Weak Actor References
 ```cpp
 TCWeakActor<CMyActor> WeakRef = Actor;

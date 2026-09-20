@@ -25,6 +25,14 @@
 
 namespace NMib::NConcurrency
 {
+	namespace NPrivate
+	{
+		umint fg_AllocateSingletonIndex(NAtomic::TCAtomic<umint> &_Index);
+
+		template <typename t_CActor>
+		umint fg_GetSingletonIndex();
+	}
+
 	struct CConcurrencyThreadLocal;
 	CConcurrencyThreadLocal &fg_ConcurrencyThreadLocal();
 
@@ -137,6 +145,9 @@ namespace NMib::NConcurrency
 		void f_SetExecutionPriority(EPriority _Priority, EExecutionPriority _ExecutionPriority);
 		EExecutionPriority f_GetExecutionPriority(EPriority _Priority);
 
+		template <typename t_CActor, typename tf_FCreate>
+		TCWrapped<TCActor<t_CActor>> f_GetSingleton(tf_FCreate const &_fCreate);
+
 		bool f_DestroyingAlwaysAliveActors() const;
 
 		umint f_GetConcurrency() const;
@@ -215,6 +226,23 @@ namespace NMib::NConcurrency
 		};
 #endif
 
+		struct CSingleton
+		{
+			virtual ~CSingleton();
+
+			virtual TCFuture<void> f_Destroy() = 0;
+		};
+
+		template <typename t_CActor>
+		struct TCSingleton final : CSingleton
+		{
+			TCSingleton(TCActor<t_CActor> &&_Actor);
+
+			TCFuture<void> f_Destroy() override;
+
+			TCActor<t_CActor> m_Actor;
+		};
+
 		struct CQueue
 		{
 			align_cacheline CConcurrentRunQueueNonVirtualNoAlloc m_JobQueue;
@@ -265,6 +293,13 @@ namespace NMib::NConcurrency
 		void fp_DispatchOnCurrentThreadOrConcurrent(EPriority _Priority, FActorQueueDispatchNoAlloc &&_ToQueue, CConcurrencyThreadLocal &_ThreadLocal);
 		void fp_DispatchOnCurrentThreadOrConcurrentFirst(EPriority _Priority, FActorQueueDispatchNoAlloc &&_ToQueue, CConcurrencyThreadLocal &_ThreadLocal);
 
+		static TCFuture<void> fsp_DestroySingletons
+			(
+				NContainer::TCVector<NStorage::TCUniquePointer<CSingleton>> _Singletons
+				, NContainer::TCVector<umint> _CreationOrder
+			)
+		;
+
 		void fp_AddedActor();
 		void fp_RemovedActor();
 		umint fp_NumActors();
@@ -309,6 +344,11 @@ namespace NMib::NConcurrency
 
 		NContainer::TCVector<CIdleQueueMask> m_IdleQueueMasks[EPriority_Max];
 #endif
+
+		NThread::CMutual m_SingletonLock; // Recursive, as creating a singleton can ask for another one
+		NContainer::TCVector<NStorage::TCUniquePointer<CSingleton>> m_Singletons; // Indexed by the singleton index of the type
+		NContainer::TCVector<umint> m_SingletonCreationOrder; // Singletons are released in reverse creation order
+		bool m_bSingletonsDestroyed = false;
 
 		bool m_bDestroyed = false;
 		bool m_bFinishedDestroying = false;

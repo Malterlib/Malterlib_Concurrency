@@ -6,6 +6,7 @@
 #include <Mib/Concurrency/ConcurrencyManager>
 #include <Mib/Concurrency/RunLoop>
 #ifdef DPlatformFamily_Linux
+#	include <Mib/Core/PlatformSpecific/LinuxProcFS>
 #	include <Mib/File/File>
 #	include <sys/resource.h>
 #endif
@@ -270,21 +271,32 @@ namespace NMib::NConcurrency
 						pLoop->f_WaitOnce();
 
 					pThread->f_Stop();
+
+					// Unregistering creates the helper when threads were lowered, so this only holds while the server serves
+					if (bServing)
+					{
+						bool bFoundSpawnHelper = false;
+						bool bReadThreadName = false;
+						for (auto &TaskDirectory : NFile::CFile::fs_FindFiles("/proc/self/task/*", NFile::EFileAttrib_Directory))
+						{
+							NContainer::TCVector<ch8> Data;
+							if (!NPlatform::fg_ReadProcFS(NStr::CFStr256(TaskDirectory + "/comm"), Data))
+								continue; // The thread exited after the tasks were listed
+
+							NStr::CStr ThreadName = NStr::CStr(Data.f_GetArray(), Data.f_GetLen()).f_Trim();
+							if (ThreadName)
+								bReadThreadName = true;
+
+							if (ThreadName == "Thread spawner")
+								bFoundSpawnHelper = true;
+						}
+
+						DMibExpectTrue(bReadThreadName);
+						DMibExpectFalse(bFoundSpawnHelper);
+					}
 				}
 
 				DMibExpect(ChildNice.f_Load(), ==, fg_Max(0, BaseNice));
-
-				if (bServing)
-				{
-					bool bFoundSpawnHelper = false;
-					for (auto &CommFile : NFile::CFile::fs_FindFiles("/proc/self/task/*/comm"))
-					{
-						if (NFile::CFile::fs_ReadStringFromFile(CommFile).f_Trim() == "Thread spawner")
-							bFoundSpawnHelper = true;
-					}
-
-					DMibExpectFalse(bFoundSpawnHelper);
-				}
 			};
 #endif
 		}

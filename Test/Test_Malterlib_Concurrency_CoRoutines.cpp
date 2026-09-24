@@ -108,7 +108,6 @@ namespace NMib::NConcurrency::NTest
 	class CTestActor2 : public CActor
 	{
 	public:
-
 		using CActorHolder = CDelegatedActorHolder;
 
 		TCFuture<uint32> f_Test()
@@ -157,16 +156,16 @@ namespace NMib::NConcurrency::NTest
 		{
 			DMibFastCheck(m_Test == 20);
 		}
+
 		CTestDestruction(CTestDestruction &&_Other)
 			: m_Test(fg_Exchange(_Other.m_Test, 0))
 		{
 		}
+
 		~CTestDestruction()
 		{
 			if (m_Test)
-			{
 				m_Test = 0;
-			}
 		}
 
 		umint m_Test = 20;
@@ -670,12 +669,11 @@ namespace NMib::NConcurrency::NTest
 			TCPromise<uint32> Promise;
 
 			[=, this, Value2 = 20]() -> TCFuture<uint32>
-				{
-					uint32 Value = co_await m_TestActor(&CTestActor2::f_Test);
-					co_return Value + Value2;
-				}
-				() > fg_TempCopy(Promise)
-			;
+			{
+				uint32 Value = co_await m_TestActor(&CTestActor2::f_Test);
+				co_return Value + Value2;
+			}
+			() > fg_TempCopy(Promise);
 
 			co_return co_await Promise.f_MoveFuture();
 		}
@@ -705,12 +703,11 @@ namespace NMib::NConcurrency::NTest
 			TCPromise<uint32> Promise;
 
 			[=, this, Value2 = 20]() -> TCFuture<uint32>
-				{
-					uint32 Value = co_await m_TestActor(&CTestActor2::f_Test);
-					co_return Value + Value2;
-				}
-				() > fg_TempCopy(Promise)
-			;
+			{
+				uint32 Value = co_await m_TestActor(&CTestActor2::f_Test);
+				co_return Value + Value2;
+			}
+			() > fg_TempCopy(Promise);
 
 			co_return co_await Promise.f_MoveFuture();
 		}
@@ -1031,7 +1028,7 @@ namespace NMib::NConcurrency::NTest
 				}
 				> [this](TCAsyncResult<uint32> _Value) mutable
 				{
-					self / [TestDestruction = CTestDestruction{}] () -> TCFuture<void>
+					self / [TestDestruction = CTestDestruction{}]() -> TCFuture<void>
 						{
 							auto Cleanup = g_OnScopeExit / [&]
 								{
@@ -1583,7 +1580,16 @@ namespace NMib::NConcurrency::NTest
 			TCFutureVector<void> Results;
 
 			for (umint i = 0; i < nThreads; ++i)
-				fg_ConcurrentDispatch([]{}) > Results;
+			{
+				fg_ConcurrentDispatch
+					(
+						[]
+						{
+						}
+					)
+					> Results
+				;
+			}
 
 			co_await fg_AllDone(Results);
 
@@ -1804,6 +1810,7 @@ namespace NMib::NConcurrency::NTest
 				: m_pTestState(_pTestState)
 			{
 			}
+
 			CToAsyncDestroy(CToAsyncDestroy &&) = default;
 
 			~CToAsyncDestroy()
@@ -2038,14 +2045,7 @@ namespace NMib::NConcurrency::NTest
 						{
 							TCActor<CAsyncDestroyActor> TestDestroyActor = fg_Construct(pTestState);
 
-							DestroyFuture = TestDestroyActor
-								(
-									&CAsyncDestroyActor::f_TestDestroyOrder
-									, DestroyPromise0.f_Future()
-									, DestroyPromise1.f_Future()
-									, DestroyStartedPromise
-								)
-							;
+							DestroyFuture = TestDestroyActor(&CAsyncDestroyActor::f_TestDestroyOrder, DestroyPromise0.f_Future(), DestroyPromise1.f_Future(), DestroyStartedPromise);
 
 							auto DestroyActorFuture = fg_Move(TestDestroyActor).f_Destroy();
 							co_await DestroyStartedPromise.f_Future();
@@ -2074,14 +2074,7 @@ namespace NMib::NConcurrency::NTest
 						TCPromise<void> DestroyPromise0;
 						TCPromise<void> DestroyStartedPromise;
 						{
-
-							DestroyFuture = TestDestroyActor
-								(
-									&CAsyncDestroyActor::f_TestDestroyAtOnce
-									, DestroyPromise0.f_Future()
-									, DestroyStartedPromise
-								)
-							;
+							DestroyFuture = TestDestroyActor(&CAsyncDestroyActor::f_TestDestroyAtOnce, DestroyPromise0.f_Future(), DestroyStartedPromise);
 
 							co_await DestroyStartedPromise.f_Future();
 							DestroyPromise0.f_SetResult();
@@ -2103,13 +2096,7 @@ namespace NMib::NConcurrency::NTest
 					{
 						TCPromise<void> DestroyStartedPromise;
 						{
-
-							DestroyFuture = TestDestroyActor
-								(
-									&CAsyncDestroyActor::f_TestDestroyAtOnceError
-									, DestroyStartedPromise
-								)
-							;
+							DestroyFuture = TestDestroyActor(&CAsyncDestroyActor::f_TestDestroyAtOnceError, DestroyStartedPromise);
 
 							co_await DestroyStartedPromise.f_Future();
 						}
@@ -2130,16 +2117,8 @@ namespace NMib::NConcurrency::NTest
 						TCPromise<void> DestroyPromise0;
 						TCPromise<void> DestroyStartedPromise;
 						{
-
 							{
-								TestDestroyActor
-									(
-										&CAsyncDestroyActor::f_TestDestroyAtOnce
-										, DestroyPromise0.f_Future()
-										, DestroyStartedPromise
-									)
-									.f_DiscardResult()
-								;
+								TestDestroyActor(&CAsyncDestroyActor::f_TestDestroyAtOnce, DestroyPromise0.f_Future(), DestroyStartedPromise).f_DiscardResult();
 							}
 
 							co_await DestroyStartedPromise.f_Future();
@@ -2159,15 +2138,8 @@ namespace NMib::NConcurrency::NTest
 					{
 						TCPromise<void> DestroyStartedPromise;
 						{
-
 							{
-								TestDestroyActor
-									(
-										&CAsyncDestroyActor::f_TestDestroyAtOnceError
-										, DestroyStartedPromise
-									)
-									.f_DiscardResult()
-								;
+								TestDestroyActor(&CAsyncDestroyActor::f_TestDestroyAtOnceError, DestroyStartedPromise).f_DiscardResult();
 							}
 
 							co_await DestroyStartedPromise.f_Future();
@@ -2186,14 +2158,8 @@ namespace NMib::NConcurrency::NTest
 					{
 						TCPromise<void> DestroyStartedPromise;
 						{
-
 							{
-								TestDestroyActor.f_Bind<&CAsyncDestroyActor::f_TestDestroyAtOnceNoDestory, EVirtualCall::mc_NotVirtual>
-									(
-										DestroyStartedPromise
-									)
-									.f_DiscardResult()
-								;
+								TestDestroyActor.f_Bind<&CAsyncDestroyActor::f_TestDestroyAtOnceNoDestory, EVirtualCall::mc_NotVirtual>(DestroyStartedPromise).f_DiscardResult();
 							}
 
 							co_await DestroyStartedPromise.f_Future();
@@ -2899,7 +2865,8 @@ namespace NMib::NConcurrency::NTest
 
 								co_return {};
 							}
-						).f_Wrap()
+						)
+						.f_Wrap()
 					;
 
 					DMibExpect(pTestState->m_nDestroyed.f_Load(), ==, 1);
@@ -2927,7 +2894,8 @@ namespace NMib::NConcurrency::NTest
 
 								co_return {};
 							}
-						).f_Wrap()
+						)
+						.f_Wrap()
 					;
 
 					DMibExpectException(Result.f_Access(), DMibErrorInstance("Test"));
@@ -2951,7 +2919,7 @@ namespace NMib::NConcurrency::NTest
 								co_return {};
 							}
 						)
-						.f_Wrap();
+						.f_Wrap()
 					;
 
 					DMibExpectException(Result.f_Access(), DMibErrorInstanceSafeCheck("fg_Exchange(mp_bAwaited, true) 'You forgot to co_await the async destroy'"));
@@ -2975,7 +2943,7 @@ namespace NMib::NConcurrency::NTest
 								co_return {};
 							}
 						)
-						.f_Wrap();
+						.f_Wrap()
 					;
 
 					DMibExpectException(Result.f_Access(), DMibErrorInstanceExceptionVector("Test\nfg_Exchange(mp_bAwaited, true) 'You forgot to co_await the async destroy'", {}));
@@ -3056,7 +3024,7 @@ namespace NMib::NConcurrency::NTest
 								co_return {};
 							}
 						)
-						.f_Wrap();
+						.f_Wrap()
 					;
 
 					DMibExpectException(Result.f_Access(), DMibErrorInstanceSafeCheck("fg_Exchange(mp_bAwaited, true) 'You forgot to co_await the on resume'"));
@@ -3084,7 +3052,7 @@ namespace NMib::NConcurrency::NTest
 								co_return {};
 							}
 						)
-						.f_Wrap();
+						.f_Wrap()
 					;
 
 					DMibExpectException(Result.f_Access(), DMibErrorInstanceExceptionVector("Test\nfg_Exchange(mp_bAwaited, true) 'You forgot to co_await the on resume'", {}));

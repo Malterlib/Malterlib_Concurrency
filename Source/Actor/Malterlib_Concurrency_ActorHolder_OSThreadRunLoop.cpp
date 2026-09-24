@@ -72,13 +72,7 @@ namespace NMib::NConcurrency
 							}
 						;
 
-						CFRunLoopSourceRef pRunLoopSource = CFRunLoopSourceCreate
-							(
-								nullptr
-								, 0
-								, &RunLoopSourceContext
-							)
-						;
+						CFRunLoopSourceRef pRunLoopSource = CFRunLoopSourceCreate(nullptr, 0, &RunLoopSourceContext);
 
 						mp_RunLoopRef = CFRunLoopGetCurrent();
 						CFRunLoopAddSource(mp_RunLoopRef, pRunLoopSource, kCFRunLoopDefaultMode);

@@ -180,7 +180,8 @@ namespace NMib::NConcurrency
 					, CSensorInfo const *_pSensorInfo
 					, NTime::CTime const &_Now
 					, EOutdatedStatusOutputFlag _Flags
-				) const
+				)
+				const
 			;
 
 			uint64 m_UniqueSequence = TCLimitsInt<uint64>::mc_Max; /// This will be filled in automatically when using CDistributedAppSensorStoreLocal

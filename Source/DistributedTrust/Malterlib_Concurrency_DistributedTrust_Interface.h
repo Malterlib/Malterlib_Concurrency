@@ -201,18 +201,7 @@ namespace NMib::NConcurrency
 			void f_Stream(tf_CStream &_Stream);
 
 			CDistributedActorTrustManager_Address m_Address;
-			TCActorFunctorWithID
-				<
-					TCFuture<void>
-					(
-						NStr::CStr _HostID
-						, CLocalCallingHostInfo _HostInfo
-						, NContainer::CByteVector _CertificateRequest
-					)
-					, 0
-				>
-				m_fOnUseTicket
-			;
+			TCActorFunctorWithID<TCFuture<void> (NStr::CStr _HostID, CLocalCallingHostInfo _HostInfo, NContainer::CByteVector _CertificateRequest), 0> m_fOnUseTicket;
 			TCActorFunctorWithID<TCFuture<void> (NStr::CStr _HostID, CLocalCallingHostInfo _HostInfo), 0> m_fOnCertificateSigned;
 		};
 
@@ -343,7 +332,8 @@ namespace NMib::NConcurrency
 				, NStorage::TCOptional<NStr::CStr> _UserName
 				, NContainer::TCSet<NStr::CStr> _RemoveMetadata
 				, NContainer::TCMap<NStr::CStr, NEncoding::CEJsonSorted> _AddMetadata
-			) = 0
+			)
+			= 0
 		;
 
 		virtual TCFuture<NContainer::TCMap<NStr::CStr, CLocalAuthenticationActorInfo>> f_EnumAuthenticationActors() const = 0;
@@ -360,12 +350,7 @@ namespace NMib::NConcurrency
 DMibConcurrencyRegisterMemberFunctionAlternateHashes
 	(
 		NMib::NConcurrency::CDistributedActorTrustManagerInterface::f_EnumPermissions
-		, DMibActorFunctionAlternateName
-		(
-			NMib::NConcurrency::CDistributedActorTrustManagerInterface
-			, f_EnumHostPermissions
-			, 0x104
-		)
+		, DMibActorFunctionAlternateName(NMib::NConcurrency::CDistributedActorTrustManagerInterface, f_EnumHostPermissions, 0x104)
 	)
 ;
 

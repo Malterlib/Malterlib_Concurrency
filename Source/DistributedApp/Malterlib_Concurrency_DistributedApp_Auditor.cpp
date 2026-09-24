@@ -47,12 +47,12 @@ namespace NMib::NConcurrency
 	{
 	}
 
-	CDistributedAppAuditorWithError CDistributedAppAuditor::operator ()(NStr::CStr const &_UserError, NStr::CStr const &_Category)
+	CDistributedAppAuditorWithError CDistributedAppAuditor::operator () (NStr::CStr const &_UserError, NStr::CStr const &_Category)
 	{
 		return CDistributedAppAuditorWithError{*this, _UserError, {}, _Category};
 	}
 
-	CDistributedAppAuditorWithError CDistributedAppAuditor::operator ()(TCVector<NStr::CStr> const &_Errors, NStr::CStr const &_Category)
+	CDistributedAppAuditorWithError CDistributedAppAuditor::operator () (TCVector<NStr::CStr> const &_Errors, NStr::CStr const &_Category)
 	{
 		CStr FullMessage;
 		CStr FirstMessage;
@@ -94,7 +94,8 @@ namespace NMib::NConcurrency
 			, NContainer::TCVector<NStr::CStr> const &_Message
 			, NStr::CStr const &_Category
 			, CDistributedAppAuditExtraData &&_ExtraData
-		) const
+		)
+		const
 	{
 		CStr FullMessage;
 		CStr FirstMessage;
@@ -247,24 +248,15 @@ namespace NMib::NConcurrency
 			return DMibErrorInstance(f_Audit(NLog::ESeverity_Error, {"Access denied", _Message}, _Category, CDistributedAppAuditExtraData_AccessDenied{.m_Permissions = Permissions}));
 	}
 
-	NException::CException CDistributedAppAuditor::f_AccessDenied
-		(
-			NContainer::TCVector<NStr::CStr> const &_Message
-			, NContainer::TCVector<NStr::CStr> const &_Permissions
-			, NStr::CStr const &_Category
-		) const
+	auto CDistributedAppAuditor::f_AccessDenied(NContainer::TCVector<NStr::CStr> const &_Message, NContainer::TCVector<NStr::CStr> const &_Permissions, NStr::CStr const &_Category) const
+		-> NException::CException
 	{
 		auto Permissions = fg_ConvertPermissions(_Permissions);
 
 		return DMibErrorInstance(f_Audit(NLog::ESeverity_Error, _Message, _Category, CDistributedAppAuditExtraData_AccessDenied{.m_Permissions = Permissions}));
 	}
 
-	NException::CException CDistributedAppAuditor::f_AccessDenied
-		(
-			NStr::CStr const &_Message
-			, NContainer::TCVector<CPermissionQuery> const &_Permissions
-			, NStr::CStr const &_Category
-		) const
+	NException::CException CDistributedAppAuditor::f_AccessDenied(NStr::CStr const &_Message, NContainer::TCVector<CPermissionQuery> const &_Permissions, NStr::CStr const &_Category) const
 	{
 		auto Permissions = fg_ConvertPermissions(_Permissions);
 
@@ -279,18 +271,15 @@ namespace NMib::NConcurrency
 			NContainer::TCVector<NStr::CStr> const &_Message
 			, NContainer::TCVector<CPermissionQuery> const &_Permissions
 			, NStr::CStr const &_Category
-		) const
+		)
+		const
 	{
 		auto Permissions = fg_ConvertPermissions(_Permissions);
 
 		return DMibErrorInstance(f_Audit(NLog::ESeverity_Error, _Message, _Category, CDistributedAppAuditExtraData_AccessDenied{.m_Permissions = Permissions}));
 	}
 
-	FExceptionTransformer fg_ExceptionTransformer
-		(
-			FExceptionTransformer &&_fPreviousTransformer
-			, CDistributedAppAuditor const &_Auditor
-		)
+	FExceptionTransformer fg_ExceptionTransformer(FExceptionTransformer &&_fPreviousTransformer, CDistributedAppAuditor const &_Auditor)
 	{
 		if (!_fPreviousTransformer)
 		{
@@ -316,11 +305,7 @@ namespace NMib::NConcurrency
 		}
 	}
 
-	FExceptionTransformer fg_ExceptionTransformer
-		(
-			FExceptionTransformer &&_fPreviousTransformer
-			, CDistributedAppAuditorWithError const &_Auditor
-		)
+	FExceptionTransformer fg_ExceptionTransformer(FExceptionTransformer &&_fPreviousTransformer, CDistributedAppAuditorWithError const &_Auditor)
 	{
 		if (!_fPreviousTransformer)
 		{

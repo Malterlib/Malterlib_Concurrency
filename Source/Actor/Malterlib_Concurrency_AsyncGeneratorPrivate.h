@@ -107,22 +107,22 @@ namespace NMib::NConcurrency::NPrivate
 		CYieldSuspender yield_value(tf_CReturnType &&_Value);
 		CYieldSuspender yield_value(t_CReturnType &&_Value);
 
-		inline_always void *operator new(std::size_t _Size, std::align_val_t _Alignment)
+		inline_always void *operator new (std::size_t _Size, std::align_val_t _Alignment)
 		{
 			return NMib::NMemory::fg_AllocAligned(_Size, (umint)_Alignment);
 		}
 
-		inline_always void operator delete(void *_pMemory, std::size_t _Size, std::align_val_t _Alignment)
+		inline_always void operator delete (void *_pMemory, std::size_t _Size, std::align_val_t _Alignment)
 		{
 			NMib::NMemory::fg_Free(_pMemory, _Size);
 		}
 
-		inline_always void *operator new(std::size_t _Size)
+		inline_always void *operator new (std::size_t _Size)
 		{
 			return NMib::NMemory::fg_Alloc(_Size);
 		}
 
-		inline_always void operator delete(void *_pMemory, std::size_t _Size)
+		inline_always void operator delete (void *_pMemory, std::size_t _Size)
 		{
 			NMib::NMemory::fg_Free(_pMemory, _Size);
 		}
@@ -151,14 +151,8 @@ namespace std
 		// Reference parameters in co-routines are not safe. If you want to take responsibility, make the param a pointer instead or use TCUnsafeFuture
 		requires
 		(
-			!
-			(
-				NMib::NConcurrency::NPrivate::TCCoroutineContextFlagsFromParams<tp_CParams...>::mc_Value & NMib::NConcurrency::ECoroutineFlag_UnsafeReferenceParameters
-			)
-			|| !!
-			(
-				NMib::NConcurrency::NPrivate::TCCoroutineContextFlagsFromParams<tp_CParams...>::mc_Value & NMib::NConcurrency::ECoroutineFlag_AllowReferences
-			)
+			!(NMib::NConcurrency::NPrivate::TCCoroutineContextFlagsFromParams<tp_CParams...>::mc_Value & NMib::NConcurrency::ECoroutineFlag_UnsafeReferenceParameters)
+			|| !!(NMib::NConcurrency::NPrivate::TCCoroutineContextFlagsFromParams<tp_CParams...>::mc_Value & NMib::NConcurrency::ECoroutineFlag_AllowReferences)
 		)
 	struct extended_coroutine_traits<NMib::NConcurrency::TCAsyncGenerator<t_CReturnType>, tp_CParams...>
 	{
@@ -178,14 +172,8 @@ namespace std
 		// Reference parameters in co-routines are not safe. If you want to take responsibility, make the param a pointer instead or use TCUnsafeFuture
 		requires
 		(
-			!
-			(
-				NMib::NConcurrency::NPrivate::TCCoroutineContextFlagsFromParams<tp_CParams...>::mc_Value & (NMib::NConcurrency::ECoroutineFlag_UnsafeReferenceParameters)
-			)
-			|| !!
-			(
-				NMib::NConcurrency::NPrivate::TCCoroutineContextFlagsFromParams<tp_CParams...>::mc_Value & NMib::NConcurrency::ECoroutineFlag_AllowReferences
-			)
+			!(NMib::NConcurrency::NPrivate::TCCoroutineContextFlagsFromParams<tp_CParams...>::mc_Value & (NMib::NConcurrency::ECoroutineFlag_UnsafeReferenceParameters))
+			|| !!(NMib::NConcurrency::NPrivate::TCCoroutineContextFlagsFromParams<tp_CParams...>::mc_Value & NMib::NConcurrency::ECoroutineFlag_AllowReferences)
 		)
 	struct coroutine_traits<NMib::NConcurrency::TCAsyncGenerator<t_CReturnType>, tp_CParams...>
 	{

@@ -35,7 +35,6 @@ namespace NMib::NConcurrency
 		CConcurrencyManager::CQueue *mp_pQueue;
 	};
 
-
 	struct CTimerActor : public CActor
 	{
 		using CActorHolder = CTimerActorHolder;
@@ -77,11 +76,11 @@ namespace NMib::NConcurrency
 	struct CTimeoutHelper
 	{
 		CTimeoutHelper(fp64 _Period, bool _bFireAtExit);
-		CTimeoutHelper &operator ()(TCActor<CActor> const &_DispatchActor);
+		CTimeoutHelper &operator () (TCActor<CActor> const &_DispatchActor);
 
 		void operator > (FUnitVoidFutureFunction &&_fOnTimeout) const;
 
-		TCFutureAwaiter<void, true, CVoidTag> operator co_await();
+		TCFutureAwaiter<void, true, CVoidTag> operator co_await ();
 
 		TCFuture<void> f_Dispatch();
 

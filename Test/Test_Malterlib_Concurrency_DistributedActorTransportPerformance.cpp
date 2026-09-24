@@ -120,8 +120,7 @@ namespace NTestTransportPerformance
 						uint64 Position = SchedulePosition;
 						SchedulePosition += ThisTime;
 
-						return g_Dispatch(SlotActors[_iSlot])
-							/ [Position, ThisTime]() -> CSharedByteVector
+						return g_Dispatch(SlotActors[_iSlot]) / [Position, ThisTime]() -> CSharedByteVector
 							{
 								CIOByteVector Buffer;
 								Buffer.f_SetLen(ThisTime);
@@ -271,21 +270,12 @@ namespace NTestTransportPerformance
 					;
 				}
 				else
-				{
-					mp_pServerHelper->f_Publish<CTransportBenchActor>
-						(
-							mp_pServerHelper->f_GetManager()->f_ConstructActor<CTransportBenchActor>()
-							, CTransportBenchActor::mc_pDefaultNamespace
-						)
-					;
-				}
+					mp_pServerHelper->f_Publish<CTransportBenchActor>(mp_pServerHelper->f_GetManager()->f_ConstructActor<CTransportBenchActor>(), CTransportBenchActor::mc_pDefaultNamespace);
 
 				mp_ClientState.m_DefaultSendWindowBytes = fg_BenchSendWindowBytes();
 				m_ClientTrustManager = mp_ClientState.f_TrustManager("Client");
 
-				auto TrustTicket = m_ServerTrustManager(&CDistributedActorTrustManager::f_GenerateConnectionTicket, ServerAddress, nullptr, nullptr)
-					.f_CallSync(mp_pRunLoop, g_Timeout)
-				;
+				auto TrustTicket = m_ServerTrustManager(&CDistributedActorTrustManager::f_GenerateConnectionTicket, ServerAddress, nullptr, nullptr).f_CallSync(mp_pRunLoop, g_Timeout);
 				m_ClientTrustManager(&CDistributedActorTrustManager::f_AddClientConnection, TrustTicket.m_Ticket, g_Timeout / 2, _ConnectionConcurrency, 0)
 					.f_CallSync(mp_pRunLoop, g_Timeout)
 				;
@@ -336,31 +326,20 @@ namespace NTestTransportPerformance
 		}
 
 		template <typename t_CClientActor>
-		static void fs_MeasurePing
-			(
-				CTestPerformance &_PerfTest
-				, CActorRunLoopTestHelper &_RunLoopHelper
-				, CStr const &_Scheme
-				, CStr const &_SuiteTag
-				, bool _bHighCPUServerActor
-			)
+		static void fs_MeasurePing(CTestPerformance &_PerfTest, CActorRunLoopTestHelper &_RunLoopHelper, CStr const &_Scheme, CStr const &_SuiteTag, bool _bHighCPUServerActor)
 		{
 			DMibTestPath("{}_{}"_f << _SuiteTag << _Scheme);
 
 			CTransportBenchState State(_RunLoopHelper, _Scheme, _SuiteTag, 1, _bHighCPUServerActor);
 			TCActor<t_CClientActor> ClientActor = fg_ConstructActor<t_CClientActor>();
 
-			ClientActor(&CTransportBenchClientActor::f_RunPing, State.m_RemoteActor, mc_nPingRoundTrips / 8)
-				.f_CallSync(_RunLoopHelper.m_pRunLoop, g_Timeout)
-			;
+			ClientActor(&CTransportBenchClientActor::f_RunPing, State.m_RemoteActor, mc_nPingRoundTrips / 8).f_CallSync(_RunLoopHelper.m_pRunLoop, g_Timeout);
 
 			CTestPerformanceMeasure Time("{}_{}"_f << _SuiteTag << _Scheme);
 			for (umint iRepetition = 0; iRepetition < mc_nRepetitions; ++iRepetition)
 			{
 				Time.f_Start();
-				ClientActor(&CTransportBenchClientActor::f_RunPing, State.m_RemoteActor, mc_nPingRoundTrips)
-					.f_CallSync(_RunLoopHelper.m_pRunLoop, g_Timeout)
-				;
+				ClientActor(&CTransportBenchClientActor::f_RunPing, State.m_RemoteActor, mc_nPingRoundTrips).f_CallSync(_RunLoopHelper.m_pRunLoop, g_Timeout);
 				Time.f_Stop(mc_nPingRoundTrips);
 			}
 			_PerfTest.f_Add(Time);
@@ -385,15 +364,9 @@ namespace NTestTransportPerformance
 			auto fDownload = [&](uint64 _nBytes) -> uint64
 				{
 					if (bStorageChunks)
-					{
-						return ClientActor(&CTransportBenchClientActor::f_RunDownloadStorage, _RemoteActor, _nBytes, ChunkSize)
-							.f_CallSync(_RunLoopHelper.m_pRunLoop, _CallTimeout)
-						;
-					}
+						return ClientActor(&CTransportBenchClientActor::f_RunDownloadStorage, _RemoteActor, _nBytes, ChunkSize).f_CallSync(_RunLoopHelper.m_pRunLoop, _CallTimeout);
 
-					return ClientActor(&CTransportBenchClientActor::f_RunDownload, _RemoteActor, _nBytes, ChunkSize)
-						.f_CallSync(_RunLoopHelper.m_pRunLoop, _CallTimeout)
-					;
+					return ClientActor(&CTransportBenchClientActor::f_RunDownload, _RemoteActor, _nBytes, ChunkSize).f_CallSync(_RunLoopHelper.m_pRunLoop, _CallTimeout);
 				}
 			;
 
@@ -413,29 +386,13 @@ namespace NTestTransportPerformance
 			DMibExpect(nReceivedBytes, ==, TransferBytes * mc_nRepetitions);
 		}
 
-		static void fs_MeasureThroughput
-			(
-				CTestPerformance &_PerfTest
-				, CActorRunLoopTestHelper &_RunLoopHelper
-				, CStr const &_Scheme
-				, CStr const &_SuiteTag
-				, int32 _ConnectionConcurrency
-			)
+		static void fs_MeasureThroughput(CTestPerformance &_PerfTest, CActorRunLoopTestHelper &_RunLoopHelper, CStr const &_Scheme, CStr const &_SuiteTag, int32 _ConnectionConcurrency)
 		{
 			DMibTestPath(_Scheme);
 
 			CTransportBenchState State(_RunLoopHelper, _Scheme, _SuiteTag, _ConnectionConcurrency);
 
-			fs_MeasureThroughputOnActor
-				(
-					_PerfTest
-					, _RunLoopHelper
-					, State.m_RemoteActor
-					, "{}_{}"_f << _SuiteTag << _Scheme
-					, _ConnectionConcurrency
-					, g_Timeout
-				)
-			;
+			fs_MeasureThroughputOnActor(_PerfTest, _RunLoopHelper, State.m_RemoteActor, "{}_{}"_f << _SuiteTag << _Scheme, _ConnectionConcurrency, g_Timeout);
 		}
 
 		void f_DoTests()
@@ -518,12 +475,7 @@ namespace NTestTransportPerformance
 					ServerTrustManager(&CDistributedActorTrustManager::f_AddListen, ServerAddress, 0).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
 
 					TCUniquePointer<CDistributedActorTestHelper> pServerHelper = fg_Construct(ServerTrustManager, RunLoopHelper.m_pRunLoop);
-					pServerHelper->f_Publish<CTransportBenchActor>
-						(
-							pServerHelper->f_GetManager()->f_ConstructActor<CTransportBenchActor>()
-							, CTransportBenchActor::mc_pDefaultNamespace
-						)
-					;
+					pServerHelper->f_Publish<CTransportBenchActor>(pServerHelper->f_GetManager()->f_ConstructActor<CTransportBenchActor>(), CTransportBenchActor::mc_pDefaultNamespace);
 
 					auto TrustTicket = ServerTrustManager(&CDistributedActorTrustManager::f_GenerateConnectionTicket, ServerAddress, nullptr, nullptr)
 						.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
@@ -583,16 +535,16 @@ namespace NTestTransportPerformance
 		}
 
 #if defined(DMibDebug) || defined(DMibSanitizerEnabled)
-		constexpr static uint64 mc_nTransferBytes = 8ull << 20;
-		constexpr static umint mc_nPingRoundTrips = 128;
-		constexpr static umint mc_nRepetitions = 3;
+		static constexpr uint64 mc_nTransferBytes = 8ull << 20;
+		static constexpr umint mc_nPingRoundTrips = 128;
+		static constexpr umint mc_nRepetitions = 3;
 #else
-		constexpr static uint64 mc_nTransferBytes = 8 * (1024ull << 20);
-		constexpr static umint mc_nPingRoundTrips = 4 * 16384;
-		constexpr static umint mc_nRepetitions = 5;
+		static constexpr uint64 mc_nTransferBytes = 8 * (1024ull << 20);
+		static constexpr umint mc_nPingRoundTrips = 4 * 16384;
+		static constexpr umint mc_nRepetitions = 5;
 #endif
-		constexpr static uint32 mc_ChunkSize = NFile::gc_IdealIoSize;
-		constexpr static int32 mc_nConcurrentConnections = 4;
+		static constexpr uint32 mc_ChunkSize = NFile::gc_IdealIoSize;
+		static constexpr int32 mc_nConcurrentConnections = 4;
 	};
 
 	DMibTestRegister(CDistributedActorTransportPerformance_Tests, Malterlib::Concurrency);

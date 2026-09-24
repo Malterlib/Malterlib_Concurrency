@@ -15,12 +15,13 @@ namespace NMib::NConcurrency
 			template <typename tf_FFunction>
 			auto operator / (tf_FFunction &&_fFunction) const;
 
-			template <typename tf_FFunction, typename... tfp_CCallParams>
-			auto f_Invoke(tf_FFunction &&_fFunction, tfp_CCallParams &&... p_CallParams) const;
+			template <typename tf_FFunction, typename ...tfp_CCallParams>
+			auto f_Invoke(tf_FFunction &&_fFunction, tfp_CCallParams && ...p_CallParams) const;
 
 			operator TCActor<> () const;
 
 			NStorage::TCBitStorePointer<CActorHolder> m_pThis = nullptr;
+
 		private:
 			friend struct NConcurrency::CActor;
 
@@ -43,6 +44,7 @@ namespace NMib::NConcurrency
 #if DMibEnableSafeCheck > 0
 		CActorInternal();
 		~CActorInternal();
+
 	private:
 		CActor *mp_pThis = nullptr;
 #endif
@@ -84,10 +86,7 @@ namespace NMib::NConcurrency
 		template <typename tf_CReturnType, typename ...tfp_CParams>
 		tf_CReturnType f_DispatchWithReturnShared
 			(
-				NStorage::TCSharedPointer
-				<
-					NFunction::TCFunctionMovable<tf_CReturnType (NTraits::TCRemoveQualifiersAndAddRValueReference<tfp_CParams> ...p_Params)>
-				> &&_pToDisptach
+				NStorage::TCSharedPointer<NFunction::TCFunctionMovable<tf_CReturnType (NTraits::TCRemoveQualifiersAndAddRValueReference<tfp_CParams> ...p_Params)>> &&_pToDisptach
 				, NTraits::TCRemoveQualifiersAndAddRValueReference<tfp_CParams> ...p_Params
 			)
 			requires (NPrivate::TCIsAsyncGenerator<tf_CReturnType>::mc_Value || NPrivate::TCIsFuture<tf_CReturnType>::mc_Value)
@@ -96,30 +95,19 @@ namespace NMib::NConcurrency
 		template <typename tf_CReturnType, typename ...tfp_CParams>
 		tf_CReturnType f_DispatchWithReturnShared
 			(
-				NStorage::TCSharedPointer
-				<
-					NFunction::TCFunctionMovable<tf_CReturnType (NTraits::TCRemoveQualifiersAndAddRValueReference<tfp_CParams> ...p_Params)>
-				> &&_pToDisptach
+				NStorage::TCSharedPointer<NFunction::TCFunctionMovable<tf_CReturnType (NTraits::TCRemoveQualifiersAndAddRValueReference<tfp_CParams> ...p_Params)>> &&_pToDisptach
 				, NTraits::TCRemoveQualifiersAndAddRValueReference<tfp_CParams> ...p_Params
 			)
 			requires (!(NPrivate::TCIsFuture<tf_CReturnType>::mc_Value || NPrivate::TCIsAsyncGenerator<tf_CReturnType>::mc_Value))
 		;
 
 		template <typename tf_CReturnType, typename tf_CCallable, typename ...tfp_CParams>
-		tf_CReturnType f_DispatchWithReturnSharedCallable
-			(
-				NStorage::TCSharedPointer<tf_CCallable> &&_pToDispatch
-				, NTraits::TCRemoveQualifiersAndAddRValueReference<tfp_CParams> ...p_Params
-			)
+		tf_CReturnType f_DispatchWithReturnSharedCallable(NStorage::TCSharedPointer<tf_CCallable> &&_pToDispatch, NTraits::TCRemoveQualifiersAndAddRValueReference<tfp_CParams> ...p_Params)
 			requires (NPrivate::TCIsAsyncGenerator<tf_CReturnType>::mc_Value || NPrivate::TCIsFuture<tf_CReturnType>::mc_Value)
 		;
 
 		template <typename tf_CReturnType, typename tf_CCallable, typename ...tfp_CParams>
-		tf_CReturnType f_DispatchWithReturnSharedCallable
-			(
-				NStorage::TCSharedPointer<tf_CCallable> &&_pToDispatch
-				, NTraits::TCRemoveQualifiersAndAddRValueReference<tfp_CParams> ...p_Params
-			)
+		tf_CReturnType f_DispatchWithReturnSharedCallable(NStorage::TCSharedPointer<tf_CCallable> &&_pToDispatch, NTraits::TCRemoveQualifiersAndAddRValueReference<tfp_CParams> ...p_Params)
 			requires (!(NPrivate::TCIsFuture<tf_CReturnType>::mc_Value || NPrivate::TCIsAsyncGenerator<tf_CReturnType>::mc_Value))
 		;
 
@@ -130,12 +118,7 @@ namespace NMib::NConcurrency
 
 	protected:
 		template <typename tf_CReturnType, typename tf_CFunction, typename ...tfp_CParams>
-		inline_always tf_CReturnType fp_DispatchWithReturnCoroutine
-			(
-				tf_CFunction &&_fToDisptach
-				, tfp_CParams ...p_Params
-			)
-		;
+		inline_always tf_CReturnType fp_DispatchWithReturnCoroutine(tf_CFunction &&_fToDisptach, tfp_CParams ...p_Params);
 
 		virtual void fp_Construct();
 		virtual TCFuture<void> fp_Destroy();
@@ -209,7 +192,7 @@ namespace NMib::NConcurrency
 
 		TCFuture<void> f_Destroy();
 
-		mark_nodebug TCActor<t_CActor> const &operator *() const;
+		mark_nodebug TCActor<t_CActor> const &operator * () const;
 		mark_nodebug TCActor<t_CActor> const *operator -> () const;
 		CDispatchHelperWithActor f_Dispatch() const;
 

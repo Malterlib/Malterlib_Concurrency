@@ -355,12 +355,7 @@ namespace NMib::NConcurrency
 		// Include .wsa before the socket-name length check and hashed fallback.
 		return NWeb::NHTTP::CURL
 			{
-				fg_Format
-				(
-					"{}://[{}]/"
-					, _bAuthenticatedUnix ? "wsa" : "wss"
-					, fp_GetLocalHostname(_bAuthenticatedUnix ? ELocalSocketFlag::mc_AuthenticatedUnix : ELocalSocketFlag::mc_None)
-				)
+				fg_Format("{}://[{}]/", _bAuthenticatedUnix ? "wsa" : "wss", fp_GetLocalHostname(_bAuthenticatedUnix ? ELocalSocketFlag::mc_AuthenticatedUnix : ELocalSocketFlag::mc_None))
 			}
 		;
 	}
@@ -372,8 +367,10 @@ namespace NMib::NConcurrency
 		{
 			// Retained listens for both transports must keep their enclave paths to avoid binding another instance's socket.
 			TranslateHostnames[fp_GetLocalHostname(ELocalSocketFlag::mc_None)] = fp_GetLocalHostname(ELocalSocketFlag::mc_EnclaveSpecific);
-			TranslateHostnames[fp_GetLocalHostname(ELocalSocketFlag::mc_AuthenticatedUnix)] =
-				fp_GetLocalHostname(ELocalSocketFlag::mc_EnclaveSpecific | ELocalSocketFlag::mc_AuthenticatedUnix)
+			TranslateHostnames[fp_GetLocalHostname(ELocalSocketFlag::mc_AuthenticatedUnix)] = fp_GetLocalHostname
+				(
+					ELocalSocketFlag::mc_EnclaveSpecific | ELocalSocketFlag::mc_AuthenticatedUnix
+				)
 			;
 		}
 		return TranslateHostnames;
@@ -663,10 +660,7 @@ namespace NMib::NConcurrency
 
 		auto [DistributionManager, HostID] = co_await
 			(
-				(
-					mp_State.m_TrustManager(&CDistributedActorTrustManager::f_GetDistributionManager)
-					+ mp_State.m_TrustManager(&CDistributedActorTrustManager::f_GetHostID)
-				)
+				(mp_State.m_TrustManager(&CDistributedActorTrustManager::f_GetDistributionManager) + mp_State.m_TrustManager(&CDistributedActorTrustManager::f_GetHostID))
 				% "Failed to get distribution manager"
 			)
 		;
@@ -736,11 +730,9 @@ namespace NMib::NConcurrency
 			case EDistributedAppType_Local: return "as local";
 			case EDistributedAppType_ForceLocal: return "as forced local";
 			case EDistributedAppType_ForceLocalConfigureRemoteCommandLine: return "as forced local for remote command line configuration";
-			case EDistributedAppType_CommandLine:  return "as command line";
-			case EDistributedAppType_DirectCommandLine:  return "as direct command line";
-			case EDistributedAppType_Unchanged:
-				DMibNeverGetHere;
-				break;
+			case EDistributedAppType_CommandLine: return "as command line";
+			case EDistributedAppType_DirectCommandLine: return "as direct command line";
+			case EDistributedAppType_Unchanged: DMibNeverGetHere; break;
 			}
 			return "invalid app type";
 		}
@@ -808,8 +800,7 @@ namespace NMib::NConcurrency
 		CStr NewLogDirectory;
 		switch (_AppType)
 		{
-		case EDistributedAppType_InProcess:
-			break;
+		case EDistributedAppType_InProcess: break;
 		case EDistributedAppType_Daemon:
 		case EDistributedAppType_Local:
 		case EDistributedAppType_ForceLocal:
@@ -1173,13 +1164,7 @@ namespace NMib::NConcurrency
 					(
 						[LogActor](NFunction::TCFunctionMovable<void ()> &&_fToDispatch)
 						{
-							fg_Dispatch
-								(
-									LogActor
-									, fg_Move(_fToDispatch)
-								)
-								.f_DiscardResult()
-							;
+							fg_Dispatch(LogActor, fg_Move(_fToDispatch)).f_DiscardResult();
 						}
 					)
 				;
@@ -1189,9 +1174,7 @@ namespace NMib::NConcurrency
 		if (_DistributedLoggingApp)
 		{
 			if (!LogActor)
-			{
 				LogActor = fg_Construct(fg_Construct(), "Log Actor");
-			}
 
 			auto DestinationID = fg_GetSys()->f_GetLogger().f_PushGlobalDestination(CDistributedAppLogDestination(_DistributedLoggingApp, LogActor), false);
 

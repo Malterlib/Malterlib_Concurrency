@@ -17,22 +17,8 @@ namespace NMib::NConcurrency::NPrivate
 	template <typename t_CReturn, typename t_CPromiseParam>
 	struct TCCallActorGetReturnType;
 
-	template
-	<
-		bool tf_bDirectCall
-		, EVirtualCall tf_VirtualCall
-		, typename tf_CActor
-		, typename tf_CFunctor
-		, typename tf_CPromiseParam
-		, typename ...tfp_CParams
-	>
-	auto fg_CallActorFuture
-		(
-			tf_CActor &&_Actor
-			, tf_CFunctor const &_pFunctionPointer
-			, tf_CPromiseParam &&_PromiseParam
-			, tfp_CParams && ...p_Params
-		)
+	template <bool tf_bDirectCall, EVirtualCall tf_VirtualCall, typename tf_CActor, typename tf_CFunctor, typename tf_CPromiseParam, typename ...tfp_CParams>
+	auto fg_CallActorFuture(tf_CActor &&_Actor, tf_CFunctor const &_pFunctionPointer, tf_CPromiseParam &&_PromiseParam, tfp_CParams && ...p_Params)
 		-> typename TCCallActorGetReturnType<typename TCGetMemberOrNonMemberFunctionPointerTraits<tf_CFunctor>::CType::CReturn, NTraits::TCDecay<tf_CPromiseParam>>::CType
 	;
 }
@@ -40,13 +26,13 @@ namespace NMib::NConcurrency::NPrivate
 template <>
 struct NMib::NStorage::TCHasIntrusiveRefCountOverride<NMib::NConcurrency::NPrivate::CDelegatedActorDestroyState>
 {
-	constexpr static bool mc_bValue = true;
+	static constexpr bool mc_bValue = true;
 };
 
 template <>
 struct NMib::NTraits::TCHasVirtualDestructorOverride<NMib::NConcurrency::NPrivate::CDelegatedActorDestroyState>
 {
-	constexpr static bool mc_Value = false;
+	static constexpr bool mc_Value = false;
 };
 
 namespace NMib::NConcurrency
@@ -71,6 +57,7 @@ namespace NMib::NConcurrency
 		{
 			return !m_bRemote;
 		}
+
 		virtual CDistributedActorHostInfo f_GetHostInfo() const = 0;
 
 		NStorage::CIntrusiveRefCountWithWeak m_RefCount;
@@ -184,13 +171,7 @@ namespace NMib::NConcurrency
 	private:
 		void fp_ConstructActor(NFunction::TCFunctionNoAllocMovable<void ()> &&_fConstruct, void *_pActorMemory);
 
-		void fp_DestroyActorHolder
-			(
-				FDestroyHolderOnDestroyed &&_fOnDestroyed
-				, TCActorHolderSharedPointer<CActorHolder> &&_pSelfReference
-				, CConcurrencyThreadLocal &_ThreadLocal
-			)
-		;
+		void fp_DestroyActorHolder(FDestroyHolderOnDestroyed &&_fOnDestroyed, TCActorHolderSharedPointer<CActorHolder> &&_pSelfReference, CConcurrencyThreadLocal &_ThreadLocal);
 		bool fp_Terminate();
 
 		bool fp_DequeueProcess(CConcurrencyThreadLocal &_ThreadLocal);
@@ -238,13 +219,16 @@ namespace NMib::NConcurrency
 	private:
 #if DMibConfig_Concurrency_DebugBlockDestroy
 		DMibListLinkDS_Link(CActorHolder, m_ActorLink);
+
 	public:
 		NStr::CStr m_ActorTypeName;
 #endif
 		DIfRefCountDebugging(NStorage::CRefCountDebugReference m_DebugSelfRef);
 
 	protected:
-		static constexpr umint mc_AligmentZone2Size = sizeof(void *) * 2 + sizeof(uint32)
+		static constexpr umint mc_AligmentZone2Size
+			= sizeof(void *) * 2
+			+ sizeof(uint32)
 #if DMibConfig_RefCountDebugging || DMibConfig_Concurrency_DebugBlockDestroy
 			+ (fg_AlignUpConstExpr(sizeof(uint32), sizeof(void *)) - sizeof(uint32))
 #endif
@@ -404,14 +388,7 @@ namespace NMib::NConcurrency
 
 	struct CShamActorHolder : public CDefaultActorHolder
 	{
-		CShamActorHolder
-			(
-				CConcurrencyManager *_pConcurrencyManager
-				, bool _bImmediateDelete
-				, EPriority _Priority
-				, NStorage::TCSharedPointer<ICDistributedActorData> &&_pDistributedActorData
-			)
-		;
+		CShamActorHolder(CConcurrencyManager *_pConcurrencyManager, bool _bImmediateDelete, EPriority _Priority, NStorage::TCSharedPointer<ICDistributedActorData> &&_pDistributedActorData);
 		~CShamActorHolder();
 
 	protected:

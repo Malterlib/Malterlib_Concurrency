@@ -33,14 +33,16 @@ namespace NMib::NConcurrency
 				, CStr _Description
 				, ICDistributedActorAuthenticationHandler::CSignedProperties _SignedProperties
 				, TCMap<CStr, CAuthenticationData> _Factors
-			) override
+			)
+			override
 		;
 		TCFuture<CVerifyAuthenticationReturn> f_VerifyAuthenticationResponse
 			(
 				ICDistributedActorAuthenticationHandler::CResponse _Response
 				, ICDistributedActorAuthenticationHandler::CChallenge _Challenge
 				, CAuthenticationData _AuthenticationData
-			) override
+			)
+			override
 		;
 
 		TCWeakActor<CDistributedActorTrustManager> const m_TrustManager;
@@ -53,28 +55,18 @@ namespace NMib::NConcurrency
 
 	CDistributedActorTrustManagerAuthenticationActorPassword::~CDistributedActorTrustManagerAuthenticationActorPassword() = default;
 
-	TCFuture<CAuthenticationData> CDistributedActorTrustManagerAuthenticationActorPassword::f_RegisterFactor
-		(
-			CStr _UserID
-			, NStorage::TCSharedPointer<CCommandLineControl> _pCommandLine
-		)
+	TCFuture<CAuthenticationData> CDistributedActorTrustManagerAuthenticationActorPassword::f_RegisterFactor(CStr _UserID, NStorage::TCSharedPointer<CCommandLineControl> _pCommandLine)
 	{
 		auto AnsiEncoding = _pCommandLine->f_AnsiEncoding();
 
 		CStdInReaderPromptParams NewPasswordPrompt1;
 		NewPasswordPrompt1.m_bPassword = true;
-		NewPasswordPrompt1.m_Prompt = "Adding Password factor to user. Please provide a new password.\n{}Password        : {}"_f
-			<< AnsiEncoding.f_Prompt()
-			<< AnsiEncoding.f_Default()
-		;
+		NewPasswordPrompt1.m_Prompt = "Adding Password factor to user. Please provide a new password.\n{}Password        : {}"_f << AnsiEncoding.f_Prompt() << AnsiEncoding.f_Default();
 		CStrSecure NewPassword1 = co_await _pCommandLine->f_ReadPrompt(NewPasswordPrompt1);
 
 		CStdInReaderPromptParams NewPasswordPrompt2;
 		NewPasswordPrompt2.m_bPassword = true;
-		NewPasswordPrompt2.m_Prompt = "{}Password (again): {}"_f
-			<< AnsiEncoding.f_Prompt()
-			<< AnsiEncoding.f_Default()
-		;
+		NewPasswordPrompt2.m_Prompt = "{}Password (again): {}"_f << AnsiEncoding.f_Prompt() << AnsiEncoding.f_Default();
 
 		CStrSecure NewPassword2 = co_await _pCommandLine->f_ReadPrompt(NewPasswordPrompt2);
 		if (NewPassword1 != NewPassword2)
@@ -130,10 +122,7 @@ namespace NMib::NConcurrency
 
 		CStdInReaderPromptParams PasswordPrompt;
 		PasswordPrompt.m_bPassword = true;
-		PasswordPrompt.m_Prompt = "{}Password: {}"_f
-			<< AnsiEncoding.f_Prompt()
-			<< AnsiEncoding.f_Default()
-		;
+		PasswordPrompt.m_Prompt = "{}Password: {}"_f << AnsiEncoding.f_Prompt() << AnsiEncoding.f_Default();
 
 		auto TrustManager = m_TrustManager.f_Lock();
 		if (!TrustManager)
@@ -192,7 +181,7 @@ namespace NMib::NConcurrency
 						throw;
 					}
 				}
-				> AuthenticationResults[_Factors.fs_GetKey(Factor)];
+				> AuthenticationResults[_Factors.fs_GetKey(Factor)]
 			;
 		}
 
@@ -255,7 +244,7 @@ namespace NMib::NConcurrency
 
 	umint CDistributedActorTrustManagerAuthenticationActorFactoryPassword::ms_MakeActive;
 
-	CAuthenticationActorInfo CDistributedActorTrustManagerAuthenticationActorFactoryPassword::operator ()(TCActor<CDistributedActorTrustManager> const &_TrustManager)
+	CAuthenticationActorInfo CDistributedActorTrustManagerAuthenticationActorFactoryPassword::operator () (TCActor<CDistributedActorTrustManager> const &_TrustManager)
 	{
 		return CAuthenticationActorInfo{fg_ConstructActor<CDistributedActorTrustManagerAuthenticationActorPassword>(_TrustManager), EAuthenticationFactorCategory_Knowledge};
 	}

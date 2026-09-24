@@ -29,7 +29,6 @@ namespace
 	class CDistributedDDPBridge_Tests : public NMib::NTest::CTest
 	{
 	public:
-
 		void f_DoTests()
 		{
 			DMibTestSuite("DDP")
@@ -133,7 +132,7 @@ namespace
 				;
 				CEJsonSorted MethodResult = Client(&CDDPClient::f_Method, CStr("testMethod"), fg_CreateVector(MethodParams)).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout / 3);
 
-				DMibExpect(MethodResult["HostID"].f_String(), == , ClientDatabase.m_BasicConfig.m_HostID);
+				DMibExpect(MethodResult["HostID"].f_String(), ==, ClientDatabase.m_BasicConfig.m_HostID);
 
 				auto fCallInvalidParams = [&]
 					{

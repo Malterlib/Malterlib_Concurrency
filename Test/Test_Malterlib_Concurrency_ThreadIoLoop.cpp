@@ -277,7 +277,16 @@ namespace
 					DMibTestPath("Job {}"_f << iRepetition);
 
 					umint iRanOn = TCLimitsInt<umint>::mc_Max;
-					fg_RunOnQueue(c_Priority, c_iQueue, [&] { iRanOn = fg_ConcurrencyManager().f_GetQueue(); });
+					fg_RunOnQueue
+						(
+							c_Priority
+							, c_iQueue
+							, [&]
+							{
+								iRanOn = fg_ConcurrencyManager().f_GetQueue();
+							}
+						)
+					;
 					DMibExpect(iRanOn, ==, c_iQueue);
 				}
 			};
@@ -408,7 +417,16 @@ namespace
 
 				auto RemoveSubscription = g_OnScopeExit / [&]
 					{
-						fg_RunOnQueue(c_Priority, c_iQueue, [&] { pSubscription.f_Clear(); });
+						fg_RunOnQueue
+							(
+								c_Priority
+								, c_iQueue
+								, [&]
+								{
+									pSubscription.f_Clear();
+								}
+							)
+						;
 					}
 				;
 
@@ -429,7 +447,6 @@ namespace
 					DMibAssertFalse(Delivered.f_WaitTimeout(30.0));
 					DMibExpectTrue(pthread_equal(RanOnThread.f_Load(), QueueThread) != 0);
 				}
-
 			};
 
 			DMibTestSuite("ThreadSignalNeedsOwnLoop")
@@ -437,7 +454,14 @@ namespace
 				bool bThrew = false;
 				try
 				{
-					auto pSubscription = NSys::fg_System_RegisterForThreadSignal(SIGUSR1, [] {});
+					auto pSubscription = NSys::fg_System_RegisterForThreadSignal
+						(
+							SIGUSR1
+							, []
+							{
+							}
+						)
+					;
 					(void)pSubscription;
 				}
 				catch (NException::CException const &)

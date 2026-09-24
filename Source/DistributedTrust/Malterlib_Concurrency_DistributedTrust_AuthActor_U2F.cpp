@@ -80,7 +80,7 @@ namespace NMib::NConcurrency::NPrivate
 	using namespace NFunction;
 
 	// An not so smart pointer that applies the SSL free functions
-	template<typename t_CPointer, auto t_fDeleter>
+	template <typename t_CPointer, auto t_fDeleter>
 	struct CSSLPointer
 	{
 		CSSLPointer(t_CPointer _pSSLHandle)
@@ -247,6 +247,7 @@ namespace NMib::NConcurrency::NPrivate
 			, m_Path(_Path)
 		{
 		}
+
 		CU2FDevice(CU2FDevice &&) = default;
 		CU2FDevice(CU2FDevice const &) = default;
 		CU2FDevice &operator = (CU2FDevice &&) = default;
@@ -285,8 +286,8 @@ namespace NMib::NConcurrency::NPrivate
 
 		static TCFuture<CFrame> DMibWorkaroundUBSanSectionErrorsDisable fs_ReadFrame(TCActor<CHumanInterfaceDeviceActor> _Device)
 		{
-			constexpr static umint c_HIDTimeout = 2;
-			constexpr static umint c_HIDMaxTimeout = 4096;
+			static constexpr umint c_HIDTimeout = 2;
+			static constexpr umint c_HIDMaxTimeout = 4096;
 			umint Timeout = c_HIDTimeout;
 
 			while (true)
@@ -318,7 +319,13 @@ namespace NMib::NConcurrency::NPrivate
 			co_return co_await fs_SendReceive(_Command, _Send, m_ChannelID, m_Device);
 		}
 
-		static TCFuture<CSecureByteVector> DMibWorkaroundUBSanSectionErrorsDisable fs_SendReceive(uint8_t _Command, CSecureByteVector _Send, uint32 _ChannelID, TCActor<CHumanInterfaceDeviceActor> _Device)
+		static TCFuture<CSecureByteVector> DMibWorkaroundUBSanSectionErrorsDisable fs_SendReceive
+			(
+				uint8_t _Command
+				, CSecureByteVector _Send
+				, uint32 _ChannelID
+				, TCActor<CHumanInterfaceDeviceActor> _Device
+			)
 		{
 			{
 				uint8 Sequence = 0;
@@ -399,7 +406,6 @@ namespace NMib::NConcurrency::NPrivate
 						Receive.f_Insert(Frame.m_ContinuationFrame.m_Data, Received);
 						nReceived += Received;
 					}
-
 				}
 				co_return fg_Move(Receive);
 			}
@@ -494,12 +500,9 @@ namespace NMib::NConcurrency::NPrivate
 				case 2:
 					DataLength = SizeCode;
 					break;
-				case 3:
-					DataLength = 4;
-					break;
+				case 3: DataLength = 4; break;
 
-				default:
-					DMibNeverGetHere;
+				default: DMibNeverGetHere;
 				};
 				KeySize = 1;
 
@@ -515,7 +518,7 @@ namespace NMib::NConcurrency::NPrivate
 				}
 
 				if (bFoundUsagePage && bFoundUsage)
-					return 0;		/* success */
+					return 0; // success
 
 				i += DataLength + KeySize;
 			}
@@ -531,7 +534,7 @@ namespace NMib::NConcurrency::NPrivate
 			int Handle = open(_DeviceInfo.m_Path, O_RDWR);
 			if (Handle > 0)
 			{
-				memset (&ReportDescriptor, 0, sizeof (ReportDescriptor));
+				memset(&ReportDescriptor, 0, sizeof(ReportDescriptor));
 				if (ioctl(Handle, HIDIOCGRDESCSIZE, &DescriptorSize) >= 0)
 				{
 					ReportDescriptor.size = DescriptorSize;
@@ -591,7 +594,6 @@ namespace NMib::NConcurrency::NPrivate
 				DeviceInfos = fg_Move(NewDeviceInfos);
 			}
 
-
 			TCFutureVector<CU2FDevice> DeviceInits;
 			{
 				auto OpenedDevices = co_await fg_AllDoneWrapped(OpenDeviceResults);
@@ -628,15 +630,7 @@ namespace NMib::NConcurrency::NPrivate
 
 					if (!Device)
 					{
-						DMibLogWithCategory
-							(
-								Malterlib/Concurrency/U2F
-								, Error
-								, "Failed to init U2F USB device '{}': {}"
-								, DeviceInfo.m_Path
-								, Device.f_GetExceptionStr()
-							)
-						;
+						DMibLogWithCategory(Malterlib/Concurrency/U2F, Error, "Failed to init U2F USB device '{}': {}", DeviceInfo.m_Path, Device.f_GetExceptionStr());
 						continue;
 					}
 
@@ -810,9 +804,7 @@ namespace NMib::NConcurrency::NPrivate
 			*/
 
 			if (_RegistrationData.f_GetLen() < 1 + 65 + 1 + 64)
-			{
 				co_return DMibErrorInstance("Registration data too short");
-			}
 
 			NStream::CBinaryStreamMemoryPtr<NStream::CBinaryStreamBigEndian> Stream;
 			Stream.f_OpenRead(_RegistrationData);
@@ -870,13 +862,8 @@ namespace NMib::NConcurrency::NPrivate
 			;
 		}
 
-		static TCFuture<CRegistrationResult> fs_VerifyRegistrationResponseRaw
-			(
-				CRegistrationResultRaw _Response
-				, CHashDigest_SHA256 _ChallengeDigest
-				, CHashDigest_SHA256 _AppDigest
-				, CStr _AppID
-			)
+		static auto fs_VerifyRegistrationResponseRaw(CRegistrationResultRaw _Response, CHashDigest_SHA256 _ChallengeDigest, CHashDigest_SHA256 _AppDigest, CStr _AppID)
+			-> TCFuture<CRegistrationResult>
 		{
 			auto CaptureScope = co_await g_CaptureExceptions;
 
@@ -948,12 +935,8 @@ namespace NMib::NConcurrency::NPrivate
 			;
 		}
 
-		static TCFuture<CAuthenticationResult> fs_VerifyAuthenticationResponse
-			(
-				CAuthenticationResponse _Response
-				, CVerifyResponseDependencies _Dependencies
-				, CSecureByteVector _SignatureBytes
-			)
+		static auto fs_VerifyAuthenticationResponse(CAuthenticationResponse _Response, CVerifyResponseDependencies _Dependencies, CSecureByteVector _SignatureBytes)
+			-> TCFuture<CAuthenticationResult>
 		{
 			CAuthenticationResult Result;
 
@@ -1030,14 +1013,16 @@ namespace NMib::NConcurrency
 				, CStr _Description
 				, ICDistributedActorAuthenticationHandler::CSignedProperties _SignedProperties
 				, TCMap<CStr, CAuthenticationData> _Factors
-			) override
+			)
+			override
 		;
 		TCFuture<CVerifyAuthenticationReturn> f_VerifyAuthenticationResponse
 			(
 				ICDistributedActorAuthenticationHandler::CResponse _Response
 				, ICDistributedActorAuthenticationHandler::CChallenge _Challenge
 				, CAuthenticationData _AuthenticationData
-			) override
+			)
+			override
 		;
 
 	private:
@@ -1061,11 +1046,7 @@ namespace NMib::NConcurrency
 		co_return {};
 	}
 
-	TCFuture<CAuthenticationData> CDistributedActorTrustManagerAuthenticationActorU2F::f_RegisterFactor
-		(
-			CStr _UserID
-			, TCSharedPointer<CCommandLineControl> _pCommandLine
-		)
+	TCFuture<CAuthenticationData> CDistributedActorTrustManagerAuthenticationActorU2F::f_RegisterFactor(CStr _UserID, TCSharedPointer<CCommandLineControl> _pCommandLine)
 	{
 		auto Subscription = co_await mp_ProcessingSequencer.f_Sequence();
 
@@ -1242,7 +1223,7 @@ namespace NMib::NConcurrency
 
 	umint CDistributedActorTrustManagerAuthenticationActorFactoryU2F::ms_MakeActive;
 
-	CAuthenticationActorInfo CDistributedActorTrustManagerAuthenticationActorFactoryU2F::operator ()(TCActor<CDistributedActorTrustManager> const &_TrustManager)
+	CAuthenticationActorInfo CDistributedActorTrustManagerAuthenticationActorFactoryU2F::operator () (TCActor<CDistributedActorTrustManager> const &_TrustManager)
 	{
 		return CAuthenticationActorInfo
 			{

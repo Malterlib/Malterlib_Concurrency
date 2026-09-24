@@ -19,30 +19,14 @@ namespace NMib::NConcurrency
 		template
 		<
 			typename tf_FCleanup
-			, TCEnableIf
-			<
-				NTraits::cIsSame
-				<
-					NTraits::TCCallableReturnTypeFor<NTraits::TCRemoveReferenceAndQualifiers<tf_FCleanup>, void ()>
-					, TCFuture<void>
-				>
-			>
-			* = nullptr
+			, TCEnableIf<NTraits::cIsSame<NTraits::TCCallableReturnTypeFor<NTraits::TCRemoveReferenceAndQualifiers<tf_FCleanup>, void ()>, TCFuture<void>>> * = nullptr
 		>
 		inline CActorSubscription operator / (tf_FCleanup &&_fCleanup) const;
 
 		template
 		<
 			typename tf_FCleanup
-			, TCEnableIf
-			<
-				!NTraits::cIsSame
-				<
-					NTraits::TCCallableReturnTypeFor<NTraits::TCRemoveReferenceAndQualifiers<tf_FCleanup>, void ()>
-					, TCFuture<void>
-				>
-			>
-			* = nullptr
+			, TCEnableIf<!NTraits::cIsSame<NTraits::TCCallableReturnTypeFor<NTraits::TCRemoveReferenceAndQualifiers<tf_FCleanup>, void ()>, TCFuture<void>>> * = nullptr
 		>
 		inline CActorSubscription operator / (tf_FCleanup &&_fCleanup) const;
 
@@ -55,34 +39,18 @@ namespace NMib::NConcurrency
 		template
 		<
 			typename tf_FCleanup
-			, TCEnableIf
-			<
-				NTraits::cIsSame
-				<
-					NTraits::TCCallableReturnTypeFor<NTraits::TCRemoveReferenceAndQualifiers<tf_FCleanup>, void ()>
-					, TCFuture<void>
-				>
-			>
-			* = nullptr
+			, TCEnableIf<NTraits::cIsSame<NTraits::TCCallableReturnTypeFor<NTraits::TCRemoveReferenceAndQualifiers<tf_FCleanup>, void ()>, TCFuture<void>>> * = nullptr
 		>
 		inline CActorSubscription operator / (tf_FCleanup &&_fCleanup) const;
 
 		template
 		<
 			typename tf_FCleanup
-			, TCEnableIf
-			<
-				!NTraits::cIsSame
-				<
-					NTraits::TCCallableReturnTypeFor<NTraits::TCRemoveReferenceAndQualifiers<tf_FCleanup>, void ()>
-					, TCFuture<void>
-				>
-			>
-			* = nullptr
+			, TCEnableIf<!NTraits::cIsSame<NTraits::TCCallableReturnTypeFor<NTraits::TCRemoveReferenceAndQualifiers<tf_FCleanup>, void ()>, TCFuture<void>>> * = nullptr
 		>
 		inline CActorSubscription operator / (tf_FCleanup &&_fCleanup) const;
 
-		inline CActorSubscriptionHelperWithActor operator ()(TCActor<> const &_Actor) const;
+		inline CActorSubscriptionHelperWithActor operator () (TCActor<> const &_Actor) const;
 	};
 
 	struct CBlockingActorSubscriptionHelper

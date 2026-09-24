@@ -45,7 +45,7 @@ namespace NMib::NConcurrency::NPrivate
 	}
 
 	template <typename t_CType>
-	mark_artificial inline_always TCWrappedCoroutineReturnObject<t_CType>::operator TCWrapped<t_CType>()
+	mark_artificial inline_always TCWrappedCoroutineReturnObject<t_CType>::operator TCWrapped<t_CType> ()
 	{
 		auto Handle = m_Handle;
 		m_Handle = nullptr;
@@ -59,14 +59,7 @@ namespace NMib::NConcurrency::NPrivate
 	template <typename t_CType>
 	TCWrappedCoroutineReturnObject<t_CType> TCWrappedCoroutinePromiseBase<t_CType>::get_return_object() noexcept
 	{
-		return TCWrappedCoroutineReturnObject<t_CType>
-			(
-				TCCoroutineHandle<TCWrappedCoroutinePromise<t_CType>>::from_promise
-					(
-						static_cast<TCWrappedCoroutinePromise<t_CType> &>(*this)
-					)
-			)
-		;
+		return TCWrappedCoroutineReturnObject<t_CType>(TCCoroutineHandle<TCWrappedCoroutinePromise<t_CType>>::from_promise(static_cast<TCWrappedCoroutinePromise<t_CType> &>(*this)));
 	}
 
 	template <typename t_CType>
@@ -114,22 +107,14 @@ namespace NMib::NConcurrency::NPrivate
 		using CReturnNoReference = NTraits::TCRemoveReferenceAndQualifiers<tf_CReturnType>;
 		if constexpr (NTraits::cIsSame<CReturnNoReference, TCAsyncResult<t_CType>>)
 			this->m_Result = fg_Forward<tf_CReturnType>(_Value);
-		else if constexpr
-			(
-				NPrivate::TCIsAsyncResult<CReturnNoReference>::mc_Value
-				&& NTraits::cIsConstructibleWith<TCWrapped<t_CType>, tf_CReturnType &&>
-			)
+		else if constexpr (NPrivate::TCIsAsyncResult<CReturnNoReference>::mc_Value && NTraits::cIsConstructibleWith<TCWrapped<t_CType>, tf_CReturnType &&>)
 		{
 			TCWrapped<t_CType> Converted(fg_Forward<tf_CReturnType>(_Value));
 			this->m_Result = static_cast<TCAsyncResult<t_CType> &&>(Converted);
 		}
 		else if constexpr (NTraits::cIsSame<CReturnNoReference, TCWrapped<t_CType>>)
 			this->m_Result = fg_ForwardAs<tf_CReturnType>(static_cast<TCAsyncResult<t_CType> &>(_Value));
-		else if constexpr
-			(
-				NPrivate::TCIsWrapped<CReturnNoReference>::mc_Value
-				&& NTraits::cIsConstructibleWith<TCWrapped<t_CType>, tf_CReturnType &&>
-			)
+		else if constexpr (NPrivate::TCIsWrapped<CReturnNoReference>::mc_Value && NTraits::cIsConstructibleWith<TCWrapped<t_CType>, tf_CReturnType &&>)
 		{
 			TCWrapped<t_CType> Converted(fg_Forward<tf_CReturnType>(_Value));
 			this->m_Result = static_cast<TCAsyncResult<t_CType> &&>(Converted);
@@ -138,8 +123,7 @@ namespace NMib::NConcurrency::NPrivate
 		{
 			static_assert
 				(
-					(NTraits::cIsRValueReference<tf_CReturnType> || !NTraits::cIsReference<tf_CReturnType>)
-					&& !NTraits::cIsConst<NTraits::TCRemoveReference<tf_CReturnType>>
+					(NTraits::cIsRValueReference<tf_CReturnType> || !NTraits::cIsReference<tf_CReturnType>) && !NTraits::cIsConst<NTraits::TCRemoveReference<tf_CReturnType>>
 					, "Only safe to return newly created exceptions, otherwise use exception pointers"
 				)
 			;
@@ -175,8 +159,7 @@ namespace NMib::NConcurrency::NPrivate
 			{
 				static_assert
 					(
-						(NTraits::cIsRValueReference<tf_CReturnType> || !NTraits::cIsReference<tf_CReturnType>)
-						&& !NTraits::cIsConst<NTraits::TCRemoveReference<tf_CReturnType>>
+						(NTraits::cIsRValueReference<tf_CReturnType> || !NTraits::cIsReference<tf_CReturnType>) && !NTraits::cIsConst<NTraits::TCRemoveReference<tf_CReturnType>>
 						, "Only safe to return newly created exceptions, otherwise use exception pointers"
 					)
 				;

@@ -92,8 +92,7 @@ namespace NMib::NConcurrency::NPrivate
 		{
 			static_assert
 				(
-					(NTraits::cIsRValueReference<tf_CReturnType> || !NTraits::cIsReference<tf_CReturnType>)
-					&& !NTraits::cIsConst<NTraits::TCRemoveReference<tf_CReturnType>>
+					(NTraits::cIsRValueReference<tf_CReturnType> || !NTraits::cIsReference<tf_CReturnType>) && !NTraits::cIsConst<NTraits::TCRemoveReference<tf_CReturnType>>
 					, "Only safe to return newly created exceptions, otherwise use exception pointers"
 				)
 			;
@@ -192,15 +191,14 @@ namespace NMib::NConcurrency::NPrivate
 	}
 
 	template <typename t_CReturnType>
-	auto TCAsyncGeneratorCoroutineContext<t_CReturnType>::fs_KeepaliveSetResultFunctor(CFutureCoroutineContext &_Context, TCActor<CActor> &&_Actor)
-		-> CFutureCoroutineContext::FDeliverResult
+	auto TCAsyncGeneratorCoroutineContext<t_CReturnType>::fs_KeepaliveSetResultFunctor(CFutureCoroutineContext &_Context, TCActor<CActor> &&_Actor) -> CFutureCoroutineContext::FDeliverResult
 	{
 		auto *pThis = static_cast<TCAsyncGeneratorCoroutineContext<t_CReturnType> *>(&_Context);
 
 		return [KeepAlive = pThis->f_KeepAlive(fg_Move(_Actor))](NStorage::TCUniquePointer<ICOnResumeResult> &&_pResult)
 			{
 				if (!_pResult)
-					return;  // Should not happen
+					return; // Should not happen
 
 				if (auto pException = fg_Move(*_pResult).f_TryGetException())
 					KeepAlive.f_PromiseData().f_SetException(fg_Move(pException));
@@ -223,8 +221,7 @@ namespace NMib::NConcurrency::NPrivate
 
 		PromiseData.f_Reset
 			(
-				[pRunState = NStorage::TCSharedPointer<CGeneratorRunState>(fg_Attach(this))]
-				(TCAsyncResult<NStorage::TCOptional<t_CReturnType>> &&_Result) mutable
+				[pRunState = NStorage::TCSharedPointer<CGeneratorRunState>(fg_Attach(this))](TCAsyncResult<NStorage::TCOptional<t_CReturnType>> &&_Result) mutable
 				{
 					auto pRunStateLocal = fg_Move(pRunState);
 
@@ -355,7 +352,7 @@ namespace NMib::NConcurrency::NPrivate
 
 		void f_Destroy();
 
-		TCFuture<NStorage::TCOptional<t_CReturnType>> operator ()()
+		TCFuture<NStorage::TCOptional<t_CReturnType>> operator () ()
 		{
 			return m_pRunState->f_GetGeneratorValue();
 		}
@@ -386,10 +383,8 @@ namespace NMib::NConcurrency::NPrivate
 	}
 
 	template <typename t_CReturnType>
-	TCFuture<void> TCAsyncGeneratorDataShared<t_CReturnType>::fs_AsyncDestroy
-		(
-			NStorage::TCSharedPointer<typename TCAsyncGeneratorCoroutineContext<t_CReturnType>::CGeneratorRunState> _pRunState
-		)
+	auto TCAsyncGeneratorDataShared<t_CReturnType>::fs_AsyncDestroy(NStorage::TCSharedPointer<typename TCAsyncGeneratorCoroutineContext<t_CReturnType>::CGeneratorRunState> _pRunState)
+		-> TCFuture<void>
 	{
 		auto &RunState = *_pRunState;
 
@@ -399,9 +394,7 @@ namespace NMib::NConcurrency::NPrivate
 
 			OwnerActor = RunState.m_AsyncGeneratorOwner.f_Lock();
 			if (!OwnerActor)
-			{
 				co_return {};
-			}
 		}
 
 		if (fg_CurrentActor() != OwnerActor)

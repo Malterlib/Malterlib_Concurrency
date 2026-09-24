@@ -91,12 +91,7 @@ namespace NMib::NConcurrency
 			TCVector<CDistributedAppSensorReader_SensorStatusFilter> m_Filters;
 		};
 
-		CInternal
-			(
-				CDistributedAppSensorStoreLocal *_pThis
-				, TCActor<CActorDistributionManager> const &_DistributionManager
-				, TCActor<CDistributedActorTrustManager> const &_TrustManager
-			)
+		CInternal(CDistributedAppSensorStoreLocal *_pThis, TCActor<CActorDistributionManager> const &_DistributionManager, TCActor<CDistributedActorTrustManager> const &_TrustManager)
 			: m_pThis(_pThis)
 			, m_DistributionManager(_DistributionManager)
 			, m_TrustManager(_TrustManager)
@@ -110,11 +105,8 @@ namespace NMib::NConcurrency
 		TCFuture<void> f_SensorReporterInterfaceAdded(TCDistributedActorInterface<CDistributedAppSensorReporter> _Actor, CTrustedActorInfo _TrustInfo);
 		TCFuture<void> f_SensorReporterInterfaceRemoved(TCWeakDistributedActor<CActor> _Actor, CTrustedActorInfo _TrustInfo);
 		TCFuture<void> f_SensorInfoChanged(CDistributedAppSensorReporter::CSensorInfoKey _SensorInfoKey, bool _bWasAdded);
-		TCFuture<void> f_NewSensorReadings
-			(
-				CDistributedAppSensorReporter::CSensorInfoKey _SensorInfoKey
-				, TCSharedPointer<TCVector<CDistributedAppSensorReporter::CSensorReading> const> _pReadings
-			)
+		auto f_NewSensorReadings(CDistributedAppSensorReporter::CSensorInfoKey _SensorInfoKey, TCSharedPointer<TCVector<CDistributedAppSensorReporter::CSensorReading> const> _pReadings)
+			-> TCFuture<void>
 		;
 		TCFuture<void> f_StoreSensorReadings
 			(
@@ -138,12 +130,7 @@ namespace NMib::NConcurrency
 		CStr f_GetSensorUpdateFailedMessage(CSensorReporter const &_Reporter);
 
 		void f_Subscription_Readings(CSensor const &_Sensor, TCVector<CDistributedAppSensorReporter::CSensorReading> const &_Readings, NDatabase::CDatabaseSubReadTransaction &_Transaction);
-		void f_Subscription_SensorInfoChanged
-			(
-				CSensor const &_Sensor
-				, NSensorStoreLocalDatabase::CKnownHostValue const *_pKnownHostValue
-			)
-		;
+		void f_Subscription_SensorInfoChanged(CSensor const &_Sensor, NSensorStoreLocalDatabase::CKnownHostValue const *_pKnownHostValue);
 
 		template <typename tf_CKey, typename tf_CInfoOrKey>
 		static tf_CKey fs_GetDatabaseKey(CStr const &_Prefix, tf_CInfoOrKey const &_SensorInfo);

@@ -9,7 +9,7 @@ namespace NMib::NConcurrency
 	struct CLogErrorResultFunctor
 	{
 		template <typename tf_CResult>
-		void operator() (TCAsyncResult<tf_CResult> &&_Result) const;
+		void operator () (TCAsyncResult<tf_CResult> &&_Result) const;
 
 		friend void operator > (CAsyncResult const &_Result, CLogErrorResultFunctor const &_LogError);
 

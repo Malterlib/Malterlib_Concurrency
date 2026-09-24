@@ -11,13 +11,12 @@ namespace NMib::NConcurrency
 		DMibIfNotSupportMemberNameFromMemberPointer(, uint32 tf_NameHash)
 		, EVirtualCall tf_VirtualCall
 		, typename tf_CActor
-		, typename... tfp_CParams
+		, typename ...tfp_CParams
 	>
-	auto fg_CallActor(TCActor<TCDistributedActorWrapper<tf_CActor>> &&_Actor, tfp_CParams && ...p_Params)
-		-> NPrivate::TCFutureReturn<decltype(tf_pMemberFunction)>
+	auto fg_CallActor(TCActor<TCDistributedActorWrapper<tf_CActor>> &&_Actor, tfp_CParams && ...p_Params) -> NPrivate::TCFutureReturn<decltype(tf_pMemberFunction)>
 		requires cActorCallableWithFunctor<tf_pMemberFunction, tf_CActor, tfp_CParams...>
 	{
-		constexpr static uint32 c_NameHash = ::NMib::fg_GetMemberFunctionHash<tf_pMemberFunction>(DMibIfNotSupportMemberNameFromMemberPointer(tf_NameHash));
+		static constexpr uint32 c_NameHash = ::NMib::fg_GetMemberFunctionHash<tf_pMemberFunction>(DMibIfNotSupportMemberNameFromMemberPointer(tf_NameHash));
 		using CMemberFunction = decltype(tf_pMemberFunction);
 		using CFunctionTraits = NTraits::TCMemberFunctionPointerTraits<CMemberFunction>;
 		using COriginalReturn = typename CFunctionTraits::CReturn;
@@ -98,14 +97,7 @@ namespace NMib::NConcurrency
 
 				NPrivate::CDistributedActorStreamContext Context{HostActorProtocolVersion, true};
 
-				NPrivate::TCStreamArguments<typename CFunctionTraits::CParams>::fs_Stream
-					(
-						Stream
-						, Context
-						, ProtocolVersion
-						, fg_Forward<tfp_CParams>(p_Params)...
-					)
-				;
+				NPrivate::TCStreamArguments<typename CFunctionTraits::CParams>::fs_Stream(Stream, Context, ProtocolVersion, fg_Forward<tfp_CParams>(p_Params)...);
 
 				auto pActorData = NStorage::TCSharedPointer<NPrivate::CDistributedActorData>{pActorDataRaw};
 
@@ -125,15 +117,7 @@ namespace NMib::NConcurrency
 				auto pDistributionManager = NPrivate::fg_GetInternalActor(DistributionManager);
 				DispatchActor = fg_Move(DistributionManager);
 
-				ToDispatch =
-					[
-						pDistributionManager
-						, Data = Stream.f_MoveStorage()
-						, pActorData = fg_Move(pActorData)
-						, Context
-						, ProtocolVersion
-					]
-					() mutable -> TCFuture<CReturn>
+				ToDispatch = [pDistributionManager, Data = Stream.f_MoveStorage(), pActorData = fg_Move(pActorData), Context, ProtocolVersion]() mutable -> TCFuture<CReturn>
 					{
 						auto Result = co_await pDistributionManager->f_CallRemote(fg_Move(pActorData), fg_Move(Data), Context).f_Wrap();
 
@@ -164,14 +148,9 @@ namespace NMib::NConcurrency
 				{
 					[&]<typename ...tfp_CParams2>(NMeta::TCTypeList<tfp_CParams2...> &&)
 					{
-						ToDispatch =
-							[
-								pActor
-								, ...p_Params2 = NTraits::TCDecay<tfp_CParams2>(fg_Forward<tfp_CParams>(p_Params))
-							] mark_no_coroutine_debug
-							() mutable -> TCFuture<CReturn>
+						ToDispatch = [pActor, ...p_Params2 = NTraits::TCDecay<tfp_CParams2>(fg_Forward<tfp_CParams>(p_Params))] mark_no_coroutine_debug () mutable -> TCFuture<CReturn>
 							{
-								return [&]<typename ...tfp_CParams3> mark_no_coroutine_debug (tfp_CParams3 &&...p_Params) mutable -> TCFuture<CReturn>
+								return [&]<typename ...tfp_CParams3> mark_no_coroutine_debug (tfp_CParams3 && ...p_Params) mutable -> TCFuture<CReturn>
 									{
 										return (pActor->*tf_pMemberFunction)(fg_Move(p_Params)...);
 									}

@@ -23,11 +23,7 @@ namespace NMib::NConcurrency
 
 		auto CaptureScope = co_await
 			(
-				g_CaptureExceptions %
-				(
-					fg_LogCritical("LogLocalStore", "Error reading log data from database (f_GetLogs)")
-					% "Internal error reading from database, see log"
-				)
+				g_CaptureExceptions % (fg_LogCritical("LogLocalStore", "Error reading log data from database (f_GetLogs)") % "Internal error reading from database, see log")
 			)
 		;
 
@@ -85,11 +81,7 @@ namespace NMib::NConcurrency
 
 		auto CaptureScope = co_await
 			(
-				g_CaptureExceptions %
-				(
-					fg_LogCritical("LogLocalStore", "Error reading log data from database (f_GetLogEntries)")
-					% "Internal error reading from database, see log"
-				)
+				g_CaptureExceptions % (fg_LogCritical("LogLocalStore", "Error reading log data from database (f_GetLogEntries)") % "Internal error reading from database, see log")
 			)
 		;
 

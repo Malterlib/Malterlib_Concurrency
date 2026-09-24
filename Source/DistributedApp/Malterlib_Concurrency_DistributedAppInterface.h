@@ -54,12 +54,8 @@ namespace NMib::NConcurrency
 		virtual TCFuture<void> f_GetAppStartResult() = 0;
 		virtual TCFuture<void> f_PreUpdate() = 0;
 		virtual TCFuture<void> f_PreStop() = 0;
-		virtual TCFuture<TCActorSubscriptionWithID<>> f_StartBackup
-			(
-				TCDistributedActorInterfaceWithID<CDistributedAppInterfaceBackup> _BackupInterface
-				, CActorSubscription _ManifestFinished
-				, NStr::CStr _BackupRoot
-			) = 0
+		virtual auto f_StartBackup(TCDistributedActorInterfaceWithID<CDistributedAppInterfaceBackup> _BackupInterface, CActorSubscription _ManifestFinished, NStr::CStr _BackupRoot)
+			-> TCFuture<TCActorSubscriptionWithID<>> = 0
 		;
 	};
 
@@ -138,7 +134,8 @@ namespace NMib::NConcurrency
 				TCDistributedActorInterfaceWithID<CDistributedAppInterfaceClient> _ClientInterface
 				, TCDistributedActorInterfaceWithID<CDistributedActorTrustManagerInterface> _TrustInterface
 				, CRegisterInfo _RegisterInfo
-			) = 0
+			)
+			= 0
 		;
 		virtual TCFuture<TCActorSubscriptionWithID<>> f_RegisterConfigFiles(CConfigFiles _ConfigFiles) = 0;
 	};

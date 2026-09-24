@@ -24,32 +24,32 @@ namespace NMib::NConcurrency
 
 		TCActorFunctor() = default;
 		TCActorFunctor(TCActorFunctor &&) = default;
-		TCActorFunctor & operator = (TCActorFunctor &&) = default;
+		TCActorFunctor &operator = (TCActorFunctor &&) = default;
 		TCActorFunctor(TCActorFunctor const &) = delete;
-		TCActorFunctor & operator = (TCActorFunctor const &) = delete;
+		TCActorFunctor &operator = (TCActorFunctor const &) = delete;
 		~TCActorFunctor();
 
 		TCActorFunctor(CNullPtr);
 		TCActorFunctor(TCActor<CActor> &&_Actor, CFunction &&_fFunctor, CActorSubscription &&_Subscription = nullptr);
 
 		template <typename ...tfp_CParams>
-		auto operator ()(tfp_CParams &&...p_Params) const -> TCFuture<CStripedReturn>
-			requires(NPrivate::cIsActorFunctorCallableWith<t_CFunction, tfp_CParams...>)
+		auto operator () (tfp_CParams && ...p_Params) const -> TCFuture<CStripedReturn>
+			requires (NPrivate::cIsActorFunctorCallableWith<t_CFunction, tfp_CParams...>)
 		;
 
 		template <typename ...tfp_CParams>
-		auto f_CallDirect(tfp_CParams &&...p_Params) const -> TCFuture<CStripedReturn>
-			requires(NPrivate::cIsActorFunctorCallableWith<t_CFunction, tfp_CParams...>)
+		auto f_CallDirect(tfp_CParams && ...p_Params) const -> TCFuture<CStripedReturn>
+			requires (NPrivate::cIsActorFunctorCallableWith<t_CFunction, tfp_CParams...>)
 		;
 
 		template <typename ...tfp_CParams>
-		void f_CallDiscard(tfp_CParams &&...p_Params) const
-			requires(NPrivate::cIsActorFunctorCallableWith<t_CFunction, tfp_CParams...>)
+		void f_CallDiscard(tfp_CParams && ...p_Params) const
+			requires (NPrivate::cIsActorFunctorCallableWith<t_CFunction, tfp_CParams...>)
 		;
 
 		template <typename tf_FDispatcher, typename ...tfp_CParams>
-		auto f_CallWrapped(tf_FDispatcher &&_fDispatcher, tfp_CParams &&...p_Params) const -> TCFuture<CStripedReturn>
-			requires(NPrivate::cIsActorFunctorCallableWith<t_CFunction, tfp_CParams...>)
+		auto f_CallWrapped(tf_FDispatcher &&_fDispatcher, tfp_CParams && ...p_Params) const -> TCFuture<CStripedReturn>
+			requires (NPrivate::cIsActorFunctorCallableWith<t_CFunction, tfp_CParams...>)
 		;
 
 		TCActor<CActor> const &f_GetActor() const;

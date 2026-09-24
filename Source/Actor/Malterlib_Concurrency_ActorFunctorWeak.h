@@ -22,32 +22,32 @@ namespace NMib::NConcurrency
 
 		TCActorFunctorWeak() = default;
 		TCActorFunctorWeak(TCActorFunctorWeak &&) = default;
-		TCActorFunctorWeak & operator = (TCActorFunctorWeak &&) = default;
+		TCActorFunctorWeak &operator = (TCActorFunctorWeak &&) = default;
 		TCActorFunctorWeak(TCActorFunctorWeak const &) = delete;
-		TCActorFunctorWeak & operator = (TCActorFunctorWeak const &) = delete;
+		TCActorFunctorWeak &operator = (TCActorFunctorWeak const &) = delete;
 		~TCActorFunctorWeak();
 
 		TCActorFunctorWeak(CNullPtr);
 		TCActorFunctorWeak(TCActor<CActor> &&_Actor, CFunction &&_fFunctor);
 
 		template <typename ...tfp_CParams>
-		auto operator ()(tfp_CParams &&...p_Params) const -> TCFuture<CStripedReturn>
-			requires(NPrivate::cIsActorFunctorCallableWith<t_CFunction, tfp_CParams...>)
+		auto operator () (tfp_CParams && ...p_Params) const -> TCFuture<CStripedReturn>
+			requires (NPrivate::cIsActorFunctorCallableWith<t_CFunction, tfp_CParams...>)
 		;
 
 		template <typename ...tfp_CParams>
-		auto f_CallDirect(tfp_CParams &&...p_Params) const -> TCFuture<CStripedReturn>
-			requires(NPrivate::cIsActorFunctorCallableWith<t_CFunction, tfp_CParams...>)
+		auto f_CallDirect(tfp_CParams && ...p_Params) const -> TCFuture<CStripedReturn>
+			requires (NPrivate::cIsActorFunctorCallableWith<t_CFunction, tfp_CParams...>)
 		;
 
 		template <typename ...tfp_CParams>
-		void f_CallDiscard(tfp_CParams &&...p_Params) const
-			requires(NPrivate::cIsActorFunctorCallableWith<t_CFunction, tfp_CParams...>)
+		void f_CallDiscard(tfp_CParams && ...p_Params) const
+			requires (NPrivate::cIsActorFunctorCallableWith<t_CFunction, tfp_CParams...>)
 		;
 
 		template <typename tf_FDispatcher, typename ...tfp_CParams>
-		auto f_CallWrapped(tf_FDispatcher &&_fDispatcher, tfp_CParams &&...p_Params) const -> TCFuture<CStripedReturn>
-			requires(NPrivate::cIsActorFunctorCallableWith<t_CFunction, tfp_CParams...>)
+		auto f_CallWrapped(tf_FDispatcher &&_fDispatcher, tfp_CParams && ...p_Params) const -> TCFuture<CStripedReturn>
+			requires (NPrivate::cIsActorFunctorCallableWith<t_CFunction, tfp_CParams...>)
 		;
 
 		TCWeakActor<CActor> const &f_GetActor() const;
@@ -75,7 +75,8 @@ namespace NMib::NConcurrency
 		using CFunction = NPrivate::TCRemoveReferencesFromFunctor
 			<
 				typename NTraits::TCMemberFunctionPointerTraits<decltype(&NTraits::TCRemoveReferenceAndQualifiers<tf_CFunctor>::operator ())>::CFunctionType
-			>::CType
+			>
+			::CType
 		;
 
 		return TCActorFunctorWeak<CFunction, t_bCoalesced>{fg_TempCopy(_Actor), fg_Forward<tf_CFunctor>(_fFunctor)};

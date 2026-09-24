@@ -6,24 +6,8 @@
 
 namespace NMib::NConcurrency::NPrivate
 {
-	template
-	<
-		auto t_pMemberFunction
-		, uint32 t_NameHash
-		, typename t_CStreamContext
-		, typename t_CStreamParams
-		, typename t_CStreamResult
-		, typename t_CReturn
-	>
-	TCRuntimeTypeRegistryEntry_MemberFunction
-		<
-			t_pMemberFunction
-			, t_NameHash
-			, t_CStreamContext
-			, t_CStreamParams
-			, t_CStreamResult
-			, t_CReturn
-		>::TCRuntimeTypeRegistryEntry_MemberFunction()
+	template <auto t_pMemberFunction, uint32 t_NameHash, typename t_CStreamContext, typename t_CStreamParams, typename t_CStreamResult, typename t_CReturn>
+	TCRuntimeTypeRegistryEntry_MemberFunction<t_pMemberFunction, t_NameHash, t_CStreamContext, t_CStreamParams, t_CStreamResult, t_CReturn>::TCRuntimeTypeRegistryEntry_MemberFunction()
 		: CRuntimeTypeRegistryEntry_MemberFunction
 		(
 			t_NameHash
@@ -33,13 +17,8 @@ namespace NMib::NConcurrency::NPrivate
 	{
 	}
 
-	template <typename tf_CStream, umint... tfp_Indices, typename... tfp_CParams>
-	auto fg_DecodeParams
-		(
-			tf_CStream &_ParamsStream
-			, NMeta::TCIndices<tfp_Indices...> const &
-			, NMeta::TCTypeList<tfp_CParams...> const &
-		)
+	template <typename tf_CStream, umint ...tfp_Indices, typename ...tfp_CParams>
+	auto fg_DecodeParams(tf_CStream &_ParamsStream, NMeta::TCIndices<tfp_Indices...> const &, NMeta::TCTypeList<tfp_CParams...> const &)
 	{
 		NStorage::TCTuple<NTraits::TCDecay<tfp_CParams>...> ParamList;
 
@@ -55,25 +34,9 @@ namespace NMib::NConcurrency::NPrivate
 		return ParamList;
 	}
 
-	template
-	<
-		auto t_pMemberFunction
-		, uint32 t_NameHash
-		, typename t_CStreamContext
-		, typename t_CStreamParams
-		, typename t_CStreamResult
-		, typename t_CReturn
-	>
-	template <umint... tfp_Indices, typename... tfp_CParams>
-	auto TCRuntimeTypeRegistryEntry_MemberFunction
-		<
-			t_pMemberFunction
-			, t_NameHash
-			, t_CStreamContext
-			, t_CStreamParams
-			, t_CStreamResult
-			, t_CReturn
-		>::fp_Call
+	template <auto t_pMemberFunction, uint32 t_NameHash, typename t_CStreamContext, typename t_CStreamParams, typename t_CStreamResult, typename t_CReturn>
+	template <umint ...tfp_Indices, typename ...tfp_CParams>
+	auto TCRuntimeTypeRegistryEntry_MemberFunction<t_pMemberFunction, t_NameHash, t_CStreamContext, t_CStreamParams, t_CStreamResult, t_CReturn>::fp_Call
 		(
 			t_CStreamParams &_ParamsStream
 			, void *_pObject
@@ -103,25 +66,9 @@ namespace NMib::NConcurrency::NPrivate
 		return fg_StreamAsyncResult<t_CStreamResult>(fg_Move(AsyncResult), _ParamsStream.f_GetContext(), _ParamsStream.f_GetVersion());
 	}
 
-	template
-	<
-		auto t_pMemberFunction
-		, uint32 t_NameHash
-		, typename t_CStreamContext
-		, typename t_CStreamParams
-		, typename t_CStreamResult
-		, typename t_CReturn
-	>
-	template <umint... tfp_Indices, typename... tfp_CParams>
-	auto TCRuntimeTypeRegistryEntry_MemberFunction
-		<
-			t_pMemberFunction
-			, t_NameHash
-			, t_CStreamContext
-			, t_CStreamParams
-			, t_CStreamResult
-			, t_CReturn
-		>::fp_Call
+	template <auto t_pMemberFunction, uint32 t_NameHash, typename t_CStreamContext, typename t_CStreamParams, typename t_CStreamResult, typename t_CReturn>
+	template <umint ...tfp_Indices, typename ...tfp_CParams>
+	auto TCRuntimeTypeRegistryEntry_MemberFunction<t_pMemberFunction, t_NameHash, t_CStreamContext, t_CStreamParams, t_CStreamResult, t_CReturn>::fp_Call
 		(
 			t_CStreamParams &_ParamsStream
 			, void *_pObject
@@ -151,24 +98,8 @@ namespace NMib::NConcurrency::NPrivate
 		co_return fg_StreamAsyncResult<t_CStreamResult>(fg_Move(AsyncResult), _ParamsStream.f_GetContext(), _ParamsStream.f_GetVersion());
 	}
 
-	template
-	<
-		auto t_pMemberFunction
-		, uint32 t_NameHash
-		, typename t_CStreamContext
-		, typename t_CStreamParams
-		, typename t_CStreamResult
-		, typename t_CReturn
-	>
-	auto TCRuntimeTypeRegistryEntry_MemberFunction
-		<
-			t_pMemberFunction
-			, t_NameHash
-			, t_CStreamContext
-			, t_CStreamParams
-			, t_CStreamResult
-			, t_CReturn
-		>::f_Call
+	template <auto t_pMemberFunction, uint32 t_NameHash, typename t_CStreamContext, typename t_CStreamParams, typename t_CStreamResult, typename t_CReturn>
+	auto TCRuntimeTypeRegistryEntry_MemberFunction<t_pMemberFunction, t_NameHash, t_CStreamContext, t_CStreamParams, t_CStreamResult, t_CReturn>::f_Call
 		(
 			NStream::TCBinaryStreamStoragePtr<NStream::CBinaryStreamDefault> &_Stream
 			, void *_pObject
@@ -176,33 +107,11 @@ namespace NMib::NConcurrency::NPrivate
 		-> NConcurrency::TCFuture<NStream::CBinaryStorage>
 	{
 		using CParams = typename NTraits::TCMemberFunctionPointerTraits<decltype(t_pMemberFunction)>::CParams;
-		return fp_Call
-			(
-				static_cast<t_CStreamParams &>(_Stream)
-				, _pObject
-				, NMeta::TCConsecutiveIndices<NMeta::gc_TypeList_Len<CParams>>()
-				, CParams()
-			)
-		;
+		return fp_Call(static_cast<t_CStreamParams &>(_Stream), _pObject, NMeta::TCConsecutiveIndices<NMeta::gc_TypeList_Len<CParams>>(), CParams());
 	}
 
-	template
-	<
-		auto t_pMemberFunction
-		, uint32 t_NameHash
-		, typename t_CStreamContext
-		, typename t_CStreamParams
-		, typename t_CStreamResult
-	>
-	TCRuntimeTypeRegistryEntry_MemberFunction
-		<
-			t_pMemberFunction
-			, t_NameHash
-			, t_CStreamContext
-			, t_CStreamParams
-			, t_CStreamResult
-			, void
-		>::TCRuntimeTypeRegistryEntry_MemberFunction()
+	template <auto t_pMemberFunction, uint32 t_NameHash, typename t_CStreamContext, typename t_CStreamParams, typename t_CStreamResult>
+	TCRuntimeTypeRegistryEntry_MemberFunction<t_pMemberFunction, t_NameHash, t_CStreamContext, t_CStreamParams, t_CStreamResult, void>::TCRuntimeTypeRegistryEntry_MemberFunction()
 		: CRuntimeTypeRegistryEntry_MemberFunction
 		(
 			t_NameHash
@@ -212,24 +121,9 @@ namespace NMib::NConcurrency::NPrivate
 	{
 	}
 
-	template
-	<
-		auto t_pMemberFunction
-		, uint32 t_NameHash
-		, typename t_CStreamContext
-		, typename t_CStreamParams
-		, typename t_CStreamResult
-	>
-	template <umint... tfp_Indices, typename... tfp_CParams>
-	auto TCRuntimeTypeRegistryEntry_MemberFunction
-		<
-			t_pMemberFunction
-			, t_NameHash
-			, t_CStreamContext
-			, t_CStreamParams
-			, t_CStreamResult
-			, void
-		>::fp_Call
+	template <auto t_pMemberFunction, uint32 t_NameHash, typename t_CStreamContext, typename t_CStreamParams, typename t_CStreamResult>
+	template <umint ...tfp_Indices, typename ...tfp_CParams>
+	auto TCRuntimeTypeRegistryEntry_MemberFunction<t_pMemberFunction, t_NameHash, t_CStreamContext, t_CStreamParams, t_CStreamResult, void>::fp_Call
 		(
 			t_CStreamParams &_ParamsStream
 			, void *_pObject
@@ -259,23 +153,8 @@ namespace NMib::NConcurrency::NPrivate
 		co_return fg_StreamAsyncResult<t_CStreamResult>(fg_Move(AsyncResult), _ParamsStream.f_GetContext(), _ParamsStream.f_GetVersion());
 	}
 
-	template
-	<
-		auto t_pMemberFunction
-		, uint32 t_NameHash
-		, typename t_CStreamContext
-		, typename t_CStreamParams
-		, typename t_CStreamResult
-	>
-	auto TCRuntimeTypeRegistryEntry_MemberFunction
-		<
-			t_pMemberFunction
-			, t_NameHash
-			, t_CStreamContext
-			, t_CStreamParams
-			, t_CStreamResult
-			, void
-		>::f_Call
+	template <auto t_pMemberFunction, uint32 t_NameHash, typename t_CStreamContext, typename t_CStreamParams, typename t_CStreamResult>
+	auto TCRuntimeTypeRegistryEntry_MemberFunction<t_pMemberFunction, t_NameHash, t_CStreamContext, t_CStreamParams, t_CStreamResult, void>::f_Call
 		(
 			NStream::TCBinaryStreamStoragePtr<NStream::CBinaryStreamDefault> &_Stream
 			, void *_pObject
@@ -283,36 +162,13 @@ namespace NMib::NConcurrency::NPrivate
 		-> NConcurrency::TCFuture<NStream::CBinaryStorage>
 	{
 		using CParams = typename NTraits::TCMemberFunctionPointerTraits<decltype(t_pMemberFunction)>::CParams;
-		return fp_Call
-			(
-				static_cast<t_CStreamParams &>(_Stream)
-				, _pObject
-				,
-				NMeta::TCConsecutiveIndices<NMeta::gc_TypeList_Len<CParams>>()
-				, CParams()
-			)
-		;
+		return fp_Call(static_cast<t_CStreamParams &>(_Stream), _pObject, NMeta::TCConsecutiveIndices<NMeta::gc_TypeList_Len<CParams>>(), CParams());
 	}
 
 #ifndef DDocumentation_Doxygen
-	template
-	<
-		auto t_pMemberFunction
-		, uint32 t_NameHash
-		, typename t_CStreamContext
-		, typename t_CStreamParams
-		, typename t_CStreamResult
-		, typename t_CResult
-	>
-	TCRuntimeTypeRegistryEntry_MemberFunction
-		<
-			t_pMemberFunction
-			, t_NameHash
-			, t_CStreamContext
-			, t_CStreamParams
-			, t_CStreamResult
-			, NConcurrency::TCFuture<t_CResult>
-		>::TCRuntimeTypeRegistryEntry_MemberFunction()
+	template <auto t_pMemberFunction, uint32 t_NameHash, typename t_CStreamContext, typename t_CStreamParams, typename t_CStreamResult, typename t_CResult>
+	TCRuntimeTypeRegistryEntry_MemberFunction<t_pMemberFunction, t_NameHash, t_CStreamContext, t_CStreamParams, t_CStreamResult, NConcurrency::TCFuture<t_CResult>>
+		::TCRuntimeTypeRegistryEntry_MemberFunction()
 		: CRuntimeTypeRegistryEntry_MemberFunction
 		(
 			t_NameHash
@@ -322,25 +178,9 @@ namespace NMib::NConcurrency::NPrivate
 	{
 	}
 
-	template
-	<
-		auto t_pMemberFunction
-		, uint32 t_NameHash
-		, typename t_CStreamContext
-		, typename t_CStreamParams
-		, typename t_CStreamResult
-		, typename t_CResult
-	>
-	template <umint... tfp_Indices, typename... tfp_CParams>
-	auto TCRuntimeTypeRegistryEntry_MemberFunction
-		<
-			t_pMemberFunction
-			, t_NameHash
-			, t_CStreamContext
-			, t_CStreamParams
-			, t_CStreamResult
-			, NConcurrency::TCFuture<t_CResult>
-		>::fp_Call
+	template <auto t_pMemberFunction, uint32 t_NameHash, typename t_CStreamContext, typename t_CStreamParams, typename t_CStreamResult, typename t_CResult>
+	template <umint ...tfp_Indices, typename ...tfp_CParams>
+	auto TCRuntimeTypeRegistryEntry_MemberFunction<t_pMemberFunction, t_NameHash, t_CStreamContext, t_CStreamParams, t_CStreamResult, NConcurrency::TCFuture<t_CResult>>::fp_Call
 		(
 			t_CStreamParams &_ParamsStream
 			, void *_pObject
@@ -427,24 +267,8 @@ namespace NMib::NConcurrency::NPrivate
 		return fg_Move(Return.m_Future);
 	}
 
-	template
-	<
-		auto t_pMemberFunction
-		, uint32 t_NameHash
-		, typename t_CStreamContext
-		, typename t_CStreamParams
-		, typename t_CStreamResult
-		, typename t_CResult
-	>
-	auto TCRuntimeTypeRegistryEntry_MemberFunction
-		<
-			t_pMemberFunction
-			, t_NameHash
-			, t_CStreamContext
-			, t_CStreamParams
-			, t_CStreamResult
-			, NConcurrency::TCFuture<t_CResult>
-		>::f_Call
+	template <auto t_pMemberFunction, uint32 t_NameHash, typename t_CStreamContext, typename t_CStreamParams, typename t_CStreamResult, typename t_CResult>
+	auto TCRuntimeTypeRegistryEntry_MemberFunction<t_pMemberFunction, t_NameHash, t_CStreamContext, t_CStreamParams, t_CStreamResult, NConcurrency::TCFuture<t_CResult>>::f_Call
 		(
 			NStream::TCBinaryStreamStoragePtr<NStream::CBinaryStreamDefault> &_Stream
 			, void *_pObject
@@ -452,14 +276,7 @@ namespace NMib::NConcurrency::NPrivate
 		-> NConcurrency::TCFuture<NStream::CBinaryStorage>
 	{
 		using CParams = typename NTraits::TCMemberFunctionPointerTraits<decltype(t_pMemberFunction)>::CParams;
-		return fp_Call
-			(
-				static_cast<t_CStreamParams &>(_Stream)
-				, _pObject
-				, NMeta::TCConsecutiveIndices<NMeta::gc_TypeList_Len<CParams>>()
-				, CParams()
-			)
-		;
+		return fp_Call(static_cast<t_CStreamParams &>(_Stream), _pObject, NMeta::TCConsecutiveIndices<NMeta::gc_TypeList_Len<CParams>>(), CParams());
 	}
 #endif
 
@@ -489,57 +306,15 @@ namespace NMib::NConcurrency::NPrivate
 		>::ms_EntryInit{typename TCAlternateHashesForMemberFunction<t_pMemberFunction>::CAlternates()}
 	;
 
-	template
-	<
-		auto t_pMemberFunction
-		, uint32 t_NameHash
-		, typename t_CStreamContext
-		, typename t_CStreamParams
-		, typename t_CStreamResult
-	>
+	template <auto t_pMemberFunction, uint32 t_NameHash, typename t_CStreamContext, typename t_CStreamParams, typename t_CStreamResult>
 	struct TCMemberFunctionRegistryImpl
 	{
-		static NStorage::TCAggregate
-			<
-				TCRuntimeTypeRegistryEntry_MemberFunction
-				<
-					t_pMemberFunction
-					, t_NameHash
-					, t_CStreamContext
-					, t_CStreamParams
-					, t_CStreamResult
-				>
-			> ms_Entry
-		;
+		static NStorage::TCAggregate<TCRuntimeTypeRegistryEntry_MemberFunction<t_pMemberFunction, t_NameHash, t_CStreamContext, t_CStreamParams, t_CStreamResult>> ms_Entry;
 	};
 
-	template
-	<
-		auto t_pMemberFunction
-		, uint32 t_NameHash
-		, typename t_CStreamContext
-		, typename t_CStreamParams
-		, typename t_CStreamResult
-	>
-	constinit NStorage::TCAggregate
-		<
-			TCRuntimeTypeRegistryEntry_MemberFunction
-			<
-				t_pMemberFunction
-				, t_NameHash
-				, t_CStreamContext
-				, t_CStreamParams
-				, t_CStreamResult
-			>
-		>
-		TCMemberFunctionRegistryImpl
-		<
-			t_pMemberFunction
-			, t_NameHash
-			, t_CStreamContext
-			, t_CStreamParams
-			, t_CStreamResult
-		>::ms_Entry = {DAggregateInit}
+	template <auto t_pMemberFunction, uint32 t_NameHash, typename t_CStreamContext, typename t_CStreamParams, typename t_CStreamResult>
+	constinit NStorage::TCAggregate<TCRuntimeTypeRegistryEntry_MemberFunction<t_pMemberFunction, t_NameHash, t_CStreamContext, t_CStreamParams, t_CStreamResult>>
+		TCMemberFunctionRegistryImpl<t_pMemberFunction, t_NameHash, t_CStreamContext, t_CStreamParams, t_CStreamResult>::ms_Entry = {DAggregateInit}
 	;
 
 	template
@@ -567,7 +342,8 @@ namespace NMib::NConcurrency::NPrivate
 				, t_CStreamContext
 				, t_CStreamParams
 				, t_CStreamResult
-			>::ms_Entry
+			>
+			::ms_Entry
 		;
 
 		(

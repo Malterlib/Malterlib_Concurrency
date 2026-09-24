@@ -200,11 +200,7 @@ namespace NMib::NConcurrency
 		}
 	}
 
-	NException::CExceptionPointer CActorDistributionManagerInternal::fp_RegisterActorFunctorsForCall
-		(
-			NPrivate::CDistributedActorStreamContextState &_State
-			, CHost &_Host
-		)
+	NException::CExceptionPointer CActorDistributionManagerInternal::fp_RegisterActorFunctorsForCall(NPrivate::CDistributedActorStreamContextState &_State, CHost &_Host)
 	{
 		return fg_RegisterActorFunctorsForCall(_State, _Host);
 	}
@@ -260,11 +256,7 @@ namespace NMib::NConcurrency
 				)
 			;
 			// Extract priority for priority commands
-			if
-			(
-				CommandByte == EDistributedActorCommand_RemoteCallWithPriority
-				|| CommandByte == EDistributedActorCommand_RemoteCallWithPriorityAndAuthHandler
-			)
+			if (CommandByte == EDistributedActorCommand_RemoteCallWithPriority || CommandByte == EDistributedActorCommand_RemoteCallWithPriorityAndAuthHandler)
 			{
 				DMibFastCheck(_CallData.f_GetTotalLength() >= 2);
 				Priority = _CallData.f_GetByte(1);
@@ -403,12 +395,7 @@ namespace NMib::NConcurrency
 		fp_QueuePacket(_pHost, fg_Move(SendPacket));
 	}
 
-	CActorSubscription CActorDistributionManager::fp_OnRemoteDisconnect
-		(
-			TCActorFunctorWeak<TCFuture<void> ()> _fOnDisconnect
-			, NStr::CStr _UniqueHostID
-			, NStr::CStr _LastExecutionID
-		)
+	CActorSubscription CActorDistributionManager::fp_OnRemoteDisconnect(TCActorFunctorWeak<TCFuture<void> ()> _fOnDisconnect, NStr::CStr _UniqueHostID, NStr::CStr _LastExecutionID)
 	{
 		auto &Internal = *mp_pInternal;
 
@@ -606,12 +593,7 @@ namespace NMib::NConcurrency
 
 				fCall = [pEntry, pActor = NPrivate::fg_GetInternalActor(Actor)](CDistributedActorReadStream &_Stream) mutable
 					{
-						return pEntry->f_Call
-							(
-								_Stream
-								, pActor
-							)
-						;
+						return pEntry->f_Call(_Stream, pActor);
 					}
 				;
 			}
@@ -632,18 +614,18 @@ namespace NMib::NConcurrency
 					, nParamBytes
 					, HostID = Host.m_HostInfo.m_RealHostID
 					, CallingHostInfo = CCallingHostInfo
-						(
-							fg_ThisActor(m_pThis)
-							, fg_Move(AuthHandler)
-							, Host.m_HostInfo.m_UniqueHostID
-							, Host.f_GetHostInfo()
-							, Host.m_LastExecutionID
-							, ProtocolVersion
-							, fg_Move(ClaimedUserID)
-							, fg_Move(ClaimedUserName)
-							, pHost
-							, _Priority
-						)
+					(
+						fg_ThisActor(m_pThis)
+						, fg_Move(AuthHandler)
+						, Host.m_HostInfo.m_UniqueHostID
+						, Host.f_GetHostInfo()
+						, Host.m_LastExecutionID
+						, ProtocolVersion
+						, fg_Move(ClaimedUserID)
+						, fg_Move(ClaimedUserName)
+						, pHost
+						, _Priority
+					)
 					, Context
 					, fCall = fg_Move(fCall)
 					, ProtocolVersion
@@ -660,15 +642,7 @@ namespace NMib::NConcurrency
 					co_return co_await fCall(Stream);
 				}
 			)
-			>
-			[
-				this
-				, pHost
-				, PacketID = RemoteCall.m_PacketID
-				, Context
-				, LastExecutionID = Host.m_LastExecutionID
-			]
-			(TCAsyncResult<NStream::CBinaryStorage> &&_Result) mutable
+			> [this, pHost, PacketID = RemoteCall.m_PacketID, Context, LastExecutionID = Host.m_LastExecutionID](TCAsyncResult<NStream::CBinaryStorage> &&_Result) mutable
 			{
 				if (LastExecutionID != pHost->m_LastExecutionID)
 					return;
@@ -780,12 +754,8 @@ namespace NMib::NConcurrency
 		References.m_Functions = fg_Move(pActorFunctors->m_ImplicitlyPublishedFunctions);
 	}
 
-	TCFuture<void> CActorDistributionManager::fp_DestroyRemoteSubscription
-		(
-			NStorage::TCSharedPointerSupportWeak<NPrivate::ICHost> _pHost
-			, NStr::CStr _SubscriptionID
-			, NStr::CStr _LastExecutionID
-		)
+	auto CActorDistributionManager::fp_DestroyRemoteSubscription(NStorage::TCSharedPointerSupportWeak<NPrivate::ICHost> _pHost, NStr::CStr _SubscriptionID, NStr::CStr _LastExecutionID)
+		-> TCFuture<void>
 	{
 		auto &Host = *(static_cast<CHost *>(_pHost.f_Get()));
 		{
@@ -877,8 +847,7 @@ namespace NMib::NConcurrency
 			if (pSubscription && pSubscription->m_Subscription)
 			{
 				pSubscription->m_Subscription->f_Destroy()
-					> [this, pHost, SubscriptionID = DestroySubscription.m_SubscriptionID, LastExecutionID = pHost->m_LastExecutionID, ActorProtocolVersion]
-					(TCAsyncResult<void> &&_Result)
+					> [this, pHost, SubscriptionID = DestroySubscription.m_SubscriptionID, LastExecutionID = pHost->m_LastExecutionID, ActorProtocolVersion](TCAsyncResult<void> &&_Result)
 					{
 						if (pHost->m_bDeleted.f_Load(NAtomic::gc_MemoryOrder_Relaxed) || pHost->m_LastExecutionID != LastExecutionID)
 							return;

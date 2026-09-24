@@ -114,7 +114,7 @@ namespace NMib::NConcurrency::NPrivate
 	}
 
 	template <typename t_CException>
-	TCRuntimeTypeRegistryEntry_Exception<t_CException>::TCRuntimeTypeRegistryEntry_Exception ()
+	TCRuntimeTypeRegistryEntry_Exception<t_CException>::TCRuntimeTypeRegistryEntry_Exception()
 		: CRuntimeTypeRegistryEntry_Exception(c_NameHash)
 	{
 	}
@@ -147,33 +147,21 @@ namespace NMib::NConcurrency::NPrivate
 	}
 
 	template <typename t_CException>
-	void TCRuntimeTypeRegistryEntry_Exception<t_CException>::f_Feed
-		(
-			NStream::TCBinaryStreamStorage<NStream::CBinaryStreamDefault> &_Stream
-			, NException::CExceptionBase const &_Exception
-		)
+	void TCRuntimeTypeRegistryEntry_Exception<t_CException>::f_Feed(NStream::TCBinaryStreamStorage<NStream::CBinaryStreamDefault> &_Stream, NException::CExceptionBase const &_Exception)
 	{
 		auto &Exception = static_cast<t_CException const &>(_Exception);
 		_Stream << Exception;
 	}
 
 	template <typename t_CException>
-	void TCRuntimeTypeRegistryEntry_Exception<t_CException>::f_Feed
-		(
-			NStream::CBinaryStreamDefault &_Stream
-			, NException::CExceptionBase const &_Exception
-		)
+	void TCRuntimeTypeRegistryEntry_Exception<t_CException>::f_Feed(NStream::CBinaryStreamDefault &_Stream, NException::CExceptionBase const &_Exception)
 	{
 		auto &Exception = static_cast<t_CException const &>(_Exception);
 		_Stream << Exception;
 	}
 
 	template <typename t_CException>
-	void TCRuntimeTypeRegistryEntry_Exception<t_CException>::f_Feed
-		(
-			NStream::TCBinaryStreamNull<NStream::CBinaryStreamDefault> &_Stream
-			, NException::CExceptionBase const &_Exception
-		)
+	void TCRuntimeTypeRegistryEntry_Exception<t_CException>::f_Feed(NStream::TCBinaryStreamNull<NStream::CBinaryStreamDefault> &_Stream, NException::CExceptionBase const &_Exception)
 	{
 		auto &Exception = static_cast<t_CException const &>(_Exception);
 		_Stream << Exception;

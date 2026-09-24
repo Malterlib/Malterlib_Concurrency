@@ -95,16 +95,11 @@ namespace NMib::NConcurrency
 		void f_Stop();
 		void f_EnableShutdownLogging(bool _bEnabled);
 
-		template <typename tf_CType, typename... tfp_CParams, typename... tfp_CHolderParams>
-		TCActor<tf_CType> f_ConstructActor(TCConstruct<tf_CType, tfp_CParams...> &&_ConstructParams, tfp_CHolderParams&&... p_Params);
+		template <typename tf_CType, typename ...tfp_CParams, typename ...tfp_CHolderParams>
+		TCActor<tf_CType> f_ConstructActor(TCConstruct<tf_CType, tfp_CParams...> &&_ConstructParams, tfp_CHolderParams && ...p_Params);
 
-		template <typename tf_CType, typename... tfp_CParams>
-		TCActor<tf_CType> f_ConstructFromInternalActor
-			(
-				TCActorHolderSharedPointer<TCActorInternal<tf_CType>> &&_pInternalActor
-				, TCConstruct<tf_CType, tfp_CParams...> &&_ConstructParams
-			)
-		;
+		template <typename tf_CType, typename ...tfp_CParams>
+		TCActor<tf_CType> f_ConstructFromInternalActor(TCActorHolderSharedPointer<TCActorInternal<tf_CType>> &&_pInternalActor, TCConstruct<tf_CType, tfp_CParams...> &&_ConstructParams);
 
 		template <typename tf_CActor>
 		consteval static bool fs_HasOverridenDestroy()
@@ -301,12 +296,7 @@ namespace NMib::NConcurrency
 		void fp_DispatchOnCurrentThreadOrConcurrent(EPriority _Priority, FActorQueueDispatchNoAlloc &&_ToQueue, CConcurrencyThreadLocal &_ThreadLocal);
 		void fp_DispatchOnCurrentThreadOrConcurrentFirst(EPriority _Priority, FActorQueueDispatchNoAlloc &&_ToQueue, CConcurrencyThreadLocal &_ThreadLocal);
 
-		static TCFuture<void> fsp_DestroySingletons
-			(
-				NContainer::TCVector<NStorage::TCUniquePointer<CSingleton>> _Singletons
-				, NContainer::TCVector<umint> _CreationOrder
-			)
-		;
+		static TCFuture<void> fsp_DestroySingletons(NContainer::TCVector<NStorage::TCUniquePointer<CSingleton>> _Singletons, NContainer::TCVector<umint> _CreationOrder);
 
 		void fp_AddedActor();
 		void fp_RemovedActor();
@@ -467,11 +457,11 @@ namespace NMib::NConcurrency
 
 	bool fg_ActorRunning(TCActor<> &_Actor);
 
-	template <typename tf_CActor, typename... tfp_CParams>
-	TCActor<tf_CActor> fg_ConstructActor(tfp_CParams &&...p_Params);
+	template <typename tf_CActor, typename ...tfp_CParams>
+	TCActor<tf_CActor> fg_ConstructActor(tfp_CParams && ...p_Params);
 
-	template <typename tf_CActor, typename tf_CHolderType, typename... tfp_CHolderParams, typename... tfp_CParams>
-	TCActor<tf_CActor> fg_ConstructActor(TCConstruct<tf_CHolderType, tfp_CHolderParams...> &&_HolderParams, tfp_CParams &&...p_Params);
+	template <typename tf_CActor, typename tf_CHolderType, typename ...tfp_CHolderParams, typename ...tfp_CParams>
+	TCActor<tf_CActor> fg_ConstructActor(TCConstruct<tf_CHolderType, tfp_CHolderParams...> &&_HolderParams, tfp_CParams && ...p_Params);
 }
 
 #include "Malterlib_Concurrency_ActorHelpers.h"

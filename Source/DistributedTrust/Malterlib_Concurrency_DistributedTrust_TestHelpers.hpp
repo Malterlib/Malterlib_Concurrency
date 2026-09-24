@@ -22,8 +22,11 @@ namespace NMib::NConcurrency
 	TCFuture<TCDistributedActor<tf_CActor>> CTrustedSubscriptionTestHelper::f_SubscribeFromHostAsync(NStr::CStr _HostID, NStr::CStr _Namespace)
 	{
 		using namespace NStr;
-		auto Subscriptions = co_await mp_Internal(&CInternal::f_Subscribe<tf_CActor>, 1, _Namespace, _HostID)
-			.f_Timeout(mp_Timeout, "Timed out subscribing to actor {} from host {}"_f << _Namespace << _HostID)
+		auto Subscriptions = co_await mp_Internal(&CInternal::f_Subscribe<tf_CActor>, 1, _Namespace, _HostID).f_Timeout
+			(
+				mp_Timeout
+				, "Timed out subscribing to actor {} from host {}"_f << _Namespace << _HostID
+			)
 		;
 		co_return Subscriptions[0];
 	}
@@ -44,30 +47,26 @@ namespace NMib::NConcurrency
 	}
 
 	template <typename tf_CActor>
-	NContainer::TCVector<TCDistributedActor<tf_CActor>> CTrustedSubscriptionTestHelper::f_SubscribeMultiple
-		(
-			CActorRunLoopTestHelper &_RunLoopHelper
-			, umint _nActors
-			, NStr::CStr const &_Namespace
-			, NStr::CStr const &_HostID
-		)
+	auto CTrustedSubscriptionTestHelper::f_SubscribeMultiple(CActorRunLoopTestHelper &_RunLoopHelper, umint _nActors, NStr::CStr const &_Namespace, NStr::CStr const &_HostID)
+		-> NContainer::TCVector<TCDistributedActor<tf_CActor>>
 	{
 		return mp_Internal(&CInternal::f_Subscribe<tf_CActor>, _nActors, _Namespace, _HostID).f_CallSync(_RunLoopHelper.m_pRunLoop, mp_Timeout);
 	}
 
 	template <typename tf_CActor>
-	auto CTrustedSubscriptionTestHelper::f_SubscribeMultipleAsync(umint _nActors, NStr::CStr _Namespace, NStr::CStr _HostID)
-		-> TCFuture<NContainer::TCVector<TCDistributedActor<tf_CActor>>>
+	auto CTrustedSubscriptionTestHelper::f_SubscribeMultipleAsync(umint _nActors, NStr::CStr _Namespace, NStr::CStr _HostID) -> TCFuture<NContainer::TCVector<TCDistributedActor<tf_CActor>>>
 	{
 		using namespace NStr;
-		co_return co_await mp_Internal(&CInternal::f_Subscribe<tf_CActor>, _nActors, _Namespace, _HostID)
-			.f_Timeout(mp_Timeout, "Timed out subscribing to multiple actors {}"_f << _Namespace)
+		co_return co_await mp_Internal(&CInternal::f_Subscribe<tf_CActor>, _nActors, _Namespace, _HostID).f_Timeout
+			(
+				mp_Timeout
+				, "Timed out subscribing to multiple actors {}"_f << _Namespace
+			)
 		;
 	}
 
 	template <typename tf_CActor>
-	auto CTrustedSubscriptionTestHelper::CInternal::f_Subscribe(umint _nActors, NStr::CStr _Namespace, NStr::CStr _HostID)
-		-> TCFuture<NContainer::TCVector<TCDistributedActor<tf_CActor>>>
+	auto CTrustedSubscriptionTestHelper::CInternal::f_Subscribe(umint _nActors, NStr::CStr _Namespace, NStr::CStr _HostID) -> TCFuture<NContainer::TCVector<TCDistributedActor<tf_CActor>>>
 	{
 		TCPromiseFuturePair<NContainer::TCVector<TCDistributedActor<tf_CActor>>> Promise;
 		DTestHelpersDebug("{} - {}: SUBSCRIBE", _HostID, _Namespace);
@@ -83,6 +82,7 @@ namespace NMib::NConcurrency
 
 					TCTrustedActorSubscription<tf_CActor> m_Subscription;
 				};
+
 				NStorage::TCUniquePointer<CSubscriptionImpl> pSubscription = fg_Construct<CSubscriptionImpl>();
 				pSubscription->m_Subscription = fg_Move(_Subscription);
 				pSubscription->m_Subscription.f_OnActor

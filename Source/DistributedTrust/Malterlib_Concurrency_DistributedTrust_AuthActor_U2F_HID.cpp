@@ -36,9 +36,7 @@ namespace NMib::NConcurrency
 			TCActor<CHumanInterfaceDevicesActor> m_Actor = {fg_Construct(), "Human Interface Device Actor"};
 		};
 
-		constinit TCSubSystem<CSubSystem_Concurrency_U2FHID, ESubSystemDestruction_BeforeMemoryManager>
-			g_MalterlibSubSystem_Concurrency_U2FHID = {DAggregateInit}
-		;
+		constinit TCSubSystem<CSubSystem_Concurrency_U2FHID, ESubSystemDestruction_BeforeMemoryManager> g_MalterlibSubSystem_Concurrency_U2FHID = {DAggregateInit};
 
 		//template <typename tf_CStr>
 		auto fg_ToHidAPIStr(NStr::CStr const &_String)
@@ -158,7 +156,6 @@ namespace NMib::NConcurrency
 		: m_pDevice(_Device)
 	{
 	}
-
 
 	CHumanInterfaceDeviceActor::~CHumanInterfaceDeviceActor()
 	{

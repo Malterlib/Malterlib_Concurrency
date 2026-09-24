@@ -226,7 +226,12 @@ namespace
 				DMibExpectException(TestActor(&CAsyncResultTestActor::f_TestReturnAsyncResultConvertedException).f_CallSync(), DMibErrorInstance("AsyncResult converted exception"));
 
 				NException::CExceptionPointer pDummy;
-				DMibExpectException(TestActor(&CAsyncResultTestActor::f_TestWrappedErrorTransform).f_CallSync(), DMibErrorInstanceWrapped("Failed doing X: Wrapped transform exception", pDummy));
+				DMibExpectException
+					(
+						TestActor(&CAsyncResultTestActor::f_TestWrappedErrorTransform).f_CallSync()
+						, DMibErrorInstanceWrapped("Failed doing X: Wrapped transform exception", pDummy)
+					)
+				;
 
 				fg_Move(TestActor).f_Destroy().f_CallSync();
 			};

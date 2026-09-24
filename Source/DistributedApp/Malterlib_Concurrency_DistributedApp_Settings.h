@@ -55,6 +55,7 @@ namespace NMib::NConcurrency
 		CDistributedAppActor_Settings &&f_HostTimeoutOnShutdown(fp64 _HostTimeoutOnShutdown) &&;
 		CDistributedAppActor_Settings &&f_KillHostsTimeoutOnShutdown(fp64 _HostTimeoutOnShutdown) &&;
 		CDistributedAppActor_Settings &&f_MaxShutdownTime(fp64 _MaxShutdownTime) &&;
+
 	private:
 		NStr::CStr fp_GetLocalSocketPath(NStr::CStr const &_Prefix, ELocalSocketFlag _Flags, NStr::CStr const &_Enclave) const;
 	};

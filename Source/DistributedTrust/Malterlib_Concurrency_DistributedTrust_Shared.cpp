@@ -114,15 +114,10 @@ namespace NMib::NConcurrency
 			ch8 const *pIDType;
 			switch (ID.m_Type)
 			{
-			case EPermissionIdentifierType_HostID:
-				pIDType = "H";
-				break;
-			case EPermissionIdentifierType_UserID:
-				pIDType = "U";
-				break;
+			case EPermissionIdentifierType_HostID: pIDType = "H"; break;
+			case EPermissionIdentifierType_UserID: pIDType = "U"; break;
 
-			default:
-				DMibError("Internal error: Unhandled permission identifier type");
+			default: DMibError("Internal error: Unhandled permission identifier type");
 			}
 			fg_AddStrSep(FileName, "{}_{}"_f << pIDType << ID.m_ID, "-");
 		}

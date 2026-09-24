@@ -47,12 +47,7 @@ namespace NMib::NConcurrency
 		}
 	}
 
-	TCFuture<uint32> CDistributedAppActor::f_CommandLine_ListPermissions
-		(
-			TCSharedPointer<CCommandLineControl> _pCommandLine
-			, bool _bIncludeTargets
-			, CStr _TableType
-		)
+	TCFuture<uint32> CDistributedAppActor::f_CommandLine_ListPermissions(TCSharedPointer<CCommandLineControl> _pCommandLine, bool _bIncludeTargets, CStr _TableType)
 	{
 		auto Permissions = co_await mp_State.m_TrustManager(&CDistributedActorTrustManager::f_EnumPermissions, _bIncludeTargets);
 
@@ -134,13 +129,7 @@ namespace NMib::NConcurrency
 		co_return 0;
 	}
 
-	TCFuture<uint32> CDistributedAppActor::f_CommandLine_RemovePermission
-		(
-			TCSharedPointer<CCommandLineControl> _pCommandLine
-			, CStr _HostID
-			, CStr _UserID
-			, CStr _Permission
-		)
+	TCFuture<uint32> CDistributedAppActor::f_CommandLine_RemovePermission(TCSharedPointer<CCommandLineControl> _pCommandLine, CStr _HostID, CStr _UserID, CStr _Permission)
 	{
 		co_await mp_State.m_TrustManager
 			(

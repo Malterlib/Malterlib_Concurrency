@@ -39,7 +39,7 @@ namespace NMib::NConcurrency
 #endif
 	}
 
-	constexpr static const umint gc_ProcessingMask = DMibBitTyped(sizeof(umint) * 8 - 1, umint);
+	static constexpr umint const gc_ProcessingMask = DMibBitTyped(sizeof(umint) * 8 - 1, umint);
 
 	CActorHolder::~CActorHolder()
 	{
@@ -104,7 +104,6 @@ namespace NMib::NConcurrency
 
 	void CActorHolder::fp_StartQueueProcessing()
 	{
-
 	}
 
 	void CActorHolder::fp_DeleteActor()
@@ -168,7 +167,7 @@ namespace NMib::NConcurrency
 #if DMibEnableSafeCheck > 0
 					ThreadLocal.m_pCurrentlyConstructingActor = pOldConstructing;
 #endif
- 					umint NewWorking = mp_Working.f_Exchange(0);
+					umint NewWorking = mp_Working.f_Exchange(0);
 					if ((NewWorking & (~gc_ProcessingMask)) != OriginalWorking)
 						fp_QueueRunProcess(ThreadLocal); // Reschedule
 				}
@@ -363,14 +362,7 @@ namespace NMib::NConcurrency
 						++nProcessedEntriesThisTime;
 						// Long actor drains must offer queued work and service I/O before returning to the pool loop.
 						if (((nProcessedEntries & 63) == 0) && ThreadLocal.m_pThisQueue)
-						{
-							mp_pConcurrencyManager->fp_DrainCheckpoint
-								(
-									*ThreadLocal.m_pThisQueue
-									, nProcessedEntriesThisTime >= 64 ? 0 : DMibConfig_Concurrency_LocalQueueTargetSize
-								)
-							;
-						}
+							mp_pConcurrencyManager->fp_DrainCheckpoint(*ThreadLocal.m_pThisQueue, nProcessedEntriesThisTime >= 64 ? 0 : DMibConfig_Concurrency_LocalQueueTargetSize);
 
 #if DMibConfig_Concurrency_SchedulerStats
 						++nStatsEntriesDrained;
@@ -657,7 +649,8 @@ namespace NMib::NConcurrency
 				(
 #if DMibConfig_RefCountDebugging
 #	if DMibEnableSafeCheck > 0
-					TempRef, true
+					TempRef
+					, true
 #	else
 					TempRef
 #	endif
@@ -719,12 +712,7 @@ namespace NMib::NConcurrency
 			return true;
 		}
 
-		bool bDestroyingInThreadPoolQueue =
-			(
-				!(ThreadLocal.m_pCurrentlyProcessingActorHolder && ThreadLocal.m_bCurrentlyProcessingInActorHolder)
-				&& ThreadLocal.m_pThisQueue
-			)
-		;
+		bool bDestroyingInThreadPoolQueue = (!(ThreadLocal.m_pCurrentlyProcessingActorHolder && ThreadLocal.m_bCurrentlyProcessingInActorHolder) && ThreadLocal.m_pThisQueue);
 
 		if (bDestroyingInThreadPoolQueue || _pActorHolder->f_ImmediateDelete())
 			o_bImmediateDelete = true;
@@ -734,12 +722,7 @@ namespace NMib::NConcurrency
 
 	struct CActorHolder::CDestroyHandler
 	{
-		CDestroyHandler
-			(
-				FDestroyHolderOnDestroyed &&_fOnDestroyed
-				, CActorHolder *_pThis
-				, TCActorHolderSharedPointer<CActorHolder> &&_pSelfReference
-			)
+		CDestroyHandler(FDestroyHolderOnDestroyed &&_fOnDestroyed, CActorHolder *_pThis, TCActorHolderSharedPointer<CActorHolder> &&_pSelfReference)
 			: m_fOnDestroyed(fg_Move(_fOnDestroyed))
 			, m_pThis(_pThis)
 			, m_pSelfReference(fg_Move(_pSelfReference))
@@ -875,12 +858,7 @@ namespace NMib::NConcurrency
 		bool m_bIsValid = true;
 	};
 
-	void CActorHolder::fp_DestroyActorHolder
-		(
-			FDestroyHolderOnDestroyed &&_fOnDestroyed
-			, TCActorHolderSharedPointer<CActorHolder> &&_pSelfReference
-			, CConcurrencyThreadLocal &_ThreadLocal
-		)
+	void CActorHolder::fp_DestroyActorHolder(FDestroyHolderOnDestroyed &&_fOnDestroyed, TCActorHolderSharedPointer<CActorHolder> &&_pSelfReference, CConcurrencyThreadLocal &_ThreadLocal)
 	{
 		fp_QueueProcessDestroy(CDestroyHandler(fg_Move(_fOnDestroyed), this, fg_Move(_pSelfReference)), _ThreadLocal);
 	}
@@ -953,7 +931,6 @@ namespace NMib::NConcurrency
 		: CDefaultActorHolder(_pConcurrencyManager, _bImmediateDelete, _Priority, fg_Move(_pDistributedActorData))
 		, mp_ThreadName(_ThreadName)
 	{
-
 	}
 
 	CSeparateThreadActorHolder::~CSeparateThreadActorHolder()
@@ -1024,8 +1001,7 @@ namespace NMib::NConcurrency
 				umint OriginalWorking = mp_JobQueueWorking.f_FetchOr(gc_ProcessingMask);
 				if ((OriginalWorking & gc_ProcessingMask) == 0)
 				{
-					auto UnLock
-						= fg_OnScopeExit
+					auto UnLock = fg_OnScopeExit
 						(
 							[&]
 							{
@@ -1269,7 +1245,6 @@ namespace NMib::NConcurrency
 		}
 	}
 
-
 	void CDispatchingActorHolder::fp_QueueProcessEntry(CConcurrentRunQueueEntryHolder &&_Entry, CConcurrencyThreadLocal &_ThreadLocal)
 	{
 		if (fp_AddToQueue(fg_Move(_Entry), _ThreadLocal))
@@ -1324,8 +1299,7 @@ namespace NMib::NConcurrency
 					DMibFastCheck(!pDelegateTo->f_IsHolderDestroyed());
 					DMibFastCheck(!pDelegateTo->fp_GetActorRelaxed()->f_IsDestroyed());
 					COnDestroy OnDestroy;
-					OnDestroy.m_fOnDestroy =
-						[pThisWeak = pThis->fp_GetAsActor<CActor>().f_Weak(), pThisHolder = pThis.f_Get(), pState = pThis->mp_pDestroyState]() -> TCFuture<void>
+					OnDestroy.m_fOnDestroy = [pThisWeak = pThis->fp_GetAsActor<CActor>().f_Weak(), pThisHolder = pThis.f_Get(), pState = pThis->mp_pDestroyState]() -> TCFuture<void>
 						{
 							auto pThis = pThisWeak.f_Lock();
 							if (pThis)

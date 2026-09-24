@@ -39,9 +39,7 @@ namespace NMib::NConcurrency
 
 		TCAsyncGenerator<NContainer::TCVector<CDistributedAppSensorReporter::CSensorInfo>> f_GetSensors(CDistributedAppSensorReader::CGetSensors _Params);
 		auto f_GetSensorReadings(CDistributedAppSensorReader::CGetSensorReadings _Params) -> TCAsyncGenerator<NContainer::TCVector<CDistributedAppSensorReader_SensorKeyAndReading>>;
-		auto f_GetSensorStatus(CDistributedAppSensorReader::CGetSensorStatus _Params)
-			-> TCAsyncGenerator<NContainer::TCVector<CDistributedAppSensorReader_SensorKeyAndReading>>
-		;
+		auto f_GetSensorStatus(CDistributedAppSensorReader::CGetSensorStatus _Params) -> TCAsyncGenerator<NContainer::TCVector<CDistributedAppSensorReader_SensorKeyAndReading>>;
 		auto f_SubscribeSensors
 			(
 				NContainer::TCVector<CDistributedAppSensorReader_SensorFilter> _Filters

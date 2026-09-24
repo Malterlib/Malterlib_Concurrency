@@ -113,8 +113,6 @@ namespace NMib::NConcurrency
 		}
 	}
 
-
-
 	void COSMainRunLoopActorHolder::fp_DestroyThreaded()
 	{
 		mp_Destroyed.f_Exchange(4);

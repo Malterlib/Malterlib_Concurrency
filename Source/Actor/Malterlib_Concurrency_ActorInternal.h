@@ -43,21 +43,14 @@ namespace NMib::NConcurrency
 
 		friend class CConcurrencyManager;
 
-		template <typename t_CType2, typename... tp_COptions2>
+		template <typename t_CType2, typename ...tp_COptions2>
 		friend class NStorage::TCSharedPointer;
 
 		friend struct NPrivate::CThisActor;
 
 		friend struct CActorDistributionManagerInternal;
 
-		template
-		<
-			bool t_bUnwrapTuple
-			, typename t_CHandler2
-			, typename t_CActor2
-			, typename t_CResultTypes2
-			, typename t_CResultIndicies2
-		>
+		template <bool t_bUnwrapTuple, typename t_CHandler2, typename t_CActor2, typename t_CResultTypes2, typename t_CResultIndicies2>
 		friend struct NPrivate::TCCallMutipleActorStorage;
 
 		template <typename tf_CActor>
@@ -74,7 +67,6 @@ namespace NMib::NConcurrency
 		TCActorInternal<CActor> *fp_GetRealActor(NConcurrency::CActorHolder *_pActorInternal) const override;
 
 	public:
-
 		TCActorInternal(CConcurrencyManager *_pConcurrencyManager, NStorage::TCSharedPointer<ICDistributedActorData> &&_pDistributedActorData);
 
 		template <typename tf_CP0>
@@ -82,7 +74,6 @@ namespace NMib::NConcurrency
 		~TCActorInternal();
 
 	public:
-
 		enum
 		{
 			mc_bAllowInternalAccess = t_CActor::mc_bAllowInternalAccess

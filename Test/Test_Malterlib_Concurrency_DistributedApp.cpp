@@ -292,7 +292,9 @@ namespace
 							(
 								NFile::CFile::fs_GetProgramPath()
 								, {"--test", NTest::fg_TestGetCurrentPath(), "--process-recursive"}
-								, Output, Error, ExitCode
+								, Output
+								, Error
+								, ExitCode
 							)
 						;
 						DMibExpectTrue(bLaunched);

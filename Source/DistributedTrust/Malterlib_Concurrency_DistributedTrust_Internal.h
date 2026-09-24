@@ -70,6 +70,7 @@ namespace NMib::NConcurrency
 			{
 				return NContainer::TCMap<CDistributedActorIdentifier, CTypedActor>::fs_GetKey(*this);
 			}
+
 			CAbstractDistributedActor m_AbstractActor;
 			CTrustedActorInfo m_TrustedInfo;
 			CTypedHost *m_pHost = nullptr;
@@ -79,7 +80,7 @@ namespace NMib::NConcurrency
 
 			struct CCompareIdentifier
 			{
-				auto &operator()(CTypedActor const &_Actor)
+				auto &operator () (CTypedActor const &_Actor)
 				{
 					return _Actor.f_GetIdentifier();
 				}
@@ -92,6 +93,7 @@ namespace NMib::NConcurrency
 			{
 				return NContainer::TCMap<NStr::CStr, CTypedHost>::fs_GetKey(*this);
 			}
+
 			NIntrusive::TCAVLTree<&CTypedActor::m_LinkHost, CTypedActor::CCompareIdentifier> m_Actors;
 		};
 
@@ -101,6 +103,7 @@ namespace NMib::NConcurrency
 			{
 				return NContainer::TCMap<uint32, CNamespaceTypeState>::fs_GetKey(*this);
 			}
+
 			NContainer::TCMap<CDistributedActorIdentifier, TCTrustedActor<CActor>> f_GetAllowed(NPrivate::CTrustedActorSubscriptionState const &_State);
 
 			NContainer::TCSet<NStorage::TCSharedPointer<NPrivate::CTrustedActorSubscriptionState>> m_Subscriptions;
@@ -108,7 +111,6 @@ namespace NMib::NConcurrency
 			NContainer::TCMap<CDistributedActorIdentifier, CTypedActor> m_Actors;
 			NContainer::TCMap<NStr::CStr, CTypedHost> m_Hosts;
 			NIntrusive::TCAVLTree<&CTypedActor::m_LinkAllowed, CTypedActor::CCompareIdentifier> m_AllowedActors;
-
 		};
 
 		struct CNamespaceState
@@ -174,16 +176,8 @@ namespace NMib::NConcurrency
 		{
 			CDistributedActorAuthenticationImplementation();
 
-			auto f_RegisterAuthenticationHandler(CRegisterAuthenticationHandlerParams _Params)
-				-> TCFuture<TCActorSubscriptionWithID<>> override
-			;
-			TCFuture<bool> f_AuthenticatePermissionPattern
-				(
-					NStr::CStr _Pattern
-					, NContainer::TCSet<NStr::CStr> _AuthenticationFactors
-					, NStr::CStr _RequestID
-				) override
-			;
+			auto f_RegisterAuthenticationHandler(CRegisterAuthenticationHandlerParams _Params) -> TCFuture<TCActorSubscriptionWithID<>> override;
+			TCFuture<bool> f_AuthenticatePermissionPattern(NStr::CStr _Pattern, NContainer::TCSet<NStr::CStr> _AuthenticationFactors, NStr::CStr _RequestID) override;
 
 			DMibDelegatedActorImplementation(CDistributedActorTrustManager);
 		};
@@ -199,13 +193,7 @@ namespace NMib::NConcurrency
 			DMibDelegatedActorImplementation(CDistributedActorTrustManager::CInternal);
 		};
 
-		CInternal
-			(
-				CDistributedActorTrustManager *_pThis
-				, TCActor<ICDistributedActorTrustManagerDatabase> const &_Database
-				, COptions &&_Options
-			)
-		;
+		CInternal(CDistributedActorTrustManager *_pThis, TCActor<ICDistributedActorTrustManagerDatabase> const &_Database, COptions &&_Options);
 		~CInternal();
 
 		TCFuture<void> f_Init();
@@ -216,27 +204,14 @@ namespace NMib::NConcurrency
 
 		void f_RemoveClientConnection(CConnectionState *_pClientConnection);
 
-		TCFuture<NContainer::CByteVector> f_SignCertificate
-			(
-				NStr::CStr _Token
-				, NContainer::CByteVector _CertificateRequest
-				, CCallingHostInfo _HostInfo
-			)
-		;
+		TCFuture<NContainer::CByteVector> f_SignCertificate(NStr::CStr _Token, NContainer::CByteVector _CertificateRequest, CCallingHostInfo _HostInfo);
 		TCFuture<NStr::CStr> f_ValidateClientAccess(NStr::CStr _HostID, NContainer::TCVector<NContainer::CByteVector> _CertificateChain);
 
 		NMib::NConcurrency::CActorDistributionConnectionSettings f_GetConnectionSettings(CConnectionState const &_State);
 
 		void f_ApplyConnectionConcurrency(CConnectionState &_ConnectionState);
 
-		TCFuture<bool> f_AuthenticatePermissionPattern
-			(
-				NStr::CStr _Pattern
-				, NContainer::TCSet<NStr::CStr> _AuthenticationFactor
-				, CCallingHostInfo _CallingHostInfo
-				, NStr::CStr _RequestID
-			)
-		;
+		TCFuture<bool> f_AuthenticatePermissionPattern(NStr::CStr _Pattern, NContainer::TCSet<NStr::CStr> _AuthenticationFactor, CCallingHostInfo _CallingHostInfo, NStr::CStr _RequestID);
 
 		NStr::CStr f_TranslateHostname(NStr::CStr const &_Hostname) const;
 

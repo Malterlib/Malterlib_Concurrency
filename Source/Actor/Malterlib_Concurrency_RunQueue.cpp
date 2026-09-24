@@ -6,12 +6,7 @@
 namespace NMib::NConcurrency
 {
 	static_assert(sizeof(CConcurrentRunQueueEntry_Functor) == gc_ActorQueueDispatchFunctionMemory);
-	static_assert
-		(
-			(sizeof(CConcurrentRunQueueEntry_Functor::m_Link) + sizeof(void *) + sizeof(CConcurrentRunQueueEntry_Functor::m_fToCall))
-			== gc_ActorQueueDispatchFunctionMemory
-		)
-	;
+	static_assert((sizeof(CConcurrentRunQueueEntry_Functor::m_Link) + sizeof(void *) + sizeof(CConcurrentRunQueueEntry_Functor::m_fToCall)) == gc_ActorQueueDispatchFunctionMemory);
 	static_assert
 		(
 			sizeof(CConcurrentRunQueueEntry_FunctorNonVirtualNoAlloc)

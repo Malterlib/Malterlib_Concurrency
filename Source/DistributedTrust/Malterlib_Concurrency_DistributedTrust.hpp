@@ -55,9 +55,7 @@ namespace NMib::NConcurrency
 			}
 		}
 		else
-		{
 			DMibLogWithCategory(Mib/Concurrency/Distribution, SubscriptionLogVerbosity, "State not valid in constructor");
-		}
 	}
 
 	template <typename t_CActor>
@@ -97,9 +95,7 @@ namespace NMib::NConcurrency
 			}
 		}
 		else
-		{
 			DMibLogWithCategory(Mib/Concurrency/Distribution, SubscriptionLogVerbosity, "State not valid in operator =");
-		}
 		return *this;
 	}
 
@@ -156,13 +152,7 @@ namespace NMib::NConcurrency
 				continue;
 			if (pMatched)
 			{
-				o_Error = NStr::fg_Format
-					(
-						"Found more than one suitable. '{}' and '{}'"
-						, pMatched->m_TrustInfo.m_HostInfo
-						, TrustedActor.m_TrustInfo.m_HostInfo
-					)
-				;
+				o_Error = NStr::fg_Format("Found more than one suitable. '{}' and '{}'", pMatched->m_TrustInfo.m_HostInfo, TrustedActor.m_TrustInfo.m_HostInfo);
 				return nullptr;
 			}
 			pMatched = &TrustedActor;
@@ -196,7 +186,8 @@ namespace NMib::NConcurrency
 	template <typename tf_CActor>
 	auto CDistributedActorTrustManagerHolder::f_SubscribeTrustedActors(uint32 _MinSupportedVersion, uint32 _MaxSupportedVersion, TCActor<CActor> &&_Actor)
 	{
-		return this->template fp_GetAsActor<CDistributedActorTrustManager>().f_Bind<&CDistributedActorTrustManager::f_SubscribeTrustedActors<tf_CActor>, EVirtualCall::mc_NotVirtual>
+		return this->template fp_GetAsActor<CDistributedActorTrustManager>()
+			.f_Bind<&CDistributedActorTrustManager::f_SubscribeTrustedActors<tf_CActor>, EVirtualCall::mc_NotVirtual>
 			(
 				tf_CActor::mc_pDefaultNamespace
 				, fg_Move(_Actor)
@@ -208,24 +199,15 @@ namespace NMib::NConcurrency
 	}
 
 	template <typename tf_CActor>
-	TCFuture<TCTrustedActorSubscription<tf_CActor>> CDistributedActorTrustManager::f_SubscribeTrustedActors
-		(
-			NStr::CStr _Namespace
-			, TCActor<CActor> _Actor
-			, uint32 _MinSupportedVersion
-			, uint32 _MaxSupportedVersion
-		)
+	auto CDistributedActorTrustManager::f_SubscribeTrustedActors(NStr::CStr _Namespace, TCActor<CActor> _Actor, uint32 _MinSupportedVersion, uint32 _MaxSupportedVersion)
+		-> TCFuture<TCTrustedActorSubscription<tf_CActor>>
 	{
 		return f_SubscribeTrustedActorsWithVersion<tf_CActor>(_Namespace, _Actor, fg_SubscribeVersions<tf_CActor>(_MinSupportedVersion, _MaxSupportedVersion));
 	}
 
 	template <typename tf_CActor>
-	TCFuture<TCTrustedActorSubscription<tf_CActor>> CDistributedActorTrustManager::f_SubscribeTrustedActorsWithVersion
-		(
-			NStr::CStr _Namespace
-			, TCActor<CActor> _Actor
-			, CDistributedActorProtocolVersions _Versions
-		)
+	auto CDistributedActorTrustManager::f_SubscribeTrustedActorsWithVersion(NStr::CStr _Namespace, TCActor<CActor> _Actor, CDistributedActorProtocolVersions _Versions)
+		-> TCFuture<TCTrustedActorSubscription<tf_CActor>>
 	{
 		if (!CActorDistributionManager::fs_IsValidNamespaceName(_Namespace))
 			co_return DMibErrorInstance("Invalid namespace name");
@@ -420,12 +402,7 @@ namespace NMib::NConcurrency
 
 					fg_CallSafe
 						(
-							[
-								pThis
-								, Actor = NewActor.m_Actor
-								, TrustInfo = NewActor.m_TrustInfo
-								, OnNewActorFinishedPromise = fg_Move(OnNewActorFinishedPromise.m_Promise)
-							]
+							[pThis, Actor = NewActor.m_Actor, TrustInfo = NewActor.m_TrustInfo, OnNewActorFinishedPromise = fg_Move(OnNewActorFinishedPromise.m_Promise)]
 							() mutable -> TCFuture<void>
 							{
 								DMibFastCheck(pThis->m_fOnNewActor);
@@ -502,8 +479,7 @@ namespace NMib::NConcurrency
 
 						fg_CallSafe
 							(
-								[pThis, WeakActor = Actor.f_Weak(), TrustInfo = fg_Move(TrustInfo), OnNewActorFinished = fg_Move(OnNewActorFinished)]() mutable
-								-> TCFuture<void>
+								[pThis, WeakActor = Actor.f_Weak(), TrustInfo = fg_Move(TrustInfo), OnNewActorFinished = fg_Move(OnNewActorFinished)]() mutable -> TCFuture<void>
 								{
 									if (OnNewActorFinished.f_IsValid())
 									{

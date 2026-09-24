@@ -22,8 +22,8 @@ namespace NMib::NContainer
 	template <typename t_CType>
 	class TCThreadSafeQueueListEntry
 	{
-		template <typename tf_ObjectType, typename tf_CAllocator, typename... tfp_CParams>
-		friend tf_ObjectType *NMib::fg_ConstructObject(tf_CAllocator &&_Allocator, tfp_CParams&&... p_Params);
+		template <typename tf_ObjectType, typename tf_CAllocator, typename ...tfp_CParams>
+		friend tf_ObjectType *NMib::fg_ConstructObject(tf_CAllocator &&_Allocator, tfp_CParams && ...p_Params);
 
 		template <typename t_CType0, typename t_CAllocator0>
 		friend class TCThreadSafeQueue;
@@ -49,26 +49,23 @@ namespace NMib::NContainer
 		TCThreadSafeQueueEntry(TCThreadSafeQueueListEntry<t_CType> *_pEntry)
 			: m_pEntry(_pEntry)
 		{
-
 		}
 
 		// Disable copy
 		TCThreadSafeQueueEntry(TCThreadSafeQueueEntry const &_Other);
-		TCThreadSafeQueueEntry &operator =(TCThreadSafeQueueEntry const &_Other);
-	public:
+		TCThreadSafeQueueEntry &operator = (TCThreadSafeQueueEntry const &_Other);
 
+	public:
 		TCThreadSafeQueueEntry(TCThreadSafeQueueEntry &&_Other)
 			: m_pEntry(_Other.m_pEntry)
 		{
 			_Other.m_pEntry = nullptr;
 		}
 
-		TCThreadSafeQueueEntry &operator =(TCThreadSafeQueueEntry &&_Other)
+		TCThreadSafeQueueEntry &operator = (TCThreadSafeQueueEntry &&_Other)
 		{
 			if (m_pEntry)
-			{
 				fg_DeleteObjectDefiniteType(t_CAllocator(), m_pEntry);
-			}
 
 			m_pEntry = _Other.m_pEntry;
 			_Other.m_pEntry = nullptr;
@@ -96,12 +93,12 @@ namespace NMib::NContainer
 			return m_pEntry->m_Data;
 		}
 
-		mark_nodebug t_CType &operator *()
+		mark_nodebug t_CType &operator * ()
 		{
 			return f_Get();
 		}
 
-		mark_nodebug t_CType *operator ->()
+		mark_nodebug t_CType *operator -> ()
 		{
 			return &f_Get();
 		}
@@ -112,17 +109,17 @@ namespace NMib::NContainer
 			return m_pEntry->m_Data;
 		}
 
-		mark_nodebug t_CType const &operator *() const
+		mark_nodebug t_CType const &operator * () const
 		{
 			return f_Get();
 		}
 
-		mark_nodebug t_CType const *operator ->() const
+		mark_nodebug t_CType const *operator -> () const
 		{
 			return &f_Get();
 		}
 
-		inline_small explicit operator bool() const
+		inline_small explicit operator bool () const
 		{
 			return f_IsValid();
 		}
@@ -142,16 +139,15 @@ namespace NMib::NContainer
 		{
 			CListEntry *pEntry;
 			while (m_Queue.pop(pEntry))
-			{
 				fg_DeleteObjectDefiniteType(t_CAllocator(), pEntry);
-			}
 		}
+
 		TCThreadSafeQueue(TCThreadSafeQueue const &_Other);
 		TCThreadSafeQueue(TCThreadSafeQueue &&_Other);
-		TCThreadSafeQueue& operator =(TCThreadSafeQueue const &_Other);
-		TCThreadSafeQueue& operator =(TCThreadSafeQueue &&_Other);
-	public:
+		TCThreadSafeQueue &operator = (TCThreadSafeQueue const &_Other);
+		TCThreadSafeQueue &operator = (TCThreadSafeQueue &&_Other);
 
+	public:
 		TCThreadSafeQueue()
 		{
 		}
@@ -187,7 +183,7 @@ namespace NMib::NContainer
 			m_Queue.push(pEntry);
 		}
 
-		void f_PopAllToVector(NContainer::TCVector<t_CType>& _olItems)
+		void f_PopAllToVector(NContainer::TCVector<t_CType> &_olItems)
 		{
 			CListEntry *pEntry = nullptr;
 			while (m_Queue.pop(pEntry))
@@ -201,7 +197,6 @@ namespace NMib::NContainer
 		{
 			return fg_RemoveQualifiers(m_Queue).empty();
 		}
-
 	};
 #else
 	template <typename t_CType, typename t_CAllocator>
@@ -212,8 +207,8 @@ namespace NMib::NContainer
 	template <typename t_CType>
 	class TCThreadSafeQueueListEntry
 	{
-		template <typename tf_ObjectType, typename tf_CAllocator, typename... tfp_CParams>
-		friend tf_ObjectType *NMib::fg_ConstructObject(tf_CAllocator &&_Allocator, tfp_CParams&&... p_Params);
+		template <typename tf_ObjectType, typename tf_CAllocator, typename ...tfp_CParams>
+		friend tf_ObjectType *NMib::fg_ConstructObject(tf_CAllocator &&_Allocator, tfp_CParams && ...p_Params);
 
 		template <typename t_CType0, typename t_CAllocator0>
 		friend class TCThreadSafeQueue;
@@ -240,26 +235,23 @@ namespace NMib::NContainer
 		TCThreadSafeQueueEntry(TCThreadSafeQueueListEntry<t_CType> *_pEntry)
 			: m_pEntry(_pEntry)
 		{
-
 		}
 
 		// Disable copy
 		TCThreadSafeQueueEntry(TCThreadSafeQueueEntry const &_Other);
-		TCThreadSafeQueueEntry &operator =(TCThreadSafeQueueEntry const &_Other);
-	public:
+		TCThreadSafeQueueEntry &operator = (TCThreadSafeQueueEntry const &_Other);
 
+	public:
 		TCThreadSafeQueueEntry(TCThreadSafeQueueEntry &&_Other)
 			: m_pEntry(_Other.m_pEntry)
 		{
 			_Other.m_pEntry = nullptr;
 		}
 
-		TCThreadSafeQueueEntry &operator =(TCThreadSafeQueueEntry &&_Other)
+		TCThreadSafeQueueEntry &operator = (TCThreadSafeQueueEntry &&_Other)
 		{
 			if (m_pEntry)
-			{
 				fg_DeleteObjectDefiniteType(t_CAllocator(), m_pEntry);
-			}
 
 			m_pEntry = _Other.m_pEntry;
 			_Other.m_pEntry = nullptr;
@@ -287,12 +279,12 @@ namespace NMib::NContainer
 			return m_pEntry->m_Data;
 		}
 
-		mark_nodebug t_CType &operator *()
+		mark_nodebug t_CType &operator * ()
 		{
 			return f_Get();
 		}
 
-		mark_nodebug t_CType *operator ->()
+		mark_nodebug t_CType *operator -> ()
 		{
 			return &f_Get();
 		}
@@ -303,17 +295,17 @@ namespace NMib::NContainer
 			return m_pEntry->m_Data;
 		}
 
-		mark_nodebug t_CType const &operator *() const
+		mark_nodebug t_CType const &operator * () const
 		{
 			return f_Get();
 		}
 
-		mark_nodebug t_CType const *operator ->() const
+		mark_nodebug t_CType const *operator -> () const
 		{
 			return &f_Get();
 		}
 
-		inline_small explicit operator bool() const
+		inline_small explicit operator bool () const
 		{
 			return f_IsValid();
 		}
@@ -339,8 +331,8 @@ namespace NMib::NContainer
 				pEntry = m_Queue.f_Pop();
 			}
 		}
-	public:
 
+	public:
 		TCThreadSafeQueue()
 		{
 		}
@@ -355,6 +347,7 @@ namespace NMib::NContainer
 				++Iter;
 			}
 		}
+
 		TCThreadSafeQueue(TCThreadSafeQueue &&_Other)
 		{
 			DMibLock(_Other.m_Lock);
@@ -406,7 +399,7 @@ namespace NMib::NContainer
 			}
 		}
 
-		void f_PopAllToVector(NContainer::TCVector<t_CType>& _olItems)
+		void f_PopAllToVector(NContainer::TCVector<t_CType> &_olItems)
 		{
 			DMibLock(m_Lock);
 
@@ -424,7 +417,6 @@ namespace NMib::NContainer
 			DMibLock(m_Lock);
 			return m_Queue.f_IsEmpty();
 		}
-
 	};
 #endif
 }

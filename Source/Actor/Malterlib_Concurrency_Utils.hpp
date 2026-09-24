@@ -8,8 +8,8 @@ namespace NMib::NConcurrency
 {
 	namespace NPrivate
 	{
-		constexpr static umint const gc_ActorResultFinishedMask = DMibBitRangeTyped(0, sizeof(umint)*8-2, umint);
-		constexpr static umint const gc_ActorResultResultsGottenMask = DMibBitRangeTyped(sizeof(umint)*8-1, sizeof(umint)*8-1, umint);
+		static constexpr umint const gc_ActorResultFinishedMask = DMibBitRangeTyped(0, sizeof(umint) * 8 - 2, umint);
+		static constexpr umint const gc_ActorResultResultsGottenMask = DMibBitRangeTyped(sizeof(umint) * 8 - 1, sizeof(umint) * 8 - 1, umint);
 	}
 
 	template <typename tf_CType>
@@ -24,11 +24,7 @@ namespace NMib::NConcurrency
 	}
 
 	template <typename tf_CType, typename tf_FOnResult>
-	void fg_CombineResults
-		(
-			NContainer::TCVector<TCAsyncResult<tf_CType>> &&_Results
-			, tf_FOnResult &&_fOnResult
-		)
+	void fg_CombineResults(NContainer::TCVector<TCAsyncResult<tf_CType>> &&_Results, tf_FOnResult &&_fOnResult)
 	{
 		NException::CExceptionExceptionVectorData::CErrorCollector ErrorCollector;
 		bool bIsError = false;
@@ -50,11 +46,7 @@ namespace NMib::NConcurrency
 	}
 
 	template <typename tf_FOnResult>
-	void fg_CombineResults
-		(
-			NContainer::TCVector<TCAsyncResult<void>> &&_Results
-			, tf_FOnResult &&_fOnResult
-		)
+	void fg_CombineResults(NContainer::TCVector<TCAsyncResult<void>> &&_Results, tf_FOnResult &&_fOnResult)
 	{
 		NException::CExceptionExceptionVectorData::CErrorCollector ErrorCollector;
 		bool bIsError = false;
@@ -76,12 +68,7 @@ namespace NMib::NConcurrency
 	}
 
 	template <typename tf_CReturn, typename tf_CType, typename tf_FOnResult>
-	bool fg_CombineResults
-		(
-			TCPromise<tf_CReturn> const &_Promise
-			, TCAsyncResult<NContainer::TCVector<TCAsyncResult<tf_CType>>> &&_Results
-			, tf_FOnResult &&_fOnResult
-		)
+	bool fg_CombineResults(TCPromise<tf_CReturn> const &_Promise, TCAsyncResult<NContainer::TCVector<TCAsyncResult<tf_CType>>> &&_Results, tf_FOnResult &&_fOnResult)
 	{
 		NException::CExceptionExceptionVectorData::CErrorCollector ErrorCollector;
 		bool bIsError = false;
@@ -112,12 +99,7 @@ namespace NMib::NConcurrency
 	}
 
 	template <typename tf_CReturn, typename tf_FOnResult>
-	bool fg_CombineResults
-		(
-			TCPromise<tf_CReturn> const &_Promise
-			, TCAsyncResult<NContainer::TCVector<TCAsyncResult<void>>> &&_Results
-			, tf_FOnResult &&_fOnResult
-		)
+	bool fg_CombineResults(TCPromise<tf_CReturn> const &_Promise, TCAsyncResult<NContainer::TCVector<TCAsyncResult<void>>> &&_Results, tf_FOnResult &&_fOnResult)
 	{
 		NException::CExceptionExceptionVectorData::CErrorCollector ErrorCollector;
 		bool bIsError = false;
@@ -148,12 +130,7 @@ namespace NMib::NConcurrency
 	}
 
 	template <typename tf_CType, typename tf_FOnResult>
-	bool fg_CombineResults
-		(
-			TCPromise<void> const &_Promise
-			, TCAsyncResult<NContainer::TCVector<TCAsyncResult<tf_CType>>> &&_Results
-			, tf_FOnResult &&_fOnResult
-		)
+	bool fg_CombineResults(TCPromise<void> const &_Promise, TCAsyncResult<NContainer::TCVector<TCAsyncResult<tf_CType>>> &&_Results, tf_FOnResult &&_fOnResult)
 	{
 		NException::CExceptionExceptionVectorData::CErrorCollector ErrorCollector;
 		bool bIsError = false;
@@ -184,12 +161,7 @@ namespace NMib::NConcurrency
 	}
 
 	template <typename tf_FOnResult>
-	bool fg_CombineResults
-		(
-			TCPromise<void> const &_Promise
-			, TCAsyncResult<NContainer::TCVector<TCAsyncResult<void>>> &&_Results
-			, tf_FOnResult &&_fOnResult
-		)
+	bool fg_CombineResults(TCPromise<void> const &_Promise, TCAsyncResult<NContainer::TCVector<TCAsyncResult<void>>> &&_Results, tf_FOnResult &&_fOnResult)
 	{
 		NException::CExceptionExceptionVectorData::CErrorCollector ErrorCollector;
 		bool bIsError = false;
@@ -219,14 +191,8 @@ namespace NMib::NConcurrency
 		return true;
 	}
 
-
 	template <typename tf_CReturn, typename tf_CType, typename tf_FOnResult>
-	bool fg_CombineResults
-		(
-			TCPromise<tf_CReturn> const &_Promise
-			, NContainer::TCVector<TCAsyncResult<tf_CType>> &&_Results
-			, tf_FOnResult &&_fOnResult
-		)
+	bool fg_CombineResults(TCPromise<tf_CReturn> const &_Promise, NContainer::TCVector<TCAsyncResult<tf_CType>> &&_Results, tf_FOnResult &&_fOnResult)
 	{
 		NException::CExceptionExceptionVectorData::CErrorCollector ErrorCollector;
 		bool bIsError = false;
@@ -249,12 +215,7 @@ namespace NMib::NConcurrency
 	}
 
 	template <typename tf_CReturn, typename tf_FOnResult>
-	bool fg_CombineResults
-		(
-			TCPromise<tf_CReturn> const &_Promise
-			, NContainer::TCVector<TCAsyncResult<void>> &&_Results
-			, tf_FOnResult &&_fOnResult
-		)
+	bool fg_CombineResults(TCPromise<tf_CReturn> const &_Promise, NContainer::TCVector<TCAsyncResult<void>> &&_Results, tf_FOnResult &&_fOnResult)
 	{
 		NException::CExceptionExceptionVectorData::CErrorCollector ErrorCollector;
 		bool bIsError = false;
@@ -277,12 +238,7 @@ namespace NMib::NConcurrency
 	}
 
 	template <typename tf_CType, typename tf_FOnResult>
-	bool fg_CombineResults
-		(
-			TCPromise<void> const &_Promise
-			, NContainer::TCVector<TCAsyncResult<tf_CType>> &&_Results
-			, tf_FOnResult &&_fOnResult
-		)
+	bool fg_CombineResults(TCPromise<void> const &_Promise, NContainer::TCVector<TCAsyncResult<tf_CType>> &&_Results, tf_FOnResult &&_fOnResult)
 	{
 		NException::CExceptionExceptionVectorData::CErrorCollector ErrorCollector;
 		bool bIsError = false;
@@ -305,12 +261,7 @@ namespace NMib::NConcurrency
 	}
 
 	template <typename tf_FOnResult>
-	bool fg_CombineResults
-		(
-			TCPromise<void> const &_Promise
-			, NContainer::TCVector<TCAsyncResult<void>> &&_Results
-			, tf_FOnResult &&_fOnResult
-		)
+	bool fg_CombineResults(TCPromise<void> const &_Promise, NContainer::TCVector<TCAsyncResult<void>> &&_Results, tf_FOnResult &&_fOnResult)
 	{
 		NException::CExceptionExceptionVectorData::CErrorCollector ErrorCollector;
 		bool bIsError = false;
@@ -331,15 +282,9 @@ namespace NMib::NConcurrency
 		}
 		return true;
 	}
-
-
 
 	template <typename tf_CKey, typename tf_CType, typename tf_FOnResult>
-	void fg_CombineResults
-		(
-			NContainer::TCMap<tf_CKey, TCAsyncResult<tf_CType>> &&_Results
-			, tf_FOnResult &&_fOnResult
-		)
+	void fg_CombineResults(NContainer::TCMap<tf_CKey, TCAsyncResult<tf_CType>> &&_Results, tf_FOnResult &&_fOnResult)
 	{
 		NException::CExceptionExceptionVectorData::CErrorCollector ErrorCollector;
 		bool bIsError = false;
@@ -361,11 +306,7 @@ namespace NMib::NConcurrency
 	}
 
 	template <typename tf_CKey, typename tf_FOnResult>
-	void fg_CombineResults
-		(
-			NContainer::TCMap<tf_CKey, TCAsyncResult<void>> &&_Results
-			, tf_FOnResult &&_fOnResult
-		)
+	void fg_CombineResults(NContainer::TCMap<tf_CKey, TCAsyncResult<void>> &&_Results, tf_FOnResult &&_fOnResult)
 	{
 		NException::CExceptionExceptionVectorData::CErrorCollector ErrorCollector;
 		bool bIsError = false;
@@ -387,12 +328,7 @@ namespace NMib::NConcurrency
 	}
 
 	template <typename tf_CKey, typename tf_CReturn, typename tf_CType, typename tf_FOnResult>
-	bool fg_CombineResults
-		(
-			TCPromise<tf_CReturn> const &_Promise
-			, TCAsyncResult<NContainer::TCMap<tf_CKey, TCAsyncResult<tf_CType>>> &&_Results
-			, tf_FOnResult &&_fOnResult
-		)
+	bool fg_CombineResults(TCPromise<tf_CReturn> const &_Promise, TCAsyncResult<NContainer::TCMap<tf_CKey, TCAsyncResult<tf_CType>>> &&_Results, tf_FOnResult &&_fOnResult)
 	{
 		NException::CExceptionExceptionVectorData::CErrorCollector ErrorCollector;
 		bool bIsError = false;
@@ -423,12 +359,7 @@ namespace NMib::NConcurrency
 	}
 
 	template <typename tf_CKey, typename tf_CReturn, typename tf_FOnResult>
-	bool fg_CombineResults
-		(
-			TCPromise<tf_CReturn> const &_Promise
-			, TCAsyncResult<NContainer::TCMap<tf_CKey, TCAsyncResult<void>>> &&_Results
-			, tf_FOnResult &&_fOnResult
-		)
+	bool fg_CombineResults(TCPromise<tf_CReturn> const &_Promise, TCAsyncResult<NContainer::TCMap<tf_CKey, TCAsyncResult<void>>> &&_Results, tf_FOnResult &&_fOnResult)
 	{
 		NException::CExceptionExceptionVectorData::CErrorCollector ErrorCollector;
 		bool bIsError = false;
@@ -459,12 +390,7 @@ namespace NMib::NConcurrency
 	}
 
 	template <typename tf_CKey, typename tf_CType, typename tf_FOnResult>
-	bool fg_CombineResults
-		(
-			TCPromise<void> const &_Promise
-			, TCAsyncResult<NContainer::TCMap<tf_CKey, TCAsyncResult<tf_CType>>> &&_Results
-			, tf_FOnResult &&_fOnResult
-		)
+	bool fg_CombineResults(TCPromise<void> const &_Promise, TCAsyncResult<NContainer::TCMap<tf_CKey, TCAsyncResult<tf_CType>>> &&_Results, tf_FOnResult &&_fOnResult)
 	{
 		NException::CExceptionExceptionVectorData::CErrorCollector ErrorCollector;
 		bool bIsError = false;
@@ -495,12 +421,7 @@ namespace NMib::NConcurrency
 	}
 
 	template <typename tf_CKey, typename tf_FOnResult>
-	bool fg_CombineResults
-		(
-			TCPromise<void> const &_Promise
-			, TCAsyncResult<NContainer::TCMap<tf_CKey, TCAsyncResult<void>>> &&_Results
-			, tf_FOnResult &&_fOnResult
-		)
+	bool fg_CombineResults(TCPromise<void> const &_Promise, TCAsyncResult<NContainer::TCMap<tf_CKey, TCAsyncResult<void>>> &&_Results, tf_FOnResult &&_fOnResult)
 	{
 		NException::CExceptionExceptionVectorData::CErrorCollector ErrorCollector;
 		bool bIsError = false;
@@ -531,12 +452,7 @@ namespace NMib::NConcurrency
 	}
 
 	template <typename tf_CKey, typename tf_CReturn, typename tf_CType, typename tf_FOnResult>
-	bool fg_CombineResults
-		(
-			TCPromise<tf_CReturn> const &_Promise
-			, NContainer::TCMap<tf_CKey, TCAsyncResult<tf_CType>> &&_Results
-			, tf_FOnResult &&_fOnResult
-		)
+	bool fg_CombineResults(TCPromise<tf_CReturn> const &_Promise, NContainer::TCMap<tf_CKey, TCAsyncResult<tf_CType>> &&_Results, tf_FOnResult &&_fOnResult)
 	{
 		NException::CExceptionExceptionVectorData::CErrorCollector ErrorCollector;
 		bool bIsError = false;
@@ -559,12 +475,7 @@ namespace NMib::NConcurrency
 	}
 
 	template <typename tf_CKey, typename tf_CReturn, typename tf_FOnResult>
-	bool fg_CombineResults
-		(
-			TCPromise<tf_CReturn> const &_Promise
-			, NContainer::TCMap<tf_CKey, TCAsyncResult<void>> &&_Results
-			, tf_FOnResult &&_fOnResult
-		)
+	bool fg_CombineResults(TCPromise<tf_CReturn> const &_Promise, NContainer::TCMap<tf_CKey, TCAsyncResult<void>> &&_Results, tf_FOnResult &&_fOnResult)
 	{
 		NException::CExceptionExceptionVectorData::CErrorCollector ErrorCollector;
 		bool bIsError = false;
@@ -587,12 +498,7 @@ namespace NMib::NConcurrency
 	}
 
 	template <typename tf_CKey, typename tf_CType, typename tf_FOnResult>
-	bool fg_CombineResults
-		(
-			TCPromise<void> const &_Promise
-			, NContainer::TCMap<tf_CKey, TCAsyncResult<tf_CType>> &&_Results
-			, tf_FOnResult &&_fOnResult
-		)
+	bool fg_CombineResults(TCPromise<void> const &_Promise, NContainer::TCMap<tf_CKey, TCAsyncResult<tf_CType>> &&_Results, tf_FOnResult &&_fOnResult)
 	{
 		NException::CExceptionExceptionVectorData::CErrorCollector ErrorCollector;
 		bool bIsError = false;
@@ -615,12 +521,7 @@ namespace NMib::NConcurrency
 	}
 
 	template <typename tf_CKey, typename tf_FOnResult>
-	bool fg_CombineResults
-		(
-			TCPromise<void> const &_Promise
-			, NContainer::TCMap<tf_CKey, TCAsyncResult<void>> &&_Results
-			, tf_FOnResult &&_fOnResult
-		)
+	bool fg_CombineResults(TCPromise<void> const &_Promise, NContainer::TCMap<tf_CKey, TCAsyncResult<void>> &&_Results, tf_FOnResult &&_fOnResult)
 	{
 		NException::CExceptionExceptionVectorData::CErrorCollector ErrorCollector;
 		bool bIsError = false;
@@ -655,21 +556,8 @@ namespace NMib::NConcurrency
 				>
 			;
 
-			static_assert
-				(
-					NTraits::cIsCallableWith
-					<
-						NTraits::TCRemoveReference<tf_FToDispatch>
-						, void (NTraits::TCRemoveQualifiersAndAddRValueReference<tfp_CParams>...)
-					>
-				)
-			;
-			using CReturnType = NTraits::TCCallableReturnTypeFor
-				<
-					NTraits::TCRemoveReference<tf_FToDispatch>
-					, void (NTraits::TCRemoveQualifiersAndAddRValueReference<tfp_CParams>...)
-				>
-			;
+			static_assert(NTraits::cIsCallableWith<NTraits::TCRemoveReference<tf_FToDispatch>, void (NTraits::TCRemoveQualifiersAndAddRValueReference<tfp_CParams>...)>);
+			using CReturnType = NTraits::TCCallableReturnTypeFor<NTraits::TCRemoveReference<tf_FToDispatch>, void (NTraits::TCRemoveQualifiersAndAddRValueReference<tfp_CParams>...)>;
 
 			if constexpr (NPrivate::TCIsFuture<CReturnType>::mc_Value || NPrivate::TCIsAsyncGenerator<CReturnType>::mc_Value)
 			{
@@ -681,8 +569,7 @@ namespace NMib::NConcurrency
 							, CBindActorOptions{EActorCallType::mc_Direct, EVirtualCall::mc_NotVirtual}
 						>
 						(
-							NFunction::TCFunctionMovable<CReturnType (NTraits::TCRemoveQualifiersAndAddRValueReference<tfp_CFunctionParams>...)>
-							(fg_Forward<tf_FToDispatch>(_fDispatch))
+							NFunction::TCFunctionMovable<CReturnType (NTraits::TCRemoveQualifiersAndAddRValueReference<tfp_CFunctionParams>...)>(fg_Forward<tf_FToDispatch>(_fDispatch))
 							, fg_Forward<tfp_CParams>(p_Params)...
 						)
 					;
@@ -691,8 +578,7 @@ namespace NMib::NConcurrency
 				{
 					return reinterpret_cast<CCallActor>(_Actor).template f_BindByValue<&CActor::f_DispatchWithReturn<CReturnType, tfp_CFunctionParams...>, EVirtualCall::mc_NotVirtual>
 						(
-							NFunction::TCFunctionMovable<CReturnType (NTraits::TCRemoveQualifiersAndAddRValueReference<tfp_CFunctionParams>...)>
-							(fg_Forward<tf_FToDispatch>(_fDispatch))
+							NFunction::TCFunctionMovable<CReturnType (NTraits::TCRemoveQualifiersAndAddRValueReference<tfp_CFunctionParams>...)>(fg_Forward<tf_FToDispatch>(_fDispatch))
 							, fg_Forward<tfp_CParams>(p_Params)...
 						)
 					;
@@ -705,11 +591,7 @@ namespace NMib::NConcurrency
 				using CInnerReturn = typename TCGetReturnType<CReturnType>::CType;
 				static_assert(!tf_bDirect); // Not implemented
 
-				return reinterpret_cast<CCallActor>(_Actor).template f_BindByValue
-					<
-						&CActor::f_DispatchWithReturn<TCFuture<CInnerReturn>, tfp_CFunctionParams...>
-						, EVirtualCall::mc_NotVirtual
-					>
+				return reinterpret_cast<CCallActor>(_Actor).template f_BindByValue<&CActor::f_DispatchWithReturn<TCFuture<CInnerReturn>, tfp_CFunctionParams...>, EVirtualCall::mc_NotVirtual>
 					(
 						[fDispatch = fg_Forward<tf_FToDispatch>(_fDispatch)]<typename ...tfp_CParams2>(tfp_CParams2 ...p_InnerParams) mutable -> TCFuture<CInnerReturn>
 						{
@@ -806,25 +688,13 @@ namespace NMib::NConcurrency
 	template <typename tf_FToDispatch>
 	inline_always auto fg_Dispatch(tf_FToDispatch &&_fDispatch)
 	{
-		return NPrivate::fg_DispatchGenericImpl<false>
-			(
-				NMeta::TCTypeList<>()
-				, fg_CurrentActor()
-				, fg_Forward<tf_FToDispatch>(_fDispatch)
-			)
-		;
+		return NPrivate::fg_DispatchGenericImpl<false>(NMeta::TCTypeList<>(), fg_CurrentActor(), fg_Forward<tf_FToDispatch>(_fDispatch));
 	}
 
 	template <typename tf_FToDispatch>
 	inline_always auto fg_ConcurrentDispatch(tf_FToDispatch &&_fDispatch)
 	{
-		return NPrivate::fg_DispatchGenericImpl<false>
-			(
-				NMeta::TCTypeList<>()
-				, fg_ConcurrentActor()
-				, fg_Forward<tf_FToDispatch>(_fDispatch)
-			)
-		;
+		return NPrivate::fg_DispatchGenericImpl<false>(NMeta::TCTypeList<>(), fg_ConcurrentActor(), fg_Forward<tf_FToDispatch>(_fDispatch));
 	}
 
 	namespace NPrivate
@@ -832,16 +702,10 @@ namespace NMib::NConcurrency
 		template <typename tf_FFunction>
 		inline_always auto CThisActor::operator / (tf_FFunction &&_fFunction) const
 		{
-			return NPrivate::fg_DispatchGenericImpl<true>
-				(
-					NMeta::TCTypeList<>()
-					, fg_CurrentActor()
-					, fg_Forward<tf_FFunction>(_fFunction)
-				)
-			;
+			return NPrivate::fg_DispatchGenericImpl<true>(NMeta::TCTypeList<>(), fg_CurrentActor(), fg_Forward<tf_FFunction>(_fFunction));
 		}
 
-		template <typename tf_FFunction, typename... tfp_CCallParams>
+		template <typename tf_FFunction, typename ...tfp_CCallParams>
 		inline_always auto CThisActor::f_Invoke(tf_FFunction &&_fFunction, tfp_CCallParams && ...p_CallParams) const
 		{
 			using CFunctionType = NTraits::TCRemoveReference<tf_FFunction>;
@@ -957,13 +821,7 @@ namespace NMib::NConcurrency
 		template <typename tf_FFunction>
 		inline_always auto operator / (tf_FFunction &&_fFunction) const
 		{
-			return NPrivate::fg_DispatchGenericImpl<false>
-				(
-					NMeta::TCTypeList<>()
-					, m_Actor
-					, fg_Forward<tf_FFunction>(_fFunction)
-				)
-			;
+			return NPrivate::fg_DispatchGenericImpl<false>(NMeta::TCTypeList<>(), m_Actor, fg_Forward<tf_FFunction>(_fFunction));
 		}
 
 		TCActor<> m_Actor;
@@ -979,13 +837,7 @@ namespace NMib::NConcurrency
 		template <typename tf_FFunction>
 		inline_always auto operator / (tf_FFunction &&_fFunction) const
 		{
-			return NPrivate::fg_DispatchGenericImpl<false>
-				(
-					NMeta::TCTypeList<>()
-					, m_Actor
-					, fg_Forward<tf_FFunction>(_fFunction)
-				)
-			;
+			return NPrivate::fg_DispatchGenericImpl<false>(NMeta::TCTypeList<>(), m_Actor, fg_Forward<tf_FFunction>(_fFunction));
 		}
 
 		TCWeakActor<> m_Actor;
@@ -996,13 +848,7 @@ namespace NMib::NConcurrency
 		template <typename tf_FFunction>
 		inline_always auto operator / (tf_FFunction &&_fFunction) const
 		{
-			return NPrivate::fg_DispatchGenericImpl<false>
-				(
-					NMeta::TCTypeList<>()
-					, fg_CurrentActor()
-					, fg_Forward<tf_FFunction>(_fFunction)
-				)
-			;
+			return NPrivate::fg_DispatchGenericImpl<false>(NMeta::TCTypeList<>(), fg_CurrentActor(), fg_Forward<tf_FFunction>(_fFunction));
 		}
 
 		inline CDispatchHelperWithActor operator () (TCActor<> const &_Actor) const
@@ -1081,7 +927,7 @@ namespace NMib::NConcurrency
 
 	struct [[nodiscard("You need to co_await to yield")]] CCoroutineYield
 	{
-		auto operator co_await()
+		auto operator co_await ()
 		{
 			return CCoroutineYieldAwaiter();
 		}
@@ -1094,13 +940,7 @@ namespace NMib::NConcurrency
 		template <typename tf_FFunction>
 		inline_always auto operator / (tf_FFunction &&_fFunction) const
 		{
-			return NPrivate::fg_DispatchGenericImpl<false>
-				(
-					NMeta::TCTypeList<>()
-					, fg_ConcurrentActor()
-					, fg_Forward<tf_FFunction>(_fFunction)
-				)
-			;
+			return NPrivate::fg_DispatchGenericImpl<false>(NMeta::TCTypeList<>(), fg_ConcurrentActor(), fg_Forward<tf_FFunction>(_fFunction));
 		}
 	};
 
@@ -1111,20 +951,14 @@ namespace NMib::NConcurrency
 		template <typename tf_FFunction>
 		inline_always auto operator / (tf_FFunction &&_fFunction) const
 		{
-			return NPrivate::fg_DispatchGenericImpl<true>
-				(
-					NMeta::TCTypeList<>()
-					, fg_CurrentActor()
-					, fg_Forward<tf_FFunction>(_fFunction)
-				)
-			;
+			return NPrivate::fg_DispatchGenericImpl<true>(NMeta::TCTypeList<>(), fg_CurrentActor(), fg_Forward<tf_FFunction>(_fFunction));
 		}
 	};
 
 	extern CDirectDispatchHelper const &g_DirectDispatch;
 
 	template <typename t_CReturnValue>
-	template<typename tf_CFunctor>
+	template <typename tf_CFunctor>
 	inline_always void TCFuture<t_CReturnValue>::operator > (tf_CFunctor &&_Functor) &&
 		requires (NTraits::cIsCallableWith<NTraits::TCRemoveReferenceAndQualifiers<tf_CFunctor>, void (TCAsyncResult<t_CReturnValue> &&)>)
 	{
@@ -1163,13 +997,7 @@ namespace NMib::NConcurrency
 									(CConcurrencyThreadLocal &_ThreadLocal) mutable
 									{
 										DMibFastCheck(pActor == _ThreadLocal.m_pCurrentlyProcessingActorHolder);
-										NPrivate::fg_CallResultFunctor
-											(
-												_ThreadLocal
-												, Functor
-												, fg_Move(Result)
-											)
-										;
+										NPrivate::fg_CallResultFunctor(_ThreadLocal, Functor, fg_Move(Result));
 									}
 								)
 							;
@@ -1199,13 +1027,7 @@ namespace NMib::NConcurrency
 								(CConcurrencyThreadLocal &_ThreadLocal) mutable
 								{
 									DMibFastCheck(pActor == _ThreadLocal.m_pCurrentlyProcessingActorHolder);
-									NPrivate::fg_CallResultFunctor
-										(
-											_ThreadLocal
-											, Functor
-											, fg_Move(Result)
-										)
-									;
+									NPrivate::fg_CallResultFunctor(_ThreadLocal, Functor, fg_Move(Result));
 								}
 							)
 						;
@@ -1276,19 +1098,16 @@ namespace NMib::NConcurrency
 		*_MapResult = fg_Move(*this);
 	}
 
-	template <typename... tp_CFutures>
+	template <typename ...tp_CFutures>
 	template <typename tf_CType>
 	inline_always TCFuturePack<tp_CFutures..., TCFuture<tf_CType>> TCFuturePack<tp_CFutures...>::operator + (TCFuture<tf_CType> &&_Future) &&
 	{
 		return NStorage::fg_TupleConcatenate(fg_Move(m_Futures), NStorage::fg_Tuple(fg_Move(_Future)));
 	}
 
-	template <typename... tp_CFutures>
+	template <typename ...tp_CFutures>
 	template <typename tf_CReturn, typename tf_CActor, typename tf_FFunctionPointer, CBindActorOptions tf_BindOptions, bool tf_bByValue, typename ...tfp_CParams>
-	inline_always auto TCFuturePack<tp_CFutures...>::operator +
-		(
-			TCBoundActorCall<tf_CReturn, tf_CActor, tf_FFunctionPointer, tf_BindOptions, tf_bByValue, tfp_CParams...> &&_Other
-		) &&
+	inline_always auto TCFuturePack<tp_CFutures...>::operator + (TCBoundActorCall<tf_CReturn, tf_CActor, tf_FFunctionPointer, tf_BindOptions, tf_bByValue, tfp_CParams...> &&_Other) &&
 		-> TCFuturePack<tp_CFutures..., TCBoundActorCall<tf_CReturn, tf_CActor, tf_FFunctionPointer, tf_BindOptions, tf_bByValue, tfp_CParams...>>
 	{
 		return NStorage::fg_TupleConcatenate(fg_Move(m_Futures), NStorage::fg_Tuple(fg_Move(_Other)));
@@ -1305,7 +1124,11 @@ namespace NMib::NConcurrency
 	template <typename tf_CReturn, typename tf_CActor, typename tf_FFunctionPointer, CBindActorOptions tf_BindOptions, bool tf_bByValue, typename ...tfp_CParams>
 	auto TCFuture<t_CReturnValue>::operator + (TCBoundActorCall<tf_CReturn, tf_CActor, tf_FFunctionPointer, tf_BindOptions, tf_bByValue, tfp_CParams...> &&_Other) &&
 	{
-		return TCFuturePack<TCFuture, TCBoundActorCall<tf_CReturn, tf_CActor, tf_FFunctionPointer, tf_BindOptions, tf_bByValue, tfp_CParams...>>(NStorage::fg_Tuple(fg_Move(*this), fg_Move(_Other)));
+		return TCFuturePack<TCFuture, TCBoundActorCall<tf_CReturn, tf_CActor, tf_FFunctionPointer, tf_BindOptions, tf_bByValue, tfp_CParams...>>
+			(
+				NStorage::fg_Tuple(fg_Move(*this), fg_Move(_Other))
+			)
+		;
 	}
 
 	template <typename t_CReturnValue>
@@ -1338,7 +1161,7 @@ namespace NMib::NConcurrency
 		template <typename t_CType>
 		struct TCVectorAllDoneValueSetter
 		{
-			void operator ()(TCAsyncResult<t_CType> &&_Result)
+			void operator () (TCAsyncResult<t_CType> &&_Result)
 			{
 				m_Value = fg_Move(_Result);
 			}
@@ -1419,7 +1242,7 @@ namespace NMib::NConcurrency
 		template <typename t_CKey, typename t_CValue>
 		struct TCMapAllDoneValueSetter
 		{
-			void operator ()(TCAsyncResult<t_CValue> &&_Result)
+			void operator () (TCAsyncResult<t_CValue> &&_Result)
 			{
 				m_Value = fg_Move(_Result);
 			}

@@ -16,7 +16,8 @@ namespace NMib::NConcurrency
 				NPrivate::TCIsFuture
 				<
 					typename NTraits::TCFunctionTraits<typename NFunction::TCFunctionInfo<NFunction::TCFunction<tf_CFunctionOptions...>>::template TCCallType<0>>::CReturn
-				>::mc_Value
+				>
+				::mc_Value
 				, "Only functions that return a future are supported"
 			)
 		;
@@ -32,7 +33,8 @@ namespace NMib::NConcurrency
 				NPrivate::TCIsFuture
 				<
 					typename NTraits::TCFunctionTraits<typename NFunction::TCFunctionInfo<NFunction::TCFunctionMutable<tf_CSignature>>::template TCCallType<0>>::CReturn
-				>::mc_Value
+				>
+				::mc_Value
 				, "Only functions that return a future are supported"
 			)
 		;
@@ -49,7 +51,8 @@ namespace NMib::NConcurrency
 				NPrivate::TCIsFuture
 				<
 					typename NTraits::TCFunctionTraits<typename NFunction::TCFunctionInfo<NFunction::TCFunction<tf_CFunctionOptions...>>::template TCCallType<0>>::CReturn
-				>::mc_Value
+				>
+				::mc_Value
 				, "Only functions that return a future are supported"
 			)
 		;
@@ -65,7 +68,8 @@ namespace NMib::NConcurrency
 				NPrivate::TCIsFuture
 				<
 					typename NTraits::TCFunctionTraits<typename NFunction::TCFunctionInfo<NFunction::TCFunctionMovable<tf_CSignature>>::template TCCallType<0>>::CReturn
-				>::mc_Value
+				>
+				::mc_Value
 				, "Only functions that return a future are supported"
 			)
 		;
@@ -81,7 +85,8 @@ namespace NMib::NConcurrency
 				NPrivate::TCIsFuture
 				<
 					typename NTraits::TCFunctionTraits<typename NFunction::TCFunctionInfo<NFunction::TCFunctionMutable<tf_CSignature>>::template TCCallType<0>>::CReturn
-				>::mc_Value
+				>
+				::mc_Value
 				, "Only functions that return a future are supported"
 			)
 		;
@@ -269,13 +274,8 @@ namespace NMib::NConcurrency
 				;
 			}
 
-			template <typename tf_FFunction, umint... tfp_Indices>
-			static NConcurrency::TCFuture<NStream::CBinaryStorage> fs_Call
-				(
-					CDistributedActorReadStream &_Stream
-					, tf_FFunction &_fFunction
-					, NMeta::TCIndices<tfp_Indices...> const &_Indices
-				)
+			template <typename tf_FFunction, umint ...tfp_Indices>
+			static NConcurrency::TCFuture<NStream::CBinaryStorage> fs_Call(CDistributedActorReadStream &_Stream, tf_FFunction &_fFunction, NMeta::TCIndices<tfp_Indices...> const &_Indices)
 			{
 				CDistributedActorStreamContext *pContext = (CDistributedActorStreamContext *)_Stream.f_GetContext();
 				DMibFastCheck(pContext && pContext->f_CorrectMagic());
@@ -424,7 +424,8 @@ namespace NMib::NConcurrency
 				NPrivate::TCIsFuture
 				<
 					typename NTraits::TCFunctionTraits<typename NFunction::TCFunctionInfo<NFunction::TCFunction<tf_CFunctionOptions...>>::template TCCallType<0>>::CReturn
-				>::mc_Value
+				>
+				::mc_Value
 				, "Only functions that return a future are supported"
 			)
 		;
@@ -443,7 +444,8 @@ namespace NMib::NConcurrency
 				NPrivate::TCIsFuture
 				<
 					typename NTraits::TCFunctionTraits<typename NFunction::TCFunctionInfo<NFunction::TCFunctionMovable<tf_CSignature>>::template TCCallType<0>>::CReturn
-				>::mc_Value
+				>
+				::mc_Value
 				, "Only functions that return a future are supported"
 			)
 		;
@@ -462,7 +464,8 @@ namespace NMib::NConcurrency
 				NPrivate::TCIsFuture
 				<
 					typename NTraits::TCFunctionTraits<typename NFunction::TCFunctionInfo<NFunction::TCFunctionMutable<tf_CSignature>>::template TCCallType<0>>::CReturn
-				>::mc_Value
+				>
+				::mc_Value
 				, "Only functions that return a future are supported"
 			)
 		;

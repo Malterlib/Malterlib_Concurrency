@@ -134,14 +134,7 @@ namespace NMib::NConcurrency
 		if (!DistributionManager)
 			DMibError("Distribution manager unexpectedly gone");
 
-		_Actor = fg_ConstructRemoteDistributedActor<CRemoteDispatchActor>
-			(
-				DistributionManager
-				, ActorID
-				, State.m_pHost
-				, f_GetVersion()
-			)
-		;
+		_Actor = fg_ConstructRemoteDistributedActor<CRemoteDispatchActor>(DistributionManager, ActorID, State.m_pHost, f_GetVersion());
 
 		State.m_Subscriptions[_SubscriptionSequenceID].m_ActorReferences.f_Insert(_Actor);
 	}

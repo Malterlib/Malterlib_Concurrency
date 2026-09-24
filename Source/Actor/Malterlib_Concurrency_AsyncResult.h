@@ -57,8 +57,8 @@ namespace NMib::NConcurrency
 		CAsyncResult();
 		CAsyncResult(CAsyncResult const &_Other);
 		CAsyncResult(CAsyncResult &&_Other);
-		CAsyncResult &operator =(CAsyncResult const &_Other);
-		CAsyncResult &operator =(CAsyncResult &&_Other);
+		CAsyncResult &operator = (CAsyncResult const &_Other);
+		CAsyncResult &operator = (CAsyncResult &&_Other);
 
 		NException::CExceptionPointer const &f_ExceptionPointer() const;
 
@@ -75,14 +75,10 @@ namespace NMib::NConcurrency
 		bool f_HasExceptionType() const; ///< Returns true if the contained exception is of the specified exception type
 
 		void f_SetCurrentException(); ///< Sets the result to the current exception. Usually only used from TCPromise implementation
-		template
-		<
-			typename tf_CException
-			, TCEnableIf<NTraits::cIsBaseOf<NTraits::TCRemoveReferenceAndQualifiers<tf_CException>, NException::CExceptionBase>> * = nullptr
-		>
+		template <typename tf_CException, TCEnableIf<NTraits::cIsBaseOf<NTraits::TCRemoveReferenceAndQualifiers<tf_CException>, NException::CExceptionBase>> * = nullptr>
 		void f_SetException(tf_CException &&_Exception); ///< Set exception instance directly. Usually used with DMibErrorInstance("Error string") or equivialent.
 														 ///< Usually only used from TCPromise implementation
-		void f_SetException(CAsyncResult && _AsyncResult); ///< Set exception from another async result. Usually only used from TCPromise implementation
+		void f_SetException(CAsyncResult &&_AsyncResult); ///< Set exception from another async result. Usually only used from TCPromise implementation
 		void f_SetException(CAsyncResult const &_AsyncResult); ///< Set exception from another async result. Usually only used from TCPromise implementation
 		void f_SetException(NException::CExceptionPointer const &_pException); ///< Set exception from exception pointer. Usually only used from TCPromise implementation
 		void f_SetException(NException::CExceptionPointer &&_pException); ///< Set exception from exception pointer. Usually only used from TCPromise implementation
@@ -107,23 +103,24 @@ namespace NMib::NConcurrency
 		using CValue = t_CType;
 
 		NStorage::TCAggregateSimple<t_CType> m_ResultAggregate;
+
 	public:
 		TCAsyncResult() = default;
 		~TCAsyncResult();
 		TCAsyncResult(TCAsyncResult const &_Other);
-		TCAsyncResult &operator =(TCAsyncResult const &_Other);
+		TCAsyncResult &operator = (TCAsyncResult const &_Other);
 		TCAsyncResult(TCAsyncResult &&_Other);
-		TCAsyncResult &operator =(TCAsyncResult &&_Other);
+		TCAsyncResult &operator = (TCAsyncResult &&_Other);
 
 		void f_Clear();
 
 		inline_always t_CType const &f_Get() const;
 		inline_always t_CType &f_Get();
 		inline_always t_CType f_Move();
-		mark_nodebug inline_always t_CType const &operator *() const;
-		mark_nodebug inline_always t_CType &operator *();
-		mark_nodebug inline_always t_CType const *operator ->() const;
-		mark_nodebug inline_always t_CType *operator ->();
+		mark_nodebug inline_always t_CType const &operator * () const;
+		mark_nodebug inline_always t_CType &operator * ();
+		mark_nodebug inline_always t_CType const *operator -> () const;
+		mark_nodebug inline_always t_CType *operator -> ();
 
 		template <typename ...tfp_CType>
 		void f_SetResult(tfp_CType && ...p_Result);
@@ -156,16 +153,16 @@ namespace NMib::NConcurrency
 		~TCAsyncResult();
 		TCAsyncResult(TCAsyncResult &&_Other);
 		TCAsyncResult(TCAsyncResult const &_Other);
-		TCAsyncResult &operator =(TCAsyncResult &&_Other);
-		TCAsyncResult &operator =(TCAsyncResult const &_Other);
+		TCAsyncResult &operator = (TCAsyncResult &&_Other);
+		TCAsyncResult &operator = (TCAsyncResult const &_Other);
 
 		void f_Clear();
 
 		CVoidTag f_Get() const;
 		CVoidTag f_Get();
 		CVoidTag f_Move();
-		mark_nodebug CVoidTag operator *() const;
-		mark_nodebug CVoidTag operator *();
+		mark_nodebug CVoidTag operator * () const;
+		mark_nodebug CVoidTag operator * ();
 
 		void f_SetResult();
 		void f_SetResult(TCAsyncResult const &_Result);
@@ -228,39 +225,23 @@ namespace NMib::NConcurrency
 		;
 		template <typename tf_CAsyncResultType>
 		TCWrapped(TCAsyncResult<tf_CAsyncResultType> const &_Other)
-			requires
-			(
-				!NTraits::cIsSame<t_CType, tf_CAsyncResultType>
-				&& NTraits::cIsConvertible<tf_CAsyncResultType const &, t_CType>
-			)
+			requires (!NTraits::cIsSame<t_CType, tf_CAsyncResultType> && NTraits::cIsConvertible<tf_CAsyncResultType const &, t_CType>)
 		;
 		template <typename tf_CAsyncResultType>
 		TCWrapped(TCAsyncResult<tf_CAsyncResultType> &&_Other)
-			requires
-			(
-				!NTraits::cIsSame<t_CType, tf_CAsyncResultType>
-				&& NTraits::cIsConvertible<tf_CAsyncResultType &&, t_CType>
-			)
+			requires (!NTraits::cIsSame<t_CType, tf_CAsyncResultType> && NTraits::cIsConvertible<tf_CAsyncResultType &&, t_CType>)
 		;
 		template <typename tf_CWrappedType>
 		TCWrapped(TCWrapped<tf_CWrappedType> const &_Other)
-			requires
-			(
-				!NTraits::cIsSame<t_CType, tf_CWrappedType>
-				&& NTraits::cIsConvertible<tf_CWrappedType const &, t_CType>
-			)
+			requires (!NTraits::cIsSame<t_CType, tf_CWrappedType> && NTraits::cIsConvertible<tf_CWrappedType const &, t_CType>)
 		;
 		template <typename tf_CWrappedType>
 		TCWrapped(TCWrapped<tf_CWrappedType> &&_Other)
-			requires
-			(
-				!NTraits::cIsSame<t_CType, tf_CWrappedType>
-				&& NTraits::cIsConvertible<tf_CWrappedType &&, t_CType>
-			)
+			requires (!NTraits::cIsSame<t_CType, tf_CWrappedType> && NTraits::cIsConvertible<tf_CWrappedType &&, t_CType>)
 		;
 		template <typename tf_CException>
 		TCWrapped(tf_CException &&_Exception)
-			requires(NException::cIsException<NTraits::TCRemoveReferenceAndQualifiers<tf_CException>>)
+			requires (NException::cIsException<NTraits::TCRemoveReferenceAndQualifiers<tf_CException>>)
 		;
 		TCWrapped(NException::CExceptionPointer const &_pException);
 		TCWrapped(NException::CExceptionPointer &&_pException);
@@ -277,7 +258,7 @@ namespace NMib::NConcurrency
 		TCWrapped(CBase &&_Other);
 		template <typename tf_CException>
 		TCWrapped(tf_CException &&_Exception)
-			requires(NException::cIsException<NTraits::TCRemoveReferenceAndQualifiers<tf_CException>>)
+			requires (NException::cIsException<NTraits::TCRemoveReferenceAndQualifiers<tf_CException>>)
 		;
 		TCWrapped(NException::CExceptionPointer const &_pException);
 		TCWrapped(NException::CExceptionPointer &&_pException);
@@ -336,7 +317,6 @@ namespace NMib::NConcurrency
 
 		TCAsyncResult<void> m_Result;
 	};
-
 }
 
 namespace NMib::NFunction

@@ -23,7 +23,7 @@ namespace NMib::NConcurrency
 		CDistributedAppLogDestination(CDistributedAppLogDestination const &_Other);
 		~CDistributedAppLogDestination();
 
-		void operator()
+		void operator ()
 			(
 				umint _ThreadID
 				, NTime::CTime const &_Time
@@ -31,7 +31,7 @@ namespace NMib::NConcurrency
 				, NLog::CLogStr const &_Message
 				, NContainer::TCVector<NStr::CStr> const &_Categories
 				, NContainer::TCVector<NStr::CStr> const &_Operations
-				, NLog::CLogLocationTag const& _Loc
+				, NLog::CLogLocationTag const &_Loc
 			)
 		;
 

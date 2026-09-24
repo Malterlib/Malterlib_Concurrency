@@ -182,8 +182,8 @@ namespace NMib::NConcurrency
 	TCFuture<void> CDistributedActorTrustManager::f_RemovePermissions
 		(
 			CPermissionIdentifiers _Identity
-			 , NContainer::TCSet<NStr::CStr> _Permissions
-			 , EDistributedActorTrustManagerOrderingFlag _OrderingFlags
+			, NContainer::TCSet<NStr::CStr> _Permissions
+			, EDistributedActorTrustManagerOrderingFlag _OrderingFlags
 		)
 	{
 		auto &UserID = _Identity.f_GetUserID();
@@ -454,11 +454,8 @@ namespace NMib::NConcurrency
 		{
 		}
 
-		TCFuture<void> CTrustedPermissionSubscriptionState::f_AddPermissions
-			(
-				CPermissionIdentifiers const &_Identity
-				, NContainer::TCMap<NStr::CStr, CPermissionRequirements> const &_PermissionsAdded
-			)
+		auto CTrustedPermissionSubscriptionState::f_AddPermissions(CPermissionIdentifiers const &_Identity, NContainer::TCMap<NStr::CStr, CPermissionRequirements> const &_PermissionsAdded)
+			-> TCFuture<void>
 		{
 			return fg_Dispatch
 				(
@@ -487,11 +484,7 @@ namespace NMib::NConcurrency
 			;
 		}
 
-		TCFuture<void> CTrustedPermissionSubscriptionState::f_RemovePermissions
-			(
-				CPermissionIdentifiers const &_Identity
-				, NContainer::TCSet<NStr::CStr> const &_PermissionsRemoved
-			)
+		TCFuture<void> CTrustedPermissionSubscriptionState::f_RemovePermissions(CPermissionIdentifiers const &_Identity, NContainer::TCSet<NStr::CStr> const &_PermissionsRemoved)
 		{
 			return fg_Dispatch
 				(
@@ -543,7 +536,8 @@ namespace NMib::NConcurrency
 					, _ExpirationTime
 					, _CacheTime
 					, pThis = NStorage::TCSharedPointer<NPrivate::CTrustedPermissionSubscriptionState>{fg_Explicit(this)}
-				] () mutable
+				]
+				() mutable
 				{
 					if (!m_pSubscription)
 						return;
@@ -561,15 +555,8 @@ namespace NMib::NConcurrency
 				, NTime::CTime const &_CacheTime
 			)
 		{
-			return g_Dispatch(m_DispatchActor) /
-				[
-					this
-					, _Identity
-					, _Permission
-					, _ExpirationTime
-					, _CacheTime
-					, pThis = NStorage::TCSharedPointer<NPrivate::CTrustedPermissionSubscriptionState>{fg_Explicit(this)}
-				] () mutable
+			return g_Dispatch(m_DispatchActor)
+				/ [this, _Identity, _Permission, _ExpirationTime, _CacheTime, pThis = NStorage::TCSharedPointer<NPrivate::CTrustedPermissionSubscriptionState>{fg_Explicit(this)}]() mutable
 				{
 					if (!m_pSubscription)
 						return;
@@ -589,7 +576,7 @@ namespace NMib::NConcurrency
 			mp_pState->m_pSubscription = this;
 	}
 
-	CTrustedPermissionSubscription &CTrustedPermissionSubscription::operator =(CTrustedPermissionSubscription &&_Other)
+	CTrustedPermissionSubscription &CTrustedPermissionSubscription::operator = (CTrustedPermissionSubscription &&_Other)
 	{
 		mp_pState = fg_Move(_Other.mp_pState);
 		mp_Permissions = fg_Move(_Other.mp_Permissions);
@@ -646,7 +633,8 @@ namespace NMib::NConcurrency
 			, CPermissionIdentifiers const &_Identity
 			, CPermissionIdentifiers const &_FullIdentity
 			, CDistributedActorTrustManagerAuthenticationCache &_AuthenticationCache
-		) const
+		)
+		const
 	{
 		auto fFindAllInGroup = [](NContainer::TCSet<NStr::CStr> const &_Preauthenticated, NContainer::TCSet<NStr::CStr> const &_FactorGroup)
 			{
@@ -757,7 +745,8 @@ namespace NMib::NConcurrency
 			NContainer::TCMap<NStr::CStr, CPermissionRequirements> const &_Permissions
 			, NContainer::TCMap<NStr::CStr, NContainer::TCSet<NStr::CStr>> const &_AuthenticatedPermissions
 			, NContainer::TCMap<NStr::CStr, int64> &o_AuthenticatedPermissions
-		) const
+		)
+		const
 	{
 		auto fMatchesRequirements = [&](CPermissionRequirements const &_Requirements, NStr::CStr const &_Permission) -> bool
 			{
@@ -831,7 +820,8 @@ namespace NMib::NConcurrency
 			, CCallingHostInfo const &_CallingHostInfo
 			, NContainer::TCVector<CPermissionIdentifiers> const &_IdentityPowerSet
 			, NContainer::TCVector<NContainer::TCVector<ICDistributedActorAuthenticationHandler::CPermissionWithRequirements>> &o_RequestedPermissions
-		) const
+		)
+		const
 	{
 		using CHandler = ICDistributedActorAuthenticationHandler;
 
@@ -853,12 +843,9 @@ namespace NMib::NConcurrency
 					// Couldn't find a matching permission, but we have to check all the host/user combos in the power set before we know we will not find a matching permission
 					break;
 
-				case CPermissionQuery::EQueryResult_HasPermission:
-					return CPermissionQuery::EQueryResult_HasPermission;
+				case CPermissionQuery::EQueryResult_HasPermission: return CPermissionQuery::EQueryResult_HasPermission;
 
-				case CPermissionQuery::EQueryResult_NeedAuthentication:
-					bFoundMatchingPermission = true;
-					break;
+				case CPermissionQuery::EQueryResult_NeedAuthentication: bFoundMatchingPermission = true; break;
 				}
 			}
 		}
@@ -877,7 +864,8 @@ namespace NMib::NConcurrency
 			CPermissionQuery const &_Permission
 			, CCallingHostInfo const &_CallingHostInfo
 			, NContainer::TCVector<NContainer::TCVector<ICDistributedActorAuthenticationHandler::CPermissionWithRequirements>> &o_RequestedPermissions
-		) const
+		)
+		const
 	{
 		auto PowerSet = CPermissionIdentifiers::fs_GetPowerSet(_CallingHostInfo.f_GetRealHostID(), _CallingHostInfo.f_GetClaimedUserID());
 		return fp_HasPermissionForQuery(_Permission, _CallingHostInfo, PowerSet, o_RequestedPermissions);
@@ -888,7 +876,8 @@ namespace NMib::NConcurrency
 			NContainer::TCVector<CPermissionQuery> const &_Permissions
 			, CCallingHostInfo const &_CallingHostInfo
 			, NContainer::TCVector<NContainer::TCVector<ICDistributedActorAuthenticationHandler::CPermissionWithRequirements>> &o_RequestedPermissions
-		) const
+		)
+		const
 	{
 		using CHandler = ICDistributedActorAuthenticationHandler;
 		// Here we check if the host/user combo has { perm1 || perm2 } && { perm3 || perm4 }
@@ -900,13 +889,9 @@ namespace NMib::NConcurrency
 		{
 			switch (fp_HasPermissionForQuery(Permission, _CallingHostInfo, PowerSet, CollectedRequestedPermissions))
 			{
-			case CPermissionQuery::EQueryResult_HasPermission:
-				break;
-			case CPermissionQuery::EQueryResult_NoPermission:
-				return CPermissionQuery::EQueryResult_NoPermission;
-			case CPermissionQuery::EQueryResult_NeedAuthentication:
-				Result = CPermissionQuery::EQueryResult_NeedAuthentication;
-				break;
+			case CPermissionQuery::EQueryResult_HasPermission: break;
+			case CPermissionQuery::EQueryResult_NoPermission: return CPermissionQuery::EQueryResult_NoPermission;
+			case CPermissionQuery::EQueryResult_NeedAuthentication: Result = CPermissionQuery::EQueryResult_NeedAuthentication; break;
 			}
 		}
 
@@ -920,7 +905,8 @@ namespace NMib::NConcurrency
 			NContainer::TCVector<CPermissionQuery> _PermissionsQueries
 			, ICDistributedActorAuthenticationHandler::CRequest _Request
 			, CCallingHostInfo _CallingHostInfo
-		) const
+		)
+		const
 	{
 		using CHandler = ICDistributedActorAuthenticationHandler;
 
@@ -1015,13 +1001,7 @@ namespace NMib::NConcurrency
 				if (pPermissions && AllPermissions.f_MatchesAuthentication(*pPermissions, Succeeded, AuthenticatedPermissions))
 				{
 					bFoundOne = true;
-					TrustManager.f_Bind<&CDistributedActorTrustManager::f_UpdateAuthenticationCache>
-						(
-							FullIdentity
-							, fg_Move(AuthenticatedPermissions)
-							, ExpirationTime
-							, CacheTime
-						)
+					TrustManager.f_Bind<&CDistributedActorTrustManager::f_UpdateAuthenticationCache>(FullIdentity, fg_Move(AuthenticatedPermissions), ExpirationTime, CacheTime)
 						.f_DiscardResult()
 					;
 					break;
@@ -1037,12 +1017,7 @@ namespace NMib::NConcurrency
 		co_return bAllAuthenticated;
 	}
 
-	TCUnsafeFuture<bool> CTrustedPermissionSubscription::f_HasPermission
-		(
-			NStr::CStr _Description
-			, NContainer::TCVector<NStr::CStr> _Permissions
-			, CCallingHostInfo _CallingHostInfo
-		) const
+	TCUnsafeFuture<bool> CTrustedPermissionSubscription::f_HasPermission(NStr::CStr _Description, NContainer::TCVector<NStr::CStr> _Permissions, CCallingHostInfo _CallingHostInfo) const
 	{
 		DMibRequire(_CallingHostInfo.f_GetRealHostID());
 
@@ -1056,23 +1031,16 @@ namespace NMib::NConcurrency
 		Query.m_Permissions = _Permissions;
 		switch (fp_HasPermissionForQuery(Query, _CallingHostInfo, Request.m_RequestedPermissions))
 		{
-		case CPermissionQuery::EQueryResult_NoPermission:
-			co_return false;
-		case CPermissionQuery::EQueryResult_HasPermission:
-			co_return true;
-		case CPermissionQuery::EQueryResult_NeedAuthentication:
-			break;
+		case CPermissionQuery::EQueryResult_NoPermission: co_return false;
+		case CPermissionQuery::EQueryResult_HasPermission: co_return true;
+		case CPermissionQuery::EQueryResult_NeedAuthentication: break;
 		}
 
 		co_return co_await fp_AuthenticatePermissions({fg_Move(Query)}, fg_Move(Request), _CallingHostInfo);
 	}
 
-	TCUnsafeFuture<bool> CTrustedPermissionSubscription::f_HasPermissions
-		(
-			NStr::CStr _Description
-			, NContainer::TCVector<CPermissionQuery> _PermissionsQueries
-			, CCallingHostInfo _CallingHostInfo
-		) const
+	auto CTrustedPermissionSubscription::f_HasPermissions(NStr::CStr _Description, NContainer::TCVector<CPermissionQuery> _PermissionsQueries, CCallingHostInfo _CallingHostInfo) const
+		-> TCUnsafeFuture<bool>
 	{
 		DMibRequire(_CallingHostInfo.f_GetRealHostID());
 
@@ -1084,12 +1052,9 @@ namespace NMib::NConcurrency
 
 		switch (fp_HasPermissionForQuery(_PermissionsQueries, _CallingHostInfo, Request.m_RequestedPermissions))
 		{
-		case CPermissionQuery::EQueryResult_NoPermission:
-			co_return false;
-		case CPermissionQuery::EQueryResult_HasPermission:
-			co_return true;
-		case CPermissionQuery::EQueryResult_NeedAuthentication:
-			break;
+		case CPermissionQuery::EQueryResult_NoPermission: co_return false;
+		case CPermissionQuery::EQueryResult_HasPermission: co_return true;
+		case CPermissionQuery::EQueryResult_NeedAuthentication: break;
 		}
 
 		co_return co_await fp_AuthenticatePermissions(_PermissionsQueries, fg_Move(Request), _CallingHostInfo);
@@ -1100,7 +1065,8 @@ namespace NMib::NConcurrency
 			NStr::CStr _Description
 			, NContainer::TCMap<NStr::CStr, NContainer::TCVector<CPermissionQuery>> _NamedPermissionQueries
 			, CCallingHostInfo _CallingHostInfo
-		) const
+		)
+		const
 	{
 		DMibRequire(_CallingHostInfo.f_GetRealHostID());
 
@@ -1118,9 +1084,7 @@ namespace NMib::NConcurrency
 		{
 			switch (fp_HasPermissionForQuery(PermissionQueries, _CallingHostInfo, Request.m_RequestedPermissions))
 			{
-			case CPermissionQuery::EQueryResult_HasPermission:
-				Results[_NamedPermissionQueries.fs_GetKey(PermissionQueries)] = true;
-				break;
+			case CPermissionQuery::EQueryResult_HasPermission: Results[_NamedPermissionQueries.fs_GetKey(PermissionQueries)] = true; break;
 			case CPermissionQuery::EQueryResult_NoPermission:
 			case CPermissionQuery::EQueryResult_NeedAuthentication:
 				break;
@@ -1232,13 +1196,7 @@ namespace NMib::NConcurrency
 					if (pPermissions && AllPermissions.f_MatchesAuthentication(*pPermissions, Succeeded, AuthenticatedPermissions))
 					{
 						bFoundOne = true;
-						TrustManager.f_Bind<&CDistributedActorTrustManager::f_UpdateAuthenticationCache>
-							(
-								FullIdentity
-								, fg_Move(AuthenticatedPermissions)
-								, ExpirationTime
-								, CacheTime
-							)
+						TrustManager.f_Bind<&CDistributedActorTrustManager::f_UpdateAuthenticationCache>(FullIdentity, fg_Move(AuthenticatedPermissions), ExpirationTime, CacheTime)
 							.f_DiscardResult()
 						;
 						break;
@@ -1278,10 +1236,8 @@ namespace NMib::NConcurrency
 		mp_pState->m_fOnPermissionsRemoved = fg_Move(_fOnPermissionsRemoved);
 	}
 
-	NContainer::TCMap<CPermissionIdentifiers, NContainer::TCMap<NStr::CStr, CPermissionRequirements>> CDistributedActorTrustManager::fp_SubscribeToPermissions
-		(
-			NStorage::TCSharedPointer<NPrivate::CTrustedPermissionSubscriptionState> const &_pState
-		)
+	auto CDistributedActorTrustManager::fp_SubscribeToPermissions(NStorage::TCSharedPointer<NPrivate::CTrustedPermissionSubscriptionState> const &_pState)
+		-> NContainer::TCMap<CPermissionIdentifiers, NContainer::TCMap<NStr::CStr, CPermissionRequirements>>
 	{
 		auto &Internal = *mp_pInternal;
 		NContainer::TCMap<CPermissionIdentifiers, NContainer::TCMap<NStr::CStr, CPermissionRequirements>> ReturnPermissions;
@@ -1315,10 +1271,8 @@ namespace NMib::NConcurrency
 		return fg_Move(ReturnPermissions);
 	}
 
-	CDistributedActorTrustManagerAuthenticationCache CDistributedActorTrustManager::fp_FilterCachedAuthentications
-		(
-			NStorage::TCSharedPointer<NPrivate::CTrustedPermissionSubscriptionState> const &_pState
-		)
+	auto CDistributedActorTrustManager::fp_FilterCachedAuthentications(NStorage::TCSharedPointer<NPrivate::CTrustedPermissionSubscriptionState> const &_pState)
+		-> CDistributedActorTrustManagerAuthenticationCache
 	{
 		auto Now = NTime::CTime::fs_NowUTC();
 		auto &Internal = *mp_pInternal;

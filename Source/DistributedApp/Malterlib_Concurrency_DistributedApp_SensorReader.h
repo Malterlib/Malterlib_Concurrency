@@ -145,11 +145,7 @@ namespace NMib::NConcurrency
 		virtual auto f_GetSensors(CGetSensors _Params) -> TCFuture<TCAsyncGenerator<NContainer::TCVector<CDistributedAppSensorReporter::CSensorInfo>>> = 0;
 		virtual auto f_GetSensorReadings(CGetSensorReadings _Params) -> TCFuture<TCAsyncGenerator<NContainer::TCVector<CDistributedAppSensorReader_SensorKeyAndReading>>> = 0;
 		virtual auto f_GetSensorStatus(CGetSensorStatus _Params) -> TCFuture<TCAsyncGenerator<NContainer::TCVector<CDistributedAppSensorReader_SensorKeyAndReading>>> = 0;
-		virtual auto f_SubscribeSensors
-			(
-				NContainer::TCVector<CDistributedAppSensorReader_SensorFilter> _Filters
-				, TCActorFunctorWithID<TCFuture<void> (CSensorChange _Change)> _fOnChange
-			)
+		virtual auto f_SubscribeSensors(NContainer::TCVector<CDistributedAppSensorReader_SensorFilter> _Filters, TCActorFunctorWithID<TCFuture<void> (CSensorChange _Change)> _fOnChange)
 			-> TCFuture<TCActorSubscriptionWithID<>> = 0
 		;
 		virtual auto f_SubscribeSensorReadings

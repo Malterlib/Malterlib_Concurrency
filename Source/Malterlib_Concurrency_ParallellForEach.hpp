@@ -56,9 +56,7 @@ namespace NMib::NConcurrency
 					[pDispatchQueue]()
 					{
 						while (auto ToDispatch = pDispatchQueue->f_Pop())
-						{
 							(*ToDispatch)();
-						}
 					}
 				)
 			;

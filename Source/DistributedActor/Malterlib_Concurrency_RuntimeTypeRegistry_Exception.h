@@ -39,7 +39,7 @@ namespace NMib::NConcurrency::NPrivate
 	template <typename t_CException>
 	struct TCRuntimeTypeRegistryEntry_Exception final : public CRuntimeTypeRegistryEntry_Exception
 	{
-		TCRuntimeTypeRegistryEntry_Exception ();
+		TCRuntimeTypeRegistryEntry_Exception();
 
 		NException::CExceptionPointer f_Consume(NStream::TCBinaryStreamStoragePtr<NStream::CBinaryStreamDefault> &_Stream) override;
 		NException::CExceptionPointer f_Consume(NStream::CBinaryStreamDefault &_Stream) override;
@@ -72,20 +72,8 @@ namespace NMib::NConcurrency::NPrivate
 
 	NException::CExceptionPointer fg_ConsumeUnknownException(NStream::CBinaryStreamDefault &_Stream, uint32 _TypeHash, uint64 _ExceptionStreamSize);
 
-	void fg_StreamAsyncResultException
-		(
-			NStream::TCBinaryStreamStorage<NStream::CBinaryStreamDefault> &_Stream
-			, NException::CExceptionBase const &_Exception
-			, uint32 _ActorProtocolVersion
-		)
-	;
-	void fg_StreamAsyncResultException
-		(
-			NStream::TCBinaryStreamStorage<NStream::CBinaryStreamDefault> &_Stream
-			, NConcurrency::CAsyncResult const &_Result
-			, uint32 _ActorProtocolVersion
-		)
-	;
+	void fg_StreamAsyncResultException(NStream::TCBinaryStreamStorage<NStream::CBinaryStreamDefault> &_Stream, NException::CExceptionBase const &_Exception, uint32 _ActorProtocolVersion);
+	void fg_StreamAsyncResultException(NStream::TCBinaryStreamStorage<NStream::CBinaryStreamDefault> &_Stream, NConcurrency::CAsyncResult const &_Result, uint32 _ActorProtocolVersion);
 
 	NStream::CBinaryStorage fg_StreamAsyncResultException(NException::CExceptionBase const &_Exception, uint32 _ActorProtocolVersion);
 	NStream::CBinaryStorage fg_StreamAsyncResultException(NConcurrency::CAsyncResult const &_Result, uint32 _ActorProtocolVersion);
@@ -101,5 +89,4 @@ namespace NMib::NConcurrency::NPrivate
 	inline_always_debug NStream::CBinaryStorage fg_StreamAsyncResult(NConcurrency::TCAsyncResult<void> &&_Result, void *_pStreamContext, uint32 _Version);
 
 #define DMibConcurrencyRegisterException(d_Exception) (void)::NMib::NConcurrency::NPrivate::TCExceptionRegistry<d_Exception>::ms_EntryInit
-
 }

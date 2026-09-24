@@ -50,13 +50,8 @@ namespace NMib::NConcurrency
 		~CDistributedAppAuditor();
 		CDistributedAppAuditor(TCWeakActor<CDistributedAppActor> const &_AppActor, CCallingHostInfo const &_CallingHostInfo, NStr::CStr const &_Category);
 		NStr::CStr f_Audit(NLog::ESeverity _Severity, NStr::CStr const &_Message, NStr::CStr const &_Category = {}, CDistributedAppAuditExtraData &&_ExtraData = {}) const;
-		NStr::CStr f_Audit
-			(
-				NLog::ESeverity _Severity
-				, NContainer::TCVector<NStr::CStr> const &_Message
-				, NStr::CStr const &_Category = {}
-				, CDistributedAppAuditExtraData &&_ExtraData = {}
-			) const
+		auto f_Audit(NLog::ESeverity _Severity, NContainer::TCVector<NStr::CStr> const &_Message, NStr::CStr const &_Category = {}, CDistributedAppAuditExtraData &&_ExtraData = {}) const
+			-> NStr::CStr
 		;
 		NStr::CStr f_Critical(NStr::CStr const &_Message, NStr::CStr const &_Category = {}) const;
 		NStr::CStr f_Critical(NContainer::TCVector<NStr::CStr> const &_Message, NStr::CStr const &_Category = {}) const;
@@ -69,12 +64,8 @@ namespace NMib::NConcurrency
 		NException::CException f_AccessDenied(NStr::CStr const &_Message, NContainer::TCVector<NStr::CStr> const &_Permissions, NStr::CStr const &_Category = {}) const;
 		NException::CException f_AccessDenied(NContainer::TCVector<NStr::CStr> const &_Message, NContainer::TCVector<NStr::CStr> const &_Permissions, NStr::CStr const &_Category = {}) const;
 		NException::CException f_AccessDenied(NStr::CStr const &_Message, NContainer::TCVector<CPermissionQuery> const &_Permissions, NStr::CStr const &_Category = {}) const;
-		NException::CException f_AccessDenied
-			(
-				NContainer::TCVector<NStr::CStr> const &_Message
-				, NContainer::TCVector<CPermissionQuery> const &_Permissions
-				, NStr::CStr const &_Category = {}
-			) const
+		auto f_AccessDenied(NContainer::TCVector<NStr::CStr> const &_Message, NContainer::TCVector<CPermissionQuery> const &_Permissions, NStr::CStr const &_Category = {}) const
+			-> NException::CException
 		;
 
 		NStr::CStr f_Warning(NStr::CStr const &_Message, NStr::CStr const &_Category = {}) const;
@@ -84,8 +75,8 @@ namespace NMib::NConcurrency
 
 		CCallingHostInfo const &f_HostInfo() const;
 
-		CDistributedAppAuditorWithError operator ()(NStr::CStr const &_UserError, NStr::CStr const &_Category = {});
-		CDistributedAppAuditorWithError operator ()(NContainer::TCVector<NStr::CStr> const &_Errors, NStr::CStr const &_Category = {});
+		CDistributedAppAuditorWithError operator () (NStr::CStr const &_UserError, NStr::CStr const &_Category = {});
+		CDistributedAppAuditorWithError operator () (NContainer::TCVector<NStr::CStr> const &_Errors, NStr::CStr const &_Category = {});
 
 	private:
 		CCallingHostInfo mp_CallingHostInfo;
@@ -105,17 +96,7 @@ namespace NMib::NConcurrency
 		NStr::CStr m_Category;
 	};
 
-	FExceptionTransformer fg_ExceptionTransformer
-		(
-			FExceptionTransformer &&_fPreviousTransformer
-			, CDistributedAppAuditor const &_Auditor
-		)
-	;
+	FExceptionTransformer fg_ExceptionTransformer(FExceptionTransformer &&_fPreviousTransformer, CDistributedAppAuditor const &_Auditor);
 
-	FExceptionTransformer fg_ExceptionTransformer
-		(
-			FExceptionTransformer &&_fPreviousTransformer
-			, CDistributedAppAuditorWithError const &_Auditor
-		)
-	;
+	FExceptionTransformer fg_ExceptionTransformer(FExceptionTransformer &&_fPreviousTransformer, CDistributedAppAuditorWithError const &_Auditor);
 }

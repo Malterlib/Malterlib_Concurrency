@@ -33,11 +33,7 @@ namespace NMib::NConcurrency
 
 		TCAsyncGenerator<NContainer::TCVector<CDistributedAppLogReporter::CLogInfo>> f_GetLogs(CDistributedAppLogReader::CGetLogs _Params);
 		auto f_GetLogEntries(CDistributedAppLogReader::CGetLogEntries _Params) -> TCAsyncGenerator<NContainer::TCVector<CDistributedAppLogReader_LogKeyAndEntry>>;
-		auto f_SubscribeLogs
-			(
-				NContainer::TCVector<CDistributedAppLogReader_LogFilter> _Filters
-				, TCActorFunctor<TCFuture<void> (CDistributedAppLogReader::CLogChange _Change)> _fOnChange
-			)
+		auto f_SubscribeLogs(NContainer::TCVector<CDistributedAppLogReader_LogFilter> _Filters, TCActorFunctor<TCFuture<void> (CDistributedAppLogReader::CLogChange _Change)> _fOnChange)
 			-> TCFuture<CActorSubscription>
 		;
 		auto f_SubscribeLogEntries(CDistributedAppLogReader::CSubscribeLogEntries _Params) -> TCFuture<CActorSubscription>;

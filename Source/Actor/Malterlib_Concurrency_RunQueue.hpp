@@ -272,7 +272,9 @@ namespace NMib::NConcurrency
 	template <typename tf_CBaseEntry, typename tf_CEntry>
 	bool TCConcurrentRunQueue<tf_CBaseEntry, tf_CEntry>::f_OneOrLessInQueue(CLocalQueueData &_LocalQueue)
 	{
-		return (_LocalQueue.m_LocalQueue.f_IsEmpty() || _LocalQueue.m_LocalQueue.f_GetFirst()->m_Link.f_IsAloneInList()) && mp_pFirstQueued.f_Load(NAtomic::gc_MemoryOrder_Relaxed) == nullptr;
+		return (_LocalQueue.m_LocalQueue.f_IsEmpty() || _LocalQueue.m_LocalQueue.f_GetFirst()->m_Link.f_IsAloneInList())
+			&& mp_pFirstQueued.f_Load(NAtomic::gc_MemoryOrder_Relaxed) == nullptr
+		;
 	}
 
 	template <typename tf_CBaseEntry, typename tf_CEntry>

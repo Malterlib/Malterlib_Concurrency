@@ -12,7 +12,7 @@
 #include <Mib/Process/ProcessLaunch>
 
 #ifdef DPlatformFamily_Windows
-#include <Windows.h>
+#	include <Windows.h>
 #endif
 
 using namespace NMib;
@@ -179,10 +179,8 @@ namespace
 
 			auto AppActor = fg_ConstructActor<CTestDistributedApp>(_Name, _bInProcessOnly);
 			AppActor(&CDistributedAppActor::f_StartApp, NEncoding::CEJsonSorted{}, TCActor<CDistiributedAppLogActor>{}, EDistributedAppType_InProcess).f_CallSync(RunLoopHelper.m_pRunLoop);
-			CDistributedAppCommandLineClient CommandLineClient = AppActor(&CDistributedAppActor::f_GetCommandLineClient, RunLoopHelper.m_pRunLoop, nullptr).f_CallSync
-				(
-					RunLoopHelper.m_pRunLoop
-				)
+			CDistributedAppCommandLineClient CommandLineClient = AppActor(&CDistributedAppActor::f_GetCommandLineClient, RunLoopHelper.m_pRunLoop, nullptr)
+				.f_CallSync(RunLoopHelper.m_pRunLoop)
 			;
 
 			_fTests(CommandLineClient);
@@ -292,7 +290,9 @@ namespace
 							(
 								NFile::CFile::fs_GetProgramPath()
 								, {"--test", NTest::fg_TestGetCurrentPath(), "--process-recursive"}
-								, Output, Error, ExitCode
+								, Output
+								, Error
+								, ExitCode
 							)
 						;
 						DMibExpectTrue(bLaunched);

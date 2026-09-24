@@ -12,12 +12,7 @@ namespace NMib::NConcurrency::NDDPBridgeHelper
 	{
 		CDistributedAppActor::fp_BuildCommandLine(o_CommandLine);
 
-		o_CommandLine.f_SetProgramDescription
-			(
-				"Malterlib DDP Bridge Helper"
-				, "Sets up trust for use on a DDP client."
-			)
-		;
+		o_CommandLine.f_SetProgramDescription("Malterlib DDP Bridge Helper", "Sets up trust for use on a DDP client.");
 
 		auto DefaultSection = o_CommandLine.f_GetDefaultSection();
 		(void)DefaultSection;

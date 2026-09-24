@@ -52,7 +52,7 @@ namespace NMib::NConcurrency
 	}
 
 	template <typename t_FDestroy>
-	TCFutureAwaiter<void, false> TCAsyncDestroy<t_FDestroy>::CNoUnwrap::operator co_await() &&
+	TCFutureAwaiter<void, false> TCAsyncDestroy<t_FDestroy>::CNoUnwrap::operator co_await () &&
 	{
 		DMibFastCheck(m_pWrapped->mp_pCoroutineContext);
 		m_pWrapped->mp_pCoroutineContext = nullptr;
@@ -69,7 +69,7 @@ namespace NMib::NConcurrency
 	}
 
 	template <typename t_FDestroy>
-	TCFutureAwaiter<void, true> TCAsyncDestroy<t_FDestroy>::operator co_await() &&
+	TCFutureAwaiter<void, true> TCAsyncDestroy<t_FDestroy>::operator co_await () &&
 	{
 		DMibFastCheck(mp_pCoroutineContext);
 		mp_pCoroutineContext = nullptr;
@@ -78,7 +78,6 @@ namespace NMib::NConcurrency
 		else
 			return {fg_CallSafe(fg_Move(mp_fDestroy)), {}};
 	}
-
 
 	template <typename t_FDestroy, typename t_FDestroyFinal>
 	template <typename tf_FDestroy>

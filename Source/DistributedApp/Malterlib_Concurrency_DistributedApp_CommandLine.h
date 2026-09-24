@@ -36,12 +36,12 @@ namespace NMib::NConcurrency
 
 		static CCommandLineClientInfo fs_CollectLocal(bool _bRemoteApp);
 
-		NStr::CStr m_PlatformFamily; // Exact compile time platform family, DMibStringize(DPlatformFamily)
-		NStr::CStr m_Terminal; // $TERM
-		NStr::CStr m_TerminalProgram; // $TERM_PROGRAM
-		NStr::CStr m_TerminalProgramVersion; // $TERM_PROGRAM_VERSION
-		NStr::CStr m_ColorTerm; // $COLORTERM
-		NStr::CStr m_Locale; // $LC_ALL falling back to $LANG
+		NStr::CStr m_PlatformFamily;                    // Exact compile time platform family, DMibStringize(DPlatformFamily)
+		NStr::CStr m_Terminal;                          // $TERM
+		NStr::CStr m_TerminalProgram;                   // $TERM_PROGRAM
+		NStr::CStr m_TerminalProgramVersion;            // $TERM_PROGRAM_VERSION
+		NStr::CStr m_ColorTerm;                         // $COLORTERM
+		NStr::CStr m_Locale;                            // $LC_ALL falling back to $LANG
 		EClientPlatform m_Platform = EClientPlatform::mc_Unknown;
 		NStorage::TCOptional<int32> m_UTCOffsetSeconds; // Client UTC offset captured for a remote session; unset for local sessions.
 		bool m_bClipboardSupported = false;
@@ -54,7 +54,7 @@ namespace NMib::NConcurrency
 			EProtocolVersion_Min = 0x107
 
 			, EProtocolVersion_SupportScreenChange = 0x108
-			, EProtocolVersion_SupportClipboard = 0x109
+			, EProtocolVersion_SupportClipboard    = 0x109
 			, EProtocolVersion_SupportStdErrBinary = 0x10A
 
 			, EProtocolVersion_Current = 0x10A
@@ -121,11 +121,7 @@ namespace NMib::NConcurrency
 		};
 
 		using FOnInput = NConcurrency::TCActorFunctorWithID<NConcurrency::TCFuture<void> (NProcess::EStdInReaderOutputType _Type, NStr::CStrIO _Input)>;
-		using FOnBinaryInput = NConcurrency::TCActorFunctorWithID
-			<
-				NConcurrency::TCFuture<void> (NProcess::EStdInReaderOutputType _Type, NContainer::CIOByteVector _Input, NStr::CStr _Error)
-			>
-		;
+		using FOnBinaryInput = NConcurrency::TCActorFunctorWithID<NConcurrency::TCFuture<void> (NProcess::EStdInReaderOutputType _Type, NContainer::CIOByteVector _Input, NStr::CStr _Error)>;
 		using FOnCancel = NConcurrency::TCActorFunctorWithID<NConcurrency::TCFuture<bool> ()>;
 		using FOnScreenChange = NConcurrency::TCActorFunctorWithID<NConcurrency::TCFuture<void> (CScreenChange _ScreenChange)>;
 
@@ -189,9 +185,7 @@ namespace NMib::NConcurrency
 		void operator %= (NContainer::CSecureByteVector const &_StdErr) const;
 
 		NConcurrency::TCFuture<NConcurrency::TCActorSubscriptionWithID<>> f_RegisterForStdIn(ICCommandLineControl::FOnInput &&_fOnInput, NProcess::EStdInReaderFlag _Flags) const;
-		NConcurrency::TCFuture<NConcurrency::TCActorSubscriptionWithID<>>
-			f_RegisterForStdInBinary(ICCommandLineControl::FOnBinaryInput &&_fOnInput, NProcess::EStdInReaderFlag _Flags) const
-		;
+		NConcurrency::TCFuture<NConcurrency::TCActorSubscriptionWithID<>> f_RegisterForStdInBinary(ICCommandLineControl::FOnBinaryInput &&_fOnInput, NProcess::EStdInReaderFlag _Flags) const;
 		NConcurrency::TCFuture<NConcurrency::TCActorSubscriptionWithID<>> f_RegisterForCancellation(ICCommandLineControl::FOnCancel &&_fOnCancel) const;
 
 		// False when the connected command line peer negotiated a protocol without f_RegisterForScreenChange
@@ -220,6 +214,7 @@ namespace NMib::NConcurrency
 		uint32 m_CommandLineGlyphHeight = 0;
 		NCommandLine::EAnsiEncodingFlag m_AnsiFlags = NCommandLine::EAnsiEncodingFlag_None;
 		CCommandLineClientInfo m_ClientInfo;
+
 	private:
 		static TCFuture<void> fsp_SendBinary(CCommandLineControl const &_This, uint8 const *_pData, umint _DataLen, bool _bStdErr);
 	};
@@ -230,8 +225,8 @@ namespace NMib::NConcurrency
 		{
 			EProtocolVersion_Min = 0x103
 
-			, EProtocolVersion_SupportGlyphSize = 0x104
-			, EProtocolVersion_SupportClientInfo = 0x105
+			, EProtocolVersion_SupportGlyphSize         = 0x104
+			, EProtocolVersion_SupportClientInfo        = 0x105
 			, EProtocolVersion_SupportOptionalUTCOffset = 0x106
 
 			, EProtocolVersion_Current = 0x106
@@ -239,13 +234,7 @@ namespace NMib::NConcurrency
 
 		ICCommandLine();
 
-		virtual TCFuture<uint32> f_RunCommandLine
-			(
-				 NStr::CStr _Command
-				 , NEncoding::CEJsonSorted _Parameters
-				 , CCommandLineControl _CommandLine
-			) = 0
-		;
+		virtual TCFuture<uint32> f_RunCommandLine(NStr::CStr _Command, NEncoding::CEJsonSorted _Parameters, CCommandLineControl _CommandLine) = 0;
 	};
 
 	struct CDistributedAppActor;
@@ -253,9 +242,9 @@ namespace NMib::NConcurrency
 
 	enum EDistributedAppCommandFlag
 	{
-		EDistributedAppCommandFlag_None = 0
-		, EDistributedAppCommandFlag_RunLocalApp = DMibBit(0)
-		, EDistributedAppCommandFlag_WaitForRemotes = DMibBit(1)
+		EDistributedAppCommandFlag_None               = 0
+		, EDistributedAppCommandFlag_RunLocalApp      = DMibBit(0)
+		, EDistributedAppCommandFlag_WaitForRemotes   = DMibBit(1)
 		, EDistributedAppCommandFlag_DontApplyLogging = DMibBit(2)
 		, EDistributedAppCommandFlag_FailIfNotRunning = DMibBit(3) // Fail at once with m_NotRunningMessage when the app does not listen
 	};
@@ -275,10 +264,7 @@ namespace NMib::NConcurrency
 				typename t_CCommandLineSpecification::CCommand f_RegisterCommand
 					(
 						NEncoding::CEJsonOrdered &&_CommandDescription
-						, NFunction::TCFunctionMovable
-						<
-							TCFuture<uint32> (NEncoding::CEJsonSorted &&_Params, NStorage::TCSharedPointer<CCommandLineControl> &&_pCommandLine)
-						> &&_fRunCommand
+						, NFunction::TCFunctionMovable<TCFuture<uint32> (NEncoding::CEJsonSorted &&_Params, NStorage::TCSharedPointer<CCommandLineControl> &&_pCommandLine)> &&_fRunCommand
 						, EDistributedAppCommandFlag _Flags = EDistributedAppCommandFlag_None
 					)
 				;
@@ -299,10 +285,7 @@ namespace NMib::NConcurrency
 			{
 				using t_CCommand::t_CCommand;
 
-				NStorage::TCSharedPointer
-					<
-						TCActorFunctor<TCFuture<uint32> (NEncoding::CEJsonSorted _Parameters, NStorage::TCSharedPointer<CCommandLineControl> _pCommandLine)>
-					>
+				NStorage::TCSharedPointer<TCActorFunctor<TCFuture<uint32> (NEncoding::CEJsonSorted _Parameters, NStorage::TCSharedPointer<CCommandLineControl> _pCommandLine)>>
 					m_pActorRunCommand
 				;
 				EDistributedAppCommandFlag m_Flags = EDistributedAppCommandFlag_None;
@@ -312,23 +295,18 @@ namespace NMib::NConcurrency
 
 	using CDistributedAppCommandLineSpecification = NCommandLine::TCCommandLineSpecification<CCommandLineSpecificationDistributedAppCustomization>;
 
-	extern template auto
-	CCommandLineSpecificationDistributedAppCustomization::TCSection<NCommandLine::TCCommandLineSpecification<CCommandLineSpecificationDistributedAppCustomization>>::CSection::
-	f_RegisterCommand
+	extern template auto CCommandLineSpecificationDistributedAppCustomization::TCSection<NCommandLine::TCCommandLineSpecification<CCommandLineSpecificationDistributedAppCustomization>>
+		::CSection::f_RegisterCommand
 		(
 			NEncoding::CEJsonOrdered &&_CommandDescription
-			, NFunction::TCFunctionMovable
-			<
-				TCFuture<uint32> (NEncoding::CEJsonSorted &&_Params, NStorage::TCSharedPointer<CCommandLineControl> &&_pCommandLine)
-			> &&_fRunCommand
+			, NFunction::TCFunctionMovable<TCFuture<uint32> (NEncoding::CEJsonSorted &&_Params, NStorage::TCSharedPointer<CCommandLineControl> &&_pCommandLine)> &&_fRunCommand
 			, EDistributedAppCommandFlag _Flags
 		)
 		-> NCommandLine::TCCommandLineSpecification<CCommandLineSpecificationDistributedAppCustomization>::CCommand
 	;
 
-	extern template auto
-	CCommandLineSpecificationDistributedAppCustomization::TCSection<NCommandLine::TCCommandLineSpecification<CCommandLineSpecificationDistributedAppCustomization>>::CSection::
-	f_RegisterDirectCommand
+	extern template auto CCommandLineSpecificationDistributedAppCustomization::TCSection<NCommandLine::TCCommandLineSpecification<CCommandLineSpecificationDistributedAppCustomization>>
+		::CSection::f_RegisterDirectCommand
 		(
 			NEncoding::CEJsonOrdered &&_CommandDescription
 			, NFunction::TCFunctionMovable<uint32 (NEncoding::CEJsonSorted &&_Parameters, CCommandLineClient &_CommandLineClient)> &&_fRunCommand

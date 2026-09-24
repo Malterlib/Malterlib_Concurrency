@@ -29,17 +29,12 @@ namespace NMib::NConcurrency::NPrivate
 		}
 
 		// Event dequeuing also pumps run-loop sources, timers and the main dispatch queue.
-		NSDate *pUntil = _Timeout < 0.0 ? [NSDate distantFuture] : [NSDate dateWithTimeIntervalSinceNow:_Timeout.f_Get()];
-		NSEvent *pEvent = [NSApp
-			nextEventMatchingMask:NSEventMaskAny
-			untilDate:pUntil
-			inMode:NSDefaultRunLoopMode
-			dequeue:YES]
-		;
+		NSDate *pUntil = _Timeout < 0.0 ? [NSDate distantFuture] : [NSDate dateWithTimeIntervalSinceNow: _Timeout.f_Get()];
+		NSEvent *pEvent = [NSApp nextEventMatchingMask: NSEventMaskAny untilDate: pUntil inMode: NSDefaultRunLoopMode dequeue: YES];
 
 		if (pEvent)
 		{
-			[NSApp sendEvent:pEvent];
+			[NSApp sendEvent: pEvent];
 
 			return false;
 		}
@@ -56,18 +51,21 @@ namespace NMib::NConcurrency::NPrivate
 
 		@autoreleasepool
 		{
-			NSEvent *pWakeEvent = [NSEvent
-				otherEventWithType:NSEventTypeApplicationDefined
-				location:NSZeroPoint
-				modifierFlags:0
-				timestamp:0.0
-				windowNumber:0
-				context:nil
-				subtype:0
-				data1:0
-				data2:0]
+			NSEvent *pWakeEvent =
+				[
+					NSEvent
+					otherEventWithType: NSEventTypeApplicationDefined
+					location: NSZeroPoint
+					modifierFlags: 0
+					timestamp: 0.0
+					windowNumber: 0
+					context: nil
+					subtype: 0
+					data1: 0
+					data2: 0
+				]
 			;
-			[NSApp postEvent:pWakeEvent atStart:YES];
+			[NSApp postEvent: pWakeEvent atStart: YES];
 		}
 	}
 

@@ -18,16 +18,16 @@ namespace NMib::NConcurrency
 	public:
 		enum : uint32
 		{
-			EProtocolVersion_Min = 0x102
-			, EProtocolVersion_SupportOrderingFlags = 0x103
-			, EProtocolVersion_SupportOnCertificateSigned = 0x104
-			, EProtocolVersion_SupportUserAuthentication = 0x105
-			, EProtocolVersion_SupportClaimedUserName = 0x106
+			EProtocolVersion_Min                                = 0x102
+			, EProtocolVersion_SupportOrderingFlags             = 0x103
+			, EProtocolVersion_SupportOnCertificateSigned       = 0x104
+			, EProtocolVersion_SupportUserAuthentication        = 0x105
+			, EProtocolVersion_SupportClaimedUserName           = 0x106
 			, EProtocolVersion_SupportDebugStatsAndPreserveHost = 0x107
-			, EProtocolVersion_SupportPrimaryListen = 0x108
-			, EProtocolVersion_PriorityDebugStats = 0x109
-			, EProtocolVersion_SendWindow = 0x10A
-			, EProtocolVersion_Current = 0x10A
+			, EProtocolVersion_SupportPrimaryListen             = 0x108
+			, EProtocolVersion_PriorityDebugStats               = 0x109
+			, EProtocolVersion_SendWindow                       = 0x10A
+			, EProtocolVersion_Current                          = 0x10A
 		};
 
 		struct CTrustTicket
@@ -201,18 +201,7 @@ namespace NMib::NConcurrency
 			void f_Stream(tf_CStream &_Stream);
 
 			CDistributedActorTrustManager_Address m_Address;
-			TCActorFunctorWithID
-				<
-					TCFuture<void>
-					(
-						NStr::CStr _HostID
-						, CLocalCallingHostInfo _HostInfo
-						, NContainer::CByteVector _CertificateRequest
-					)
-					, 0
-				>
-				m_fOnUseTicket
-			;
+			TCActorFunctorWithID<TCFuture<void> (NStr::CStr _HostID, CLocalCallingHostInfo _HostInfo, NContainer::CByteVector _CertificateRequest), 0> m_fOnUseTicket;
 			TCActorFunctorWithID<TCFuture<void> (NStr::CStr _HostID, CLocalCallingHostInfo _HostInfo), 0> m_fOnCertificateSigned;
 		};
 
@@ -343,7 +332,8 @@ namespace NMib::NConcurrency
 				, NStorage::TCOptional<NStr::CStr> _UserName
 				, NContainer::TCSet<NStr::CStr> _RemoveMetadata
 				, NContainer::TCMap<NStr::CStr, NEncoding::CEJsonSorted> _AddMetadata
-			) = 0
+			)
+			= 0
 		;
 
 		virtual TCFuture<NContainer::TCMap<NStr::CStr, CLocalAuthenticationActorInfo>> f_EnumAuthenticationActors() const = 0;
@@ -360,12 +350,7 @@ namespace NMib::NConcurrency
 DMibConcurrencyRegisterMemberFunctionAlternateHashes
 	(
 		NMib::NConcurrency::CDistributedActorTrustManagerInterface::f_EnumPermissions
-		, DMibActorFunctionAlternateName
-		(
-			NMib::NConcurrency::CDistributedActorTrustManagerInterface
-			, f_EnumHostPermissions
-			, 0x104
-		)
+		, DMibActorFunctionAlternateName(NMib::NConcurrency::CDistributedActorTrustManagerInterface, f_EnumHostPermissions, 0x104)
 	)
 ;
 
@@ -384,7 +369,7 @@ DMibConcurrencyRegisterMemberFunctionAlternateHashes
 ;
 
 #ifndef DMibPNoShortCuts
-	using namespace NMib::NConcurrency;
+using namespace NMib::NConcurrency;
 #endif
 
 #include "Malterlib_Concurrency_DistributedTrust_Interface.hpp"

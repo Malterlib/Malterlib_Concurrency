@@ -8,8 +8,8 @@
 namespace NMib::NConcurrency
 {
 	DMibImpErrorClassDefine(CExceptionAsyncTimeout, NMib::NException::CException);
-#	define DMibErrorAsyncTimeout(d_Description) DMibImpError(NMib::NConcurrency::CExceptionAsyncTimeout, d_Description, false)
-#	define DMibErrorInstanceAsyncTimeout(d_Description) DMibImpExceptionInstance(NMib::NConcurrency::CExceptionAsyncTimeout, d_Description, false)
+#define DMibErrorAsyncTimeout(d_Description) DMibImpError(NMib::NConcurrency::CExceptionAsyncTimeout, d_Description, false)
+#define DMibErrorInstanceAsyncTimeout(d_Description) DMibImpExceptionInstance(NMib::NConcurrency::CExceptionAsyncTimeout, d_Description, false)
 
 	struct CTimerActor;
 
@@ -34,7 +34,6 @@ namespace NMib::NConcurrency
 
 		CConcurrencyManager::CQueue *mp_pQueue;
 	};
-
 
 	struct CTimerActor : public CActor
 	{
@@ -77,11 +76,11 @@ namespace NMib::NConcurrency
 	struct CTimeoutHelper
 	{
 		CTimeoutHelper(fp64 _Period, bool _bFireAtExit);
-		CTimeoutHelper &operator ()(TCActor<CActor> const &_DispatchActor);
+		CTimeoutHelper &operator () (TCActor<CActor> const &_DispatchActor);
 
 		void operator > (FUnitVoidFutureFunction &&_fOnTimeout) const;
 
-		TCFutureAwaiter<void, true, CVoidTag> operator co_await();
+		TCFutureAwaiter<void, true, CVoidTag> operator co_await ();
 
 		TCFuture<void> f_Dispatch();
 

@@ -152,11 +152,11 @@ namespace NMib::NConcurrency
 					return;
 				}
 
-#if defined(DMibSanitizerEnabled_Address) || defined(DMibSanitizerEnabled_Thread)
+#	if defined(DMibSanitizerEnabled_Address) || defined(DMibSanitizerEnabled_Thread)
 				// Quarantined frees and shadow memory grow the resident size far past what a pool leak would
 				DMibLog(Info, "Skipped: a sanitizer's own bookkeeping dominates the resident size");
 				return;
-#endif
+#	endif
 
 				auto fResidentBytes = []
 					{

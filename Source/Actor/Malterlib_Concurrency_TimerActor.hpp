@@ -49,7 +49,8 @@ namespace NMib::NConcurrency
 			fp64 _Timeout
 			, NStr::CStr const &_TimeoutMessage
 			, bool _bFireAtExit
-		) &&
+		)
+		&&
 	{
 		TCPromiseFuturePair<t_CReturn> Promise;
 		NStorage::TCSharedPointer<NAtomic::CAtomicFlag> pReplied = fg_Construct();

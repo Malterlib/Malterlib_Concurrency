@@ -11,16 +11,7 @@ namespace NMib::NConcurrency
 {
 	struct CDistributedAppInProcessActor : public CActor
 	{
-		using FOnUseTicket = TCActorFunctor
-			<
-				TCFuture<void>
-				(
-					NStr::CStr _HostID
-					, CCallingHostInfo _HostInfo
-					, NContainer::CByteVector _CertificateRequest
-				)
-			>
-		;
+		using FOnUseTicket = TCActorFunctor<TCFuture<void> (NStr::CStr _HostID, CCallingHostInfo _HostInfo, NContainer::CByteVector _CertificateRequest)>;
 
 		CDistributedAppInProcessActor
 			(
@@ -33,24 +24,13 @@ namespace NMib::NConcurrency
 		;
 		~CDistributedAppInProcessActor();
 
-		TCFuture<NStr::CStr> f_Launch
-			(
-				NStr::CStr _HomeDirectory
-				, NFunction::TCFunction<TCActor<CDistributedAppActor> ()> _fDistributedAppFactory
-				, NContainer::TCVector<NStr::CStr> _Params = {}
-			)
+		auto f_Launch(NStr::CStr _HomeDirectory, NFunction::TCFunction<TCActor<CDistributedAppActor> ()> _fDistributedAppFactory, NContainer::TCVector<NStr::CStr> _Params = {})
+			-> TCFuture<NStr::CStr>
 		;
 
 #if DMibConfig_Tests_Enable
 		TCFuture<NEncoding::CEJsonSorted> f_Test_Command(NStr::CStr _Command, NEncoding::CEJsonSorted const _Params);
-		TCFuture<uint32> f_RunCommandLine
-			(
-				CCallingHostInfo _CallingHost
-				, NStr::CStr _Command
-				, NEncoding::CEJsonSorted _Params
-				, NStorage::TCSharedPointer<CCommandLineControl> _pCommandLine
-			)
-		;
+		TCFuture<uint32> f_RunCommandLine(CCallingHostInfo _CallingHost, NStr::CStr _Command, NEncoding::CEJsonSorted _Params, NStorage::TCSharedPointer<CCommandLineControl> _pCommandLine);
 #endif
 
 	private:

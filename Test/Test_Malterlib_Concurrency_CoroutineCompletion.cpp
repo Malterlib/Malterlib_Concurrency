@@ -51,18 +51,9 @@ namespace NMib::NConcurrency
 			auto Order = m_pState->m_NextOrder.f_FetchAdd(1) + 1;
 			switch (m_Place)
 			{
-			case ECompletionProbePlace::mc_Parameter:
-				m_pState->m_ParameterOrder.f_Store(Order);
-
-				break;
-			case ECompletionProbePlace::mc_Local:
-				m_pState->m_LocalOrder.f_Store(Order);
-
-				break;
-			case ECompletionProbePlace::mc_Capture:
-				m_pState->m_CaptureOrder.f_Store(Order);
-
-				break;
+			case ECompletionProbePlace::mc_Parameter: m_pState->m_ParameterOrder.f_Store(Order); break;
+			case ECompletionProbePlace::mc_Local: m_pState->m_LocalOrder.f_Store(Order); break;
+			case ECompletionProbePlace::mc_Capture: m_pState->m_CaptureOrder.f_Store(Order); break;
 			}
 		}
 
@@ -117,8 +108,11 @@ namespace NMib::NConcurrency
 					{
 						for (bool bCapture : {false, true})
 						{
-							CStr Name = "{}/{}/{}"_f << (Exit == ECompletionExit::mc_Return ? "co_return" : Exit == ECompletionExit::mc_Throw ? "throw" : "co_return_exception")
-								<< (bSuspend ? "suspended" : "immediate") << (bCapture ? "dispatch_capture" : "bound_call")
+							CStr Name
+								= "{}/{}/{}"_f
+								<< (Exit == ECompletionExit::mc_Return ? "co_return" : Exit == ECompletionExit::mc_Throw ? "throw" : "co_return_exception")
+								<< (bSuspend ? "suspended" : "immediate")
+								<< (bCapture ? "dispatch_capture" : "bound_call")
 							;
 							DMibTestPath(Name);
 							auto pState = TCSharedPointer<CCompletionProbeState>(fg_Construct());
@@ -133,9 +127,15 @@ namespace NMib::NConcurrency
 								Result = fg_Dispatch
 									(
 										Producer
-										, [Capture = CCompletionProbe(pState, ECompletionProbePlace::mc_Capture)
+										,
+										[
+											Capture = CCompletionProbe(pState, ECompletionProbePlace::mc_Capture)
 											, Parameter = CCompletionProbe(pState, ECompletionProbePlace::mc_Parameter)
-											, GateFuture = fg_Move(GateFuture), Started, Exit]() mutable -> TCFuture<uint32>
+											, GateFuture = fg_Move(GateFuture)
+											, Started
+											, Exit
+										]
+										() mutable -> TCFuture<uint32>
 										{
 											return fg_ProbeCoroutineCompletion(fg_Move(Parameter), fg_Move(GateFuture), fg_Move(Started), Exit);
 										}
@@ -144,10 +144,8 @@ namespace NMib::NConcurrency
 							}
 							else
 							{
-								Result = Producer.f_Bind<fg_ProbeCoroutineCompletion>
-									(
-										CCompletionProbe(pState, ECompletionProbePlace::mc_Parameter), fg_Move(GateFuture), Started, Exit
-									).f_Call()
+								Result = Producer.f_Bind<fg_ProbeCoroutineCompletion>(CCompletionProbe(pState, ECompletionProbePlace::mc_Parameter), fg_Move(GateFuture), Started, Exit)
+									.f_Call()
 								;
 							}
 
@@ -174,7 +172,15 @@ namespace NMib::NConcurrency
 							if (bSuspend)
 								Gate.f_SetResult();
 							auto Observation = Finished.f_Future().f_CallSync(Helper.m_pRunLoop, 30.0);
-							fg_Dispatch(Producer, [] {}).f_CallSync(Helper.m_pRunLoop, 30.0);
+							fg_Dispatch
+								(
+									Producer
+									, []
+									{
+									}
+								)
+								.f_CallSync(Helper.m_pRunLoop, 30.0)
+							;
 
 							DMibExpect(Observation.m_LocalAtResult, >, 0u);
 							DMibExpect(pState->m_ParameterOrder.f_Load(), >, 0u);

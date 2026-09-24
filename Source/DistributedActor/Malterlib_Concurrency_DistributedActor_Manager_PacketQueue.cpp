@@ -10,11 +10,7 @@
 
 namespace NMib::NConcurrency
 {
-	void CActorDistributionManagerInternal::fp_OnInvalidConnection
-		(
-			CConnection *_pConnection
-			, NException::CExceptionPointer &&_pException
-		)
+	void CActorDistributionManagerInternal::fp_OnInvalidConnection(CConnection *_pConnection, NException::CExceptionPointer &&_pException)
 	{
 		if (_pConnection->m_bIncoming)
 		{

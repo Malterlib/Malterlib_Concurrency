@@ -34,8 +34,7 @@ namespace NMib::NConcurrency
 		{
 			m_ApplyLoggingResults = fg_ApplyLoggingOption(_Params, m_Actor);
 
-			m_Actor(&CDistributedAppActor::f_StartApp, _Params, m_ApplyLoggingResults.m_LogActor, EDistributedAppType_Daemon)
-				.f_OnResultSet
+			m_Actor(&CDistributedAppActor::f_StartApp, _Params, m_ApplyLoggingResults.m_LogActor, EDistributedAppType_Daemon).f_OnResultSet
 				(
 					[](TCAsyncResult<NStr::CStr> &&_Result)
 					{
@@ -55,6 +54,7 @@ namespace NMib::NConcurrency
 				)
 			;
 		}
+
 		~CDistributedDaemonDaemon()
 		{
 			if (m_Actor)
@@ -62,7 +62,7 @@ namespace NMib::NConcurrency
 				try
 				{
 					m_Actor(&CDistributedAppActor::f_StopApp).f_CallSync(m_pRunLoop);
-					fg_Move(m_Actor).f_Destroy().f_CallSync(m_pRunLoop);;
+					fg_Move(m_Actor).f_Destroy().f_CallSync(m_pRunLoop);
 				}
 				catch (NException::CException const &_Exception)
 				{
@@ -167,13 +167,13 @@ namespace NMib::NConcurrency
 			)
 		{
 			void *pIconData = nullptr;
-#		ifdef DPlatformFamily_Windows
+#ifdef DPlatformFamily_Windows
 			pIconData = NPlatform::fg_GetWindowsDllInstance();
-#		elif defined(DPlatformFamily_macOS)
+#elif defined(DPlatformFamily_macOS)
 			NContainer::CByteVector IconData;
 			if (_DistributedDaemon.m_Icon && NFile::fg_ReadExeFSFile(_DistributedDaemon.m_Icon, IconData))
 				pIconData = &IconData;
-#		endif
+#endif
 
 			CDaemonParams DaemonParams
 				{
@@ -186,16 +186,16 @@ namespace NMib::NConcurrency
 						return fg_Construct<CDistributedDaemonDaemon>(_DistributedDaemon.m_AppActor, _Params, _DistributedDaemon.m_pRunLoop);
 					}
 					, nullptr
-					, [] (NStr::CStr const& _Errors)
+					, [](NStr::CStr const &_Errors)
 					{
 						DMibConErrOut("{}{\n}", _Errors);
 					}
-					, [bVerbose = _Params["Daemon_Verbose"].f_Boolean()] (NStr::CStr const& _Heading, NStr::CStr const& _Information)
+					, [bVerbose = _Params["Daemon_Verbose"].f_Boolean()](NStr::CStr const &_Heading, NStr::CStr const &_Information)
 					{
 						if (bVerbose)
 							DMibConErrOut("{}{\n}", _Information);
 					}
-					, [&] (NStr::CStr const& _Errors, NDaemon::EReportError _Default) -> NMib::NDaemon::EReportError
+					, [&](NStr::CStr const &_Errors, NDaemon::EReportError _Default) -> NMib::NDaemon::EReportError
 					{
 						DMibConErrOut("{}{\n}", _Errors);
 						return _Default;
@@ -254,15 +254,9 @@ namespace NMib::NConcurrency
 		{
 			switch (m_DefaultMode)
 			{
-			case EDaemonMode_Global:
-				DaemonSettings["Mode"] = "global";
-				break;
-			case EDaemonMode_AllUsers:
-				DaemonSettings["Mode"] = "all-users";
-				break;
-			case EDaemonMode_LocalUser:
-				DaemonSettings["Mode"] = "user";
-				break;
+			case EDaemonMode_Global: DaemonSettings["Mode"] = "global"; break;
+			case EDaemonMode_AllUsers: DaemonSettings["Mode"] = "all-users"; break;
+			case EDaemonMode_LocalUser: DaemonSettings["Mode"] = "user"; break;
 			}
 		}
 

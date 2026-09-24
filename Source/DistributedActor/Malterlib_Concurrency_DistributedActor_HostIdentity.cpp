@@ -63,25 +63,25 @@ namespace NMib::NConcurrency
 			{
 				return fg_LookUpLocalHostIdentity();
 			}
-		).f_OnResultSet
-			(
-				[pBlockingActorCheckout](TCAsyncResult<CLocalHostIdentity> &&_Result)
+		)
+		.f_OnResultSet
+		(
+			[pBlockingActorCheckout](TCAsyncResult<CLocalHostIdentity> &&_Result)
+			{
+				auto &State = *g_LocalHostIdentity;
+
+				NContainer::TCVector<TCPromise<CLocalHostIdentity>> Waiters;
 				{
-					auto &State = *g_LocalHostIdentity;
-
-					NContainer::TCVector<TCPromise<CLocalHostIdentity>> Waiters;
-					{
-						DMibLock(State.m_Lock);
-						State.m_Result = fg_Move(_Result);
-						State.m_bResolved = true;
-						Waiters = fg_Move(State.m_Waiters);
-					}
-
-					for (auto &Waiter : Waiters)
-						Waiter.f_SetResult(State.m_Result);
+					DMibLock(State.m_Lock);
+					State.m_Result = fg_Move(_Result);
+					State.m_bResolved = true;
+					Waiters = fg_Move(State.m_Waiters);
 				}
-			)
-		;
+
+				for (auto &Waiter : Waiters)
+					Waiter.f_SetResult(State.m_Result);
+			}
+		);
 	}
 
 	// Starts the lookup if needed and returns its shared result.

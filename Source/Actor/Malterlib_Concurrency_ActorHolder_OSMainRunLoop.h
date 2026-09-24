@@ -31,5 +31,5 @@ namespace NMib::NConcurrency
 }
 
 #ifndef DMibPNoShortCuts
-	using namespace NMib::NConcurrency;
+using namespace NMib::NConcurrency;
 #endif

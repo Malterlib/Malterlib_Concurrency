@@ -27,11 +27,8 @@ namespace NMib::NConcurrency
 		;
 	}
 
-	TCFuture<void> CDistributedAppSensorStoreLocal::CInternal::f_UpdateSensorForReporter
-		(
-			CDistributedAppSensorReporter::CSensorInfoKey _SensorInfoKey
-			, TCWeakDistributedActor<CActor> _WeakActor
-		)
+	auto CDistributedAppSensorStoreLocal::CInternal::f_UpdateSensorForReporter(CDistributedAppSensorReporter::CSensorInfoKey _SensorInfoKey, TCWeakDistributedActor<CActor> _WeakActor)
+		-> TCFuture<void>
 	{
 		CSensor *pSensor;
 		CSensorReporter *pSensorReporter;
@@ -209,7 +206,6 @@ namespace NMib::NConcurrency
 						}
 						else if (!_bCompacting)
 							pThis->f_Subscription_SensorInfoChanged(*pSensor, nullptr);
-
 					}
 
 					co_await fg_ContinueRunningOnActor(WriteTransaction.f_Checkout());
@@ -384,11 +380,7 @@ namespace NMib::NConcurrency
 		co_return {};
 	}
 
-	TCFuture<void> CDistributedAppSensorStoreLocal::CInternal::f_SensorReporterInterfaceAdded
-		(
-			TCDistributedActorInterface<CDistributedAppSensorReporter> _Actor
-			, CTrustedActorInfo _TrustInfo
-		)
+	TCFuture<void> CDistributedAppSensorStoreLocal::CInternal::f_SensorReporterInterfaceAdded(TCDistributedActorInterface<CDistributedAppSensorReporter> _Actor, CTrustedActorInfo _TrustInfo)
 	{
 		TCWeakDistributedActor<CActor> WeakActor = _Actor.f_Weak();
 		auto &SensorInterface = m_SensorInterfaces[WeakActor];

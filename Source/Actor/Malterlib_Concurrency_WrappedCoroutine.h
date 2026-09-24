@@ -31,14 +31,14 @@ namespace NMib::NConcurrency::NPrivate
 		mark_artificial inline_always TCWrappedCoroutineReturnObject(CHandle _Handle) noexcept;
 
 		TCWrappedCoroutineReturnObject(TCWrappedCoroutineReturnObject const &) = delete;
-		TCWrappedCoroutineReturnObject &operator =(TCWrappedCoroutineReturnObject const &) = delete;
-		TCWrappedCoroutineReturnObject &operator =(TCWrappedCoroutineReturnObject &&) = delete;
+		TCWrappedCoroutineReturnObject &operator = (TCWrappedCoroutineReturnObject const &) = delete;
+		TCWrappedCoroutineReturnObject &operator = (TCWrappedCoroutineReturnObject &&) = delete;
 
 		mark_artificial inline_always TCWrappedCoroutineReturnObject(TCWrappedCoroutineReturnObject &&_Other) noexcept;
 
 		mark_artificial inline_always ~TCWrappedCoroutineReturnObject();
 
-		mark_artificial inline_always operator TCWrapped<t_CType>();
+		mark_artificial inline_always operator TCWrapped<t_CType> ();
 
 		CHandle m_Handle;
 	};

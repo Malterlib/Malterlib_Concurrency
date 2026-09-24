@@ -23,12 +23,7 @@ namespace NMib::NConcurrency
 
 		// Whitelists follow domain policy, not the local leaf. Also allow the persisted authority's signature digest,
 		// which may predate that policy. Anonymous endpoints use empty whitelists and pin the CA.
-		auto fg_VerifyOptionsFromKeySetting
-			(
-				NCryptography::CPublicKeySetting const &_KeySetting
-				, bool _bHasLocalCertificate
-				, NContainer::CByteVector const &_AuthorityCertificate
-			)
+		auto fg_VerifyOptionsFromKeySetting(NCryptography::CPublicKeySetting const &_KeySetting, bool _bHasLocalCertificate, NContainer::CByteVector const &_AuthorityCertificate)
 			-> NCryptography::CCertificateVerifyOptions
 		{
 			NCryptography::CCertificateVerifyOptions VerifyOptions;
@@ -265,8 +260,7 @@ namespace NMib::NConcurrency
 			if (_pPromise)
 				Promise = fg_Move(*_pPromise);
 
-			m_Connection(&NWeb::CWebSocketActor::f_CloseWithLinger, NWeb::EWebSocketStatus_NormalClosure, _Message.f_Left(NWeb::CWebSocketActor::mc_MaxCloseMessageLength), 5.0)
-				.f_OnResultSet
+			m_Connection(&NWeb::CWebSocketActor::f_CloseWithLinger, NWeb::EWebSocketStatus_NormalClosure, _Message.f_Left(NWeb::CWebSocketActor::mc_MaxCloseMessageLength), 5.0).f_OnResultSet
 				(
 					[=, Promise = fg_Move(Promise)](TCAsyncResult<NWeb::CWebSocketActor::CCloseInfo> &&_Result) mutable
 					{
@@ -431,22 +425,37 @@ namespace NMib::NConcurrency
 		// Longer suffixes first, so "kib" is not taken for "b" and "kbit" not for "bit"
 		constexpr CSendWindowUnit gc_SendWindowByteUnits[] =
 			{
-				{"gib", 1024.0 * 1024.0 * 1024.0}, {"mib", 1024.0 * 1024.0}, {"kib", 1024.0}
-				, {"gb", 1000.0 * 1000.0 * 1000.0}, {"mb", 1000.0 * 1000.0}, {"kb", 1000.0}
-				, {"g", 1024.0 * 1024.0 * 1024.0}, {"m", 1024.0 * 1024.0}, {"k", 1024.0}, {"b", 1.0}
+				{"gib", 1024.0 * 1024.0 * 1024.0}
+				, {"mib", 1024.0 * 1024.0}
+				, {"kib", 1024.0}
+				, {"gb", 1000.0 * 1000.0 * 1000.0}
+				, {"mb", 1000.0 * 1000.0}
+				, {"kb", 1000.0}
+				, {"g", 1024.0 * 1024.0 * 1024.0}
+				, {"m", 1024.0 * 1024.0}
+				, {"k", 1024.0}
+				, {"b", 1.0}
 			}
 		;
 
 		constexpr CSendWindowUnit gc_SendWindowRateUnits[] =
 			{
-				{"gbps", 1000.0 * 1000.0 * 1000.0}, {"mbps", 1000.0 * 1000.0}, {"kbps", 1000.0}, {"bps", 1.0}
-				, {"gbit", 1000.0 * 1000.0 * 1000.0}, {"mbit", 1000.0 * 1000.0}, {"kbit", 1000.0}, {"bit", 1.0}
+				{"gbps", 1000.0 * 1000.0 * 1000.0}
+				, {"mbps", 1000.0 * 1000.0}
+				, {"kbps", 1000.0}
+				, {"bps", 1.0}
+				, {"gbit", 1000.0 * 1000.0 * 1000.0}
+				, {"mbit", 1000.0 * 1000.0}
+				, {"kbit", 1000.0}
+				, {"bit", 1.0}
 			}
 		;
 
 		constexpr CSendWindowUnit gc_SendWindowLatencyUnits[] =
 			{
-				{"us", 0.000001}, {"ms", 0.001}, {"s", 1.0}
+				{"us", 0.000001}
+				, {"ms", 0.001}
+				, {"s", 1.0}
 			}
 		;
 

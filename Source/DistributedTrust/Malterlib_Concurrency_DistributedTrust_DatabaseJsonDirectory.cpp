@@ -55,25 +55,25 @@ namespace NMib::NConcurrency
 		bool m_bGotBasicConfig = false;
 
 		template <typename ...tfp_CComponent>
-		CStr f_GetPath(tfp_CComponent const &...p_Component) const;
+		CStr f_GetPath(tfp_CComponent const & ...p_Component) const;
 		template <typename ...tfp_CComponent>
-		bool f_Delete(tfp_CComponent const &...p_Component) const;
+		bool f_Delete(tfp_CComponent const & ...p_Component) const;
 		CStr f_GetNameHash(CDistributedActorTrustManager_Address const &_Object) const;
 		CStr f_GetNameHash(CStr const &_Object) const;
 		CStr f_PercentEncode(CStr const &_Str) const;
 		CStr f_PercentDecode(CStr const &_Str) const;
 		template <typename ...tfp_CComponent>
-		NContainer::TCSet<CStr> f_Find(bool _bRecursive, tfp_CComponent const &...p_Component) const;
+		NContainer::TCSet<CStr> f_Find(bool _bRecursive, tfp_CComponent const & ...p_Component) const;
 		template <typename ...tfp_CComponent>
-		NContainer::TCSet<CStr> f_Find(tfp_CComponent const &...p_Component) const;
+		NContainer::TCSet<CStr> f_Find(tfp_CComponent const & ...p_Component) const;
 		template <typename ...tfp_CComponent>
-		NContainer::TCSet<CStr> f_FindRecursive(tfp_CComponent const &...p_Component) const;
+		NContainer::TCSet<CStr> f_FindRecursive(tfp_CComponent const & ...p_Component) const;
 		template <typename ...tfp_CComponent>
-		bool f_Exists(tfp_CComponent const &...p_Component) const;
+		bool f_Exists(tfp_CComponent const & ...p_Component) const;
 		template <typename tf_CObject, typename ...tfp_CComponent>
-		bool f_Read(tf_CObject &_Object, tfp_CComponent const &...p_Component) const;
+		bool f_Read(tf_CObject &_Object, tfp_CComponent const & ...p_Component) const;
 		template <typename tf_CObject, typename ...tfp_CComponent>
-		void f_Write(tf_CObject const &_Object, tfp_CComponent const &...p_Component) const;
+		void f_Write(tf_CObject const &_Object, tfp_CComponent const & ...p_Component) const;
 
 		CDistributedActorTrustManager_Address f_DecodeAddress(CEJsonSorted const &_Json, CStr const &_Name) const;
 		void f_EncodeAddress(CEJsonSorted &_Json, CDistributedActorTrustManager_Address const &_Address) const;
@@ -413,8 +413,7 @@ namespace NMib::NConcurrency
 		;
 	}
 
-	auto CDistributedActorTrustManagerDatabase_JsonDirectory::f_EnumListenConfigs()
-		-> TCFuture<NContainer::TCMap<CDistributedActorTrustManager_Address, CListenConfig>>
+	auto CDistributedActorTrustManagerDatabase_JsonDirectory::f_EnumListenConfigs() -> TCFuture<NContainer::TCMap<CDistributedActorTrustManager_Address, CListenConfig>>
 	{
 		auto &Internal = *mp_pInternal;
 		auto SequenceSubscription = co_await Internal.m_Sequencer.f_Sequence();
@@ -578,7 +577,6 @@ namespace NMib::NConcurrency
 						auto &Client = Clients[HostID];
 						if (_bIncludeFullInfo)
 							Internal.f_Read(Client, "Clients", HostID);
-
 					}
 					return Clients;
 				}
@@ -774,11 +772,7 @@ namespace NMib::NConcurrency
 		;
 	}
 
-	TCFuture<void> CDistributedActorTrustManagerDatabase_JsonDirectory::f_AddClientConnection
-		(
-			CDistributedActorTrustManager_Address _Address
-			, CClientConnection _ClientConnection
-		)
+	TCFuture<void> CDistributedActorTrustManagerDatabase_JsonDirectory::f_AddClientConnection(CDistributedActorTrustManager_Address _Address, CClientConnection _ClientConnection)
 	{
 		auto &Internal = *mp_pInternal;
 		auto SequenceSubscription = co_await Internal.m_Sequencer.f_Sequence();
@@ -801,11 +795,7 @@ namespace NMib::NConcurrency
 		;
 	}
 
-	TCFuture<void> CDistributedActorTrustManagerDatabase_JsonDirectory::f_SetClientConnection
-		(
-			CDistributedActorTrustManager_Address _Address
-			, CClientConnection _ClientConnection
-		)
+	TCFuture<void> CDistributedActorTrustManagerDatabase_JsonDirectory::f_SetClientConnection(CDistributedActorTrustManager_Address _Address, CClientConnection _ClientConnection)
 	{
 		auto &Internal = *mp_pInternal;
 		auto SequenceSubscription = co_await Internal.m_Sequencer.f_Sequence();
@@ -866,7 +856,6 @@ namespace NMib::NConcurrency
 						auto &Namespace = Namespaces[DecodedNamespaceName];
 						if (_bIncludeFullInfo)
 							Internal.f_Read(Namespace, "Namespaces", NamespaceName);
-
 					}
 					return Namespaces;
 				}
@@ -1173,10 +1162,7 @@ namespace NMib::NConcurrency
 		;
 	}
 
-	auto CDistributedActorTrustManagerDatabase_JsonDirectory::f_EnumAuthenticationFactor
-		(
-			bool _bIncludeFullInfo
-		)
+	auto CDistributedActorTrustManagerDatabase_JsonDirectory::f_EnumAuthenticationFactor(bool _bIncludeFullInfo)
 		-> TCFuture<NContainer::TCMap<CStr, NContainer::TCMap<CStr, CUserAuthenticationFactor>>>
 	{
 		auto &Internal = *mp_pInternal;
@@ -1203,12 +1189,7 @@ namespace NMib::NConcurrency
 		;
 	}
 
-	TCFuture<void> CDistributedActorTrustManagerDatabase_JsonDirectory::f_AddUserAuthenticationFactor
-		(
-			CStr _UserID
-			, CStr _FactorID
-			, CUserAuthenticationFactor _Factor
-		)
+	TCFuture<void> CDistributedActorTrustManagerDatabase_JsonDirectory::f_AddUserAuthenticationFactor(CStr _UserID, CStr _FactorID, CUserAuthenticationFactor _Factor)
 	{
 		auto &Internal = *mp_pInternal;
 		auto SequenceSubscription = co_await Internal.m_Sequencer.f_Sequence();
@@ -1229,12 +1210,7 @@ namespace NMib::NConcurrency
 		;
 	}
 
-	TCFuture<void> CDistributedActorTrustManagerDatabase_JsonDirectory::f_SetUserAuthenticationFactor
-		(
-			CStr _UserID
-			, CStr _FactorID
-			, CUserAuthenticationFactor _Factor
-		)
+	TCFuture<void> CDistributedActorTrustManagerDatabase_JsonDirectory::f_SetUserAuthenticationFactor(CStr _UserID, CStr _FactorID, CUserAuthenticationFactor _Factor)
 	{
 		auto &Internal = *mp_pInternal;
 		auto SequenceSubscription = co_await Internal.m_Sequencer.f_Sequence();
@@ -1279,7 +1255,7 @@ namespace NMib::NConcurrency
 	}
 
 	template <typename ...tfp_CComponent>
-	CStr CDistributedActorTrustManagerDatabase_JsonDirectory::CInternal::f_GetPath(tfp_CComponent const &...p_Component) const
+	CStr CDistributedActorTrustManagerDatabase_JsonDirectory::CInternal::f_GetPath(tfp_CComponent const & ...p_Component) const
 	{
 		CStr Return = m_BaseDirectory;
 
@@ -1298,7 +1274,7 @@ namespace NMib::NConcurrency
 	}
 
 	template <typename ...tfp_CComponent>
-	bool CDistributedActorTrustManagerDatabase_JsonDirectory::CInternal::f_Delete(tfp_CComponent const &...p_Component) const
+	bool CDistributedActorTrustManagerDatabase_JsonDirectory::CInternal::f_Delete(tfp_CComponent const & ...p_Component) const
 	{
 		CStr Path = f_GetPath(p_Component...);
 		if (!NFile::CFile::fs_FileExists(Path))
@@ -1338,7 +1314,7 @@ namespace NMib::NConcurrency
 	}
 
 	template <typename ...tfp_CComponent>
-	NContainer::TCSet<CStr> CDistributedActorTrustManagerDatabase_JsonDirectory::CInternal::f_Find(bool _bRecursive, tfp_CComponent const &...p_Component) const
+	NContainer::TCSet<CStr> CDistributedActorTrustManagerDatabase_JsonDirectory::CInternal::f_Find(bool _bRecursive, tfp_CComponent const & ...p_Component) const
 	{
 		using namespace NFile;
 		CStr Path = f_GetPath(p_Component..., "*");
@@ -1350,33 +1326,31 @@ namespace NMib::NConcurrency
 		NContainer::TCSet<CStr> ReturnNames;
 		CStr const SearchPath = CFile::fs_GetPath(Path);
 		for (auto const &File : Files)
-		{
 			ReturnNames[CFile::fs_AppendPath(CFile::fs_MakePathRelative(CFile::fs_GetPath(File.m_Path), SearchPath), CFile::fs_GetFileNoExt(File.m_Path))];
-		}
 		return ReturnNames;
 	}
 
 	template <typename ...tfp_CComponent>
-	NContainer::TCSet<CStr> CDistributedActorTrustManagerDatabase_JsonDirectory::CInternal::f_Find(tfp_CComponent const &...p_Component) const
+	NContainer::TCSet<CStr> CDistributedActorTrustManagerDatabase_JsonDirectory::CInternal::f_Find(tfp_CComponent const & ...p_Component) const
 	{
 		return f_Find(false, p_Component...);
 	}
 
 	template <typename ...tfp_CComponent>
-	NContainer::TCSet<CStr> CDistributedActorTrustManagerDatabase_JsonDirectory::CInternal::f_FindRecursive(tfp_CComponent const &...p_Component) const
+	NContainer::TCSet<CStr> CDistributedActorTrustManagerDatabase_JsonDirectory::CInternal::f_FindRecursive(tfp_CComponent const & ...p_Component) const
 	{
 		return f_Find(true, p_Component...);
 	}
 
 	template <typename ...tfp_CComponent>
-	bool CDistributedActorTrustManagerDatabase_JsonDirectory::CInternal::f_Exists(tfp_CComponent const &...p_Component) const
+	bool CDistributedActorTrustManagerDatabase_JsonDirectory::CInternal::f_Exists(tfp_CComponent const & ...p_Component) const
 	{
 		CStr Path = f_GetPath(p_Component...);
 		return NFile::CFile::fs_FileExists(Path);
 	}
 
 	template <typename tf_CObject, typename ...tfp_CComponent>
-	bool CDistributedActorTrustManagerDatabase_JsonDirectory::CInternal::f_Read(tf_CObject &o_Object, tfp_CComponent const &...p_Component) const
+	bool CDistributedActorTrustManagerDatabase_JsonDirectory::CInternal::f_Read(tf_CObject &o_Object, tfp_CComponent const & ...p_Component) const
 	{
 		CStr Path = f_GetPath(p_Component...);
 		if (!NFile::CFile::fs_FileExists(Path))
@@ -1387,7 +1361,7 @@ namespace NMib::NConcurrency
 	}
 
 	template <typename tf_CObject, typename ...tfp_CComponent>
-	void CDistributedActorTrustManagerDatabase_JsonDirectory::CInternal::f_Write(tf_CObject const &_Object, tfp_CComponent const &...p_Component) const
+	void CDistributedActorTrustManagerDatabase_JsonDirectory::CInternal::f_Write(tf_CObject const &_Object, tfp_CComponent const & ...p_Component) const
 	{
 		CStr Path = f_GetPath(p_Component...);
 
@@ -1622,7 +1596,7 @@ namespace NMib::NConcurrency
 					AuthenticationFactors.m_MaximumAuthenticationLifetime = pValue->f_Integer();
 
 				auto pValue = FactorsObject.f_GetMember("RequiredAuthenticationFactors");
-				for (auto &Inner :  pValue->f_Array())
+				for (auto &Inner : pValue->f_Array())
 				{
 					NContainer::TCSet<CStr> Factors;
 					for (auto &Factor : Inner.f_Array())
@@ -1647,9 +1621,7 @@ namespace NMib::NConcurrency
 		{
 			auto &Metadata = Json["Metadata"] = EJsonType_Object;
 			for (auto &Item : _UserInfo.m_Metadata)
-			{
 				Metadata[_UserInfo.m_Metadata.fs_GetKey(Item)] = Item;
-			}
 		}
 		return Json;
 	}

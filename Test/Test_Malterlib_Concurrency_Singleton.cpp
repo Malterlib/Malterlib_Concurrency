@@ -25,9 +25,7 @@ namespace NMib::NConcurrency
 					[&]
 					{
 						if constexpr (t_Depth + 1 < gc_NestedSingletonDepth)
-						{
 							TCActor<TCNestedSingletonActor<t_Depth + 1>> Next = fg_GetNestedSingleton<t_Depth + 1>(_Manager, o_nCreated).f_Move();
-						}
 
 						++o_nCreated;
 						return _Manager.f_ConstructActor(fg_Construct<TCNestedSingletonActor<t_Depth>>());
@@ -58,9 +56,7 @@ namespace NMib::NConcurrency
 						}
 
 						TCActor<TCNestedSingletonActor<0>> OuterAgain = fg_GetNestedSingleton<0>(Manager, nCreated).f_Move();
-						TCActor<TCNestedSingletonActor<gc_NestedSingletonDepth - 1>> Innermost
-							= fg_GetNestedSingleton<gc_NestedSingletonDepth - 1>(Manager, nCreated).f_Move()
-						;
+						TCActor<TCNestedSingletonActor<gc_NestedSingletonDepth - 1>> Innermost = fg_GetNestedSingleton<gc_NestedSingletonDepth - 1>(Manager, nCreated).f_Move();
 
 						{
 							DMibTestPath("LaterRequests");

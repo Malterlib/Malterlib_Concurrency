@@ -40,7 +40,7 @@ namespace NMib::NConcurrency
 		}
 		else
 		{
-			new (&m_State) CRuntimeState(ThreadLocal.m_pCurrentCoroutineHandler);
+			new(&m_State) CRuntimeState(ThreadLocal.m_pCurrentCoroutineHandler);
 			m_bRuntimeStateConstructed = true;
 			m_bPreviousCoroutineHandlerConstructed = true;
 #if DMibEnableSafeCheck > 0
@@ -230,12 +230,7 @@ namespace NMib::NConcurrency
 #endif
 	{
 		// It's not safe to suspend on the direct call actor
-		DMibFastCheck
-			(
-				!m_pPromiseData->m_pCoroutineOwner
-				|| m_pPromiseData->m_pCoroutineOwner != m_pPromiseData->m_pCoroutineOwner->f_ConcurrencyManager().f_GetDirectCallActor().f_Get()
-			)
-		;
+		DMibFastCheck(!m_pPromiseData->m_pCoroutineOwner || m_pPromiseData->m_pCoroutineOwner != m_pPromiseData->m_pCoroutineOwner->f_ConcurrencyManager().f_GetDirectCallActor().f_Get());
 
 		DMibFastCheck(m_CoroutineHandlers.m_nThreadLocalScopes == 0); // Oustanding thread local scopes cannot escape suspension point,
 		// if needed convert thread local scope to CCoroutineThreadLocalHandler interface
@@ -327,7 +322,7 @@ namespace NMib::NConcurrency
 		DMibFastCheck(_ThreadLocal.m_pCurrentCoroutineHandler != &m_CoroutineHandlers);
 		DMibFastCheck(!m_bRuntimeStateConstructed);
 
-		new (&m_State) CRuntimeState(_ThreadLocal.m_pCurrentCoroutineHandler);
+		new(&m_State) CRuntimeState(_ThreadLocal.m_pCurrentCoroutineHandler);
 		m_bRuntimeStateConstructed = true;
 		m_bPreviousCoroutineHandlerConstructed = true;
 #if DMibEnableSafeCheck > 0
@@ -411,9 +406,9 @@ namespace NMib::NConcurrency
 #if DMibEnableSafeCheck > 0
 	void CFutureCoroutineContext::f_SetOwner(CActorHolder *_pCoroutineOwner)
 	{
-#ifndef DMibClangAnalyzerWorkaround
+#	ifndef DMibClangAnalyzerWorkaround
 		m_pPromiseData->m_pCoroutineOwner = _pCoroutineOwner;
-#endif
+#	endif
 	}
 #endif
 
@@ -527,9 +522,7 @@ namespace NMib::NConcurrency
 		if (!m_bIsCalledSafely)
 		{
 			if (ms_bDebugCoroutineSafeCheck)
-			{
 				DMibSafeCheck(false, "Unsafe call to coroutine with reference this pointer");
-			}
 			else
 			{
 				NSys::fg_DebugOutput("Unsafe call to coroutine with reference this pointer:\n");
@@ -538,16 +531,16 @@ namespace NMib::NConcurrency
 				Callstack.f_Capture();
 				Callstack.f_Trace(4);
 
-#if DMibConfig_Concurrency_DebugActorCallstacks
+#	if DMibConfig_Concurrency_DebugActorCallstacks
 				NSys::fg_DebugOutput("Create Callstack:\n");
 				m_CreateCallstack.f_Trace(4);
-#endif
+#	endif
 
 				DMibFastCheck(false);
 			}
 		}
 
-#if 0
+#	if 0
 		// If you hit this assert you have called a coroutine (probably a lamdba) in an unsafe way.
 		// Instead of calling coroutine directly, dispatch it instead:
 
@@ -555,7 +548,7 @@ namespace NMib::NConcurrency
 		{
 			co_await
 				(
-					self / [=] () -> TCFuture<void>
+					self / [=]() -> TCFuture<void>
 					{
 						co_await f_MyOtherCoroutineFunction();
 						co_return {};
@@ -574,7 +567,7 @@ namespace NMib::NConcurrency
 				(
 					fg_CallSafe
 					(
-						[=] () -> TCFuture<void>
+						[=]() -> TCFuture<void>
 						{
 							co_await f_MyOtherCoroutineFunction();
 							co_return {};
@@ -585,7 +578,7 @@ namespace NMib::NConcurrency
 
 			co_return {};
 		}
-#endif
+#	endif
 	}
 #endif
 }

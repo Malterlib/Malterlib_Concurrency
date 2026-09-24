@@ -134,10 +134,7 @@ namespace NMib::NConcurrency
 		(
 			NStr::CStr _Path
 			, TCActor<> _Actor
-			, NFunction::TCFunctionMutable
-			<
-				TCFuture<void> (NStorage::TCSharedPointer<NWeb::CWebSocketNewServerConnection> const &_pNewServerConnection, NStr::CStr const &_RealHostID)
-			>
+			, NFunction::TCFunctionMutable<TCFuture<void> (NStorage::TCSharedPointer<NWeb::CWebSocketNewServerConnection> const &_pNewServerConnection, NStr::CStr const &_RealHostID)>
 			_fNewWebsocketConnection
 		)
 	{
@@ -279,7 +276,7 @@ namespace NMib::NConcurrency
 			fg_Dispatch
 				(
 					Actor
-					,[fNewWebsocketConnection = pHandler->m_fNewWebsocketConnection, pNewServerConnection, RealHostID]() mutable -> TCFuture<void>
+					, [fNewWebsocketConnection = pHandler->m_fNewWebsocketConnection, pNewServerConnection, RealHostID]() mutable -> TCFuture<void>
 					{
 						co_return co_await fNewWebsocketConnection(pNewServerConnection, RealHostID);
 					}
@@ -380,10 +377,7 @@ namespace NMib::NConcurrency
 						*pConnection
 						, false
 						, CloseMessage
-						, _Reason == NWeb::EWebSocketStatus_NormalClosure
-						&& bLast
-						&& _Message != "Remove connection (preserve host)"
-						&& !_Message.f_StartsWith("Invalid connection:")
+						, _Reason == NWeb::EWebSocketStatus_NormalClosure && bLast && _Message != "Remove connection (preserve host)" && !_Message.f_StartsWith("Invalid connection:")
 					)
 				;
 
@@ -575,7 +569,7 @@ namespace NMib::NConcurrency
 		{
 			try
 			{
-				 pServerContext = fg_Construct(NNetwork::CSSLContext::EType_Server, ServerSettings);
+				pServerContext = fg_Construct(NNetwork::CSSLContext::EType_Server, ServerSettings);
 			}
 			catch (NException::CException const &_Exception)
 			{
@@ -638,7 +632,7 @@ namespace NMib::NConcurrency
 					, NWeb::CWebSocketListenSocketFactory::fs_PerAddress
 					(
 						[pServerContext, pAuthenticatedUnixContext, AddressKinds = fg_Move(AddressKinds), SendWindowBytes = _Settings.m_SendWindowBytes]
-							(umint _iAddress, NNetwork::CNetAddress const &_Address) -> NWeb::CWebSocketListenAddressConfig
+						(umint _iAddress, NNetwork::CNetAddress const &_Address) -> NWeb::CWebSocketListenAddressConfig
 						{
 							auto const &AddressKind = AddressKinds[_iAddress];
 
@@ -673,7 +667,7 @@ namespace NMib::NConcurrency
 									, .m_bNegotiateUnmaskedFrames = true
 									, .m_FragmentationSize = FragmentationSize
 									, .m_MaxFragmentSize = MaxFragmentSize
-										, .m_SendWindowBytes = SendWindowBytes
+									, .m_SendWindowBytes = SendWindowBytes
 								}
 							;
 						}
@@ -741,14 +735,7 @@ namespace NMib::NConcurrency
 					if (!bReportError)
 						return;
 
-					DMibLogWithCategory
-						(
-							Mib/Concurrency/Actors
-							, Error
-							, "{}"
-							, ErrorString
-						)
-					;
+					DMibLogWithCategory(Mib/Concurrency/Actors, Error, "{}", ErrorString);
 				}
 			;
 

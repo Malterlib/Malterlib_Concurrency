@@ -7,7 +7,7 @@
 #include "Malterlib_Concurrency_ActorHolder_OSThreadRunLoop.h"
 
 #if defined(DPlatformFamily_macOS)
-#include <Mib/Core/PlatformSpecific/PosixErrNo>
+#	include <Mib/Core/PlatformSpecific/PosixErrNo>
 #endif
 
 namespace NMib::NConcurrency
@@ -72,13 +72,7 @@ namespace NMib::NConcurrency
 							}
 						;
 
-						CFRunLoopSourceRef pRunLoopSource = CFRunLoopSourceCreate
-							(
-								nullptr
-								, 0
-								, &RunLoopSourceContext
-							)
-						;
+						CFRunLoopSourceRef pRunLoopSource = CFRunLoopSourceCreate(nullptr, 0, &RunLoopSourceContext);
 
 						mp_RunLoopRef = CFRunLoopGetCurrent();
 						CFRunLoopAddSource(mp_RunLoopRef, pRunLoopSource, kCFRunLoopDefaultMode);

@@ -27,11 +27,7 @@ namespace NMib::NConcurrency
 		template <typename t_CFunction, typename ...tp_CParams>
 		struct TCCallSafeIsValidFunction
 		{
-			static constexpr bool mc_Value = NTraits::cIsCallableWith
-			<
-				TCSafeCallParamsToFunctionPointer<TCCallSafeFunctionParams<t_CFunction>>
-				, void (tp_CParams...)
-			>;
+			static constexpr bool mc_Value = NTraits::cIsCallableWith<TCSafeCallParamsToFunctionPointer<TCCallSafeFunctionParams<t_CFunction>>, void (tp_CParams...)>;
 		};
 
 		template <typename t_CType, typename ...tp_COptions, typename ...tp_CParams>
@@ -41,13 +37,9 @@ namespace NMib::NConcurrency
 		};
 	}
 
-	template <typename tf_CReturn, typename ...tfp_CStorageParams, typename tf_CFunction, typename ...tfp_CParams, umint... tfp_Indices>
-	auto fg_CallSafeImpl(tf_CFunction &&_Function, NMeta::TCIndices<tfp_Indices...> const &_Indices, tfp_CParams &&...p_Params)
-		requires NTraits::cIsCallableWith
-		<
-			TCSafeCallParamsToFunctionPointer<NMeta::TCTypeList<tfp_CStorageParams...>>
-			, void (tfp_CParams...)
-		>
+	template <typename tf_CReturn, typename ...tfp_CStorageParams, typename tf_CFunction, typename ...tfp_CParams, umint ...tfp_Indices>
+	auto fg_CallSafeImpl(tf_CFunction &&_Function, NMeta::TCIndices<tfp_Indices...> const &_Indices, tfp_CParams && ...p_Params)
+		requires NTraits::cIsCallableWith<TCSafeCallParamsToFunctionPointer<NMeta::TCTypeList<tfp_CStorageParams...>>, void (tfp_CParams...)>
 	{
 		static_assert(NPrivate::TCIsFuture<tf_CReturn>::mc_Value || NPrivate::TCIsUnsafeFuture<tf_CReturn>::mc_Value || NPrivate::TCIsAsyncGenerator<tf_CReturn>::mc_Value);
 
@@ -124,12 +116,8 @@ namespace NMib::NConcurrency
 	}
 
 	template <typename tf_CFunction, typename tf_CFunctor, typename ...tfp_CStorageParams, typename ...tfp_CParams>
-	mark_artificial inline_always auto fg_CallSafeGenericImpl(NMeta::TCTypeList<tfp_CStorageParams...> _TypeList, tf_CFunctor &&_fFunction, tfp_CParams &&...p_Params)
-		requires NTraits::cIsCallableWith
-		<
-			TCSafeCallParamsToFunctionPointer<NMeta::TCTypeList<tfp_CStorageParams...>>
-			, void (tfp_CParams...)
-		>
+	mark_artificial inline_always auto fg_CallSafeGenericImpl(NMeta::TCTypeList<tfp_CStorageParams...> _TypeList, tf_CFunctor &&_fFunction, tfp_CParams && ...p_Params)
+		requires NTraits::cIsCallableWith<TCSafeCallParamsToFunctionPointer<NMeta::TCTypeList<tfp_CStorageParams...>>, void (tfp_CParams...)>
 	{
 		using CFunctionType = NTraits::TCRemoveReference<tf_CFunction>;
 		using CReturn = NTraits::TCCallableReturnTypeFor<CFunctionType, void (tfp_CParams...)>;
@@ -143,35 +131,23 @@ namespace NMib::NConcurrency
 	}
 
 	template <typename tf_CFunction, typename ...tfp_CParams>
-	mark_artificial inline_always auto fg_CallSafe(tf_CFunction &&_fFunction, tfp_CParams &&...p_Params)
+	mark_artificial inline_always auto fg_CallSafe(tf_CFunction &&_fFunction, tfp_CParams && ...p_Params)
 		requires (NPrivate::TCCallSafeIsValidFunction<NTraits::TCRemoveReferenceAndQualifiers<tf_CFunction>, tfp_CParams...>::mc_Value)
 	{
 		using CFunctionType = NTraits::TCRemoveReferenceAndQualifiers<tf_CFunction>;
-		return fg_CallSafeGenericImpl<tf_CFunction>
-			(
-				typename NPrivate::TCCallSafeFunctionParams<CFunctionType>()
-				, fg_Forward<tf_CFunction>(_fFunction)
-				, fg_Forward<tfp_CParams>(p_Params)...
-			)
-		;
+		return fg_CallSafeGenericImpl<tf_CFunction>(typename NPrivate::TCCallSafeFunctionParams<CFunctionType>(), fg_Forward<tf_CFunction>(_fFunction), fg_Forward<tfp_CParams>(p_Params)...);
 	}
 
 	template <typename tf_CFunction, typename ...tfp_CParams>
-	mark_artificial inline_always auto fg_CallSafe(NStorage::TCSharedPointer<tf_CFunction> const &_fFunction, tfp_CParams &&...p_Params)
+	mark_artificial inline_always auto fg_CallSafe(NStorage::TCSharedPointer<tf_CFunction> const &_fFunction, tfp_CParams && ...p_Params)
 		requires (NPrivate::TCCallSafeIsValidFunction<NTraits::TCRemoveReferenceAndQualifiers<tf_CFunction>, tfp_CParams...>::mc_Value)
 	{
 		using CFunctionType = NTraits::TCRemoveReferenceAndQualifiers<tf_CFunction>;
-		return fg_CallSafeGenericImpl<tf_CFunction>
-			(
-				typename NPrivate::TCCallSafeFunctionParams<CFunctionType>()
-				, _fFunction
-				, fg_Forward<tfp_CParams>(p_Params)...
-			)
-		;
+		return fg_CallSafeGenericImpl<tf_CFunction>(typename NPrivate::TCCallSafeFunctionParams<CFunctionType>(), _fFunction, fg_Forward<tfp_CParams>(p_Params)...);
 	}
 
 	template <typename tf_CFunction, typename ...tfp_CParams>
-	auto fg_CallSafeDispatchedOn(TCActor<CActor> &&_Actor, tf_CFunction &&_fFunction, tfp_CParams &&...p_Params)
+	auto fg_CallSafeDispatchedOn(TCActor<CActor> &&_Actor, tf_CFunction &&_fFunction, tfp_CParams && ...p_Params)
 	{
 		using CReturn = NTraits::TCDecay<decltype(fg_CallSafe(fg_Forward<tf_CFunction>(_fFunction), fg_Forward<tfp_CParams>(p_Params)...))>;
 		using CStrippedReturn = typename NPrivate::TCIsFuture<CReturn>::CType;
@@ -180,14 +156,13 @@ namespace NMib::NConcurrency
 				if constexpr (NPrivate::TCIsFuture<CReturn>::mc_Value)
 					co_return co_await fg_CallSafe(fg_Move(fFunction), fg_Move(p_Params)...);
 				else
-				{
 					co_return fg_CallSafe(fg_Move(fFunction), fg_Move(p_Params)...);
-				}
 			}
 		;
 	}
+
 	template <typename tf_CFunction, typename ...tfp_CParams>
-	auto fg_CallSafeDispatched(tf_CFunction &&_fFunction, tfp_CParams &&...p_Params)
+	auto fg_CallSafeDispatched(tf_CFunction &&_fFunction, tfp_CParams && ...p_Params)
 	{
 		return fg_CallSafeDispatchedOn(fg_CurrentActor(), fg_Forward<tf_CFunction>(_fFunction), fg_Forward<tfp_CParams>(p_Params)...);
 	}

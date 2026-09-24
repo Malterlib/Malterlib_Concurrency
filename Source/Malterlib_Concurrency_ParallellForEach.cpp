@@ -51,7 +51,7 @@ namespace NMib::NConcurrency
 					(
 						NThread::CThreadObject::fs_StartThread
 						(
-							[this, NumaNode](NThread::CThreadObject * _pThread) -> aint
+							[this, NumaNode](NThread::CThreadObject *_pThread) -> aint
 							{
 								fg_GetSys()->f_MemoryManager_SetNumaNode(NumaNode);
 								NSys::fg_Thread_SetNumaAffinity(NSys::fg_Thread_GetCurrent(), NumaNode);
@@ -73,7 +73,7 @@ namespace NMib::NConcurrency
 							}
 							, NStr::fg_Format("Thread pool numa {} thread {}", int32(*iNumaNode), nThreads)
 							, NMib::EExecutionPriority_Normal
-							, 4*1024*1024
+							, 4 * 1024 * 1024
 						)
 					)
 				;
@@ -84,9 +84,7 @@ namespace NMib::NConcurrency
 	CThreadPool::~CThreadPool()
 	{
 		for (auto &Thread : m_Threads)
-		{
 			Thread->f_Stop(false);
-		}
 
 		for (auto &Thread : m_Threads)
 		{
@@ -97,14 +95,14 @@ namespace NMib::NConcurrency
 		m_Threads.f_Clear();
 	}
 
-
-	void CThreadPool::f_Dispatch(NFunction::TCFunction<void ()> && _Functor)
+	void CThreadPool::f_Dispatch(NFunction::TCFunction<void ()> &&_Functor)
 	{
 //			DMibConOut("Queueing\n", 0);
 		m_DispatchQueue.f_Push(fg_Move(_Functor));
 		m_Semaphore.f_Signal();
 	}
-	void CThreadPool::f_Dispatch(NFunction::TCFunction<void ()> const& _Functor)
+
+	void CThreadPool::f_Dispatch(NFunction::TCFunction<void ()> const &_Functor)
 	{
 //			DMibConOut("Queueing\n", 0);
 		m_DispatchQueue.f_Push(_Functor);

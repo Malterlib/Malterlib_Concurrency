@@ -93,7 +93,6 @@ namespace NMib::NConcurrency
 		_Stream % m_BatchSize;
 	}
 
-
 	template <typename tf_CStream>
 	void CDistributedAppLogReader::CGetLogEntries::f_Stream(tf_CStream &_Stream)
 	{

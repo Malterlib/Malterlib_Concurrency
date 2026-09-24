@@ -63,7 +63,7 @@ namespace NMib::NConcurrency
 	}
 
 	template <typename t_CType, typename t_CLock>
-	typename TCLockActor<t_CType, t_CLock>::CLockReference &TCLockActor<t_CType, t_CLock>::CLockReference::operator =(CLockReference &&_Other)
+	typename TCLockActor<t_CType, t_CLock>::CLockReference &TCLockActor<t_CType, t_CLock>::CLockReference::operator = (CLockReference &&_Other)
 	{
 		mp_pActor = fg_Move(_Other.mp_pActor);
 		mp_pState = fg_Move(_Other.mp_pState);
@@ -82,7 +82,7 @@ namespace NMib::NConcurrency
 	}
 
 	template <typename t_CType, typename t_CLock>
-	t_CType &TCLockActor<t_CType, t_CLock>::CLockReference::operator *()
+	t_CType &TCLockActor<t_CType, t_CLock>::CLockReference::operator * ()
 	{
 		DMibRequire(mp_pState);
 		return mp_pState->m_Object;

@@ -12,16 +12,7 @@ namespace NMib::NConcurrency
 {
 	struct CDistributedAppInterfaceLaunchActor : public NProcess::CProcessLaunchActor
 	{
-		using FOnUseTicket = TCActorFunctor
-			<
-				TCFuture<void>
-				(
-					NStr::CStr _HostID
-					, CCallingHostInfo _HostInfo
-					, NContainer::CByteVector _CertificateRequest
-				)
-			>
-		;
+		using FOnUseTicket = TCActorFunctor<TCFuture<void> (NStr::CStr _HostID, CCallingHostInfo _HostInfo, NContainer::CByteVector _CertificateRequest)>;
 
 		CDistributedAppInterfaceLaunchActor
 			(

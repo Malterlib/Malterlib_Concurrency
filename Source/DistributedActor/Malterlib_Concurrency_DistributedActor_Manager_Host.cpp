@@ -134,7 +134,7 @@ namespace NMib::NConcurrency
 		bool bIncoming = false;
 		bool bOutgoing = false;
 
-		for (auto iClientConnection = Host.m_ClientConnections.f_GetIterator(); iClientConnection; )
+		for (auto iClientConnection = Host.m_ClientConnections.f_GetIterator(); iClientConnection;)
 		{
 			auto &Connection = *iClientConnection;
 			++iClientConnection;
@@ -154,7 +154,7 @@ namespace NMib::NConcurrency
 				fp_ScheduleReconnect(fg_Explicit(&Connection), true, Connection.m_ConnectionSequence, "Reset host state", true);
 		}
 
-		for (auto iServerConnection = Host.m_ServerConnections.f_GetIterator(); iServerConnection; )
+		for (auto iServerConnection = Host.m_ServerConnections.f_GetIterator(); iServerConnection;)
 		{
 			auto &Connection = *iServerConnection;
 			++iServerConnection;

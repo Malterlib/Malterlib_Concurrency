@@ -80,18 +80,10 @@ namespace NMib::NConcurrency
 			TCFuture<CActorSubscription> Registration;
 			switch (_Kind)
 			{
-			case EKind::mc_Oneshot:
-				Registration = fg_OneshotTimerAbortable(0.01, fg_Move(fCallback), fg_DirectCallActor());
-				break;
-			case EKind::mc_OneshotUnabortable:
-				fg_OneshotTimer(0.01, fg_Move(fCallback), fg_DirectCallActor(), false);
-				break;
-			case EKind::mc_Periodic:
-				Registration = fg_RegisterTimer(0.01, fg_Move(fCallback), fg_DirectCallActor());
-				break;
-			case EKind::mc_Exact:
-				Registration = fg_RegisterExactTimer(0.01, fg_Move(fCallback), fg_DirectCallActor());
-				break;
+			case EKind::mc_Oneshot: Registration = fg_OneshotTimerAbortable(0.01, fg_Move(fCallback), fg_DirectCallActor()); break;
+			case EKind::mc_OneshotUnabortable: fg_OneshotTimer(0.01, fg_Move(fCallback), fg_DirectCallActor(), false); break;
+			case EKind::mc_Periodic: Registration = fg_RegisterTimer(0.01, fg_Move(fCallback), fg_DirectCallActor()); break;
+			case EKind::mc_Exact: Registration = fg_RegisterExactTimer(0.01, fg_Move(fCallback), fg_DirectCallActor()); break;
 			}
 
 			// Hold the owner queue past the deadline before it can handle registration.
@@ -99,7 +91,16 @@ namespace NMib::NConcurrency
 
 			CActorSubscription Subscription;
 			if (_Kind == EKind::mc_OneshotUnabortable)
-				co_await fg_Dispatch(fg_TimerActor(), [] {});
+			{
+				co_await fg_Dispatch
+					(
+						fg_TimerActor()
+						, []
+						{
+						}
+					)
+				;
+			}
 			else
 				Subscription = co_await fg_Move(Registration);
 
@@ -114,10 +115,30 @@ namespace NMib::NConcurrency
 		{
 			auto pCount = TCSharedPointer<NAtomic::TCAtomic<umint>>(fg_Construct(umint(0)));
 			for (umint i = 0; i < 256; ++i)
-				fg_Dispatch(fg_ThisActor(this), [pCount] { pCount->f_FetchAdd(1); }).f_DiscardResult();
+			{
+				fg_Dispatch
+					(
+						fg_ThisActor(this)
+						, [pCount]
+						{
+							pCount->f_FetchAdd(1);
+						}
+					)
+					.f_DiscardResult()
+				;
+			}
 
 			TCPromise<umint> Done;
-			fg_Dispatch(fg_TimerActor(), [pCount, Done] { Done.f_SetResult(pCount->f_Load()); }).f_DiscardResult();
+			fg_Dispatch
+				(
+					fg_TimerActor()
+					, [pCount, Done]
+					{
+						Done.f_SetResult(pCount->f_Load());
+					}
+				)
+				.f_DiscardResult()
+			;
 
 			co_return co_await Done.f_Future();
 		}
@@ -135,7 +156,16 @@ namespace NMib::NConcurrency
 					}
 				)
 			;
-			fg_Dispatch(fg_TimerActor(), [pRan] { pRan->f_Store(true); }).f_DiscardResult();
+			fg_Dispatch
+				(
+					fg_TimerActor()
+					, [pRan]
+					{
+						pRan->f_Store(true);
+					}
+				)
+				.f_DiscardResult()
+			;
 
 			co_return co_await Done.f_Future();
 		}
@@ -198,7 +228,8 @@ namespace NMib::NConcurrency
 									bFired.f_Store(true);
 									co_return {};
 								}
-							).f_CallSync()
+							)
+							.f_CallSync()
 						;
 						Manager.f_BlockOnDestroy();
 					}
@@ -233,7 +264,8 @@ namespace NMib::NConcurrency
 								Started.f_SetResult();
 								co_return {};
 							}
-						).f_DiscardResult()
+						)
+						.f_DiscardResult()
 					;
 					Started.f_Future().f_CallSync();
 					Manager.f_BlockOnDestroy();
@@ -261,7 +293,8 @@ namespace NMib::NConcurrency
 								co_return {};
 							}
 							, false
-						).f_CallSync()
+						)
+						.f_CallSync()
 					;
 
 					Manager.f_BlockOnDestroy();
@@ -329,7 +362,16 @@ namespace NMib::NConcurrency
 					TCFutureVector<TCActor<CTimerActor>> Results;
 					for (umint i = 0; i < 64; ++i)
 					{
-						fg_Dispatch(fg_ConcurrentActor(), [Actor] { return fg_TimerActor(Actor); }) > Results;
+						fg_Dispatch
+							(
+								fg_ConcurrentActor()
+								, [Actor]
+								{
+									return fg_TimerActor(Actor);
+								}
+							)
+							> Results
+						;
 					}
 
 					auto Owners = co_await fg_AllDone(Results);
@@ -351,14 +393,13 @@ namespace NMib::NConcurrency
 					TCPromise<bool> Matches;
 					Manager.f_DispatchToQueue
 						(
-							EPriority_Low, 0
+							EPriority_Low
+							, 0
 							, [Matches, pExpected, pManager = &Manager](CConcurrencyThreadLocal &_ThreadLocal)
 							{
 								Matches.f_SetResult
 									(
-										!_ThreadLocal.m_pCurrentlyProcessingActorHolder
-										&& fg_TimerActor().f_Get() == pExpected
-										&& pManager->f_GetTimerActor().f_Get() == pExpected
+										!_ThreadLocal.m_pCurrentlyProcessingActorHolder && fg_TimerActor().f_Get() == pExpected && pManager->f_GetTimerActor().f_Get() == pExpected
 									)
 								;
 							}

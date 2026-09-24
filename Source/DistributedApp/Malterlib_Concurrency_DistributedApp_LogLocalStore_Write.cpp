@@ -184,8 +184,7 @@ namespace NMib::NConcurrency
 		auto Result = co_await m_Database
 			(
 				&CDatabaseActor::f_WriteWithCompaction
-				, g_ActorFunctorWeak
-				/
+				, g_ActorFunctorWeak /
 				[
 					=
 					, pThis = this
@@ -211,7 +210,9 @@ namespace NMib::NConcurrency
 
 					auto SizeStats = WriteTransaction.m_Transaction.f_SizeStatistics();
 					smint BatchLimit = fg_Min(SizeStats.m_MapSize / (20 * 3), 4 * 1024 * 1024);
-					auto SizeLimit = smint(SizeStats.m_MapSize) - fg_Min(fg_Max(smint(SizeStats.m_MapSize) / 20, BatchLimit * 3, 32 * smint(SizeStats.m_PageSize)), smint(SizeStats.m_MapSize) / 3);
+					auto SizeLimit
+						= smint(SizeStats.m_MapSize) - fg_Min(fg_Max(smint(SizeStats.m_MapSize) / 20, BatchLimit * 3, 32 * smint(SizeStats.m_PageSize)), smint(SizeStats.m_MapSize) / 3)
+					;
 					smint nBytesLimit = smint(SizeLimit) - smint(SizeStats.m_UsedBytes);
 
 					CKnownHostValue KnownHostValue;
@@ -426,11 +427,7 @@ namespace NMib::NConcurrency
 		}
 	}
 
-	auto CDistributedAppLogStoreLocal::CInternal::f_GetReportEntriesFunctor
-		(
-			CDistributedAppLogReporter::CLogInfoKey _LogInfoKey
-			, CLogEntryKey _DatabaseKey
-		)
+	auto CDistributedAppLogStoreLocal::CInternal::f_GetReportEntriesFunctor(CDistributedAppLogReporter::CLogInfoKey _LogInfoKey, CLogEntryKey _DatabaseKey)
 		-> TCActorFunctorWithID<TCFuture<CDistributedAppLogReporter::CReportEntriesResult> (NContainer::TCVector<CDistributedAppLogReporter::CLogEntry> _Entries)>
 	{
 		return g_ActorFunctor
@@ -479,13 +476,7 @@ namespace NMib::NConcurrency
 
 				NStorage::TCSharedPointer<TCVector<CDistributedAppLogReporter::CLogEntry> const> pEntries = fg_Construct(fg_Move(NewEntries));
 
-				auto [DatabaseResult, UpstreamResult] = co_await
-					(
-						f_StoreLogEntries(_LogInfoKey, _DatabaseKey, pEntries)
-						+ f_NewLogEntries(_LogInfoKey, pEntries)
-					)
-					.f_Wrap()
-				;
+				auto [DatabaseResult, UpstreamResult] = co_await (f_StoreLogEntries(_LogInfoKey, _DatabaseKey, pEntries) + f_NewLogEntries(_LogInfoKey, pEntries)).f_Wrap();
 
 				CDistributedAppLogReporter::CReportEntriesResult ReportEntriesResult;
 				ReportEntriesResult.m_ReportDepth = 1;
@@ -509,8 +500,7 @@ namespace NMib::NConcurrency
 		;
 	}
 
-	auto CDistributedAppLogStoreLocal::f_OpenLogReporter(CDistributedAppLogReporter::CLogInfo _LogInfo)
-		-> TCFuture<CDistributedAppLogReporter::CLogReporter>
+	auto CDistributedAppLogStoreLocal::f_OpenLogReporter(CDistributedAppLogReporter::CLogInfo _LogInfo) -> TCFuture<CDistributedAppLogReporter::CLogReporter>
 	{
 		auto &Internal = *mp_pInternal;
 

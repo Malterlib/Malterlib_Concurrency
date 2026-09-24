@@ -36,17 +36,11 @@ namespace NMib::NConcurrency
 	{
 		switch (m_Type)
 		{
-		case EPermissionIdentifierType_HostID:
-			o_Str += typename tf_CStr::CFormat("HostID: {}") << m_ID;
-			break;
+		case EPermissionIdentifierType_HostID: o_Str += typename tf_CStr::CFormat("HostID: {}") << m_ID; break;
 
-		case EPermissionIdentifierType_UserID:
-			o_Str += typename tf_CStr::CFormat("UserID: {}") << m_ID;
-			break;
+		case EPermissionIdentifierType_UserID: o_Str += typename tf_CStr::CFormat("UserID: {}") << m_ID; break;
 
-		default:
-			o_Str += typename tf_CStr::CFormat("Unhandled ID type: {}") << m_ID;
-			break;
+		default: o_Str += typename tf_CStr::CFormat("Unhandled ID type: {}") << m_ID; break;
 		}
 	}
 

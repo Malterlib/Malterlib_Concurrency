@@ -103,14 +103,7 @@ namespace NMib::NConcurrency
 				if (!_DistributionManager)
 				{
 					CStr Error = fg_Format("Failed to get distribution manager: {}", _DistributionManager.f_GetExceptionStr());
-					DMibLogWithCategory
-						(
-							Mib/Concurrency/DistributedActorDDPBridge
-							, Error
-							, "{}"
-							, Error
-						)
-					;
+					DMibLogWithCategory(Mib/Concurrency/DistributedActorDDPBridge, Error, "{}", Error);
 					Internal.fp_StartupFailed(DMibErrorInstance(Error));
 					return;
 				}
@@ -133,14 +126,7 @@ namespace NMib::NConcurrency
 						if (!_Result)
 						{
 							CStr Error = fg_Format("Failed to register websocket handler: {}", _Result.f_GetExceptionStr());
-							DMibLogWithCategory
-								(
-									Mib/Concurrency/DistributedActorDDPBridge
-									, Error
-									, "{}"
-									, Error
-								)
-							;
+							DMibLogWithCategory(Mib/Concurrency/DistributedActorDDPBridge, Error, "{}", Error);
 							Internal.fp_StartupFailed(DMibErrorInstance(Error));
 							return;
 						}
@@ -197,11 +183,7 @@ namespace NMib::NConcurrency
 		return Ret;
 	}
 
-	void CDistributedTrustDDPBridge::CInternal::fp_NewValidatedWebsocketConnection
-		(
-			TCSharedPointer<CWebSocketNewServerConnection> const &_pNewServerConnection
-			, CStr const &_HostID
-		)
+	void CDistributedTrustDDPBridge::CInternal::fp_NewValidatedWebsocketConnection(TCSharedPointer<CWebSocketNewServerConnection> const &_pNewServerConnection, CStr const &_HostID)
 	{
 		umint ConnectionID = ++m_LastConnectionID;
 		auto &NewConnection = m_Connections[ConnectionID];
@@ -213,7 +195,8 @@ namespace NMib::NConcurrency
 		auto &NewServerConnection = *_pNewServerConnection;
 
 		NewConnection.m_HostInfo.m_FriendlyName = "Unknown";
-		if (NewServerConnection.m_Info.m_pRequest) {
+		if (NewServerConnection.m_Info.m_pRequest)
+		{
 			if (auto *pValue = NewServerConnection.m_Info.m_pRequest->f_GetEntityFields().f_GetUnknownField("MalterlibDDPBridge_FriendlyName"))
 				NewConnection.m_HostInfo.m_FriendlyName = *pValue;
 		}
@@ -234,14 +217,7 @@ namespace NMib::NConcurrency
 						co_return {};
 					}
 					_ConnectionInfo.f_Accept(CStr()); // Empty sessions means use random ID
-					CStr Message = fg_Format
-						(
-							"Accepted DDP connection ({}) from <{}> {}"
-							, ConnectionID
-							, pConnection->m_HostInfo.f_GetDesc()
-							, pConnection->m_AddressDesc
-						)
-					;
+					CStr Message = fg_Format("Accepted DDP connection ({}) from <{}> {}", ConnectionID, pConnection->m_HostInfo.f_GetDesc(), pConnection->m_AddressDesc);
 					DMibLogWithCategory(Mib/Concurrency/DistributedActorDDPBridge, Info, "{}", Message);
 
 					co_return {};

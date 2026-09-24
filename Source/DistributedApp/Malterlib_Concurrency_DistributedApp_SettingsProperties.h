@@ -31,14 +31,14 @@ namespace NMib::NConcurrency
 
 	enum EDefaultCommandLineFunctionality
 	{
-		EDefaultCommandLineFunctionality_None = 0
-		, EDefaultCommandLineFunctionality_Help = DMibBit(0)
-		, EDefaultCommandLineFunctionality_Logging = DMibBit(1)
+		EDefaultCommandLineFunctionality_None                   = 0
+		, EDefaultCommandLineFunctionality_Help                 = DMibBit(0)
+		, EDefaultCommandLineFunctionality_Logging              = DMibBit(1)
 		, EDefaultCommandLineFunctionality_DistributedComputing = DMibBit(2)
-		, EDefaultCommandLineFunctionality_Authentication = DMibBit(3)
-		, EDefaultCommandLineFunctionality_Terminal = DMibBit(4)
-		, EDefaultCommandLineFunctionality_Sensor = DMibBit(5)
-		, EDefaultCommandLineFunctionality_DistributedLog = DMibBit(6)
+		, EDefaultCommandLineFunctionality_Authentication       = DMibBit(3)
+		, EDefaultCommandLineFunctionality_Terminal             = DMibBit(4)
+		, EDefaultCommandLineFunctionality_Sensor               = DMibBit(5)
+		, EDefaultCommandLineFunctionality_DistributedLog       = DMibBit(6)
 
 		, EDefaultCommandLineFunctionality_AllNoDistributedComputing
 		= EDefaultCommandLineFunctionality_Help
@@ -59,7 +59,7 @@ namespace NMib::NConcurrency
 	{
 		enum EOption
 		{
-			EOption_None = 0
+			EOption_None                          = 0
 			, EOption_DelegateTrustToAppInterface = DMibBit(0)
 		};
 

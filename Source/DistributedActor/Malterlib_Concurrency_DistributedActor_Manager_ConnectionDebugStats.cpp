@@ -36,7 +36,7 @@ namespace NMib::NConcurrency
 
 			auto fAddQueue = [&](auto &o_Bytes, auto &o_PacketIDs, auto &&_Container)
 				{
-					for (auto &Packet: _Container)
+					for (auto &Packet : _Container)
 					{
 						o_Bytes += Packet.m_pData->f_GetTotalLength();
 						o_PacketIDs.f_Insert(Packet.m_PacketID);

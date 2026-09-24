@@ -16,7 +16,7 @@ namespace NMib::NConcurrency::NLogStoreLocalDatabase
 		template <typename tf_CStream>
 		void f_ConsumeLexicographic(tf_CStream &_Stream);
 
-		auto operator <=>(CLogGlobalStateKey const &_Right) const noexcept = default;
+		auto operator <=> (CLogGlobalStateKey const &_Right) const noexcept = default;
 
 		static NStr::CStr const mc_Prefix;
 
@@ -39,7 +39,7 @@ namespace NMib::NConcurrency::NLogStoreLocalDatabase
 		template <typename tf_CStream>
 		void f_ConsumeLexicographic(tf_CStream &_Stream);
 
-		auto operator <=>(CKnownHostKey const &_Right) const noexcept = default;
+		auto operator <=> (CKnownHostKey const &_Right) const noexcept = default;
 
 		static NStr::CStr const mc_Prefix;
 
@@ -71,7 +71,7 @@ namespace NMib::NConcurrency::NLogStoreLocalDatabase
 		CDistributedAppLogReporter::CLogInfoKey f_LogInfoKey() const &;
 		CDistributedAppLogReporter::CLogInfoKey f_LogInfoKey() &&;
 
-		static const NStr::CStr mc_Prefix;
+		static NStr::CStr const mc_Prefix;
 
 		NStr::CStr m_DbPrefix;
 		NStr::CStr m_Prefix = mc_Prefix;
@@ -101,7 +101,7 @@ namespace NMib::NConcurrency::NLogStoreLocalDatabase
 		template <typename tf_CStr>
 		void f_Format(tf_CStr &o_Str) const;
 
-		static const NStr::CStr mc_Prefix;
+		static NStr::CStr const mc_Prefix;
 
 		uint64 m_UniqueSequence = 0;
 	};
@@ -116,7 +116,7 @@ namespace NMib::NConcurrency::NLogStoreLocalDatabase
 		template <typename tf_CStream>
 		void f_ConsumeLexicographic(tf_CStream &_Stream);
 
-		static const NStr::CStr mc_Prefix;
+		static NStr::CStr const mc_Prefix;
 
 		NStr::CStr m_DbPrefix;
 		NStr::CStr m_Prefix = mc_Prefix;

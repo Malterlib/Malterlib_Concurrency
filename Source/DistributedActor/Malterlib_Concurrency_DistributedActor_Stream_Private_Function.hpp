@@ -16,7 +16,8 @@ namespace NMib::NConcurrency
 				NPrivate::TCIsFuture
 				<
 					typename NTraits::TCFunctionTraits<typename NFunction::TCFunctionInfo<NFunction::TCFunction<tf_CFunctionOptions...>>::template TCCallType<0>>::CReturn
-				>::mc_Value
+				>
+				::mc_Value
 				, "Only functions that return a future are supported"
 			)
 		;
@@ -32,7 +33,8 @@ namespace NMib::NConcurrency
 				NPrivate::TCIsFuture
 				<
 					typename NTraits::TCFunctionTraits<typename NFunction::TCFunctionInfo<NFunction::TCFunctionMutable<tf_CSignature>>::template TCCallType<0>>::CReturn
-				>::mc_Value
+				>
+				::mc_Value
 				, "Only functions that return a future are supported"
 			)
 		;
@@ -49,7 +51,8 @@ namespace NMib::NConcurrency
 				NPrivate::TCIsFuture
 				<
 					typename NTraits::TCFunctionTraits<typename NFunction::TCFunctionInfo<NFunction::TCFunction<tf_CFunctionOptions...>>::template TCCallType<0>>::CReturn
-				>::mc_Value
+				>
+				::mc_Value
 				, "Only functions that return a future are supported"
 			)
 		;
@@ -65,7 +68,8 @@ namespace NMib::NConcurrency
 				NPrivate::TCIsFuture
 				<
 					typename NTraits::TCFunctionTraits<typename NFunction::TCFunctionInfo<NFunction::TCFunctionMovable<tf_CSignature>>::template TCCallType<0>>::CReturn
-				>::mc_Value
+				>
+				::mc_Value
 				, "Only functions that return a future are supported"
 			)
 		;
@@ -81,7 +85,8 @@ namespace NMib::NConcurrency
 				NPrivate::TCIsFuture
 				<
 					typename NTraits::TCFunctionTraits<typename NFunction::TCFunctionInfo<NFunction::TCFunctionMutable<tf_CSignature>>::template TCCallType<0>>::CReturn
-				>::mc_Value
+				>
+				::mc_Value
 				, "Only functions that return a future are supported"
 			)
 		;
@@ -269,13 +274,8 @@ namespace NMib::NConcurrency
 				;
 			}
 
-			template <typename tf_FFunction, umint... tfp_Indices>
-			static NConcurrency::TCFuture<NStream::CBinaryStorage> fs_Call
-				(
-					CDistributedActorReadStream &_Stream
-					, tf_FFunction &_fFunction
-					, NMeta::TCIndices<tfp_Indices...> const &_Indices
-				)
+			template <typename tf_FFunction, umint ...tfp_Indices>
+			static NConcurrency::TCFuture<NStream::CBinaryStorage> fs_Call(CDistributedActorReadStream &_Stream, tf_FFunction &_fFunction, NMeta::TCIndices<tfp_Indices...> const &_Indices)
 			{
 				CDistributedActorStreamContext *pContext = (CDistributedActorStreamContext *)_Stream.f_GetContext();
 				DMibFastCheck(pContext && pContext->f_CorrectMagic());
@@ -293,7 +293,7 @@ namespace NMib::NConcurrency
 				auto &ThreadLocal = fg_SystemThreadLocal();
 				auto &PromiseThreadLocal = ThreadLocal.m_PromiseThreadLocal;
 
-		#if DMibEnableSafeCheck > 0
+#if DMibEnableSafeCheck > 0
 				bool bPreviousExpectCoroutineCall = PromiseThreadLocal.m_bExpectCoroutineCall;
 				PromiseThreadLocal.m_bExpectCoroutineCall = true;
 
@@ -315,7 +315,7 @@ namespace NMib::NConcurrency
 						PromiseThreadLocal.m_bCaptureDebugException = bPreviousCaptureDebugException;
 					}
 				;
-		#endif
+#endif
 				if constexpr (mc_bIsFuture)
 				{
 					NConcurrency::TCPromiseFuturePair<NStream::CBinaryStorage> Return;
@@ -345,7 +345,7 @@ namespace NMib::NConcurrency
 						}
 					;
 
-		#if DMibEnableSafeCheck > 0
+#if DMibEnableSafeCheck > 0
 					auto pPreviousOnResultSetConsumedBy = PromiseThreadLocal.m_pOnResultSetConsumedBy;
 					PromiseThreadLocal.m_pOnResultSetConsumedBy = nullptr;
 
@@ -370,9 +370,9 @@ namespace NMib::NConcurrency
 
 					PromiseThreadLocal.m_bExpectCoroutineCall = bPreviousExpectCoroutineCall;
 					Cleanup.f_Clear();
-		#else
+#else
 					auto Result = _fFunction(fg_Move(fg_Get<tfp_Indices>(ParamList))...);
-		#endif
+#endif
 					if (PromiseThreadLocal.m_pOnResultSet)
 					{
 						DMibFastCheck(PromiseThreadLocal.m_pOnResultSet == &fOnResultSet);
@@ -383,7 +383,7 @@ namespace NMib::NConcurrency
 				}
 				else
 				{
-		#if DMibEnableSafeCheck > 0
+#if DMibEnableSafeCheck > 0
 					auto Result = _fFunction(fg_Move(fg_Get<tfp_Indices>(ParamList))...);
 
 					DMibFastCheck
@@ -396,9 +396,9 @@ namespace NMib::NConcurrency
 
 					PromiseThreadLocal.m_bExpectCoroutineCall = bPreviousExpectCoroutineCall;
 					Cleanup.f_Clear();
-		#else
+#else
 					auto Result = _fFunction(fg_Move(fg_Get<tfp_Indices>(ParamList))...);
-		#endif
+#endif
 					CDistributedActorWriteStream Stream;
 					DMibBinaryStreamContext(Stream, pContext);
 					DMibBinaryStreamVersion(Stream, _Stream.f_GetVersion());
@@ -424,7 +424,8 @@ namespace NMib::NConcurrency
 				NPrivate::TCIsFuture
 				<
 					typename NTraits::TCFunctionTraits<typename NFunction::TCFunctionInfo<NFunction::TCFunction<tf_CFunctionOptions...>>::template TCCallType<0>>::CReturn
-				>::mc_Value
+				>
+				::mc_Value
 				, "Only functions that return a future are supported"
 			)
 		;
@@ -443,7 +444,8 @@ namespace NMib::NConcurrency
 				NPrivate::TCIsFuture
 				<
 					typename NTraits::TCFunctionTraits<typename NFunction::TCFunctionInfo<NFunction::TCFunctionMovable<tf_CSignature>>::template TCCallType<0>>::CReturn
-				>::mc_Value
+				>
+				::mc_Value
 				, "Only functions that return a future are supported"
 			)
 		;
@@ -462,7 +464,8 @@ namespace NMib::NConcurrency
 				NPrivate::TCIsFuture
 				<
 					typename NTraits::TCFunctionTraits<typename NFunction::TCFunctionInfo<NFunction::TCFunctionMutable<tf_CSignature>>::template TCCallType<0>>::CReturn
-				>::mc_Value
+				>
+				::mc_Value
 				, "Only functions that return a future are supported"
 			)
 		;

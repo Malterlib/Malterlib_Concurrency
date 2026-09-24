@@ -19,9 +19,9 @@ namespace NMib::NConcurrency
 	{
 		enum : uint32
 		{
-			EProtocolVersion_Min = 0x101
+			EProtocolVersion_Min                                          = 0x101
 			, EProtocolVersion_SupportManifestConfigFlagsAndMaxDigestSize = 0x102
-			, EProtocolVersion_Current = 0x102
+			, EProtocolVersion_Current                                    = 0x102
 		};
 
 		CDistributedAppInterfaceBackup();
@@ -42,10 +42,10 @@ namespace NMib::NConcurrency
 	{
 		enum : uint32
 		{
-			EProtocolVersion_Min = 0x102
-			, EProtocolVersion_SupportPreStop = 0x103
+			EProtocolVersion_Min                  = 0x102
+			, EProtocolVersion_SupportPreStop     = 0x103
 			, EProtocolVersion_SupportStartBackup = 0x103
-			, EProtocolVersion_Current = 0x103
+			, EProtocolVersion_Current            = 0x103
 		};
 
 		CDistributedAppInterfaceClient();
@@ -54,12 +54,8 @@ namespace NMib::NConcurrency
 		virtual TCFuture<void> f_GetAppStartResult() = 0;
 		virtual TCFuture<void> f_PreUpdate() = 0;
 		virtual TCFuture<void> f_PreStop() = 0;
-		virtual TCFuture<TCActorSubscriptionWithID<>> f_StartBackup
-			(
-				TCDistributedActorInterfaceWithID<CDistributedAppInterfaceBackup> _BackupInterface
-				, CActorSubscription _ManifestFinished
-				, NStr::CStr _BackupRoot
-			) = 0
+		virtual auto f_StartBackup(TCDistributedActorInterfaceWithID<CDistributedAppInterfaceBackup> _BackupInterface, CActorSubscription _ManifestFinished, NStr::CStr _BackupRoot)
+			-> TCFuture<TCActorSubscriptionWithID<>> = 0
 		;
 	};
 
@@ -71,8 +67,8 @@ namespace NMib::NConcurrency
 		{
 			EProtocolVersion_Min = 0x102
 
-			, EProtocolVersion_SupportResources = 0x103
-			, EProtocolVersion_SupportLaunchID = 0x104
+			, EProtocolVersion_SupportResources   = 0x103
+			, EProtocolVersion_SupportLaunchID    = 0x104
 			, EProtocolVersion_SupportLogReporter = 0x105
 			, EProtocolVersion_SupportMaxMapCount = 0x106
 			, EProtocolVersion_SupportConfigFiles = 0x107
@@ -138,7 +134,8 @@ namespace NMib::NConcurrency
 				TCDistributedActorInterfaceWithID<CDistributedAppInterfaceClient> _ClientInterface
 				, TCDistributedActorInterfaceWithID<CDistributedActorTrustManagerInterface> _TrustInterface
 				, CRegisterInfo _RegisterInfo
-			) = 0
+			)
+			= 0
 		;
 		virtual TCFuture<TCActorSubscriptionWithID<>> f_RegisterConfigFiles(CConfigFiles _ConfigFiles) = 0;
 	};

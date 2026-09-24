@@ -37,7 +37,7 @@ namespace NMib::NConcurrency
 		~CDistributedAppCommandLineClient();
 
 		CDistributedAppCommandLineClient(CDistributedAppCommandLineClient &&_Other);
-		CDistributedAppCommandLineClient &operator =(CDistributedAppCommandLineClient &&_Other);
+		CDistributedAppCommandLineClient &operator = (CDistributedAppCommandLineClient &&_Other);
 
 	private:
 		void fp_Init(NEncoding::CEJsonSorted const &_Params, bool _bFailIfNotRunning);

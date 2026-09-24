@@ -20,7 +20,7 @@ namespace NMib::NConcurrency
 		int64 Integer = reinterpret_cast<int64 const &>(_Value);
 
 		auto SignBit = int64(1) << fp64::mc_SignBitPos;
-		auto SignExtended = (Integer << ((sizeof(int64)*8 - 1) - fp64::mc_SignBitPos)) >> (sizeof(int64)*8 - 1);
+		auto SignExtended = (Integer << ((sizeof(int64) * 8 - 1) - fp64::mc_SignBitPos)) >> (sizeof(int64) * 8 - 1);
 		Integer ^= (SignExtended | SignBit);
 
 		return Integer;
@@ -55,7 +55,7 @@ namespace NMib::NConcurrency
 		{
 			struct CAVLCompare_NextElapse
 			{
-				CTimeMeasure const &operator ()(CTimeMeasure const &_Node) const;
+				CTimeMeasure const &operator () (CTimeMeasure const &_Node) const;
 			};
 
 			~CTimeMeasure();
@@ -164,7 +164,6 @@ namespace NMib::NConcurrency
 	{
 		DMibFastCheck(f_ConcurrencyManager().f_DestroyingAlwaysAliveActors());
 	}
-
 
 	TCFuture<void> CTimerActor::fp_ProcessTimers()
 	{
@@ -276,8 +275,7 @@ namespace NMib::NConcurrency
 	{
 #if DMibEnableSafeCheck > 0
 		m_ProcessingThread = NSys::fg_Thread_GetCurrentUID();
-		auto Cleanup
-			= fg_OnScopeExit
+		auto Cleanup = fg_OnScopeExit
 			(
 				[&]
 				{
@@ -303,9 +301,7 @@ namespace NMib::NConcurrency
 
 			switch (TimerType)
 			{
-			case ETimerType_Oneshot:
-				m_OneshotTimers.f_Remove(Timer);
-				break;
+			case ETimerType_Oneshot: m_OneshotTimers.f_Remove(Timer); break;
 			case ETimerType_Exact:
 			case ETimerType_Normal:
 				auto Period = Timer.m_Period;
@@ -408,7 +404,7 @@ namespace NMib::NConcurrency
 		return this <=> &_Right;
 	}
 
-	CTimerActor::CInternal::CTimeMeasure const &CTimerActor::CInternal::CTimeMeasure::CAVLCompare_NextElapse::operator ()(CTimeMeasure const &_Node) const
+	CTimerActor::CInternal::CTimeMeasure const &CTimerActor::CInternal::CTimeMeasure::CAVLCompare_NextElapse::operator () (CTimeMeasure const &_Node) const
 	{
 		return _Node;
 	}
@@ -427,9 +423,7 @@ namespace NMib::NConcurrency
 
 			switch (TimerType)
 			{
-			case CInternal::ETimerType_Oneshot:
-				ToDeleteOneshot.f_Insert(&Timer);
-				break;
+			case CInternal::ETimerType_Oneshot: ToDeleteOneshot.f_Insert(&Timer); break;
 			case CInternal::ETimerType_Exact:
 			case CInternal::ETimerType_Normal:
 				break;
@@ -460,9 +454,7 @@ namespace NMib::NConcurrency
 
 			switch (TimerType)
 			{
-			case CInternal::ETimerType_Oneshot:
-				ToDeleteOneshot.f_Insert(&Timer);
-				break;
+			case CInternal::ETimerType_Oneshot: ToDeleteOneshot.f_Insert(&Timer); break;
 			case CInternal::ETimerType_Exact:
 			case CInternal::ETimerType_Normal:
 				break;
@@ -648,7 +640,7 @@ namespace NMib::NConcurrency
 	{
 	}
 
-	CTimeoutHelper &CTimeoutHelper::operator ()(TCActor<CActor> const &_DispatchActor)
+	CTimeoutHelper &CTimeoutHelper::operator () (TCActor<CActor> const &_DispatchActor)
 	{
 		mp_DispatchActor = _DispatchActor;
 		return *this;
@@ -657,14 +649,8 @@ namespace NMib::NConcurrency
 	void CTimeoutHelper::operator > (FUnitVoidFutureFunction &&_fOnTimeout) const
 	{
 		auto Actor = mp_DispatchActor ? mp_DispatchActor : fg_CurrentActor();
-		fg_TimerActor(Actor).f_Bind<&CTimerActor::f_OneshotTimer, EVirtualCall::mc_NotVirtual>
-			(
-				mp_Period
-				, NTime::CSystem_Time::fs_GetTimerValue()
-				, Actor
-				, fg_Move(_fOnTimeout)
-				, mp_bFireAtExit
-			)
+		fg_TimerActor(Actor)
+			.f_Bind<&CTimerActor::f_OneshotTimer, EVirtualCall::mc_NotVirtual>(mp_Period, NTime::CSystem_Time::fs_GetTimerValue(), Actor, fg_Move(_fOnTimeout), mp_bFireAtExit)
 			.f_DiscardResult()
 		;
 	}
@@ -688,7 +674,7 @@ namespace NMib::NConcurrency
 		return fg_Move(Promise.m_Future);
 	}
 
-	TCFutureAwaiter<void, true, CVoidTag> CTimeoutHelper::operator co_await()
+	TCFutureAwaiter<void, true, CVoidTag> CTimeoutHelper::operator co_await ()
 	{
 		TCPromiseFuturePair<void> Promise;
 		fg_TimerActor().f_Bind<&CTimerActor::f_OneshotTimer, EVirtualCall::mc_NotVirtual>
@@ -706,7 +692,7 @@ namespace NMib::NConcurrency
 			)
 			.f_DiscardResult()
 		;
-		return fg_Move(Promise.m_Future).operator co_await();
+		return fg_Move(Promise.m_Future).operator co_await ();
 	}
 
 	CTimeoutHelper fg_Timeout(fp64 _Period, bool _bFireAtExit)
@@ -724,14 +710,8 @@ namespace NMib::NConcurrency
 		if (!Actor)
 			Actor = fg_CurrentActor();
 
-		fg_TimerActor(Actor).f_Bind<&CTimerActor::f_OneshotTimer, EVirtualCall::mc_NotVirtual>
-			(
-				_Period
-				, NTime::CSystem_Time::fs_GetTimerValue()
-				, fg_Move(Actor)
-				, fg_Move(_fCallback)
-				, _bFireAtExit
-			)
+		fg_TimerActor(Actor)
+			.f_Bind<&CTimerActor::f_OneshotTimer, EVirtualCall::mc_NotVirtual>(_Period, NTime::CSystem_Time::fs_GetTimerValue(), fg_Move(Actor), fg_Move(_fCallback), _bFireAtExit)
 			.f_DiscardResult()
 		;
 	}
@@ -744,13 +724,8 @@ namespace NMib::NConcurrency
 		if (!Actor)
 			Actor = fg_CurrentActor();
 
-		return fg_TimerActor(Actor).f_Bind<&CTimerActor::f_OneshotTimerAbortable, EVirtualCall::mc_NotVirtual>
-			(
-				_Period
-				, NTime::CSystem_Time::fs_GetTimerValue()
-				, Actor
-				, fg_Move(_fCallback)
-			)
+		return fg_TimerActor(Actor)
+			.f_Bind<&CTimerActor::f_OneshotTimerAbortable, EVirtualCall::mc_NotVirtual>(_Period, NTime::CSystem_Time::fs_GetTimerValue(), Actor, fg_Move(_fCallback))
 			.f_Call()
 		;
 	}
@@ -763,15 +738,7 @@ namespace NMib::NConcurrency
 		if (!Actor)
 			Actor = fg_CurrentActor();
 
-		return fg_TimerActor(Actor).f_Bind<&CTimerActor::f_RegisterTimer, EVirtualCall::mc_NotVirtual>
-			(
-				_Period
-				, NTime::CSystem_Time::fs_GetTimerValue()
-				, Actor
-				, fg_Move(_fCallback)
-			)
-			.f_Call()
-		;
+		return fg_TimerActor(Actor).f_Bind<&CTimerActor::f_RegisterTimer, EVirtualCall::mc_NotVirtual>(_Period, NTime::CSystem_Time::fs_GetTimerValue(), Actor, fg_Move(_fCallback)).f_Call();
 	}
 
 	TCFuture<CActorSubscription> fg_RegisterExactTimer(fp64 _Period, FUnitVoidFutureFunction &&_fCallback, TCActor<CActor> const &_Actor)
@@ -782,13 +749,8 @@ namespace NMib::NConcurrency
 		if (!Actor)
 			Actor = fg_CurrentActor();
 
-		return fg_TimerActor(Actor).f_Bind<&CTimerActor::f_RegisterExactTimer, EVirtualCall::mc_NotVirtual>
-			(
-				_Period
-				, NTime::CSystem_Time::fs_GetTimerValue()
-				, Actor
-				, fg_Move(_fCallback)
-			)
+		return fg_TimerActor(Actor)
+			.f_Bind<&CTimerActor::f_RegisterExactTimer, EVirtualCall::mc_NotVirtual>(_Period, NTime::CSystem_Time::fs_GetTimerValue(), Actor, fg_Move(_fCallback))
 			.f_Call()
 		;
 	}
@@ -806,6 +768,7 @@ namespace NMib::NConcurrency
 				: m_Promise(fg_Move(_Promise))
 			{
 			}
+
 			CPromiseHolder(CPromiseHolder &&) = default;
 			CPromiseHolder(CPromiseHolder const &) = delete;
 

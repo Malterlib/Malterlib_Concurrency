@@ -320,9 +320,7 @@ namespace NMib::NConcurrency
 				;
 			}
 			else if (m_MaximumAuthenticationLifetime != CPermissionRequirements::mc_DefaultMaximumLifetime)
-			{
 				fg_AddStrSep(Result, "{}Authentication Lifetime{}: {}"_f << AnsiEncoding.f_Bold() << AnsiEncoding.f_Default() << m_MaximumAuthenticationLifetime, "\n");
-			}
 		}
 
 		return Result;
@@ -407,7 +405,8 @@ namespace NMib::NConcurrency
 	template <typename tf_CStream>
 	void CDistributedActorTrustManagerInterface::CConnectionsDebugStats::f_Stream(tf_CStream &_Stream)
 	{
-		static_assert(CActorDistributionManager::CConnectionsDebugStats::mc_Version == CActorDistributionManager::CConnectionsDebugStats::EVersion::mc_AddPrioritization); // Implement mapping
+		// Implement mapping	s
+		static_assert(CActorDistributionManager::CConnectionsDebugStats::mc_Version == CActorDistributionManager::CConnectionsDebugStats::EVersion::mc_AddPrioritization);
 
 		uint32 DebugStatsVersion = 0;
 		if (_Stream.f_GetVersion() >= EProtocolVersion_PriorityDebugStats)

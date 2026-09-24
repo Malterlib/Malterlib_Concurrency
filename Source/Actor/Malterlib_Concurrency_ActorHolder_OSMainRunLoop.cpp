@@ -7,8 +7,8 @@
 #include "Malterlib_Concurrency_ActorHolder_OSMainRunLoop.h"
 
 #if defined(DPlatformFamily_macOS)
-#include <Mib/Core/PlatformSpecific/PosixErrNo>
-#include <dispatch/dispatch.h>
+#	include <Mib/Core/PlatformSpecific/PosixErrNo>
+#	include <dispatch/dispatch.h>
 #endif
 
 namespace NMib::NConcurrency
@@ -112,8 +112,6 @@ namespace NMib::NConcurrency
 #endif
 		}
 	}
-
-
 
 	void COSMainRunLoopActorHolder::fp_DestroyThreaded()
 	{

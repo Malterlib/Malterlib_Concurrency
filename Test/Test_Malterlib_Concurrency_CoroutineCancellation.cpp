@@ -174,7 +174,15 @@ namespace NMib::NConcurrency
 						TCActor<CCancelledDelegatedActor> Actor{fg_Construct(), Delegated};
 						TCPromise<bool> Observed;
 						TCFuture<t_CResult> Future = Actor(&CCancelledDelegatedActor::f_WaitForDestruction<t_CResult>, Resume.f_Future());
-						fg_Dispatch(Actor, [] {}).f_CallSync();
+						fg_Dispatch
+							(
+								Actor
+								, []
+								{
+								}
+							)
+							.f_CallSync()
+						;
 
 						Future.f_OnResultSet
 							(
@@ -193,8 +201,8 @@ namespace NMib::NConcurrency
 					}
 				;
 
-				fCheck.template operator()<void>("Void");
-				fCheck.template operator()<CAlignedResult>("Aligned result");
+				fCheck.template operator ()<void>("Void");
+				fCheck.template operator ()<CAlignedResult>("Aligned result");
 
 				auto fCheckAsyncDestroy = [](NStr::CStr const &_Case, bool _bAlreadyDestroying, bool _bChildFails, bool _bParentFails)
 					{
@@ -204,7 +212,15 @@ namespace NMib::NConcurrency
 						TCActor<CActor> RootForSync = Root;
 						TCActor<CCancelledDelegatedActor> Intermediate{fg_Construct(), Root};
 						TCActor<CAsyncDestroyDelegate> Child{fg_Construct(fg_TempCopy(pState), _bChildFails), Intermediate};
-						fg_Dispatch(Child, [] {}).f_CallSync();
+						fg_Dispatch
+							(
+								Child
+								, []
+								{
+								}
+							)
+							.f_CallSync()
+						;
 
 						TCFuture<void> ChildDestroy;
 						if (_bAlreadyDestroying)
@@ -226,7 +242,20 @@ namespace NMib::NConcurrency
 						;
 
 						if (_bAlreadyDestroying)
-							DMibExpectNoException(fg_Dispatch(RootForSync, [] {}).f_CallSync());
+						{
+							DMibExpectNoException
+								(
+									fg_Dispatch
+									(
+										RootForSync
+										, []
+										{
+										}
+									)
+									.f_CallSync()
+								)
+							;
+						}
 						else
 							pState->m_Progress.f_WaitTimeout(10.0 * NTest::gc_TimeoutMultiplier);
 
@@ -284,12 +313,7 @@ namespace NMib::NConcurrency
 					;
 					pState->m_QueueBlocked.f_WaitTimeout(10.0 * NTest::gc_TimeoutMultiplier);
 
-					DMibExpectException
-						(
-							(TCActor<CFailingConstructDelegate>{fg_Construct(), Root})
-							, DMibErrorInstance("Delegated construction failed")
-						)
-					;
+					DMibExpectException((TCActor<CFailingConstructDelegate>{fg_Construct(), Root}), DMibErrorInstance("Delegated construction failed"));
 					TCFuture<void> Destroyed = fg_Move(Root).f_Destroy();
 
 					pState->m_ResumeQueue.f_Signal();
@@ -305,7 +329,15 @@ namespace NMib::NConcurrency
 					TCFuture<void> Blocked;
 					{
 						TCActor<CQueuedDestroyDelegate> Child{fg_Construct(fg_TempCopy(pState)), Root};
-						fg_Dispatch(Child, [] {}).f_CallSync();
+						fg_Dispatch
+							(
+								Child
+								, []
+								{
+								}
+							)
+							.f_CallSync()
+						;
 						Destroyed = fg_TempCopy(Root).f_Destroy();
 						pState->m_DestroyEntered.f_Future().f_CallSync();
 
@@ -330,8 +362,6 @@ namespace NMib::NConcurrency
 					DMibExpectTrue(pState->m_bParentDestructed.f_Load());
 					DMibExpectFalse(pState->m_bChildOutlivedParent.f_Load());
 				};
-
-
 			};
 		}
 	};

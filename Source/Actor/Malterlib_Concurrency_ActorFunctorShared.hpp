@@ -24,7 +24,8 @@ namespace NMib::NConcurrency::NPrivate
 	template <typename t_CFunction, typename ...tp_CParams>
 	concept cIsActorFunctorCallableWith = NTraits::cIsCallableWith
 		<
-			typename NPrivate::TCDecayedTupleHelper<typename NTraits::TCFunctionTraits<t_CFunction>::CParams>::CCallType, void (tp_CParams...)
+			typename NPrivate::TCDecayedTupleHelper<typename NTraits::TCFunctionTraits<t_CFunction>::CParams>::CCallType
+			, void (tp_CParams...)
 		>
 	;
 
@@ -126,8 +127,8 @@ namespace NMib::NConcurrency::NPrivate
 			// long as the function it wraps. A coroutine, so the disarm runs on the actor as part of the
 			// delivery and not on the caller when the delivery is queued
 			NStorage::TCSharedPointer<CStorage> pStorage = fg_Construct();
-			static_cast<NFunction::TCFunctionMovable<typename TCAddRValueReferencesToFunctor<t_CFunction>::CType> &>(*pStorage)
-				= [pGate = &pStorage->m_Gate, fFunctor = fg_Move(_fFunctor)]() mutable -> TCFuture<void>
+			static_cast<NFunction::TCFunctionMovable<typename TCAddRValueReferencesToFunctor<t_CFunction>::CType> &>(*pStorage) = [pGate = &pStorage->m_Gate, fFunctor = fg_Move(_fFunctor)]
+				() mutable -> TCFuture<void>
 				{
 					pGate->f_Disarm();
 					co_await fFunctor();

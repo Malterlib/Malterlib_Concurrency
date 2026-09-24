@@ -182,8 +182,7 @@ namespace NMib::NConcurrency
 		return CAnsiEncoding(m_AnsiFlags);
 	}
 
-	auto CCommandLineControl::f_RegisterForStdInBinary(ICCommandLineControl::FOnBinaryInput &&_fOnBinaryInput, EStdInReaderFlag _Flags) const
-		-> TCFuture<TCActorSubscriptionWithID<>>
+	auto CCommandLineControl::f_RegisterForStdInBinary(ICCommandLineControl::FOnBinaryInput &&_fOnBinaryInput, EStdInReaderFlag _Flags) const -> TCFuture<TCActorSubscriptionWithID<>>
 	{
 		if (!m_ControlActor)
 			return DMibErrorInstance("No control actor");
@@ -280,8 +279,7 @@ namespace NMib::NConcurrency
 		return Promise <<= m_ControlActor.f_CallActor(&ICCommandLineControl::f_RegisterForScreenChange)(fg_Move(_fOnScreenChange));
 	}
 
-	auto CCommandLineControl::f_RegisterForStdIn(ICCommandLineControl::FOnInput &&_fOnInput, EStdInReaderFlag _Flags) const
-		-> TCFuture<TCActorSubscriptionWithID<>>
+	auto CCommandLineControl::f_RegisterForStdIn(ICCommandLineControl::FOnInput &&_fOnInput, EStdInReaderFlag _Flags) const -> TCFuture<TCActorSubscriptionWithID<>>
 	{
 		if (!m_ControlActor)
 			return DMibErrorInstance("No control actor");

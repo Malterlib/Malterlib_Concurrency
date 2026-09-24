@@ -90,12 +90,8 @@ namespace NMib::NConcurrency
 		co_return fg_Move(Return);
 	}
 
-	TCFuture<void> CDistributedActorTrustManager::f_AllowHostsForNamespace
-		(
-			 NStr::CStr _Namespace
-			 , NContainer::TCSet<NStr::CStr> _Hosts
-			 , EDistributedActorTrustManagerOrderingFlag _OrderingFlags
-		)
+	auto CDistributedActorTrustManager::f_AllowHostsForNamespace(NStr::CStr _Namespace, NContainer::TCSet<NStr::CStr> _Hosts, EDistributedActorTrustManagerOrderingFlag _OrderingFlags)
+		-> TCFuture<void>
 	{
 		if (!CActorDistributionManager::fs_IsValidNamespaceName(_Namespace))
 			co_return DMibErrorInstance("Invalid namespace name");
@@ -167,12 +163,8 @@ namespace NMib::NConcurrency
 		co_return {};
 	}
 
-	TCFuture<void> CDistributedActorTrustManager::f_DisallowHostsForNamespace
-		(
-			 NStr::CStr _Namespace
-			 , NContainer::TCSet<NStr::CStr> _Hosts
-			 , EDistributedActorTrustManagerOrderingFlag _OrderingFlags
-		)
+	auto CDistributedActorTrustManager::f_DisallowHostsForNamespace(NStr::CStr _Namespace, NContainer::TCSet<NStr::CStr> _Hosts, EDistributedActorTrustManagerOrderingFlag _OrderingFlags)
+		-> TCFuture<void>
 	{
 		if (!CActorDistributionManager::fs_IsValidNamespaceName(_Namespace))
 			co_return DMibErrorInstance("Invalid namespace name");
@@ -276,8 +268,7 @@ namespace NMib::NConcurrency
 		return Actors;
 	}
 
-	auto CDistributedActorTrustManager::fp_SubscribeTrustedActors(NStorage::TCSharedPointer<NPrivate::CTrustedActorSubscriptionState> _pState)
-		-> TCFuture<CTrustedActorSubscription>
+	auto CDistributedActorTrustManager::fp_SubscribeTrustedActors(NStorage::TCSharedPointer<NPrivate::CTrustedActorSubscriptionState> _pState) -> TCFuture<CTrustedActorSubscription>
 	{
 		auto CheckDestroy = co_await f_CheckDestroyedOnResume();
 
@@ -719,7 +710,8 @@ namespace NMib::NConcurrency
 						co_return {};
 					}
 				)
-			).f_Wrap()
+			)
+			.f_Wrap()
 		;
 
 		Namespace.m_bSubscribing = false;

@@ -76,11 +76,11 @@ namespace NMib::NConcurrency
 
 			Internal.m_LogsInterfaceSubscription.f_Destroy() > Destroys;
 
-			co_await fg_AllDone(Destroys).f_Wrap() > LogError.f_Warning("Failed destroy local log store");;
+			co_await fg_AllDone(Destroys).f_Wrap() > LogError.f_Warning("Failed destroy local log store");
 		}
 
 		if (Internal.m_bOwnDatabase)
-			co_await fg_Move(Internal.m_Database).f_Destroy().f_Wrap() > LogError.f_Warning("Failed destroy database");;
+			co_await fg_Move(Internal.m_Database).f_Destroy().f_Wrap() > LogError.f_Warning("Failed destroy database");
 
 		Internal.m_LogInterfaces.f_Clear();
 		Internal.m_Logs.f_Clear();
@@ -343,11 +343,7 @@ namespace NMib::NConcurrency
 		co_return {};
 	}
 
-	TCFuture<CActorSubscription> CDistributedAppLogStoreLocal::f_AddExtraLogReporter
-		(
-			TCDistributedActorInterface<CDistributedAppLogReporter> _LogReporter
-			, CTrustedActorInfo _TrustInfo
-		)
+	TCFuture<CActorSubscription> CDistributedAppLogStoreLocal::f_AddExtraLogReporter(TCDistributedActorInterface<CDistributedAppLogReporter> _LogReporter, CTrustedActorInfo _TrustInfo)
 	{
 		auto OnResume = co_await f_CheckDestroyedOnResume();
 
@@ -359,9 +355,7 @@ namespace NMib::NConcurrency
 		auto Subscription = g_ActorSubscription / [this, _TrustInfo, LogInterfaceWeak = _LogReporter.f_Weak(), TrustInfo = _TrustInfo]() mutable -> TCFuture<void>
 			{
 				auto &Internal = *mp_pInternal;
-				co_await Internal.f_LogReporterInterfaceRemoved(LogInterfaceWeak, fg_Move(TrustInfo)).f_Wrap()
-					> fg_LogError("Malterlib/Concurrency/Log", "Error removing log reporter")
-				;
+				co_await Internal.f_LogReporterInterfaceRemoved(LogInterfaceWeak, fg_Move(TrustInfo)).f_Wrap() > fg_LogError("Malterlib/Concurrency/Log", "Error removing log reporter");
 
 				co_return {};
 			}

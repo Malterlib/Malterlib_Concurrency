@@ -38,7 +38,9 @@ namespace NMib::NConcurrency
 	void fg_CombineResults
 		(
 			NContainer::TCVector<TCAsyncResult<tf_CType>> &&_Results
-			, tf_FOnResult &&_fOnResult = [](tf_CType const &){}
+			, tf_FOnResult &&_fOnResult = [](tf_CType const &)
+			{
+			}
 		)
 	;
 
@@ -46,7 +48,9 @@ namespace NMib::NConcurrency
 	void fg_CombineResults
 		(
 			NContainer::TCVector<TCAsyncResult<void>> &&_Results
-			, tf_FOnResult &&_fOnResult = [](){}
+			, tf_FOnResult &&_fOnResult = []()
+			{
+			}
 		)
 	;
 
@@ -55,7 +59,9 @@ namespace NMib::NConcurrency
 		(
 			TCPromise<tf_CReturn> const &_Promise
 			, TCAsyncResult<NContainer::TCVector<TCAsyncResult<tf_CType>>> &&_Results
-			, tf_FOnResult &&_fOnResult = [](tf_CType const &){}
+			, tf_FOnResult &&_fOnResult = [](tf_CType const &)
+			{
+			}
 		)
 	;
 
@@ -64,7 +70,9 @@ namespace NMib::NConcurrency
 		(
 			TCPromise<tf_CReturn> const &_Promise
 			, TCAsyncResult<NContainer::TCVector<TCAsyncResult<void>>> &&_Results
-			, tf_FOnResult &&_fOnResult = []{}
+			, tf_FOnResult &&_fOnResult = []
+			{
+			}
 		)
 	;
 
@@ -73,7 +81,9 @@ namespace NMib::NConcurrency
 		(
 			TCPromise<void> const &_Promise
 			, TCAsyncResult<NContainer::TCVector<TCAsyncResult<tf_CType>>> &&_Results
-			, tf_FOnResult &&_fOnResult = [](tf_CType const &){}
+			, tf_FOnResult &&_fOnResult = [](tf_CType const &)
+			{
+			}
 		)
 	;
 
@@ -82,7 +92,9 @@ namespace NMib::NConcurrency
 		(
 			TCPromise<void> const &_Promise
 			, TCAsyncResult<NContainer::TCVector<TCAsyncResult<void>>> &&_Results
-			, tf_FOnResult &&_fOnResult = []{}
+			, tf_FOnResult &&_fOnResult = []
+			{
+			}
 		)
 	;
 
@@ -91,7 +103,9 @@ namespace NMib::NConcurrency
 		(
 			TCPromise<tf_CReturn> const &_Promise
 			, NContainer::TCVector<TCAsyncResult<tf_CType>> &&_Results
-			, tf_FOnResult &&_fOnResult = [](tf_CType const &){}
+			, tf_FOnResult &&_fOnResult = [](tf_CType const &)
+			{
+			}
 		)
 	;
 
@@ -100,7 +114,9 @@ namespace NMib::NConcurrency
 		(
 			TCPromise<tf_CReturn> const &_Promise
 			, NContainer::TCVector<TCAsyncResult<void>> &&_Results
-			, tf_FOnResult &&_fOnResult = []{}
+			, tf_FOnResult &&_fOnResult = []
+			{
+			}
 		)
 	;
 
@@ -109,7 +125,9 @@ namespace NMib::NConcurrency
 		(
 			TCPromise<void> const &_Promise
 			, NContainer::TCVector<TCAsyncResult<tf_CType>> &&_Results
-			, tf_FOnResult &&_fOnResult = [](tf_CType const &){}
+			, tf_FOnResult &&_fOnResult = [](tf_CType const &)
+			{
+			}
 		)
 	;
 
@@ -118,7 +136,9 @@ namespace NMib::NConcurrency
 		(
 			TCPromise<void> const &_Promise
 			, NContainer::TCVector<TCAsyncResult<void>> &&_Results
-			, tf_FOnResult &&_fOnResult = []{}
+			, tf_FOnResult &&_fOnResult = []
+			{
+			}
 		)
 	;
 
@@ -126,7 +146,9 @@ namespace NMib::NConcurrency
 	void fg_CombineResults
 		(
 			NContainer::TCMap<tf_CKey, TCAsyncResult<tf_CType>> &&_Results
-			, tf_FOnResult &&_fOnResult = [](tf_CKey const &, tf_CType const &){}
+			, tf_FOnResult &&_fOnResult = [](tf_CKey const &, tf_CType const &)
+			{
+			}
 		)
 	;
 
@@ -134,7 +156,9 @@ namespace NMib::NConcurrency
 	void fg_CombineResults
 		(
 			NContainer::TCMap<tf_CKey, TCAsyncResult<void>> &&_Results
-			, tf_FOnResult &&_fOnResult = [](tf_CKey const &){}
+			, tf_FOnResult &&_fOnResult = [](tf_CKey const &)
+			{
+			}
 		)
 	;
 
@@ -143,7 +167,9 @@ namespace NMib::NConcurrency
 		(
 			TCPromise<tf_CReturn> const &_Promise
 			, TCAsyncResult<NContainer::TCMap<tf_CKey, TCAsyncResult<tf_CType>>> &&_Results
-			, tf_FOnResult &&_fOnResult = [](tf_CKey const &, tf_CType const &){}
+			, tf_FOnResult &&_fOnResult = [](tf_CKey const &, tf_CType const &)
+			{
+			}
 		)
 	;
 
@@ -152,7 +178,9 @@ namespace NMib::NConcurrency
 		(
 			TCPromise<tf_CReturn> const &_Promise
 			, TCAsyncResult<NContainer::TCMap<tf_CKey, TCAsyncResult<void>>> &&_Results
-			, tf_FOnResult &&_fOnResult = [](tf_CKey const &){}
+			, tf_FOnResult &&_fOnResult = [](tf_CKey const &)
+			{
+			}
 		)
 	;
 
@@ -161,7 +189,9 @@ namespace NMib::NConcurrency
 		(
 			TCPromise<void> const &_Promise
 			, TCAsyncResult<NContainer::TCMap<tf_CKey, TCAsyncResult<tf_CType>>> &&_Results
-			, tf_FOnResult &&_fOnResult = [](tf_CKey const &, tf_CType const &){}
+			, tf_FOnResult &&_fOnResult = [](tf_CKey const &, tf_CType const &)
+			{
+			}
 		)
 	;
 
@@ -170,7 +200,9 @@ namespace NMib::NConcurrency
 		(
 			TCPromise<void> const &_Promise
 			, TCAsyncResult<NContainer::TCMap<tf_CKey, TCAsyncResult<void>>> &&_Results
-			, tf_FOnResult &&_fOnResult = [](tf_CKey const &){}
+			, tf_FOnResult &&_fOnResult = [](tf_CKey const &)
+			{
+			}
 		)
 	;
 
@@ -179,7 +211,9 @@ namespace NMib::NConcurrency
 		(
 			TCPromise<tf_CReturn> const &_Promise
 			, NContainer::TCMap<tf_CKey, TCAsyncResult<tf_CType>> &&_Results
-			, tf_FOnResult &&_fOnResult = [](tf_CKey const &, tf_CType const &){}
+			, tf_FOnResult &&_fOnResult = [](tf_CKey const &, tf_CType const &)
+			{
+			}
 		)
 	;
 
@@ -188,7 +222,9 @@ namespace NMib::NConcurrency
 		(
 			TCPromise<tf_CReturn> const &_Promise
 			, NContainer::TCMap<tf_CKey, TCAsyncResult<void>> &&_Results
-			, tf_FOnResult &&_fOnResult = [](tf_CKey const &){}
+			, tf_FOnResult &&_fOnResult = [](tf_CKey const &)
+			{
+			}
 		)
 	;
 
@@ -197,7 +233,9 @@ namespace NMib::NConcurrency
 		(
 			TCPromise<void> const &_Promise
 			, NContainer::TCMap<tf_CKey, TCAsyncResult<tf_CType>> &&_Results
-			, tf_FOnResult &&_fOnResult = [](tf_CKey const &, tf_CType const &){}
+			, tf_FOnResult &&_fOnResult = [](tf_CKey const &, tf_CType const &)
+			{
+			}
 		)
 	;
 
@@ -206,7 +244,9 @@ namespace NMib::NConcurrency
 		(
 			TCPromise<void> const &_Promise
 			, NContainer::TCMap<tf_CKey, TCAsyncResult<void>> &&_Results
-			, tf_FOnResult &&_fOnResult = [](tf_CKey const &){}
+			, tf_FOnResult &&_fOnResult = [](tf_CKey const &)
+			{
+			}
 		)
 	;
 }

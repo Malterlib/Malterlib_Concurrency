@@ -112,12 +112,7 @@ namespace NMib::NConcurrency
 		co_return {};
 	}
 
-	TCFuture<CStr> CDistributedActorTrustManager::f_RegisterUserAuthenticationFactor
-		(
-			TCSharedPointer<CCommandLineControl> _pCommandLine
-			, CStr _UserID
-			, CStr _Factor
-		)
+	TCFuture<CStr> CDistributedActorTrustManager::f_RegisterUserAuthenticationFactor(TCSharedPointer<CCommandLineControl> _pCommandLine, CStr _UserID, CStr _Factor)
 	{
 		if (!CActorDistributionManager::fs_IsValidUserID(_UserID))
 			co_return DMibErrorInstance("Invalid user ID");

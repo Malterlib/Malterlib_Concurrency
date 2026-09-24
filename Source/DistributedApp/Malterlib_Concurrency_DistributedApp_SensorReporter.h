@@ -28,14 +28,14 @@ namespace NMib::NConcurrency
 			EProtocolVersion_Min = 0x101
 
 			, EProtocolVersion_UniqueSequenceAtLastCleanup = 0x102
-			, EProtocolVersion_SensorStatusFilter = 0x103
-			, EProtocolVersion_MultipleFilters = 0x104
-			, EProtocolVersion_IgnoreRemoved = 0x105
-			, EProtocolVersion_VersionData = 0x106
-			, EProtocolVersion_PauseReporting = 0x107
-			, EProtocolVersion_SnoozeSensor = 0x108
-			, EProtocolVersion_InfoMetadata = 0x109
-			, EProtocolVersion_SensorInfoFlags = 0x110
+			, EProtocolVersion_SensorStatusFilter          = 0x103
+			, EProtocolVersion_MultipleFilters             = 0x104
+			, EProtocolVersion_IgnoreRemoved               = 0x105
+			, EProtocolVersion_VersionData                 = 0x106
+			, EProtocolVersion_PauseReporting              = 0x107
+			, EProtocolVersion_SnoozeSensor                = 0x108
+			, EProtocolVersion_InfoMetadata                = 0x109
+			, EProtocolVersion_SensorInfoFlags             = 0x110
 
 			, EProtocolVersion_Current = 0x110
 		};
@@ -158,7 +158,7 @@ namespace NMib::NConcurrency
 
 		enum EOutdatedStatusOutputFlag : uint32
 		{
-			EOutdatedStatusOutputFlag_None = 0
+			EOutdatedStatusOutputFlag_None            = 0
 			, EOutdatedStatusOutputFlag_IncludeStatus = DMibBit(0)
 		};
 
@@ -180,7 +180,8 @@ namespace NMib::NConcurrency
 					, CSensorInfo const *_pSensorInfo
 					, NTime::CTime const &_Now
 					, EOutdatedStatusOutputFlag _Flags
-				) const
+				)
+				const
 			;
 
 			uint64 m_UniqueSequence = TCLimitsInt<uint64>::mc_Max; /// This will be filled in automatically when using CDistributedAppSensorStoreLocal
@@ -252,9 +253,9 @@ namespace NMib::NConcurrency
 
 		enum class ESensorInfoFlag : uint32
 		{
-			mc_None = 0
-			, mc_PreventRebootOnWarning = fg_Bit(0)
-			, mc_PreventRebootOnError = fg_Bit(1)
+			mc_None                      = 0
+			, mc_PreventRebootOnWarning  = fg_Bit(0)
+			, mc_PreventRebootOnError    = fg_Bit(1)
 			, mc_PreventRebootOnOutdated = fg_Bit(2)
 
 			, mc_AllPreventRebootFlags = mc_PreventRebootOnWarning | mc_PreventRebootOnError | mc_PreventRebootOnOutdated

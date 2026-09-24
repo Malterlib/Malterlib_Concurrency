@@ -177,18 +177,15 @@ namespace NMib::NConcurrency
 		return fg_StaticCast<TCDistributedActorWrapper<t_CType>>(m_Actor);
 	}
 
-	template <typename tf_CActor, typename... tfp_CParams>
-	TCActor<TCDistributedActorWrapper<tf_CActor>> CActorDistributionManagerHolder::f_ConstructActor(tfp_CParams &&...p_Params)
+	template <typename tf_CActor, typename ...tfp_CParams>
+	TCActor<TCDistributedActorWrapper<tf_CActor>> CActorDistributionManagerHolder::f_ConstructActor(tfp_CParams && ...p_Params)
 	{
 		return fg_ConstructDistributedActor<tf_CActor>(fp_GetAsActor<CActorDistributionManager>(), fg_Forward<tfp_CParams>(p_Params)...);
 	}
 
-	template <typename tf_CActor, typename tf_CDelegateTo, typename... tfp_CParams>
-	TCActor<TCDistributedActorWrapper<TCDistributedInterfaceDelegator<tf_CActor, tf_CDelegateTo>>> CActorDistributionManagerHolder::f_ConstructInterface
-		(
-			tf_CDelegateTo *_pDelegateTo
-			, tfp_CParams &&...p_Params
-		)
+	template <typename tf_CActor, typename tf_CDelegateTo, typename ...tfp_CParams>
+	auto CActorDistributionManagerHolder::f_ConstructInterface(tf_CDelegateTo *_pDelegateTo, tfp_CParams && ...p_Params)
+		-> TCActor<TCDistributedActorWrapper<TCDistributedInterfaceDelegator<tf_CActor, tf_CDelegateTo>>>
 	{
 		return fg_ConstructDistributedActor<TCDistributedInterfaceDelegator<tf_CActor, tf_CDelegateTo>>
 			(
@@ -206,11 +203,11 @@ namespace NMib::NConcurrency
 		: t_CInterface(fg_Forward<tfp_CParams>(p_Params)...)
 	{
 #ifdef DMibDebug
-		static_assert(NTraits::cIsSame<decltype(&t_CInterface::self), CEmpty (t_CInterface::*)>);
-//		If you get this static assert, add a dummy self like below:
-//
-//		DDelegatedActorImplementation(CMyActor);
-//
+		static_assert(NTraits::cIsSame<decltype(&t_CInterface::self), CEmpty (t_CInterface:: *)>);
+		// If you get this static assert, add a dummy self like below:
+		//
+		// DDelegatedActorImplementation(CMyActor);
+		//
 #endif
 
 		t_CInterface::m_pThis = _pDelegateTo;
@@ -426,14 +423,14 @@ namespace NMib::NConcurrency
 	}
 
 	template <typename t_CActor>
-	template <typename... tf_CActor>
-	TCDistributedActorWrapper<t_CActor>::TCDistributedActorWrapper(tf_CActor &&...p_Params)
+	template <typename ...tf_CActor>
+	TCDistributedActorWrapper<t_CActor>::TCDistributedActorWrapper(tf_CActor && ...p_Params)
 		: t_CActor(fg_Forward<tf_CActor>(p_Params)...)
 	{
 	}
 
-	template <typename tf_CActor, typename... tfp_CParams>
-	TCActor<TCDistributedActorWrapper<tf_CActor>> fg_ConstructDistributedActor(TCActor<CActorDistributionManager> const &_DistributionManager, tfp_CParams &&...p_Params)
+	template <typename tf_CActor, typename ...tfp_CParams>
+	TCActor<TCDistributedActorWrapper<tf_CActor>> fg_ConstructDistributedActor(TCActor<CActorDistributionManager> const &_DistributionManager, tfp_CParams && ...p_Params)
 	{
 		auto &ConcurrencyManager = _DistributionManager->f_ConcurrencyManager();
 
@@ -441,9 +438,7 @@ namespace NMib::NConcurrency
 		pDistributedActorData->m_ActorID = NCryptography::fg_RandomID();
 		pDistributedActorData->m_DistributionManager = _DistributionManager;
 
-		TCActorHolderSharedPointer<TCActorInternal<TCDistributedActorWrapper<tf_CActor>>> pActor
-			= fg_Construct(&ConcurrencyManager, fg_Move(pDistributedActorData))
-		;
+		TCActorHolderSharedPointer<TCActorInternal<TCDistributedActorWrapper<tf_CActor>>> pActor = fg_Construct(&ConcurrencyManager, fg_Move(pDistributedActorData));
 
 		return ConcurrencyManager.f_ConstructFromInternalActor<TCDistributedActorWrapper<tf_CActor>>
 			(
@@ -453,14 +448,14 @@ namespace NMib::NConcurrency
 		;
 	}
 
-	template <typename tf_CActor, typename... tfp_CParams>
+	template <typename tf_CActor, typename ...tfp_CParams>
 	TCDistributedActor<tf_CActor> fg_ConstructRemoteDistributedActor
 		(
 			TCActor<CActorDistributionManager> const &_DistributionManager
 			, NStr::CStr const &_ActorID
 			, NStorage::TCWeakPointer<NPrivate::ICHost> const &_pHost
 			, uint32 _ProtocolVersion
-			, tfp_CParams &&...p_Params
+			, tfp_CParams && ...p_Params
 		)
 	{
 		NStorage::TCSharedPointer<NPrivate::CDistributedActorData> pDistributedActorData = fg_Construct();
@@ -489,13 +484,13 @@ namespace NMib::NConcurrency
 
 	namespace NPrivate
 	{
-		template <typename tf_CActor, typename tf_CHolderType, typename... tfp_CHolderParams, typename... tfp_CParams, umint... tfp_Indidies>
+		template <typename tf_CActor, typename tf_CHolderType, typename ...tfp_CHolderParams, typename ...tfp_CParams, umint ...tfp_Indidies>
 		TCActor<TCDistributedActorWrapper<tf_CActor>> fg_ConstructDistributedActorHelper
 			(
 				TCActor<CActorDistributionManager> const &_DistributionManager
 				, TCConstruct<tf_CHolderType, tfp_CHolderParams...> &&_HolderParams
 				, NMeta::TCIndices<tfp_Indidies...> const &
-				, tfp_CParams &&...p_Params
+				, tfp_CParams && ...p_Params
 			)
 		{
 			auto &ConcurrencyManager = _DistributionManager->f_ConcurrencyManager();
@@ -504,8 +499,12 @@ namespace NMib::NConcurrency
 			pDistributedActorData->m_ActorID = NCryptography::fg_RandomID();
 			pDistributedActorData->m_DistributionManager = _DistributionManager;
 
-			TCActorHolderSharedPointer<TCActorInternal<TCDistributedActorWrapper<tf_CActor>>> pActor
-				= fg_Construct(&ConcurrencyManager, fg_Move(pDistributedActorData), fg_Forward<tfp_CHolderParams>(fg_Get<tfp_Indidies>(_HolderParams.m_Params))...)
+			TCActorHolderSharedPointer<TCActorInternal<TCDistributedActorWrapper<tf_CActor>>> pActor = fg_Construct
+				(
+					&ConcurrencyManager
+					, fg_Move(pDistributedActorData)
+					, fg_Forward<tfp_CHolderParams>(fg_Get<tfp_Indidies>(_HolderParams.m_Params))...
+				)
 			;
 
 			return ConcurrencyManager.f_ConstructFromInternalActor<TCDistributedActorWrapper<tf_CActor>>
@@ -517,12 +516,12 @@ namespace NMib::NConcurrency
 		}
 	}
 
-	template <typename tf_CActor, typename tf_CHolderType, typename... tfp_CHolderParams, typename... tfp_CParams>
+	template <typename tf_CActor, typename tf_CHolderType, typename ...tfp_CHolderParams, typename ...tfp_CParams>
 	TCActor<TCDistributedActorWrapper<tf_CActor>> fg_ConstructDistributedActor
 		(
 			TCActor<CActorDistributionManager> const &_DistributionManager
 			, TCConstruct<tf_CHolderType, tfp_CHolderParams...> &&_HolderParams
-			, tfp_CParams &&...p_Params
+			, tfp_CParams && ...p_Params
 		)
 	{
 		return NPrivate::fg_ConstructDistributedActorHelper<tf_CActor>
@@ -618,7 +617,12 @@ namespace NMib::NConcurrency
 	template <typename tf_CType>
 	CDistributedActorProtocolVersions fg_SubscribeVersions(uint32 _MinSupportedVersion, uint32 _MaxSupportedVersion)
 	{
-		return CDistributedActorProtocolVersions{fg_Max(uint32(tf_CType::EProtocolVersion_Min), _MinSupportedVersion), fg_Min(uint32(tf_CType::EProtocolVersion_Current), _MaxSupportedVersion)};
+		return CDistributedActorProtocolVersions
+			{
+				fg_Max(uint32(tf_CType::EProtocolVersion_Min), _MinSupportedVersion)
+				, fg_Min(uint32(tf_CType::EProtocolVersion_Current), _MaxSupportedVersion)
+			}
+		;
 	}
 
 	template <typename t_CActor>

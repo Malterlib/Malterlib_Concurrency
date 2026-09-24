@@ -81,12 +81,7 @@ namespace NMib::NConcurrency
 		co_return {};
 	}
 
-	TCFuture<void> CActorDistributionManager::f_RemoveAuthenticationHandler
-		(
-			NStorage::TCSharedPointerSupportWeak<NPrivate::ICHost> _pHost
-			, NStr::CStr _LastExecutionID
-			, uint32 _HandlerID
-		)
+	TCFuture<void> CActorDistributionManager::f_RemoveAuthenticationHandler(NStorage::TCSharedPointerSupportWeak<NPrivate::ICHost> _pHost, NStr::CStr _LastExecutionID, uint32 _HandlerID)
 	{
 		auto &Host = *(static_cast<CHost *>(_pHost.f_Get()));
 		if (Host.m_bDeleted.f_Load(NAtomic::gc_MemoryOrder_Relaxed) || Host.m_LastExecutionID != _LastExecutionID)

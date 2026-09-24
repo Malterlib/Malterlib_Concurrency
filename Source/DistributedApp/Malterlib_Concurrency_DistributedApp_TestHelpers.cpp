@@ -137,9 +137,7 @@ namespace NMib::NConcurrency
 						try
 						{
 							if (Change.m_Notification == EFileChangeNotification_Removed)
-							{
 								continue;
-							}
 
 							CFile File;
 							CUniqueFileIdentifier Identifier;

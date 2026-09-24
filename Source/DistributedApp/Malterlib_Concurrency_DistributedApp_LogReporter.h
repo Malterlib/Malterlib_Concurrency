@@ -23,11 +23,11 @@ namespace NMib::NConcurrency
 			EProtocolVersion_Min = 0x101
 
 			, EProtocolVersion_UniqueSequenceAtLastCleanup = 0x102
-			, EProtocolVersion_ReportEntriesDepth = 0x103
-			, EProtocolVersion_MultipleFilters = 0x104
-			, EProtocolVersion_IgnoreRemoved = 0x105
-			, EProtocolVersion_LastSeenEntrySentinel = 0x106
-			, EProtocolVersion_InfoMetadata = 0x107
+			, EProtocolVersion_ReportEntriesDepth          = 0x103
+			, EProtocolVersion_MultipleFilters             = 0x104
+			, EProtocolVersion_IgnoreRemoved               = 0x105
+			, EProtocolVersion_LastSeenEntrySentinel       = 0x106
+			, EProtocolVersion_InfoMetadata                = 0x107
 
 			, EProtocolVersion_Current = 0x107
 		};
@@ -47,8 +47,8 @@ namespace NMib::NConcurrency
 
 		enum ELogEntryFlag : uint32
 		{
-			ELogEntryFlag_None = 0
-			, ELogEntryFlag_Audit = DMibBit(0)
+			ELogEntryFlag_None          = 0
+			, ELogEntryFlag_Audit       = DMibBit(0)
 			, ELogEntryFlag_Performance = DMibBit(1)
 		};
 

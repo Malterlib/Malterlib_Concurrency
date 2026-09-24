@@ -10,8 +10,7 @@ namespace NMib::NConcurrency
 	CDistributedToolSettings::CDistributedToolSettings(NStr::CStr const &_ToolName)
 		: CDistributedAppActor_Settings
 		{
-			CDistributedAppActor_Settings{_ToolName}
-			.f_WaitForRemotes(false)
+			CDistributedAppActor_Settings{_ToolName}.f_WaitForRemotes(false)
 		}
 	{
 	}

@@ -24,8 +24,8 @@ namespace NMib::NConcurrency::NPrivate
 
 		CDistributedActorStreamContext(CDistributedActorStreamContext const &);
 		CDistributedActorStreamContext(CDistributedActorStreamContext &&);
-		CDistributedActorStreamContext& operator =(CDistributedActorStreamContext const &);
-		CDistributedActorStreamContext& operator =(CDistributedActorStreamContext &&);
+		CDistributedActorStreamContext &operator = (CDistributedActorStreamContext const &);
+		CDistributedActorStreamContext &operator = (CDistributedActorStreamContext &&);
 
 		bool f_ValidateContext(NStr::CStr &o_Error);
 		uint32 f_ActorProtocolVersion() const;
@@ -36,6 +36,7 @@ namespace NMib::NConcurrency::NPrivate
 		{
 			return m_Magic == constant_uint64(0x5541e982e952851c);
 		}
+
 		uint64 m_Magic = constant_uint64(0x5541e982e952851c);
 #endif
 		NStorage::TCSharedPointer<CDistributedActorStreamContextState> m_pState;

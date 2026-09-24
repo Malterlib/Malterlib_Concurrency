@@ -372,10 +372,7 @@ namespace NMib::NConcurrency
 		co_return {};
 	}
 
-	TCFuture<NContainer::TCMap<NStr::CStr, NContainer::TCMap<NStr::CStr, CUserAuthenticationFactor>>> CTrustManagerDatabaseTestHelper::f_EnumAuthenticationFactor
-		(
-			bool _bIncludeFullInfo
-		)
+	TCFuture<NContainer::TCMap<NStr::CStr, NContainer::TCMap<NStr::CStr, CUserAuthenticationFactor>>> CTrustManagerDatabaseTestHelper::f_EnumAuthenticationFactor(bool _bIncludeFullInfo)
 	{
 		if (_bIncludeFullInfo)
 			co_return m_UserAuthenticationFactors;
@@ -444,7 +441,8 @@ namespace NMib::NConcurrency
 			, CStr const &_SessionID
 			, bool _bSupportAuthentication
 			, NCryptography::CPublicKeySetting const &_KeySetting
-		) const
+		)
+		const
 	{
 		CDistributedActorTrustManager::COptions Options{.m_ReconnectDelay = 1_ms};
 

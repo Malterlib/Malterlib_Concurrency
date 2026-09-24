@@ -98,12 +98,7 @@ namespace NMib::NConcurrency
 			NTime::CTime m_LastSeenTimestampLastSent;
 		};
 
-		CInternal
-			(
-				CDistributedAppLogStoreLocal *_pThis
-				, TCActor<CActorDistributionManager> const &_DistributionManager
-				, TCActor<CDistributedActorTrustManager> const &_TrustManager
-			)
+		CInternal(CDistributedAppLogStoreLocal *_pThis, TCActor<CActorDistributionManager> const &_DistributionManager, TCActor<CDistributedActorTrustManager> const &_TrustManager)
 			: m_pThis(_pThis)
 			, m_DistributionManager(_DistributionManager)
 			, m_TrustManager(_TrustManager)
@@ -117,12 +112,7 @@ namespace NMib::NConcurrency
 		TCFuture<void> f_LogReporterInterfaceAdded(TCDistributedActorInterface<CDistributedAppLogReporter> _Actor, CTrustedActorInfo _TrustInfo);
 		TCFuture<void> f_LogReporterInterfaceRemoved(TCWeakDistributedActor<CActor> _Actor, CTrustedActorInfo _TrustInfo);
 		TCFuture<void> f_LogInfoChanged(CDistributedAppLogReporter::CLogInfoKey _LogInfoKey, bool _bWasAdded);
-		TCFuture<uint32> f_NewLogEntries
-			(
-				CDistributedAppLogReporter::CLogInfoKey _LogInfoKey
-				, NStorage::TCSharedPointer<TCVector<CDistributedAppLogReporter::CLogEntry> const> _pEntries
-			)
-		;
+		TCFuture<uint32> f_NewLogEntries(CDistributedAppLogReporter::CLogInfoKey _LogInfoKey, NStorage::TCSharedPointer<TCVector<CDistributedAppLogReporter::CLogEntry> const> _pEntries);
 		TCFuture<void> f_StoreLogEntries
 			(
 				CDistributedAppLogReporter::CLogInfoKey _LogInfoKey

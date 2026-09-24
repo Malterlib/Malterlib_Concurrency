@@ -6,7 +6,7 @@
 namespace NMib::NConcurrency
 {
 	template <typename tf_CResult>
-	void CLogErrorResultFunctor::operator() (TCAsyncResult<tf_CResult> &&_Result) const
+	void CLogErrorResultFunctor::operator () (TCAsyncResult<tf_CResult> &&_Result) const
 	{
 		if (!_Result)
 			f_LogException(_Result.f_GetException());
@@ -35,8 +35,7 @@ namespace NMib::NConcurrency
 	template <typename tf_FResultHandler>
 	auto CLogErrorResultFunctor::operator / (tf_FResultHandler &&_fResultHandler) &&
 	{
-		return [fResultHandler = fg_Forward<tf_FResultHandler>(_fResultHandler), This = *this]
-			(auto &&...p_Results) mutable
+		return [fResultHandler = fg_Forward<tf_FResultHandler>(_fResultHandler), This = *this](auto && ...p_Results) mutable
 			{
 				bool bFailed = false;
 				(
@@ -63,17 +62,7 @@ namespace NMib::NConcurrency
 		;
 	}
 
-	FExceptionTransformer fg_ExceptionTransformer
-		(
-			FExceptionTransformer &&_fPreviousTransformer
-			, CLogErrorResultFunctor &&_LogError
-		)
-	;
+	FExceptionTransformer fg_ExceptionTransformer(FExceptionTransformer &&_fPreviousTransformer, CLogErrorResultFunctor &&_LogError);
 
-	FExceptionTransformer fg_ExceptionTransformer
-		(
-			FExceptionTransformer &&_fPreviousTransformer
-			, CLogErrorResultFunctorWithUserError &&_LogError
-		)
-	;
+	FExceptionTransformer fg_ExceptionTransformer(FExceptionTransformer &&_fPreviousTransformer, CLogErrorResultFunctorWithUserError &&_LogError);
 }

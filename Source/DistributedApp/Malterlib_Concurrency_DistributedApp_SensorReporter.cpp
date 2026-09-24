@@ -23,8 +23,7 @@ namespace NMib::NConcurrency
 	{
 		switch (m_Operator)
 		{
-		case EValueComparisonOperator_Equal:
-			return _Value == m_CompareToValue;
+		case EValueComparisonOperator_Equal: return _Value == m_CompareToValue;
 		case EValueComparisonOperator_LessThan:
 			{
 				if (_Value.f_GetTypeID() != m_CompareToValue.f_GetTypeID())
@@ -193,7 +192,8 @@ namespace NMib::NConcurrency
 				return fg_Max(_Severity0, _Severity1);
 			else
 				return _Severity0;
-		} else if (_Severity1 >= EStatusSeverity_Warning)
+		}
+		else if (_Severity1 >= EStatusSeverity_Warning)
 			return _Severity1;
 
 		if (_Severity0 == EStatusSeverity_Ok || _Severity1 == EStatusSeverity_Ok)
@@ -291,7 +291,8 @@ namespace NMib::NConcurrency
 			, CSensorInfo const *_pSensorInfo
 			, NTime::CTime const &_Now
 			, EOutdatedStatusOutputFlag _Flags
-		) const
+		)
+		const
 	{
 		using namespace NStr;
 
@@ -380,16 +381,7 @@ namespace NMib::NConcurrency
 					}
 				)
 			;
-			fg_AddStrSep
-				(
-					UnitDivisors
-					, "{}: Decimals: {} Formatter: {}"_f
-					<< KeyStr
-					<< Divisor.m_nDecimals
-					<< Divisor.m_UnitFormatter
-					, _pSeparator
-				)
-			;
+			fg_AddStrSep(UnitDivisors, "{}: Decimals: {} Formatter: {}"_f << KeyStr << Divisor.m_nDecimals << Divisor.m_UnitFormatter, _pSeparator);
 		}
 		return UnitDivisors;
 	}
@@ -409,17 +401,17 @@ namespace NMib::NConcurrency
 			UnitDivisor.m_UnitFormatter = "{fn1} KiB";
 		}
 		{
-			auto &UnitDivisor = Return[NConcurrency::CDistributedAppSensorReporter::CSensorData(fp64(1024.0*1024.0))];
+			auto &UnitDivisor = Return[NConcurrency::CDistributedAppSensorReporter::CSensorData(fp64(1024.0 * 1024.0))];
 			UnitDivisor.m_nDecimals = 1;
 			UnitDivisor.m_UnitFormatter = "{fn1} MiB";
 		}
 		{
-			auto &UnitDivisor = Return[NConcurrency::CDistributedAppSensorReporter::CSensorData(fp64(1024.0*1024.0*1024.0))];
+			auto &UnitDivisor = Return[NConcurrency::CDistributedAppSensorReporter::CSensorData(fp64(1024.0 * 1024.0 * 1024.0))];
 			UnitDivisor.m_nDecimals = 1;
 			UnitDivisor.m_UnitFormatter = "{fn1} GiB";
 		}
 		{
-			auto &UnitDivisor = Return[NConcurrency::CDistributedAppSensorReporter::CSensorData(fp64(1024.0*1024.0*1024.0*1024.0))];
+			auto &UnitDivisor = Return[NConcurrency::CDistributedAppSensorReporter::CSensorData(fp64(1024.0 * 1024.0 * 1024.0 * 1024.0))];
 			UnitDivisor.m_nDecimals = 1;
 			UnitDivisor.m_UnitFormatter = "{fn1} TiB";
 		}

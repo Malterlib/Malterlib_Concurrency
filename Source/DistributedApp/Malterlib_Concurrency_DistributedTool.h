@@ -13,14 +13,18 @@ namespace NMib::NConcurrency
 	class CDistributedTool
 	{
 	public:
-		virtual ~CDistributedTool() {}
+		virtual ~CDistributedTool()
+		{
+		}
+
 		virtual void f_Register
 			(
 				TCActor<CDistributedToolAppActor> const &_ToolActor
 				, CDistributedAppCommandLineSpecification::CSection &o_ToolsSection
 				, CDistributedAppCommandLineSpecification &o_CommandLine
 				, NStr::CStr const &_ClassName
-			) = 0
+			)
+			= 0
 		;
 	};
 
@@ -36,7 +40,6 @@ namespace NMib::NConcurrency
 		~CDistributedToolAppActor();
 
 	protected:
-
 		struct CTool
 		{
 			NStorage::TCUniquePointer<CDistributedTool> m_pRuntimeClass;

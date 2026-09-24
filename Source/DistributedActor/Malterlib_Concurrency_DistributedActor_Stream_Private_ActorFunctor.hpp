@@ -14,14 +14,7 @@ namespace NMib::NConcurrency
 		if (!_ActorFunctor.f_IsEmpty())
 			pFunction = fg_Construct<NPrivate::TCStreamingFunction<CFunction>>(fg_Move(_ActorFunctor.f_GetFunctor()));
 
-		f_FeedActorFunctor
-			(
-				fg_Move(_ActorFunctor.f_GetActor())
-				, fg_Move(pFunction)
-				, _ActorFunctor.f_GetID()
-				, fg_Move(_ActorFunctor.f_GetSubscription())
-			)
-		;
+		f_FeedActorFunctor(fg_Move(_ActorFunctor.f_GetActor()), fg_Move(pFunction), _ActorFunctor.f_GetID(), fg_Move(_ActorFunctor.f_GetSubscription()));
 	}
 
 	template <typename tf_CFunction, uint32 tf_SubscriptionID>

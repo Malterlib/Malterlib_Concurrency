@@ -19,8 +19,8 @@ namespace NMib::NContainer
 	template <typename t_CType>
 	class TCThreadSafeQueueAtomicListEntry
 	{
-		template <typename tf_ObjectType, typename tf_CAllocator, typename... tfp_CParams>
-		friend tf_ObjectType *NMib::fg_ConstructObject(tf_CAllocator &&_Allocator, tfp_CParams&&... p_Params);
+		template <typename tf_ObjectType, typename tf_CAllocator, typename ...tfp_CParams>
+		friend tf_ObjectType *NMib::fg_ConstructObject(tf_CAllocator &&_Allocator, tfp_CParams && ...p_Params);
 
 		template <typename t_CType0, typename t_CAllocator0, int t_DefaultSize0>
 		friend class TCThreadSafeQueueAtomic;
@@ -41,31 +41,28 @@ namespace NMib::NContainer
 	class TCThreadSafeQueueAtomicEntry
 	{
 		TCThreadSafeQueueAtomicListEntry<t_CType> *m_pEntry;
-//			template <typename t_CType, typename t_CAllocator>
+		// template <typename t_CType, typename t_CAllocator>
 		friend class TCThreadSafeQueueAtomic<t_CType, t_CAllocator, t_DefaultSize>;
 		TCThreadSafeQueueAtomicEntry(TCThreadSafeQueueAtomicListEntry<t_CType> *_pEntry)
 			: m_pEntry(_pEntry)
 		{
-
 		}
 
 		// Disable copy
 		TCThreadSafeQueueAtomicEntry(TCThreadSafeQueueAtomicEntry const &_Other);
-		TCThreadSafeQueueAtomicEntry &operator =(TCThreadSafeQueueAtomicEntry const &_Other);
-	public:
+		TCThreadSafeQueueAtomicEntry &operator = (TCThreadSafeQueueAtomicEntry const &_Other);
 
+	public:
 		TCThreadSafeQueueAtomicEntry(TCThreadSafeQueueAtomicEntry &&_Other)
 			: m_pEntry(_Other.m_pEntry)
 		{
 			_Other.m_pEntry = nullptr;
 		}
 
-		TCThreadSafeQueueAtomicEntry &operator =(TCThreadSafeQueueAtomicEntry &&_Other)
+		TCThreadSafeQueueAtomicEntry &operator = (TCThreadSafeQueueAtomicEntry &&_Other)
 		{
 			if (m_pEntry)
-			{
 				fg_DeleteObjectDefiniteType(t_CAllocator(), m_pEntry);
-			}
 
 			m_pEntry = _Other.m_pEntry;
 			_Other.m_pEntry = nullptr;
@@ -93,12 +90,12 @@ namespace NMib::NContainer
 			return m_pEntry->m_Data;
 		}
 
-		mark_nodebug t_CType &operator *()
+		mark_nodebug t_CType &operator * ()
 		{
 			return f_Get();
 		}
 
-		mark_nodebug t_CType *operator ->()
+		mark_nodebug t_CType *operator -> ()
 		{
 			return &f_Get();
 		}
@@ -109,17 +106,17 @@ namespace NMib::NContainer
 			return m_pEntry->m_Data;
 		}
 
-		mark_nodebug t_CType const &operator *() const
+		mark_nodebug t_CType const &operator * () const
 		{
 			return f_Get();
 		}
 
-		mark_nodebug t_CType const *operator ->() const
+		mark_nodebug t_CType const *operator -> () const
 		{
 			return &f_Get();
 		}
 
-		inline_small explicit operator bool() const
+		inline_small explicit operator bool () const
 		{
 			return f_IsValid();
 		}
@@ -131,20 +128,20 @@ namespace NMib::NContainer
 		using CListEntry = TCThreadSafeQueueAtomicListEntry<t_CType>;
 		using CReturnEntry = TCThreadSafeQueueAtomicEntry<t_CType, t_CAllocator>;
 
-		template<typename T>
+		template <typename T>
 		struct CStdAllocator : public std::allocator<T>
 		{
-			T* allocate( size_t n )
+			T *allocate(size_t n)
 			{
-				return (T*)t_CAllocator::f_Alloc(n * sizeof(T));
+				return (T *)t_CAllocator::f_Alloc(n * sizeof(T));
 			}
 
-			void deallocate( T* p, size_t n )
+			void deallocate(T *p, size_t n)
 			{
 				t_CAllocator::f_Free(p, sizeof(T) * n);
 			}
 
-			template<typename t_CType2>
+			template <typename t_CType2>
 			struct rebind
 			{
 				using other = CStdAllocator<t_CType2>;
@@ -161,16 +158,15 @@ namespace NMib::NContainer
 		{
 			CListEntry *pEntry;
 			while (m_Queue.pop(pEntry))
-			{
 				fg_DeleteObjectDefiniteType(t_CAllocator(), pEntry);
-			}
 		}
+
 		TCThreadSafeQueueAtomic(TCThreadSafeQueueAtomic const &_Other);
 		TCThreadSafeQueueAtomic(TCThreadSafeQueueAtomic &&_Other);
-		TCThreadSafeQueueAtomic& operator =(TCThreadSafeQueueAtomic const &_Other);
-		TCThreadSafeQueueAtomic& operator =(TCThreadSafeQueueAtomic &&_Other);
-	public:
+		TCThreadSafeQueueAtomic &operator = (TCThreadSafeQueueAtomic const &_Other);
+		TCThreadSafeQueueAtomic &operator = (TCThreadSafeQueueAtomic &&_Other);
 
+	public:
 		TCThreadSafeQueueAtomic()
 		{
 		}
@@ -206,7 +202,7 @@ namespace NMib::NContainer
 			m_Queue.push(pEntry);
 		}
 
-		void f_PopAllToVector(NContainer::TCVector<t_CType>& _olItems)
+		void f_PopAllToVector(NContainer::TCVector<t_CType> &_olItems)
 		{
 			CListEntry *pEntry = nullptr;
 			while (m_Queue.pop(pEntry))
@@ -220,6 +216,5 @@ namespace NMib::NContainer
 		{
 			return fg_RemoveQualifiers(m_Queue).empty();
 		}
-
 	};
 }

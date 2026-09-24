@@ -109,7 +109,8 @@ namespace NMib::NConcurrency
 					TCPromise<EPriority> QueuePriority;
 					Source.f_DispatchToQueue
 						(
-							EPriority_NormalHighCPU, 0
+							EPriority_NormalHighCPU
+							, 0
 							, [&Destination, QueuePriority](CConcurrencyThreadLocal &)
 							{
 								QueuePriority.f_SetResult(Destination.f_GetTimerActor()->f_GetPriority());

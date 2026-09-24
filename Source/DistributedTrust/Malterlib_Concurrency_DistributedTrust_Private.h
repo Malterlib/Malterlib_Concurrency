@@ -70,13 +70,8 @@ namespace NMib::NConcurrency::NPrivate
 				, NTime::CTime const &_CacheTime
 			)
 		;
-		TCFuture<void> f_AddAuthenticatedPermission
-			(
-				CPermissionIdentifiers const &_Identity
-				, NStr::CStr const &_Permission
-				, NTime::CTime const &_ExpirationTime
-				, NTime::CTime const &_CacheTime
-			)
+		auto f_AddAuthenticatedPermission(CPermissionIdentifiers const &_Identity, NStr::CStr const &_Permission, NTime::CTime const &_ExpirationTime, NTime::CTime const &_CacheTime)
+			-> TCFuture<void>
 		;
 	};
 }

@@ -28,9 +28,9 @@ using namespace NMib::NStorage;
 using namespace NMib::NNetwork;
 
 #if DMibConfig_Concurrency_DebugSubscriptions
-	static fp64 g_Timeout = 60.0 * gc_TimeoutMultiplier * 10.0;
+static fp64 g_Timeout = 60.0 * gc_TimeoutMultiplier * 10.0;
 #else
-	static fp64 g_Timeout = 60.0 * gc_TimeoutMultiplier;
+static fp64 g_Timeout = 60.0 * gc_TimeoutMultiplier;
 #endif
 
 namespace NTestTrustManager
@@ -42,6 +42,7 @@ namespace NTestTrustManager
 			, m_Name(_Name)
 		{
 		}
+
 		virtual ~CAuthenticationActorTestSucceed() = default;
 
 		TCFuture<CAuthenticationData> f_RegisterFactor(NStr::CStr _UserID, TCSharedPointer<CCommandLineControl> _pCommandLine) override
@@ -61,7 +62,8 @@ namespace NTestTrustManager
 				, CStr _Description
 				, ICDistributedActorAuthenticationHandler::CSignedProperties _SignedProperties
 				, TCMap<CStr, CAuthenticationData> _Factors
-			) override
+			)
+			override
 		{
 			ICDistributedActorAuthenticationHandler::CResponse Response;
 			for (auto const &RegisteredFactor : _Factors)
@@ -80,7 +82,8 @@ namespace NTestTrustManager
 				ICDistributedActorAuthenticationHandler::CResponse _Response
 				, ICDistributedActorAuthenticationHandler::CChallenge _Challenge
 				, CAuthenticationData _AuthenticationData
-			) override
+			)
+			override
 		{
 			co_return CVerifyAuthenticationReturn{bool(_Response.m_Signature == CByteVector((uint8 const *)m_Name.f_GetStr(), m_Name.f_GetLen()))};
 		}
@@ -118,6 +121,7 @@ namespace NTestTrustManager
 			, m_Name(_Name)
 		{
 		}
+
 		virtual ~CAuthenticationActorFail() = default;
 
 		TCFuture<CAuthenticationData> f_RegisterFactor(NStr::CStr _UserID, TCSharedPointer<CCommandLineControl> _pCommandLine) override
@@ -137,7 +141,8 @@ namespace NTestTrustManager
 				, CStr _Description
 				, ICDistributedActorAuthenticationHandler::CSignedProperties _SignedProperties
 				, TCMap<CStr, CAuthenticationData> _Factors
-			) override
+			)
+			override
 		{
 			ICDistributedActorAuthenticationHandler::CResponse Response;
 			for (auto const &RegisteredFactor : _Factors)
@@ -156,7 +161,8 @@ namespace NTestTrustManager
 				ICDistributedActorAuthenticationHandler::CResponse _Response
 				, ICDistributedActorAuthenticationHandler::CChallenge _Challenge
 				, CAuthenticationData _AuthenticationData
-			) override
+			)
+			override
 		{
 			co_return CVerifyAuthenticationReturn{false};
 		}
@@ -191,7 +197,7 @@ namespace NTestTrustManager
 		{
 			enum : uint32
 			{
-				EProtocolVersion_Min = 0x101
+				EProtocolVersion_Min       = 0x101
 				, EProtocolVersion_Current = 0x101
 			};
 
@@ -217,11 +223,12 @@ namespace NTestTrustManager
 				return fg_GetCallingHostInfo().f_GetCallPriority();
 			}
 		};
+
 		struct CTestActor2 : public CActor
 		{
 			enum : uint32
 			{
-				EProtocolVersion_Min = 0x101
+				EProtocolVersion_Min       = 0x101
 				, EProtocolVersion_Current = 0x101
 			};
 
@@ -235,11 +242,12 @@ namespace NTestTrustManager
 				return 5;
 			}
 		};
+
 		struct CTestActor3 : public CActor
 		{
 			enum : uint32
 			{
-				EProtocolVersion_Min = 0x101
+				EProtocolVersion_Min       = 0x101
 				, EProtocolVersion_Current = 0x101
 			};
 
@@ -315,6 +323,7 @@ namespace NTestTrustManager
 				m_ServerDatabase = _fDatabaseFactory("Server" + _NameDistinguish);
 				m_ClientDatabase = _fDatabaseFactory("Client" + _NameDistinguish);
 			}
+
 			~CState()
 			{
 				for (auto &Manager : m_TrustManagers)
@@ -329,7 +338,6 @@ namespace NTestTrustManager
 				if (m_fCleanup)
 					m_fCleanup();
 			}
-
 
 			TCVector<TCActor<CDistributedActorTrustManager>> m_TrustManagers;
 			TCActor<ICDistributedActorTrustManagerDatabase> m_ServerDatabase;
@@ -408,24 +416,20 @@ namespace NTestTrustManager
 				m_ServerTrustManager->f_BlockDestroy(m_pRunLoop->f_ActorDestroyLoop());
 			}
 
-			template <typename tf_CKey, typename tf_CValue, typename... tf_CParams>
+			template <typename tf_CKey, typename tf_CValue, typename ...tf_CParams>
 			void fg_CreateMapHelper(TCMap<tf_CKey, tf_CValue> &_Return)
 			{
 			}
 
-			template <typename tf_CKey, typename tf_CValue, typename... tf_CParams>
+			template <typename tf_CKey, typename tf_CValue, typename ...tf_CParams>
 			void fg_CreateMapHelper(TCMap<tf_CKey, tf_CValue> &_Return, tf_CKey &&_First, tf_CParams && ...p_Params)
 			{
 				_Return[fg_Forward<tf_CKey>(_First)];
 				fg_CreateMapHelper<tf_CKey, tf_CValue>(_Return, fg_Forward<tf_CParams>(p_Params)...);
 			}
 
-			template <typename tf_CKey, typename tf_CValue, typename... tf_CParams>
-			TCMap<NTraits::TCRemoveReferenceAndQualifiers<tf_CKey>, NTraits::TCRemoveReferenceAndQualifiers<tf_CValue>> fg_CreateMap
-				(
-					tf_CKey && _First
-					, tf_CParams && ...p_Params
-				)
+			template <typename tf_CKey, typename tf_CValue, typename ...tf_CParams>
+			TCMap<NTraits::TCRemoveReferenceAndQualifiers<tf_CKey>, NTraits::TCRemoveReferenceAndQualifiers<tf_CValue>> fg_CreateMap(tf_CKey &&_First, tf_CParams && ...p_Params)
 			{
 				TCMap<NTraits::TCRemoveReferenceAndQualifiers<tf_CKey>, NTraits::TCRemoveReferenceAndQualifiers<tf_CValue>> Return;
 				fg_CreateMapHelper<NTraits::TCRemoveReferenceAndQualifiers<tf_CKey>, NTraits::TCRemoveReferenceAndQualifiers<tf_CValue>>
@@ -438,7 +442,7 @@ namespace NTestTrustManager
 				return Return;
 			}
 
-			template <typename tf_CKey, typename tf_CValue, typename... tf_CParams>
+			template <typename tf_CKey, typename tf_CValue, typename ...tf_CParams>
 			TCMap<tf_CKey, tf_CValue> fg_CreateMap(tf_CParams && ...p_Params)
 			{
 				TCMap<tf_CKey, tf_CValue> Return;
@@ -454,7 +458,7 @@ namespace NTestTrustManager
 			}
 
 			template <typename ...tfp_CPermission>
-			void f_AddPermissions(tfp_CPermission &&...p_Permissions)
+			void f_AddPermissions(tfp_CPermission && ...p_Permissions)
 			{
 				m_ClientTrustManager
 					(
@@ -462,12 +466,13 @@ namespace NTestTrustManager
 						, CPermissionIdentifiers{m_ServerHostID, ""}
 						, fg_CreateMap<CStr, CPermissionRequirements>(p_Permissions...)
 						, EDistributedActorTrustManagerOrderingFlag_WaitForSubscriptions
-					).f_CallSync(m_pRunLoop, g_Timeout)
+					)
+					.f_CallSync(m_pRunLoop, g_Timeout)
 				;
 			}
 
 			template <typename ...tfp_CPermission>
-			void f_RemovePermissions(tfp_CPermission &&...p_Permissions)
+			void f_RemovePermissions(tfp_CPermission && ...p_Permissions)
 			{
 				m_ClientTrustManager
 					(
@@ -475,7 +480,8 @@ namespace NTestTrustManager
 						, CPermissionIdentifiers{m_ServerHostID, ""}
 						, fg_CreateSet<CStr>(p_Permissions...)
 						, EDistributedActorTrustManagerOrderingFlag_WaitForSubscriptions
-					).f_CallSync(m_pRunLoop, g_Timeout)
+					)
+					.f_CallSync(m_pRunLoop, g_Timeout)
 				;
 			}
 
@@ -487,7 +493,8 @@ namespace NTestTrustManager
 						, CPermissionIdentifiers{"", _UserID}
 						, fs_CreateMap(_Permission, _Methods)
 						, EDistributedActorTrustManagerOrderingFlag_WaitForSubscriptions
-					).f_CallSync(m_pRunLoop, g_Timeout)
+					)
+					.f_CallSync(m_pRunLoop, g_Timeout)
 				;
 			}
 
@@ -499,7 +506,8 @@ namespace NTestTrustManager
 						, CPermissionIdentifiers{"", _UserID}
 						, fg_CreateSet<CStr>(_Permission)
 						, EDistributedActorTrustManagerOrderingFlag_WaitForSubscriptions
-					).f_CallSync(m_pRunLoop, g_Timeout)
+					)
+					.f_CallSync(m_pRunLoop, g_Timeout)
 				;
 			}
 
@@ -511,7 +519,8 @@ namespace NTestTrustManager
 						, CPermissionIdentifiers{m_ServerHostID, _UserID}
 						, fs_CreateMap(_Permission, _Methods)
 						, EDistributedActorTrustManagerOrderingFlag_WaitForSubscriptions
-					).f_CallSync(m_pRunLoop, g_Timeout)
+					)
+					.f_CallSync(m_pRunLoop, g_Timeout)
 				;
 			}
 
@@ -523,7 +532,8 @@ namespace NTestTrustManager
 						, CPermissionIdentifiers{m_ServerHostID, _UserID}
 						, fg_CreateSet<CStr>(_Permission)
 						, EDistributedActorTrustManagerOrderingFlag_WaitForSubscriptions
-					).f_CallSync(m_pRunLoop, g_Timeout)
+					)
+					.f_CallSync(m_pRunLoop, g_Timeout)
 				;
 			}
 
@@ -760,7 +770,7 @@ namespace NTestTrustManager
 					CDistributedActorTrustManager_Address OldServerAddress;
 					OldServerAddress.m_URL = fg_GetSocketUrl("TrustBasic", _RootDir);
 
-					ServerTrustManager(&CDistributedActorTrustManager::f_RemoveListen, OldServerAddress).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);;
+					ServerTrustManager(&CDistributedActorTrustManager::f_RemoveListen, OldServerAddress).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
 
 					TCActor<CDistributedActorTrustManager> ClientTrustManager = State.f_CreateClientTrustManager();
 
@@ -783,7 +793,7 @@ namespace NTestTrustManager
 					}
 					TCActor<CDistributedActorTrustManager> ServerTrustManager = State.f_CreateServerTrustManager();
 
-					ServerTrustManager(&CDistributedActorTrustManager::f_RemoveClient, HostID).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);;
+					ServerTrustManager(&CDistributedActorTrustManager::f_RemoveClient, HostID).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
 
 					TCActor<CDistributedActorTrustManager> ClientTrustManager = State.f_CreateClientTrustManager();
 
@@ -929,7 +939,7 @@ namespace NTestTrustManager
 							}
 						}
 					)
-					.f_DiscardResult();
+					.f_DiscardResult()
 				;
 
 				{
@@ -945,7 +955,6 @@ namespace NTestTrustManager
 
 					DMibExpectFalse(bTimedOutPreDisconnect);
 				}
-
 
 				bool bTimedOut = false;
 
@@ -981,7 +990,6 @@ namespace NTestTrustManager
 
 				ServerTrustManager->f_BlockDestroy(RunLoopHelper.m_pRunLoop->f_ActorDestroyLoop());
 				ClientTrustManager->f_BlockDestroy(RunLoopHelper.m_pRunLoop->f_ActorDestroyLoop());
-
 			}
 			{
 				DMibTestPath("Broken Connections");
@@ -1079,9 +1087,11 @@ namespace NTestTrustManager
 					ClientTrustManager
 						(
 							&CDistributedActorTrustManager::f_Debug_BreakClientConnection
-							, ServerAddress, fp64(0.05) + NMisc::fg_GetRandomFloat() * fp64(0.1)
+							, ServerAddress
+							, fp64(0.05) + NMisc::fg_GetRandomFloat() * fp64(0.1)
 							, ESocketDebugFlag_StopProcessing
-						).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
+						)
+						.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
 					;
 					ServerTrustManager
 						(
@@ -1089,7 +1099,8 @@ namespace NTestTrustManager
 							, ServerAddress
 							, fp64(0.05) + NMisc::fg_GetRandomFloat() * fp64(0.1)
 							, ESocketDebugFlag_StopProcessing
-						).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
+						)
+						.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
 					;
 
 					umint ExpectedCalls = nCalls.f_Load() + 2;
@@ -1225,9 +1236,7 @@ namespace NTestTrustManager
 
 					// Keep setup and connection handshakes outside the short host-retention window.
 					auto const &CleanupManager = i == 0 ? ServerHelper.f_GetManager() : ClientHelper.f_GetManager();
-					CleanupManager(&CActorDistributionManager::f_Debug_SetHostTimeouts, fp64(500_ms), fp64(500_ms))
-						.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
-					;
+					CleanupManager(&CActorDistributionManager::f_Debug_SetHostTimeouts, fp64(500_ms), fp64(500_ms)).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
 
 					bool bTimedOut2;
 					if (i == 1)
@@ -1271,7 +1280,6 @@ namespace NTestTrustManager
 					bAbort = true;
 					DispatchActor->f_BlockDestroy(RunLoopHelper.m_pRunLoop->f_ActorDestroyLoop());
 
-
 					DMibTest
 						(
 							DMibExpr(DispatchError) == DMibExpr(("Remote host '{} [TestServer]' no longer running: Host inactivity (0.5 s)"_f << HostInfo.m_HostID).f_GetStr())
@@ -1313,7 +1321,7 @@ namespace NTestTrustManager
 					DMibExpectExceptionType
 						(
 							ClientTrustManager(&CDistributedActorTrustManager::f_AddClientConnection, TrustTicket.m_Ticket, g_Timeout / 2, -1, 0)
-								.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
+							.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
 							, NException::CException
 						)
 					;
@@ -1345,7 +1353,7 @@ namespace NTestTrustManager
 					Extension.m_Value = BasicConfig.m_HostID;
 
 					CCertificateSignOptions SignOptions;
-					SignOptions.m_Days = 100*365;
+					SignOptions.m_Days = 100 * 365;
 
 					CCertificate::fs_GenerateSelfSignedCertAndKey(Options, BasicConfig.m_CACertificate, BasicConfig.m_CAPrivateKey, SignOptions);
 
@@ -1373,7 +1381,7 @@ namespace NTestTrustManager
 				DMibExpectExceptionType
 					(
 						Client2TrustManager(&CDistributedActorTrustManager::f_AddClientConnection, TrustTicket2.m_Ticket, g_Timeout / 2, -1, 0)
-							.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
+						.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
 						, NException::CException
 					)
 				;
@@ -1549,7 +1557,15 @@ namespace NTestTrustManager
 					fAllowNamespace("Test/55");
 					fDisallowNamespace("Test/55");
 
-					fg_Dispatch(RunLoopHelper.m_HelperActor, []{}).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
+					fg_Dispatch
+						(
+							RunLoopHelper.m_HelperActor
+							, []
+							{
+							}
+						)
+						.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
+					;
 				}
 				{
 					DMibTestPath("General");
@@ -1571,7 +1587,15 @@ namespace NTestTrustManager
 					CStr Subscription = ClientHelper.f_Subscribe("com.malterlib/Test");
 
 					// Make sure that queue has been processed on test actor
-					fg_Dispatch(RunLoopHelper.m_HelperActor, []{}).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
+					fg_Dispatch
+						(
+							RunLoopHelper.m_HelperActor
+							, []
+							{
+							}
+						)
+						.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
+					;
 					{
 						DMibTestPath("After publish");
 						DMibAssert(TrustedSubscription.m_Actors.f_GetLen(), ==, 0);
@@ -1588,7 +1612,15 @@ namespace NTestTrustManager
 					ClientTrustManager(&CDistributedActorTrustManager::f_AllowHostsForNamespace, "com.malterlib/Test", ServerHosts, c_WaitForSubscriptions)
 						.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
 					;
-					fg_Dispatch(RunLoopHelper.m_HelperActor, []{}).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
+					fg_Dispatch
+						(
+							RunLoopHelper.m_HelperActor
+							, []
+							{
+							}
+						)
+						.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
+					;
 					{
 						DMibTestPath("After allow");
 						DMibAssert(TrustedSubscription.m_Actors.f_GetLen(), ==, 1);
@@ -1620,7 +1652,15 @@ namespace NTestTrustManager
 					ClientTrustManager(&CDistributedActorTrustManager::f_DisallowHostsForNamespace, "com.malterlib/Test", ServerHosts, c_WaitForSubscriptions)
 						.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
 					;
-					fg_Dispatch(RunLoopHelper.m_HelperActor, []{}).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
+					fg_Dispatch
+						(
+							RunLoopHelper.m_HelperActor
+							, []
+							{
+							}
+						)
+						.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
+					;
 					{
 						DMibTestPath("After disallow");
 						DMibAssert(TrustedSubscription.m_Actors.f_GetLen(), ==, 0);
@@ -1667,7 +1707,7 @@ namespace NTestTrustManager
 					ClientTrustManager(&CDistributedActorTrustManager::f_DisallowHostsForNamespace, "com.malterlib/Test", ServerHosts, c_WaitForSubscriptions)
 						.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
 					;
-					 // Test disallow without namespace
+					// Test disallow without namespace
 					ClientTrustManager(&CDistributedActorTrustManager::f_DisallowHostsForNamespace, "com.malterlib/Test", ServerHosts, c_WaitForSubscriptions)
 						.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
 					;
@@ -1703,7 +1743,8 @@ namespace NTestTrustManager
 							, RunLoopHelper.m_HelperActor
 							, 0
 							, TCLimitsInt<uint32>::mc_Max
-						).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
+						)
+						.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
 					;
 					{
 						DMibTestPath("After subscribe");
@@ -1726,7 +1767,8 @@ namespace NTestTrustManager
 									{
 										return _Subscription.m_Actors.f_GetLen();
 									}
-								).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
+								)
+								.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
 							;
 							if (nSubscribed == _nSubScribed)
 								break;
@@ -1759,7 +1801,8 @@ namespace NTestTrustManager
 								, 0
 								, TCLimitsInt<uint32>::mc_Max
 							)
-						).f_CallSync()
+						)
+						.f_CallSync()
 					;
 					auto &TrustedSubscription0 = fg_Get<0>(Subscriptions);
 					auto &TrustedSubscription1 = fg_Get<1>(Subscriptions);
@@ -1829,7 +1872,15 @@ namespace NTestTrustManager
 						CStr NewPublish2 = ServerHelper.f_Publish<CTestActor2>(ServerHelper.f_GetManager()->f_ConstructActor<CTestActor2>(), "com.malterlib/Test");
 						CStr Subscription = ClientHelper.f_Subscribe("com.malterlib/Test", Published.f_GetLen() + 1);
 						DMibExpectTrue(ClientHelper.f_GetRemoteActor<CTestActor2>(Subscription));
-						fg_Dispatch(RunLoopHelper.m_HelperActor, []{}).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
+						fg_Dispatch
+							(
+								RunLoopHelper.m_HelperActor
+								, []
+								{
+								}
+							)
+							.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
+						;
 						DMibExpect(fWaitForSubscribed(TrustedSubscription2, 1), ==, 1);
 						TrustedSubscription2.f_Destroy().f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
 						ServerHelper.f_Unpublish(NewPublish2);
@@ -1840,7 +1891,15 @@ namespace NTestTrustManager
 								break;
 						}
 						DMibExpect(fWaitForSubscribed(TrustedSubscription2, 0), ==, 0);
-						fg_Dispatch(RunLoopHelper.m_HelperActor, []{}).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
+						fg_Dispatch
+							(
+								RunLoopHelper.m_HelperActor
+								, []
+								{
+								}
+							)
+							.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
+						;
 						ClientHelper.f_Unsubscribe(Subscription);
 					}
 					{
@@ -1869,7 +1928,15 @@ namespace NTestTrustManager
 						CStr NewPublish3 = ServerHelper.f_Publish<CTestActor>(ServerHelper.f_GetManager()->f_ConstructActor<CTestActor>(), "com.malterlib/Test2");
 						CStr Subscription = ClientHelper.f_Subscribe("com.malterlib/Test2", 2);
 						DMibExpectTrue(ClientHelper.f_GetRemoteActor<CTestActor2>(Subscription) && ClientHelper.f_GetRemoteActor<CTestActor>(Subscription));
-						fg_Dispatch(RunLoopHelper.m_HelperActor, []{}).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
+						fg_Dispatch
+							(
+								RunLoopHelper.m_HelperActor
+								, []
+								{
+								}
+							)
+							.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
+						;
 						ServerHelper.f_Unpublish(NewPublish2);
 						ServerHelper.f_Unpublish(NewPublish3);
 						NTime::CStopwatch Stopwatch{true};
@@ -1879,7 +1946,15 @@ namespace NTestTrustManager
 								break;
 						}
 						DMibExpectTrue(!ClientHelper.f_GetRemoteActor<CTestActor2>(Subscription) && !ClientHelper.f_GetRemoteActor<CTestActor>(Subscription));
-						fg_Dispatch(RunLoopHelper.m_HelperActor, []{}).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
+						fg_Dispatch
+							(
+								RunLoopHelper.m_HelperActor
+								, []
+								{
+								}
+							)
+							.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
+						;
 						ClientHelper.f_Unsubscribe(Subscription);
 						TrustedSubscription2.f_Destroy().f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
 						TrustedSubscription3.f_Destroy().f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
@@ -1985,14 +2060,22 @@ namespace NTestTrustManager
 									;
 								}
 							)
-							> Dispatches;
+							> Dispatches
 						;
 					}
 
 					for (auto &Dispatch : fg_AllDone(Dispatches).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout))
 						fg_Move(*Dispatch) > SubscribesFutures;
 
-					fg_Dispatch(RunLoopHelper.m_HelperActor, []{}).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
+					fg_Dispatch
+						(
+							RunLoopHelper.m_HelperActor
+							, []
+							{
+							}
+						)
+						.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
+					;
 					ClientTrustManager(&CDistributedActorTrustManager::f_AllowHostsForNamespace, "com.malterlib/Test", ServerHosts, c_WaitForSubscriptions)
 						.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
 					;
@@ -2073,7 +2156,15 @@ namespace NTestTrustManager
 					ClientTrustManager(&CDistributedActorTrustManager::f_AllowHostsForNamespace, "com.malterlib/Test", ServerHosts, c_WaitForSubscriptions)
 						.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
 					;
-					fg_Dispatch(RunLoopHelper.m_HelperActor, []{}).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
+					fg_Dispatch
+						(
+							RunLoopHelper.m_HelperActor
+							, []
+							{
+							}
+						)
+						.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
+					;
 
 					{
 						DMibTestPath("After allow");
@@ -2084,7 +2175,15 @@ namespace NTestTrustManager
 					ClientTrustManager(&CDistributedActorTrustManager::f_DisallowHostsForNamespace, "com.malterlib/Test", ServerHosts, c_WaitForSubscriptions)
 						.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
 					;
-					fg_Dispatch(RunLoopHelper.m_HelperActor, []{}).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
+					fg_Dispatch
+						(
+							RunLoopHelper.m_HelperActor
+							, []
+							{
+							}
+						)
+						.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
+					;
 
 					{
 						DMibTestPath("After disallow");
@@ -2109,10 +2208,11 @@ namespace NTestTrustManager
 					DMibTestPath("General");
 					auto TrustedSubscription = TestState.m_ClientTrustManager
 						(
-							 &CDistributedActorTrustManager::f_SubscribeToPermissions
-							 , fg_CreateVector<CStr>("com.malterlib/Test", "com.malterlib/Test2")
-							 , TestState.m_TestActor
-						).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
+							&CDistributedActorTrustManager::f_SubscribeToPermissions
+							, fg_CreateVector<CStr>("com.malterlib/Test", "com.malterlib/Test2")
+							, TestState.m_TestActor
+						)
+						.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
 					;
 					{
 						DMibTestPath("Before add permission");
@@ -2221,10 +2321,11 @@ namespace NTestTrustManager
 					DMibTestPath("Double wildcards");
 					auto TrustedSubscription = TestState.m_ClientTrustManager
 						(
-							 &CDistributedActorTrustManager::f_SubscribeToPermissions
-							 , fg_CreateVector<CStr>("*", "*", "com.malterlib/Test*")
-							 , TestState.m_TestActor
-						).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
+							&CDistributedActorTrustManager::f_SubscribeToPermissions
+							, fg_CreateVector<CStr>("*", "*", "com.malterlib/Test*")
+							, TestState.m_TestActor
+						)
+						.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
 					;
 
 					TestState.f_AddPermissions("com.malterlib/Test", "com.malterlib/Test2");
@@ -2257,10 +2358,11 @@ namespace NTestTrustManager
 					DMibTestPath("Notifications");
 					auto TrustedSubscription = TestState.m_ClientTrustManager
 						(
-							 &CDistributedActorTrustManager::f_SubscribeToPermissions
-							 , fg_CreateVector<CStr>("*", "*", "com.malterlib/Test*")
-							 , TestState.m_TestActor
-						).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
+							&CDistributedActorTrustManager::f_SubscribeToPermissions
+							, fg_CreateVector<CStr>("*", "*", "com.malterlib/Test*")
+							, TestState.m_TestActor
+						)
+						.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
 					;
 
 					NAtomic::TCAtomic<umint> nPermissions{0};
@@ -2301,7 +2403,6 @@ namespace NTestTrustManager
 							)
 						;
 						DMibExpect(nPermissions.f_Load(), ==, 2);
-
 					}
 					TestState.f_RemovePermissions("com.malterlib/Test");
 					TestState.f_RemovePermissions("com.malterlib/Test");
@@ -2380,10 +2481,11 @@ namespace NTestTrustManager
 					CPermissionTestState TestState{State, "PermissionsDatabase"};
 					auto TrustedSubscription = TestState.m_ClientTrustManager
 						(
-							 &CDistributedActorTrustManager::f_SubscribeToPermissions
-							 , fg_CreateVector<CStr>("com.malterlib/Test*")
-							 , TestState.m_TestActor
-						).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
+							&CDistributedActorTrustManager::f_SubscribeToPermissions
+							, fg_CreateVector<CStr>("com.malterlib/Test*")
+							, TestState.m_TestActor
+						)
+						.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
 					;
 					TestState.f_AddPermissions("com.malterlib/Test", "com.malterlib/Test2", "com.malterlib/Test3");
 					DMibAssertTrue(TrustedSubscription.f_HasPermission("Setup", {"com.malterlib/Test"}, TestState.m_ServerHostInfo).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout));
@@ -2395,10 +2497,11 @@ namespace NTestTrustManager
 					CPermissionTestState TestState{State, "PermissionsDatabase"};
 					auto TrustedSubscription = TestState.m_ClientTrustManager
 						(
-							 &CDistributedActorTrustManager::f_SubscribeToPermissions
-							 , fg_CreateVector<CStr>("com.malterlib/Test*")
-							 , TestState.m_TestActor
-						).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
+							&CDistributedActorTrustManager::f_SubscribeToPermissions
+							, fg_CreateVector<CStr>("com.malterlib/Test*")
+							, TestState.m_TestActor
+						)
+						.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
 					;
 					DMibAssertTrue(TrustedSubscription.f_HasPermission("After Reload", {"com.malterlib/Test"}, TestState.m_ServerHostInfo).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout));
 					DMibAssertTrue(TrustedSubscription.f_HasPermission("After Reload", {"com.malterlib/Test2"}, TestState.m_ServerHostInfo).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout));
@@ -2430,10 +2533,11 @@ namespace NTestTrustManager
 					CPermissionTestState TestState{State, "PermissionsDatabase"};
 					auto TrustedSubscription = TestState.m_ClientTrustManager
 						(
-							 &CDistributedActorTrustManager::f_SubscribeToPermissions
-							 , fg_CreateVector<CStr>("com.malterlib/Test*")
-							 , TestState.m_TestActor
-						).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
+							&CDistributedActorTrustManager::f_SubscribeToPermissions
+							, fg_CreateVector<CStr>("com.malterlib/Test*")
+							, TestState.m_TestActor
+						)
+						.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
 					;
 					DMibAssertTrue
 						(
@@ -2735,11 +2839,17 @@ namespace NTestTrustManager
 					CDistributedActorTestHelper ServerHelper{TestState.m_ServerTrustManager, RunLoopHelper.m_pRunLoop};
 					CDistributedActorTestHelper ClientHelper{TestState.m_ClientTrustManager, RunLoopHelper.m_pRunLoop};
 
-					TCActor<CDistributedActorTrustManagerInterface> ServerProxy
-						= ServerHelper.f_GetManager()->f_ConstructActor<CDistributedActorTrustManagerProxy>(TestState.m_ServerTrustManager, Permissions)
+					TCActor<CDistributedActorTrustManagerInterface> ServerProxy = ServerHelper.f_GetManager()->f_ConstructActor<CDistributedActorTrustManagerProxy>
+						(
+							TestState.m_ServerTrustManager
+							, Permissions
+						)
 					;
-					TCActor<CDistributedActorTrustManagerInterface> ClientProxy
-						= ClientHelper.f_GetManager()->f_ConstructActor<CDistributedActorTrustManagerProxy>(TestState.m_ClientTrustManager, Permissions)
+					TCActor<CDistributedActorTrustManagerInterface> ClientProxy = ClientHelper.f_GetManager()->f_ConstructActor<CDistributedActorTrustManagerProxy>
+						(
+							TestState.m_ClientTrustManager
+							, Permissions
+						)
 					;
 
 					auto Exported5 = fg_ExportUser(ServerProxy, ID5, true).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
@@ -2757,11 +2867,13 @@ namespace NTestTrustManager
 					;
 
 					ClientProxy
-						(&CDistributedActorTrustManagerInterface::f_AddUserAuthenticationFactor
+						(
+							&CDistributedActorTrustManagerInterface::f_AddUserAuthenticationFactor
 							, ID5
 							, "AjPPPXBWJMB8PfZiC"
 							, CAuthenticationData{EAuthenticationFactorCategory_Knowledge, "Junk"}
-						).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
+						)
+						.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
 					;
 					DMibExpect(ClientProxy(&CDistributedActorTrustManagerInterface::f_EnumUserAuthenticationFactors, ID5).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout).f_GetLen(), ==, 5);
 					ClientProxy(&CDistributedActorTrustManagerInterface::f_RemoveUserAuthenticationFactor, ID5, "AjPPPXBWJMB8PfZiC").f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
@@ -2818,7 +2930,7 @@ namespace NTestTrustManager
 					DMibExpectException
 						(
 							TestState.m_ServerTrustManager(&CDistributedActorTrustManager::f_SetUserInfo, ID2, UnsetUserName, CKeys{"Key"}, CMetadata{})
-							.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
+							.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
 							, DMibErrorInstance("Key 'Key' does not exist")
 						)
 					;
@@ -2970,10 +3082,11 @@ namespace NTestTrustManager
 
 					auto TrustedSubscription = TestState.m_ClientTrustManager
 						(
-							 &CDistributedActorTrustManager::f_SubscribeToPermissions
-							 , fg_CreateVector<CStr>("com.malterlib/*")
-							 , TestState.m_TestActor
-						).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
+							&CDistributedActorTrustManager::f_SubscribeToPermissions
+							, fg_CreateVector<CStr>("com.malterlib/*")
+							, TestState.m_TestActor
+						)
+						.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
 					;
 
 					auto fHostInfo = [&Info = TestState.m_ServerHostInfo](CStr const &_UserID, CStr const &_HostID = "")
@@ -3248,34 +3361,50 @@ namespace NTestTrustManager
 							)
 						;
 
-						DMibAssertTrue(TrustedSubscription.f_HasPermissions
+						DMibAssertTrue
 							(
-								"Setup"
-								, VQ{{"com.malterlib/NoMatch", "com.malterlib/User1"}, {"com.malterlib/Host", "com.malterlib/User2"}, {"com.malterlib/User12"}}
-								, HostInfo
-							).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout))
+								TrustedSubscription.f_HasPermissions
+								(
+									"Setup"
+									, VQ{{"com.malterlib/NoMatch", "com.malterlib/User1"}, {"com.malterlib/Host", "com.malterlib/User2"}, {"com.malterlib/User12"}}
+									, HostInfo
+								)
+								.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
+							)
 						;
 
-						DMibAssertFalse(TrustedSubscription.f_HasPermissions
+						DMibAssertFalse
 							(
-								"Setup"
-								, VQ{{"com.malterlib/NoMatch", "com.malterlib/User2"}, {"com.malterlib/Host", "com.malterlib/User2"}, {"com.malterlib/User12"}}
-								, HostInfo
-							).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout))
+								TrustedSubscription.f_HasPermissions
+								(
+									"Setup"
+									, VQ{{"com.malterlib/NoMatch", "com.malterlib/User2"}, {"com.malterlib/Host", "com.malterlib/User2"}, {"com.malterlib/User12"}}
+									, HostInfo
+								)
+								.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
+							)
 						;
-						DMibAssertFalse(TrustedSubscription.f_HasPermissions
+						DMibAssertFalse
 							(
-								"Setup"
-								, VQ{{"com.malterlib/NoMatch", "com.malterlib/User1"}, {"com.malterlib/NoMatch", "com.malterlib/User2"}, {"com.malterlib/User12"}}
-								, HostInfo
-							).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout))
+								TrustedSubscription.f_HasPermissions
+								(
+									"Setup"
+									, VQ{{"com.malterlib/NoMatch", "com.malterlib/User1"}, {"com.malterlib/NoMatch", "com.malterlib/User2"}, {"com.malterlib/User12"}}
+									, HostInfo
+								)
+								.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
+							)
 						;
-						DMibAssertFalse(TrustedSubscription.f_HasPermissions
+						DMibAssertFalse
 							(
-								"Setup"
-								, VQ{{"com.malterlib/NoMatch", "com.malterlib/User1"}, {"com.malterlib/Host", "com.malterlib/User2"}, {"com.malterlib/User34"}}
-								, HostInfo
-							).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout))
+								TrustedSubscription.f_HasPermissions
+								(
+									"Setup"
+									, VQ{{"com.malterlib/NoMatch", "com.malterlib/User1"}, {"com.malterlib/Host", "com.malterlib/User2"}, {"com.malterlib/User34"}}
+									, HostInfo
+								)
+								.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
+							)
 						;
 					}
 
@@ -3328,38 +3457,42 @@ namespace NTestTrustManager
 						DMibAssertTrue
 							(
 								TrustedSubscription.f_HasPermissions("Setup", fMQ1("Tag", VQ{{"com.malterlib/Host", "com.malterlib/User1"}}), HostInfo)
-								.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)["Tag"]
+								.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
+								["Tag"]
 							)
 						;
 						DMibAssertTrue
 							(
 								TrustedSubscription.f_HasPermissions("Setup", fMQ1("Tag", VQ{{"com.malterlib/Host", "com.malterlib/User2"}}), HostInfo)
-								.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)["Tag"]
+								.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
+								["Tag"]
 							)
 						;
 						DMibAssertTrue
 							(
 								TrustedSubscription.f_HasPermissions("Setup", fMQ1("Tag", VQ{{"com.malterlib/User1", "com.malterlib/User2"}}), HostInfo)
-								.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)["Tag"]
+								.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
+								["Tag"]
 							)
 						;
 						DMibAssertTrue
 							(
 								TrustedSubscription.f_HasPermissions("Setup", fMQ1("Tag", VQ{{"com.malterlib/User1", "com.malterlib/Nomatch"}}), HostInfo)
-								.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)["Tag"]
+								.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
+								["Tag"]
 							)
 						;
 						DMibAssertTrue
 							(
 								TrustedSubscription.f_HasPermissions("Setup", fMQ1("Tag", VQ{{"com.malterlib/Nomatch", "com.malterlib/User1"}}), HostInfo)
-								.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)["Tag"]
+								.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
+								["Tag"]
 							)
 						;
 						// But we must have permission for at least one
 						DMibAssertFalse
 							(
-								TrustedSubscription.f_HasPermissions("Setup", fMQ1("Tag", VQ{{"com.malterlib/User2"}}), HostInfo)
-								.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)["Tag"]
+								TrustedSubscription.f_HasPermissions("Setup", fMQ1("Tag", VQ{{"com.malterlib/User2"}}), HostInfo).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)["Tag"]
 							)
 						;
 						DMibAssertFalse
@@ -3370,7 +3503,8 @@ namespace NTestTrustManager
 						DMibAssertFalse
 							(
 								TrustedSubscription.f_HasPermissions("Setup", fMQ1("Tag", VQ{{"com.malterlib/User2", "com.malterlib/HostUser3"}}), HostInfo)
-								.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)["Tag"]
+								.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
+								["Tag"]
 							)
 						;
 					}
@@ -3391,13 +3525,15 @@ namespace NTestTrustManager
 						DMibAssertTrue
 							(
 								TrustedSubscription.f_HasPermissions("Setup", fMQ1("Tag", VQ{{"com.malterlib/User1", "com.malterlib/Host"}}), HostInfo)
-								.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)["Tag"]
+								.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
+								["Tag"]
 							)
 						;
 						DMibAssertTrue
 							(
 								TrustedSubscription.f_HasPermissions("Setup", fMQ1("Tag", VQ{{"com.malterlib/User1", "com.malterlib/HostUser3"}}), HostInfo)
-								.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)["Tag"]
+								.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
+								["Tag"]
 							)
 						;
 
@@ -3421,25 +3557,29 @@ namespace NTestTrustManager
 						DMibAssertTrue
 							(
 								TrustedSubscription.f_HasPermissions("Setup", fMQ1("Tag", VQ{{"com.malterlib/Host", "com.malterlib/User1"}}), HostInfo)
-								.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)["Tag"]
+								.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
+								["Tag"]
 							)
 						;
 						DMibAssertTrue
 							(
 								TrustedSubscription.f_HasPermissions("Setup", fMQ1("Tag", VQ{{"com.malterlib/User1", "com.malterlib/User2"}}), HostInfo)
-								.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)["Tag"]
+								.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
+								["Tag"]
 							)
 						;
 						DMibAssertTrue
 							(
 								TrustedSubscription.f_HasPermissions("Setup", fMQ1("Tag", VQ{{"com.malterlib/User1", "com.malterlib/Nomatch"}}), HostInfo)
-								.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)["Tag"]
+								.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
+								["Tag"]
 							)
 						;
 						DMibAssertTrue
 							(
 								TrustedSubscription.f_HasPermissions("Setup", fMQ1("Tag", VQ{{"com.malterlib/Nomatch", "com.malterlib/User1"}}), HostInfo)
-								.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)["Tag"]
+								.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
+								["Tag"]
 							)
 						;
 						// But we must have permission for at least one
@@ -3451,7 +3591,8 @@ namespace NTestTrustManager
 						DMibAssertFalse
 							(
 								TrustedSubscription.f_HasPermissions("Setup", fMQ1("Tag", VQ{{"com.malterlib/Host", "com.malterlib/User2"}}), HostInfo)
-								.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)["Tag"]
+								.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
+								["Tag"]
 							)
 						;
 						DMibAssertFalse
@@ -3467,7 +3608,8 @@ namespace NTestTrustManager
 						DMibAssertFalse
 							(
 								TrustedSubscription.f_HasPermissions("Setup", fMQ1("Tag", VQ{{"com.malterlib/User2", "com.malterlib/HostUser3"}}), HostInfo)
-								.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)["Tag"]
+								.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
+								["Tag"]
 							)
 						;
 					}
@@ -3488,13 +3630,15 @@ namespace NTestTrustManager
 						DMibAssertFalse
 							(
 								TrustedSubscription.f_HasPermissions("Setup", fMQ1("Tag", VQ{{"com.malterlib/User1", "com.malterlib/Host"}}), HostInfo)
-								.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)["Tag"]
+								.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
+								["Tag"]
 							)
 						;
 						DMibAssertFalse
 							(
 								TrustedSubscription.f_HasPermissions("Setup", fMQ1("Tag", VQ{{"com.malterlib/User1", "com.malterlib/HostUser3"}}), HostInfo)
-								.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)["Tag"]
+								.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
+								["Tag"]
 							)
 						;
 						DMibAssertFalse
@@ -3511,44 +3655,62 @@ namespace NTestTrustManager
 						DMibAssertTrue
 							(
 								TrustedSubscription.f_HasPermissions("Setup", fMQ1("Tag", VQ{{"com.malterlib/Host"}, {"com.malterlib/User1"}}), HostInfo)
-								.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)["Tag"]
+								.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
+								["Tag"]
 							)
 						;
 						DMibAssertTrue
 							(
 								TrustedSubscription.f_HasPermissions("Setup", fMQ1("Tag", VQ{{"com.malterlib/Host"}, {"com.malterlib/Host"}}), HostInfo)
+								.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
+								["Tag"]
+							)
+						;
+
+						DMibAssertTrue
+							(
+								TrustedSubscription.f_HasPermissions
+								(
+									"Setup"
+									, fMQ1("Tag", VQ{{"com.malterlib/NoMatch", "com.malterlib/User1"}, {"com.malterlib/Host", "com.malterlib/User2"}, {"com.malterlib/User12"}})
+									, HostInfo
+								)
 								.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)["Tag"]
 							)
 						;
 
-						DMibAssertTrue(TrustedSubscription.f_HasPermissions
+						DMibAssertFalse
 							(
-								"Setup"
-								, fMQ1("Tag", VQ{{"com.malterlib/NoMatch", "com.malterlib/User1"}, {"com.malterlib/Host", "com.malterlib/User2"}, {"com.malterlib/User12"}})
-								, HostInfo
-							).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)["Tag"])
+								TrustedSubscription.f_HasPermissions
+								(
+									"Setup"
+									, fMQ1("Tag", VQ{{"com.malterlib/NoMatch", "com.malterlib/User2"}, {"com.malterlib/Host", "com.malterlib/User2"}, {"com.malterlib/User12"}})
+									, HostInfo
+								)
+								.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)["Tag"]
+							)
 						;
-
-						DMibAssertFalse(TrustedSubscription.f_HasPermissions
+						DMibAssertFalse
 							(
-								"Setup"
-								, fMQ1("Tag", VQ{{"com.malterlib/NoMatch", "com.malterlib/User2"}, {"com.malterlib/Host", "com.malterlib/User2"}, {"com.malterlib/User12"}})
-								, HostInfo
-							).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)["Tag"])
+								TrustedSubscription.f_HasPermissions
+								(
+									"Setup"
+									, fMQ1("Tag", VQ{{"com.malterlib/NoMatch", "com.malterlib/User1"}, {"com.malterlib/NoMatch", "com.malterlib/User2"}, {"com.malterlib/User12"}})
+									, HostInfo
+								)
+								.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)["Tag"]
+							)
 						;
-						DMibAssertFalse(TrustedSubscription.f_HasPermissions
+						DMibAssertFalse
 							(
-								"Setup"
-								, fMQ1("Tag", VQ{{"com.malterlib/NoMatch", "com.malterlib/User1"}, {"com.malterlib/NoMatch", "com.malterlib/User2"}, {"com.malterlib/User12"}})
-								, HostInfo
-							).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)["Tag"])
-						;
-						DMibAssertFalse(TrustedSubscription.f_HasPermissions
-							(
-								"Setup"
-								, fMQ1("Tag", VQ{{"com.malterlib/NoMatch", "com.malterlib/User1"}, {"com.malterlib/Host", "com.malterlib/User2"}, {"com.malterlib/User34"}})
-								, HostInfo
-							).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)["Tag"])
+								TrustedSubscription.f_HasPermissions
+								(
+									"Setup"
+									, fMQ1("Tag", VQ{{"com.malterlib/NoMatch", "com.malterlib/User1"}, {"com.malterlib/Host", "com.malterlib/User2"}, {"com.malterlib/User34"}})
+									, HostInfo
+								)
+								.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)["Tag"]
+							)
 						;
 					}
 					{
@@ -3566,7 +3728,8 @@ namespace NTestTrustManager
 								"Setup"
 								, fMQ3("Tag1", VQ{{"com.malterlib/User2", "com.malterlib/User1"}}, "Tag2", VQ{{"com.malterlib/Host"}}, "Tag3", VQ{{"com.malterlib/User12"}})
 								, HostInfo
-							).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
+							)
+							.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
 						;
 						DMibAssertTrue(Res2["Tag1"]);
 						DMibAssertTrue(Res2["Tag2"]);
@@ -3580,7 +3743,8 @@ namespace NTestTrustManager
 								"Setup"
 								, fMQ3("Tag1", VQ{{"com.malterlib/NoMatch"}}, "Tag2", VQ{{"com.malterlib/Host"}}, "Tag3", VQ{{"com.malterlib/User12"}})
 								, HostInfo
-							).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
+							)
+							.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
 						;
 						DMibAssertFalse(Res3["Tag1"]);
 
@@ -3589,7 +3753,8 @@ namespace NTestTrustManager
 								"Setup"
 								, fMQ3("Tag1", VQ{{"com.malterlib/User1"}}, "Tag2", VQ{{"com.malterlib/NoMatch"}}, "Tag3", VQ{{"com.malterlib/User12"}})
 								, HostInfo
-							).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
+							)
+							.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
 						;
 						DMibAssertFalse(Res4["Tag2"]);
 
@@ -3598,7 +3763,8 @@ namespace NTestTrustManager
 								"Setup"
 								, fMQ3("Tag1", VQ{{"com.malterlib/User1"}}, "Tag2", VQ{{"com.malterlib/Host"}}, "Tag3", VQ{{"com.malterlib/NoMatch"}})
 								, HostInfo
-							).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
+							)
+							.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
 						;
 						DMibAssertFalse(Res5["Tag3"]);
 					}

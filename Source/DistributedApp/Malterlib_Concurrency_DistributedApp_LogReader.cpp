@@ -30,13 +30,7 @@ namespace NMib::NConcurrency
 
 	bool CDistributedAppLogReader_LogDataFilter::f_IsFiltered() const
 	{
-		return m_CategoriesWildcards
-			|| m_OperationsWildcards
-			|| m_MessageWildcards
-			|| m_SourceLocationFileWildcards
-			|| m_Severities
-			|| m_Flags
-		;
+		return m_CategoriesWildcards || m_OperationsWildcards || m_MessageWildcards || m_SourceLocationFileWildcards || m_Severities || m_Flags;
 	}
 
 	bool CDistributedAppLogReader_LogKeyAndEntry::f_IsLastSeenSentinel() const

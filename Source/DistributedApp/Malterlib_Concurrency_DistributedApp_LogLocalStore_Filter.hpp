@@ -45,10 +45,10 @@ namespace NMib::NConcurrency::NLogStore
 			return false;
 
 		if
-			(
-				_Filter.m_IdentifierScope
-				&& NStr::fg_StrMatchWildcard(_Key.m_IdentifierScope.f_GetStr(), _Filter.m_IdentifierScope->f_GetStr()) != EMatchWildcardResult_WholeStringMatchedAndPatternExhausted
-			)
+		(
+			_Filter.m_IdentifierScope
+			&& NStr::fg_StrMatchWildcard(_Key.m_IdentifierScope.f_GetStr(), _Filter.m_IdentifierScope->f_GetStr()) != EMatchWildcardResult_WholeStringMatchedAndPatternExhausted
+		)
 		{
 			return false;
 		}

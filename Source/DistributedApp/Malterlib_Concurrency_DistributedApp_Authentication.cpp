@@ -41,13 +41,7 @@ namespace NMib::NConcurrency
 			)
 		;
 
-		TCFuture<TCVector<CResponse>> f_RequestAuthentication
-			(
-				CRequest _Request
-				, CChallenge _Challenge
-				, CStr _MultipleRequestID
-			) override
-		;
+		TCFuture<TCVector<CResponse>> f_RequestAuthentication(CRequest _Request, CChallenge _Challenge, CStr _MultipleRequestID) override;
 
 		struct CAuthenticationStateFactor
 		{
@@ -111,11 +105,7 @@ namespace NMib::NConcurrency
 		co_return {};
 	}
 
-	TCFuture<void> CDistributedAppAuthenticationHandler::fp_TryOneFactor
-		(
-			TCSharedPointer<CAuthenticationState> _pState
-			, CStr _Factor
-		)
+	TCFuture<void> CDistributedAppAuthenticationHandler::fp_TryOneFactor(TCSharedPointer<CAuthenticationState> _pState, CStr _Factor)
 	{
 		auto &State = *_pState;
 		auto &Info = *State.m_pInfo;
@@ -173,7 +163,6 @@ namespace NMib::NConcurrency
 			*State.m_pCommandLine %= Prompt;
 		}
 
-
 		auto Response = co_await Actor
 			(
 				&ICDistributedActorTrustManagerAuthenticationActor::f_SignAuthenticationRequest
@@ -190,11 +179,8 @@ namespace NMib::NConcurrency
 		{
 			auto AnsiEncoding = State.m_pCommandLine->f_AnsiEncoding();
 
-			*State.m_pCommandLine %= "Failed to authenticate with factor '{}': {}{}{}\n"_f
-				<< CurrentFactor
-				<< AnsiEncoding.f_StatusError()
-				<< Response.f_GetExceptionStr()
-				<< AnsiEncoding.f_Default()
+			*State.m_pCommandLine
+				%= "Failed to authenticate with factor '{}': {}{}{}\n"_f << CurrentFactor << AnsiEncoding.f_StatusError() << Response.f_GetExceptionStr() << AnsiEncoding.f_Default()
 			;
 
 			FactorState.m_Tested = false;
@@ -323,7 +309,7 @@ namespace NMib::NConcurrency
 					}
 				}
 				if (!bCanHandleAtLeastOne)
-					co_return TCVector<ICDistributedActorAuthenticationHandler::CResponse>{};	// This permission will never be authenticated
+					co_return TCVector<ICDistributedActorAuthenticationHandler::CResponse>{}; // This permission will never be authenticated
 			}
 		}
 		State.m_nRequirements = nRequirement;
@@ -479,12 +465,8 @@ namespace NMib::NConcurrency
 		;
 	}
 
-	TCFuture<TCVector<ICDistributedActorAuthenticationHandler::CResponse>> CDistributedAppAuthenticationHandler::f_RequestAuthentication
-		(
-			CRequest _Request
-			, CChallenge _Challenge
-			, CStr _MultipleRequestID
-		)
+	auto CDistributedAppAuthenticationHandler::f_RequestAuthentication(CRequest _Request, CChallenge _Challenge, CStr _MultipleRequestID)
+		-> TCFuture<TCVector<ICDistributedActorAuthenticationHandler::CResponse>>
 	{
 		if (f_IsDestroyed())
 			co_return DMibErrorInstance("Authentication handler destroyed");
@@ -587,12 +569,8 @@ namespace NMib::NConcurrency
 #endif
 	}
 
-	TCFuture<CDistributedAppActor::CAuthenticationSetupResult> CDistributedAppActor::fp_SetupAuthentication
-		(
-			TCSharedPointer<CCommandLineControl> _pCommandLine
-			, int64 _AuthenticationLifetime
-			, CStr _UserID
-		)
+	auto CDistributedAppActor::fp_SetupAuthentication(TCSharedPointer<CCommandLineControl> _pCommandLine, int64 _AuthenticationLifetime, CStr _UserID)
+		-> TCFuture<CDistributedAppActor::CAuthenticationSetupResult>
 	{
 		if (!mp_Settings.m_bSupportUserAuthentication)
 			return CAuthenticationSetupResult{};
@@ -600,12 +578,8 @@ namespace NMib::NConcurrency
 		return fp_EnableAuthentication(_pCommandLine, _AuthenticationLifetime, _UserID);
 	}
 
-	TCFuture<CDistributedAppActor::CAuthenticationSetupResult> CDistributedAppActor::fp_EnableAuthentication
-		(
-			TCSharedPointer<CCommandLineControl> _pCommandLine
-			, int64 _AuthenticationLifetime
-			, CStr _UserID
-		)
+	auto CDistributedAppActor::fp_EnableAuthentication(TCSharedPointer<CCommandLineControl> _pCommandLine, int64 _AuthenticationLifetime, CStr _UserID)
+		-> TCFuture<CDistributedAppActor::CAuthenticationSetupResult>
 	{
 		// Generate handler ID on distributed app side
 		uint32 HandlerID = mp_NextAuthenticationHandlerID++;
@@ -615,9 +589,7 @@ namespace NMib::NConcurrency
 
 		// Create authentication handler state
 		auto &HandlerState = mp_AuthenticationHandlers[HandlerID];
-		HandlerState.m_Handler
-			= mp_State.m_DistributionManager->f_ConstructActor<CDistributedAppAuthenticationHandler>(_pCommandLine, mp_State.m_TrustManager, _AuthenticationLifetime)
-		;
+		HandlerState.m_Handler = mp_State.m_DistributionManager->f_ConstructActor<CDistributedAppAuthenticationHandler>(_pCommandLine, mp_State.m_TrustManager, _AuthenticationLifetime);
 
 		auto Subscription = g_ActorSubscription / [=, this]() -> TCFuture<void>
 			{

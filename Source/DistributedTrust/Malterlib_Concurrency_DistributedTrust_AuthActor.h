@@ -42,14 +42,16 @@ namespace NMib::NConcurrency
 				, NStr::CStr _Description
 				, ICDistributedActorAuthenticationHandler::CSignedProperties _SignedProperties
 				, NContainer::TCMap<NStr::CStr, CAuthenticationData> _Factors
-			) = 0
+			)
+			= 0
 		;
 		virtual TCFuture<CVerifyAuthenticationReturn> f_VerifyAuthenticationResponse
 			(
 				ICDistributedActorAuthenticationHandler::CResponse _Response
 				, ICDistributedActorAuthenticationHandler::CChallenge _Challenge
 				, CAuthenticationData _AuthenticationData
-			) = 0
+			)
+			= 0
 		;
 
 		static NContainer::TCMap<NStr::CStr, CAuthenticationActorInfo> fs_GetRegisteredAuthenticationFactors(TCActor<CDistributedActorTrustManager> _TrustManager);
@@ -62,15 +64,15 @@ namespace NMib::NConcurrency
 	};
 }
 
-#define	DMibAuthenticationFactorRegister(d_ClassName)												\
-			DMibRuntimeClassNamedCasted																\
-				(																					\
-					NMib::NConcurrency::ICDistributedActorTrustManagerAuthenticationActorFactory	\
-					, d_ClassName																	\
-					, NMib::NConcurrency::d_ClassName												\
-					, NMib::NConcurrency::ICDistributedActorTrustManagerAuthenticationActorFactory	\
-				)
+#define	DMibAuthenticationFactorRegister(d_ClassName)										\
+	DMibRuntimeClassNamedCasted																\
+		(																					\
+			NMib::NConcurrency::ICDistributedActorTrustManagerAuthenticationActorFactory	\
+			, d_ClassName																	\
+			, NMib::NConcurrency::d_ClassName												\
+			, NMib::NConcurrency::ICDistributedActorTrustManagerAuthenticationActorFactory	\
+		)
 
 #ifndef DMibPNoShortCuts
-	using namespace NMib::NConcurrency;
+using namespace NMib::NConcurrency;
 #endif

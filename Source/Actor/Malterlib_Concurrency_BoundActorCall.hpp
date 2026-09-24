@@ -6,8 +6,8 @@
 namespace NMib::NConcurrency
 {
 	template <typename t_CActor>
-	template <auto tf_pFunctionPointer, CBindActorOptions tf_BindOptions, typename... tfp_CCallParams>
-	auto TCActor<t_CActor>::f_Bind(tfp_CCallParams &&... p_CallParams) const &
+	template <auto tf_pFunctionPointer, CBindActorOptions tf_BindOptions, typename ...tfp_CCallParams>
+	auto TCActor<t_CActor>::f_Bind(tfp_CCallParams && ...p_CallParams) const &
 		-> TCBoundActorCall
 		<
 			NPrivate::TCFutureReturn<decltype(tf_pFunctionPointer)>
@@ -54,8 +54,8 @@ namespace NMib::NConcurrency
 	}
 
 	template <typename t_CActor>
-	template <auto tf_pFunctionPointer, CBindActorOptions tf_BindOptions, typename... tfp_CCallParams>
-	auto TCActor<t_CActor>::f_Bind(tfp_CCallParams &&... p_CallParams) &&
+	template <auto tf_pFunctionPointer, CBindActorOptions tf_BindOptions, typename ...tfp_CCallParams>
+	auto TCActor<t_CActor>::f_Bind(tfp_CCallParams && ...p_CallParams) &&
 		-> TCBoundActorCall
 		<
 			NPrivate::TCFutureReturn<decltype(tf_pFunctionPointer)>
@@ -102,8 +102,8 @@ namespace NMib::NConcurrency
 	}
 
 	template <typename t_CActor>
-	template <auto tf_pFunctionPointer, CBindActorOptions tf_BindOptions, typename... tfp_CCallParams>
-	auto TCActor<t_CActor>::f_BindByValue(tfp_CCallParams &&... p_CallParams) const &
+	template <auto tf_pFunctionPointer, CBindActorOptions tf_BindOptions, typename ...tfp_CCallParams>
+	auto TCActor<t_CActor>::f_BindByValue(tfp_CCallParams && ...p_CallParams) const &
 		-> TCBoundActorCall
 		<
 			NPrivate::TCFutureReturn<decltype(tf_pFunctionPointer)>
@@ -150,8 +150,8 @@ namespace NMib::NConcurrency
 	}
 
 	template <typename t_CActor>
-	template <auto tf_pFunctionPointer, CBindActorOptions tf_BindOptions, typename... tfp_CCallParams>
-	auto TCActor<t_CActor>::f_BindByValue(tfp_CCallParams &&... p_CallParams) &&
+	template <auto tf_pFunctionPointer, CBindActorOptions tf_BindOptions, typename ...tfp_CCallParams>
+	auto TCActor<t_CActor>::f_BindByValue(tfp_CCallParams && ...p_CallParams) &&
 		-> TCBoundActorCall
 		<
 			NPrivate::TCFutureReturn<decltype(tf_pFunctionPointer)>
@@ -231,7 +231,8 @@ namespace NMib::NConcurrency
 	void TCBoundActorCall<TCFuture<t_CReturn>, t_CActor, t_FFunctionPointer, t_BindOptions, t_bByValue, tp_CParams...>::operator >
 		(
 			TCFutureMapBoundKey<tf_CKey, t_CReturn, tf_CForwardKey> &&_BoundKey
-		) &&
+		)
+		&&
 	{
 		return fg_Move(*this).fp_CallOnResult(_BoundKey.m_This.fp_AddResult(fg_Forward<tf_CForwardKey>(_BoundKey.m_Key)), CIndices());
 	}
@@ -243,7 +244,11 @@ namespace NMib::NConcurrency
 	}
 
 	template <typename t_CReturn, typename t_CActor, typename t_FFunctionPointer, CBindActorOptions t_BindOptions, bool t_bByValue, typename ...tp_CParams>
-	void TCBoundActorCall<TCFuture<t_CReturn>, t_CActor, t_FFunctionPointer, t_BindOptions, t_bByValue, tp_CParams...>::operator > (NContainer::TCMapResult<TCFuture<t_CReturn> &> &&_MapResult) &&
+	void TCBoundActorCall<TCFuture<t_CReturn>, t_CActor, t_FFunctionPointer, t_BindOptions, t_bByValue, tp_CParams...>::operator >
+		(
+			NContainer::TCMapResult<TCFuture<t_CReturn> &> &&_MapResult
+		)
+		&&
 	{
 		*_MapResult = fg_Move(*this).fp_Call(CIndices());
 	}
@@ -283,7 +288,8 @@ namespace NMib::NConcurrency
 		(
 			NStorage::TCSharedPointer<CRunLoop> const &_pRunLoop
 			, fp64 _Timeout
-		) &&
+		)
+		&&
 	{
 		return fg_Move(*this).fp_Call(CIndices()).f_CallSync(_pRunLoop, _Timeout);
 	}
@@ -350,7 +356,8 @@ namespace NMib::NConcurrency
 		(
 			tf_FOnResult &&_fOnResult
 			, NMeta::TCIndices<tfp_Indices...> _Indices
-		) &&
+		)
+		&&
 	{
 #ifdef DMibCheckOnResultSizes
 		if constexpr (sizeof(_fOnResult) > gc_FutureOnResultStorage)
@@ -407,14 +414,14 @@ namespace NMib::NConcurrency
 	}
 
 	template <typename t_CReturn, typename t_CActor, typename t_FFunctionPointer, CBindActorOptions t_BindOptions, bool t_bByValue, typename ...tp_CParams>
-	auto TCBoundActorCall<TCFuture<t_CReturn>, t_CActor, t_FFunctionPointer, t_BindOptions, t_bByValue, tp_CParams...>::operator co_await() &&
+	auto TCBoundActorCall<TCFuture<t_CReturn>, t_CActor, t_FFunctionPointer, t_BindOptions, t_bByValue, tp_CParams...>::operator co_await () &&
 		-> TCBoundActorCallAwaiter<t_CReturn, TCBoundActorCall, true, CVoidTag>
 	{
 		return {fg_Move(*this), {}};
 	}
 
 	template <typename t_CReturn, typename t_CActor, typename t_FFunctionPointer, CBindActorOptions t_BindOptions, bool t_bByValue, typename ...tp_CParams>
-	auto TCBoundActorCall<TCFuture<t_CReturn>, t_CActor, t_FFunctionPointer, t_BindOptions, t_bByValue, tp_CParams...>::CNoUnwrapAsyncResult::operator co_await() &&
+	auto TCBoundActorCall<TCFuture<t_CReturn>, t_CActor, t_FFunctionPointer, t_BindOptions, t_bByValue, tp_CParams...>::CNoUnwrapAsyncResult::operator co_await () &&
 		-> TCBoundActorCallAwaiter<t_CReturn, TCBoundActorCall, false, CVoidTag>
 	{
 		return {fg_Move(*m_pWrapped), {}};
@@ -425,7 +432,8 @@ namespace NMib::NConcurrency
 	void TCBoundActorCall<TCFuture<t_CReturn>, t_CActor, t_FFunctionPointer, t_BindOptions, t_bByValue, tp_CParams...>::operator >
 		(
 			TCActorResultCall<tf_CResultActor, tf_CResultFunctor> &&_ResultCall
-		) &&
+		)
+		&&
 		requires (NTraits::cIsCallableWith<tf_CResultFunctor, void (TCAsyncResult<t_CReturn> &&)>) // Incorrect type in result call
 	{
 		DMibFastCheck(_ResultCall.mp_Actor);
@@ -459,7 +467,8 @@ namespace NMib::NConcurrency
 	void TCBoundActorCall<TCFuture<t_CReturn>, t_CActor, t_FFunctionPointer, t_BindOptions, t_bByValue, tp_CParams...>::operator >
 		(
 			TCPromiseWithExceptionTransfomer<tf_CResult> &&_PromiseWithError
-		) &&
+		)
+		&&
 	{
 		fg_Move(*this).f_OnResultSet
 			(
@@ -493,7 +502,8 @@ namespace NMib::NConcurrency
 	inline_always auto TCBoundActorCall<TCFuture<t_CReturn>, t_CActor, t_FFunctionPointer, t_BindOptions, t_bByValue, tp_CParams...>::operator +
 		(
 			TCBoundActorCall<tf_CReturn, tf_CActor, tf_FFunctionPointer, tf_BindOptions, tf_bByValue, tfp_CParams...> &&_Other
-		) &&
+		)
+		&&
 	{
 		return TCFuturePack<TCBoundActorCall, TCBoundActorCall<tf_CReturn, tf_CActor, tf_FFunctionPointer, tf_BindOptions, tf_bByValue, tfp_CParams...>>
 			(
@@ -507,7 +517,8 @@ namespace NMib::NConcurrency
 	inline_always auto TCBoundActorCall<TCFuture<t_CReturn>, t_CActor, t_FFunctionPointer, t_BindOptions, t_bByValue, tp_CParams...>::operator +
 		(
 			TCFutureWithExceptionTransformer<tf_CReturn, tf_CFutureLike> &&_Other
-		) &&
+		)
+		&&
 	{
 		return fg_Move(*this) + fg_Move(_Other).f_Dispatch();
 	}
@@ -551,13 +562,8 @@ namespace NMib::NConcurrency
 
 		auto &CoroutineContext = _Handle.promise();
 
-		fg_Move(mp_BoundFunctor) > g_DirectResult
-			/
-			[
-				this
-				, KeepAlive = CoroutineContext.f_KeepAlive(fg_ThisActor(ThreadLocal.m_pCurrentlyProcessingActorHolder))
-			]
-			(TCAsyncResult<t_CReturn> &&_Result) mutable
+		fg_Move(mp_BoundFunctor)
+			> g_DirectResult / [this, KeepAlive = CoroutineContext.f_KeepAlive(fg_ThisActor(ThreadLocal.m_pCurrentlyProcessingActorHolder))](TCAsyncResult<t_CReturn> &&_Result) mutable
 			{
 				auto Actor = KeepAlive.f_MoveActor();
 				if (!Actor)
@@ -591,14 +597,12 @@ namespace NMib::NConcurrency
 							{
 								if (!mp_AsyncResult)
 								{
-									NStorage::TCUniquePointer<COnResumeException> pResult = fg_Construct(fg_TransformException(fg_Move(mp_AsyncResult).f_GetException(), mp_fExceptionTransform));
-									CoroutineContext.f_HandleAwaitedResult
+									NStorage::TCUniquePointer<COnResumeException> pResult = fg_Construct
 										(
-											_ThreadLocal
-											, &tf_CCoroutineContext::fs_KeepaliveSetResultFunctor
-											, fg_Move(pResult)
+											fg_TransformException(fg_Move(mp_AsyncResult).f_GetException(), mp_fExceptionTransform)
 										)
 									;
+									CoroutineContext.f_HandleAwaitedResult(_ThreadLocal, &tf_CCoroutineContext::fs_KeepaliveSetResultFunctor, fg_Move(pResult));
 									return;
 								}
 							}

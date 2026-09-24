@@ -9,13 +9,7 @@
 namespace NMib::NConcurrency::NPrivate
 {
 	template <>
-	void fg_CopyReplyToAsyncResult
-		(
-			TCAsyncResult<void> &_AsyncResult
-			, NStream::CBinaryStorage const &_Data
-			, CDistributedActorStreamContext &_Context
-			, uint32 _Version
-		)
+	void fg_CopyReplyToAsyncResult(TCAsyncResult<void> &_AsyncResult, NStream::CBinaryStorage const &_Data, CDistributedActorStreamContext &_Context, uint32 _Version)
 	{
 		CDistributedActorReadStream ReplyStream;
 		ReplyStream.f_OpenRead(_Data);

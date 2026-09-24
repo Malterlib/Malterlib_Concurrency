@@ -9,7 +9,7 @@ namespace NMib::NConcurrency
 {
 	enum EDistributedActorTrustManagerOrderingFlag
 	{
-		EDistributedActorTrustManagerOrderingFlag_None = 0
+		EDistributedActorTrustManagerOrderingFlag_None                   = 0
 		, EDistributedActorTrustManagerOrderingFlag_WaitForSubscriptions = DMibBit(1)
 	};
 

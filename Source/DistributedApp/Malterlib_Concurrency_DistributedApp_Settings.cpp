@@ -86,7 +86,8 @@ namespace NMib::NConcurrency
 					fg_Format("/tmp/{}", g_HostnameRootUUID.f_GetAsString(EUniversallyUniqueIdentifierFormat_AlphaNum))
 					, ELocalSocketFlag::mc_EnclaveSpecific | ELocalSocketFlag::mc_AuthenticatedUnix
 					, m_Enclave
-				).f_GetLen()
+				)
+				.f_GetLen()
 				<= aint(NSys::NNetwork::fg_GetMaxUnixSocketNameLength())
 			)
 		;

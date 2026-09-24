@@ -19,29 +19,24 @@ namespace NMib
 
 			void f_Push(CNode *_pData)
 			{
-
 			}
 
 			CNode *f_Pop()
 			{
-
 			}
 		};
 	}
 }
 namespace
 {
-
 	class CLocklessQueueu_Tests : public NMib::NTest::CTest
 	{
 	public:
 		void f_DoTests()
 		{
-
 		}
 	};
 
 	DMibTestRegister(CLocklessQueueu_Tests, Malterlib::Concurrency);
 }
-
 

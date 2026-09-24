@@ -22,12 +22,7 @@ namespace NMib::NConcurrency
 		DMibPublishActorFunction(CTicketInterface::f_SignCertificate);
 	}
 
-	TCFuture<NContainer::CByteVector> CDistributedActorTrustManager::CInternal::f_SignCertificate
-		(
-			NStr::CStr _Token
-			, NContainer::CByteVector _CertificateRequest
-			, CCallingHostInfo _HostInfo
-		)
+	TCFuture<NContainer::CByteVector> CDistributedActorTrustManager::CInternal::f_SignCertificate(NStr::CStr _Token, NContainer::CByteVector _CertificateRequest, CCallingHostInfo _HostInfo)
 	{
 		auto *pTicket = m_Tickets.f_FindEqual(_Token);
 
@@ -41,7 +36,7 @@ namespace NMib::NConcurrency
 
 		m_Tickets.f_Remove(_Token);
 
-		if (Age.f_GetTime() > 60.0*60.0) // 1 hour ticket time
+		if (Age.f_GetTime() > 60.0 * 60.0) // 1 hour ticket time
 			co_return DMibErrorInstance("Invalid token");
 
 		auto HostID = CActorDistributionManager::fs_GetCertificateRequestHostID(_CertificateRequest);
@@ -74,22 +69,15 @@ namespace NMib::NConcurrency
 
 		CResults Results = co_await
 			(
-				g_ConcurrentDispatch /
-				[
-					CaCertificate = m_BasicConfig.m_CACertificate
-					, CaPrivateKey = m_BasicConfig.m_CAPrivateKey
-					, KeySetting = m_KeySetting
-					, _CertificateRequest
-					, Serial
-					, HostID
-				]
+				g_ConcurrentDispatch
+				/ [CaCertificate = m_BasicConfig.m_CACertificate, CaPrivateKey = m_BasicConfig.m_CAPrivateKey, KeySetting = m_KeySetting, _CertificateRequest, Serial, HostID]
 				{
 					CResults Results;
 					try
 					{
 						NCryptography::CCertificateSignOptions SignOptions;
 						SignOptions.m_Serial = Serial;
-						SignOptions.m_Days = 10*365;
+						SignOptions.m_Days = 10 * 365;
 
 						SignOptions.m_OverrideSubjectCommonName = fg_Format("Malterlib Distributed Actor Client - {}", HostID).f_Left(64);
 
@@ -106,15 +94,7 @@ namespace NMib::NConcurrency
 						SignOptions.m_AllowedRequestExtensions.f_Insert("1.3.6.1.4.1.47722.1.1");
 
 						NException::CDisableExceptionTraceScope DisableTrace;
-						NCryptography::CCertificate::fs_SignClientCertificate
-							(
-								CaCertificate
-								, CaPrivateKey
-								, _CertificateRequest
-								, Results.m_SignedCertificate
-								, SignOptions
-							)
-						;
+						NCryptography::CCertificate::fs_SignClientCertificate(CaCertificate, CaPrivateKey, _CertificateRequest, Results.m_SignedCertificate, SignOptions);
 
 						Results.m_HostID = CActorDistributionManager::fs_GetCertificateHostID(Results.m_SignedCertificate);
 						if (Results.m_HostID.f_IsEmpty())
@@ -134,12 +114,7 @@ namespace NMib::NConcurrency
 		Client.m_PublicCertificate = Results.m_SignedCertificate;
 		co_await
 			(
-				m_Database
-				(
-					bExistingClient ? &ICDistributedActorTrustManagerDatabase::f_SetClient : &ICDistributedActorTrustManagerDatabase::f_AddClient
-					, Results.m_HostID
-					, Client
-				)
+				m_Database(bExistingClient ? &ICDistributedActorTrustManagerDatabase::f_SetClient : &ICDistributedActorTrustManagerDatabase::f_AddClient, Results.m_HostID, Client)
 				% "Failed to add client to trust database"
 			)
 		;
@@ -152,11 +127,7 @@ namespace NMib::NConcurrency
 		co_return fg_Move(Results.m_SignedCertificate);
 	}
 
-	TCFuture<NContainer::CByteVector> CDistributedActorTrustManager::CInternal::CTicketInterface::f_SignCertificate
-		(
-			NStr::CStr _Token
-			, NContainer::CByteVector _CertificateRequest
-		)
+	TCFuture<NContainer::CByteVector> CDistributedActorTrustManager::CInternal::CTicketInterface::f_SignCertificate(NStr::CStr _Token, NContainer::CByteVector _CertificateRequest)
 	{
 		co_return co_await fg_Dispatch
 			(
@@ -169,10 +140,7 @@ namespace NMib::NConcurrency
 		;
 	}
 
-	CDistributedActorTrustManager::CInternal::CActorDistributionManagerAccessHandler::CActorDistributionManagerAccessHandler
-		(
-			CDistributedActorTrustManager::CInternal *_pInternal
-		)
+	CDistributedActorTrustManager::CInternal::CActorDistributionManagerAccessHandler::CActorDistributionManagerAccessHandler(CDistributedActorTrustManager::CInternal *_pInternal)
 		: m_pThis(_pInternal)
 	{
 	}
@@ -277,8 +245,8 @@ namespace NMib::NConcurrency
 			if (!m_ActorDistributionManager)
 				continue;
 
-			m_ActorDistributionManager(&CActorDistributionManager::f_Connect, ConnectionSettings, 3600.0)
-				> [=, this](TCAsyncResult<CActorDistributionManager::CConnectionResult> &&_ConnectionResult)
+			m_ActorDistributionManager(&CActorDistributionManager::f_Connect, ConnectionSettings, 3600.0) > [=, this]
+				(TCAsyncResult<CActorDistributionManager::CConnectionResult> &&_ConnectionResult)
 				{
 					auto *pConnectionState = m_ClientConnections.f_FindEqual(Address);
 					if (!pConnectionState || pConnectionState->m_bRemoving)
@@ -286,14 +254,7 @@ namespace NMib::NConcurrency
 
 					if (!_ConnectionResult)
 					{
-						DMibLogWithCategory
-							(
-								Mib/Concurrency/Trust
-								, Error
-								, "Failed add additional connection concurrency: {}"
-								, _ConnectionResult.f_GetExceptionStr()
-							)
-						;
+						DMibLogWithCategory(Mib/Concurrency/Trust, Error, "Failed add additional connection concurrency: {}", _ConnectionResult.f_GetExceptionStr());
 						return;
 					}
 
@@ -382,14 +343,12 @@ namespace NMib::NConcurrency
 					}
 					, [](CDistributedActorIdentifier _RemovedActor) -> TCFuture<void>
 					{
-
 						co_return {};
 					}
 				)
 				.f_Timeout(_Timeout, "Timed out waiting for remote trust manager")
 				% "Failed to subscribe to remote ticket management"
 			)
-
 		;
 
 		auto NewActor = co_await fg_Move(NewInterfacePromise.m_Future);
@@ -408,10 +367,7 @@ namespace NMib::NConcurrency
 
 			co_return DMibErrorInstance
 				(
-					"Failed to get ticket interface: {} [{nfh}] from available hashes: {}"_f
-					<< TypeName
-					<< DMibConstantTypeHash(CInternal::CTicketInterface)
-					<< AvailableHashes
+					"Failed to get ticket interface: {} [{nfh}] from available hashes: {}"_f << TypeName << DMibConstantTypeHash(CInternal::CTicketInterface) << AvailableHashes
 				)
 			;
 		}
@@ -427,13 +383,7 @@ namespace NMib::NConcurrency
 		{
 			auto CaptureScope = co_await (g_CaptureExceptions % "Failed to generate certificate request for trust");
 
-			NCryptography::CCertificate::fs_GenerateClientCertificateRequest
-				(
-					Options
-					, CertificateRequest
-					, Internal.m_BasicConfig.m_CAPrivateKey
-				)
-			;
+			NCryptography::CCertificate::fs_GenerateClientCertificateRequest(Options, CertificateRequest, Internal.m_BasicConfig.m_CAPrivateKey);
 		}
 
 		auto PublicCertificate = co_await
@@ -457,16 +407,7 @@ namespace NMib::NConcurrency
 				Connection.m_ClientConnection.m_PublicClientCertificate = PublicCertificate;
 
 				if (Internal.m_ClientConnectionsInDatabase.f_Exists(Connection.f_GetAddress()))
-				{
-					Internal.m_Database
-						(
-							&ICDistributedActorTrustManagerDatabase::f_SetClientConnection
-							, Connection.f_GetAddress()
-							, Connection.m_ClientConnection
-						)
-						> DatabaseUpdates
-					;
-				}
+					Internal.m_Database(&ICDistributedActorTrustManagerDatabase::f_SetClientConnection, Connection.f_GetAddress(), Connection.m_ClientConnection) > DatabaseUpdates;
 
 				auto ConnectionSettings = Internal.f_GetConnectionSettings(Connection);
 				for (auto &ConnectionReference : Connection.m_ConnectionReferences)
@@ -487,9 +428,7 @@ namespace NMib::NConcurrency
 				(
 					Internal.m_Database
 					(
-						bIsInDatabase
-						? &ICDistributedActorTrustManagerDatabase::f_SetClientConnection
-						: &ICDistributedActorTrustManagerDatabase::f_AddClientConnection
+						bIsInDatabase ? &ICDistributedActorTrustManagerDatabase::f_SetClientConnection : &ICDistributedActorTrustManagerDatabase::f_AddClientConnection
 						, _TrustTicket.m_ServerAddress
 						, ClientConnection
 					)
@@ -568,12 +507,7 @@ namespace NMib::NConcurrency
 
 		co_await
 			(
-				Internal.m_Database
-				(
-					&ICDistributedActorTrustManagerDatabase::f_SetClientConnection
-					, _Address
-					, fg_TempCopy(pClientConnectionState->m_ClientConnection)
-				)
+				Internal.m_Database(&ICDistributedActorTrustManagerDatabase::f_SetClientConnection, _Address, fg_TempCopy(pClientConnectionState->m_ClientConnection))
 				% "Failed to save client connection to database"
 			)
 		;
@@ -612,12 +546,7 @@ namespace NMib::NConcurrency
 
 		co_await
 			(
-				Internal.m_Database
-				(
-					&ICDistributedActorTrustManagerDatabase::f_SetClientConnection
-					, _Address
-					, fg_TempCopy(pClientConnectionState->m_ClientConnection)
-				)
+				Internal.m_Database(&ICDistributedActorTrustManagerDatabase::f_SetClientConnection, _Address, fg_TempCopy(pClientConnectionState->m_ClientConnection))
 				% "Failed to save client connection to database"
 			)
 		;
@@ -741,9 +670,7 @@ namespace NMib::NConcurrency
 				(
 					Internal.m_Database
 					(
-						bIsInDatabase
-						? &ICDistributedActorTrustManagerDatabase::f_SetClientConnection
-						: &ICDistributedActorTrustManagerDatabase::f_AddClientConnection
+						bIsInDatabase ? &ICDistributedActorTrustManagerDatabase::f_SetClientConnection : &ICDistributedActorTrustManagerDatabase::f_AddClientConnection
 						, _Address
 						, NewClientConnection
 					)
@@ -787,12 +714,7 @@ namespace NMib::NConcurrency
 		co_return {};
 	}
 
-	TCFuture<void> CDistributedActorTrustManager::f_Debug_BreakListenConnections
-		(
-			CDistributedActorTrustManager_Address _Address
-			, fp64 _Timeout
-			, NNetwork::ESocketDebugFlag _DebugFlags
-		)
+	TCFuture<void> CDistributedActorTrustManager::f_Debug_BreakListenConnections(CDistributedActorTrustManager_Address _Address, fp64 _Timeout, NNetwork::ESocketDebugFlag _DebugFlags)
 	{
 		using namespace NMib::NStr;
 

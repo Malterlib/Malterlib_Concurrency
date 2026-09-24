@@ -30,11 +30,7 @@ namespace NMib::NConcurrency
 	};
 
 	template <typename t_CReturnValue>
-	TCActorSubscriptionCleanupFunctor<t_CReturnValue>::TCActorSubscriptionCleanupFunctor
-		(
-			TCActor<> const &_DispatchActor
-			, NFunction::TCFunctionMovable<t_CReturnValue ()> &&_fCleanup
-		)
+	TCActorSubscriptionCleanupFunctor<t_CReturnValue>::TCActorSubscriptionCleanupFunctor(TCActor<> const &_DispatchActor, NFunction::TCFunctionMovable<t_CReturnValue ()> &&_fCleanup)
 		: mp_fCleanup(fg_Move(_fCleanup))
 		, mp_DispatchActor(_DispatchActor)
 	{

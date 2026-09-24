@@ -84,14 +84,8 @@ namespace NMib::NConcurrency
 
 			for (auto &Namespace : _TrustedNamespaces)
 			{
-				mp_State.m_TrustManager
-					(
-						&CDistributedActorTrustManager::f_AllowHostsForNamespace
-						, Namespace
-						, Hosts
-						, EDistributedActorTrustManagerOrderingFlag_WaitForSubscriptions
-					)
-					> TrustResults[Namespace];
+				mp_State.m_TrustManager(&CDistributedActorTrustManager::f_AllowHostsForNamespace, Namespace, Hosts, EDistributedActorTrustManagerOrderingFlag_WaitForSubscriptions)
+					> TrustResults[Namespace]
 				;
 			}
 
@@ -110,17 +104,7 @@ namespace NMib::NConcurrency
 						*_pCommandLine %= "Failed to trust namespace '{}': {}\n"_f << NamespaceName << NamespaceResult.f_GetExceptionStr();
 				}
 				if (!SuccessfulNamespaces.f_IsEmpty())
-				{
-					DMibLogWithCategory
-						(
-							Mib/Concurrency/App
-							, Info
-							, "Trusted host '{}' for namespaces {vs} from add connection command line"
-							, HostID
-							, SuccessfulNamespaces
-						)
-					;
-				}
+					DMibLogWithCategory(Mib/Concurrency/App, Info, "Trusted host '{}' for namespaces {vs} from add connection command line", HostID, SuccessfulNamespaces);
 			}
 		}
 
@@ -181,12 +165,8 @@ namespace NMib::NConcurrency
 				&CDistributedActorTrustManager::f_GenerateConnectionTicket
 				, ForListen
 				, nullptr
-				, bHasPermissions ? g_ActorFunctor / [this, _Permissions, pCleanup = fg_Move(pCleanup), _UserID, Requirements]
-				(
-					CStr _HostID
-					, CCallingHostInfo _HostInfo
-				)
-				mutable -> TCFuture<void>
+				, bHasPermissions
+				? g_ActorFunctor / [this, _Permissions, pCleanup = fg_Move(pCleanup), _UserID, Requirements](CStr _HostID, CCallingHostInfo _HostInfo) mutable -> TCFuture<void>
 				{
 					if (_Permissions.f_IsEmpty())
 						co_return {};
@@ -292,12 +272,7 @@ namespace NMib::NConcurrency
 		co_return 0;
 	}
 
-	TCFuture<uint32> CDistributedAppActor::f_CommandLine_ListConnections
-		(
-			TCSharedPointer<CCommandLineControl> _pCommandLine
-			, bool _bIncludeFriendlyHostName
-			, CStr _TableType
-		)
+	TCFuture<uint32> CDistributedAppActor::f_CommandLine_ListConnections(TCSharedPointer<CCommandLineControl> _pCommandLine, bool _bIncludeFriendlyHostName, CStr _TableType)
 	{
 		auto ClientConnections = co_await mp_State.m_TrustManager(&CDistributedActorTrustManager::f_EnumClientConnections);
 
@@ -338,11 +313,11 @@ namespace NMib::NConcurrency
 
 	auto CDistributedAppActor::f_CommandLine_AddAdditionalConnection
 		(
-			 TCSharedPointer<CCommandLineControl> _pCommandLine
-			 , CStr _URL
-			 , bool _bIncludeFriendlyHostName
-			 , int32 _ConnectionConcurrency
-			 , CStr _SendWindow
+			TCSharedPointer<CCommandLineControl> _pCommandLine
+			, CStr _URL
+			, bool _bIncludeFriendlyHostName
+			, int32 _ConnectionConcurrency
+			, CStr _SendWindow
 		)
 		-> TCFuture<uint32>
 	{
@@ -380,25 +355,12 @@ namespace NMib::NConcurrency
 		Address.m_URL = _URL;
 		co_await mp_State.m_TrustManager(&CDistributedActorTrustManager::f_SetClientConnectionSendWindow, Address, SendWindowBytes);
 
-		DMibLogWithCategory
-			(
-				Mib/Concurrency/App
-				, Info
-				, "Change send window to {} for address '{}' from command line"
-				, fg_FormatSendWindow(SendWindowBytes)
-				, Address.m_URL.f_Encode()
-			)
-		;
+		DMibLogWithCategory(Mib/Concurrency/App, Info, "Change send window to {} for address '{}' from command line", fg_FormatSendWindow(SendWindowBytes), Address.m_URL.f_Encode());
 
 		co_return 0;
 	}
 
-	TCFuture<uint32> CDistributedAppActor::f_CommandLine_SetConnectionConcurrency
-		(
-			 TCSharedPointer<CCommandLineControl> _pCommandLine
-			 , CStr _URL
-			 , int32 _ConnectionConcurrency
-		)
+	TCFuture<uint32> CDistributedAppActor::f_CommandLine_SetConnectionConcurrency(TCSharedPointer<CCommandLineControl> _pCommandLine, CStr _URL, int32 _ConnectionConcurrency)
 	{
 		if (auto pError = fg_ValidateConnectionConcurrency(_ConnectionConcurrency))
 			co_return pError;
@@ -407,15 +369,7 @@ namespace NMib::NConcurrency
 		Address.m_URL = _URL;
 		co_await mp_State.m_TrustManager(&CDistributedActorTrustManager::f_SetClientConnectionConcurrency, Address, _ConnectionConcurrency);
 
-		DMibLogWithCategory
-			(
-				Mib/Concurrency/App
-				, Info
-				, "Change connection concurrency to {} for address '{}' from command line"
-				, _ConnectionConcurrency
-				, Address.m_URL.f_Encode()
-			)
-		;
+		DMibLogWithCategory(Mib/Concurrency/App, Info, "Change connection concurrency to {} for address '{}' from command line", _ConnectionConcurrency, Address.m_URL.f_Encode());
 
 		co_return 0;
 	}
@@ -425,7 +379,6 @@ namespace NMib::NConcurrency
 		CTableRenderHelper TableRenderer = _pCommandLine->f_TableRenderer();
 		CTableRenderHelper ConnectionTableRenderer = _pCommandLine->f_TableRenderer();
 		CAnsiEncoding AnsiEncoding = _pCommandLine->f_AnsiEncoding();
-
 
 		auto fFormatAsJson = [&](CEJsonSorted const &_Json)
 			{
@@ -437,7 +390,21 @@ namespace NMib::NConcurrency
 		TableRenderer.f_AddHeadings("Host", "Host Info", "Incoming Queue", "Outgoing Queue", "Sent Queue", "Stats", "Last Error");
 
 		ConnectionTableRenderer.f_AddDescription("Connections");
-		ConnectionTableRenderer.f_AddHeadings("Host", "URL", "Direction", "Identified", "Sent (b)", "Received (b)", "IncomingBuf (b)", "OutgoingBuf (b)", "LastSend (s)", "LastReceive (s)", "State");
+		ConnectionTableRenderer.f_AddHeadings
+			(
+				"Host"
+				, "URL"
+				, "Direction"
+				, "Identified"
+				, "Sent (b)"
+				, "Received (b)"
+				, "IncomingBuf (b)"
+				, "OutgoingBuf (b)"
+				, "LastSend (s)"
+				, "LastReceive (s)"
+				, "State"
+			)
+		;
 		ConnectionTableRenderer.f_SetOptions(CTableRenderHelper::EOption_Rounded | CTableRenderHelper::EOption_AvoidRowSeparators);
 
 		auto DebugStats = co_await mp_State.m_TrustManager(&CDistributedActorTrustManager::f_GetConnectionsDebugStats);
@@ -481,10 +448,7 @@ namespace NMib::NConcurrency
 			TableRenderer.f_AddRow
 				(
 					HostInfo.f_GetDescColored(AnsiEncoding.f_Flags())
-					, "HostID: {}\nExecutionID: {}\nLastExecutionID: {}"_f
-					<< fFormatAsJson(Host.m_HostID)
-					<< fFormatAsJson(Host.m_ExecutionID)
-					<< fFormatAsJson(Host.m_LastExecutionID)
+					, "HostID: {}\nExecutionID: {}\nLastExecutionID: {}"_f << fFormatAsJson(Host.m_HostID) << fFormatAsJson(Host.m_ExecutionID) << fFormatAsJson(Host.m_LastExecutionID)
 					, fFormatQueue
 					(
 						&CActorDistributionManager::CDebugHostStats_PriorityQueue::m_Incoming_PacketsQueueLength

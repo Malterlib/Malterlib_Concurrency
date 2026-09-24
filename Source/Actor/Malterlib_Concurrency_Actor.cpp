@@ -266,7 +266,7 @@ namespace NMib::NConcurrency
 #	ifdef DMibDebug
 		umint nFramesToRemove = 6; // fg_System_GetStackTrace + f_Capture + Constructor + f_Call + operator > + f_CaptureCallstack()
 #		ifdef DCompiler_clang
-			nFramesToRemove += 1; // Two frames for constructor
+		nFramesToRemove += 1; // Two frames for constructor
 #		endif
 #	else
 		umint nFramesToRemove = 0; // We don't know what inlining will do

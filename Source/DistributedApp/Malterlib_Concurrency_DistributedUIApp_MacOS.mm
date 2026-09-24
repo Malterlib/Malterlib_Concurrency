@@ -13,7 +13,7 @@ namespace NMib::NConcurrency
 {
 	void CDistributedUIApp::fsp_RunMain()
 	{
-		ch8	const *Dummy[] = {nullptr};
+		ch8 const *Dummy[] = {nullptr};
 		NSApplicationMain(0, Dummy); // Will never return
 	}
 }

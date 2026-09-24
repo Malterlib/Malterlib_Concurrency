@@ -237,7 +237,7 @@ namespace NMib::NConcurrency
 
 	struct [[nodiscard("You need to co_await to get the result")]] CIsGeneratorAborted
 	{
-		auto operator co_await()
+		auto operator co_await ()
 		{
 			return CIsGeneratorAbortedAwaiter();
 		}
@@ -268,7 +268,7 @@ namespace NMib::NConcurrency
 
 	struct [[nodiscard("You need to co_await to get the result")]] CGetGeneratorPipelineLength
 	{
-		auto operator co_await()
+		auto operator co_await ()
 		{
 			return CGetGeneratorPipelineLengthAwaiter();
 		}

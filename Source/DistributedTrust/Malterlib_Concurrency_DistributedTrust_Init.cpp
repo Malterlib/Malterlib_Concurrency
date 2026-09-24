@@ -149,18 +149,11 @@ namespace NMib::NConcurrency
 
 			NCryptography::CCertificateSignOptions SignOptions;
 			SignOptions.m_Serial = 1;
-			SignOptions.m_Days = 100*365;
+			SignOptions.m_Days = 100 * 365;
 
 			try
 			{
-				NCryptography::CCertificate::fs_GenerateSelfSignedCertAndKey
-					(
-						Options
-						, m_BasicConfig.m_CACertificate
-						, m_BasicConfig.m_CAPrivateKey
-						, SignOptions
-					)
-				;
+				NCryptography::CCertificate::fs_GenerateSelfSignedCertAndKey(Options, m_BasicConfig.m_CACertificate, m_BasicConfig.m_CAPrivateKey, SignOptions);
 			}
 			catch (NException::CException const &_Exception)
 			{
@@ -185,9 +178,7 @@ namespace NMib::NConcurrency
 			m_ActorDistributionManager = m_fDistributionManagerFactory(fg_Move(DistributionManagerInitSettings));
 		else
 		{
-			CActorDistributionManagerInitSettings ResultingSettings
-				= fg_InitDistributionManager(fg_Move(DistributionManagerInitSettings))
-			;
+			CActorDistributionManagerInitSettings ResultingSettings = fg_InitDistributionManager(fg_Move(DistributionManagerInitSettings));
 			if (ResultingSettings.m_HostID != m_BasicConfig.m_HostID)
 				co_return DMibErrorInstance("Default distribution manager already initialized with the wrong host ID");
 
@@ -216,13 +207,8 @@ namespace NMib::NConcurrency
 								if (ClientConnection.m_ClientConnection.m_LastFriendlyName != _HostInfo.m_FriendlyName)
 								{
 									ClientConnection.m_ClientConnection.m_LastFriendlyName = _HostInfo.m_FriendlyName;
-									m_Database
-										(
-											&ICDistributedActorTrustManagerDatabase::f_SetClientConnection
-											, ClientConnection.f_GetAddress()
-											, ClientConnection.m_ClientConnection
-										)
-										> [](TCAsyncResult<void> &&_Result)
+									m_Database(&ICDistributedActorTrustManagerDatabase::f_SetClientConnection, ClientConnection.f_GetAddress(), ClientConnection.m_ClientConnection) > []
+										(TCAsyncResult<void> &&_Result)
 										{
 											if (!_Result)
 											{
@@ -242,23 +228,12 @@ namespace NMib::NConcurrency
 							}
 						}
 
-						m_Database
-							(
-								&ICDistributedActorTrustManagerDatabase::f_TryGetClient
-								, _HostInfo.m_HostID
-							)
-							> [this, _HostInfo](TCAsyncResult<NStorage::TCUniquePointer<CClient>> &&_Client)
+						m_Database(&ICDistributedActorTrustManagerDatabase::f_TryGetClient, _HostInfo.m_HostID) > [this, _HostInfo]
+							(TCAsyncResult<NStorage::TCUniquePointer<CClient>> &&_Client)
 							{
 								if (!_Client)
 								{
-									DMibLogWithCategory
-										(
-											Mib/Concurrency/Trust
-											, Error
-											, "Failed to get client from database when updating host info: {}"
-											, _Client.f_GetExceptionStr()
-										)
-									;
+									DMibLogWithCategory(Mib/Concurrency/Trust, Error, "Failed to get client from database when updating host info: {}", _Client.f_GetExceptionStr());
 									return;
 								}
 								if (!*_Client)
@@ -267,13 +242,7 @@ namespace NMib::NConcurrency
 								if (Client.m_LastFriendlyName != _HostInfo.m_FriendlyName)
 								{
 									Client.m_LastFriendlyName = _HostInfo.m_FriendlyName;
-									m_Database
-										(
-											&ICDistributedActorTrustManagerDatabase::f_SetClient
-											, _HostInfo.m_HostID
-											, Client
-										)
-										> [](TCAsyncResult<void> &&_Result)
+									m_Database(&ICDistributedActorTrustManagerDatabase::f_SetClient, _HostInfo.m_HostID, Client) > [](TCAsyncResult<void> &&_Result)
 										{
 											if (!_Result)
 											{
@@ -295,7 +264,8 @@ namespace NMib::NConcurrency
 
 						co_return {};
 					}
-				) % "Failed to subscribe to info changes"
+				)
+				% "Failed to subscribe to info changes"
 				+ fg_AllDone(WriteDatabaseResults)
 			)
 		;
@@ -424,15 +394,7 @@ namespace NMib::NConcurrency
 
 					if (!_ConnectionResult)
 					{
-						DMibLogWithCategory
-							(
-								Mib/Concurrency/Trust
-								, Error
-								, "Failed to connect to '{}' in init: {}"
-								, Address
-								, _ConnectionResult.f_GetExceptionStr()
-							)
-						;
+						DMibLogWithCategory(Mib/Concurrency/Trust, Error, "Failed to connect to '{}' in init: {}", Address, _ConnectionResult.f_GetExceptionStr());
 						ConnectPromise.f_SetResult();
 						return;
 					}
@@ -458,21 +420,11 @@ namespace NMib::NConcurrency
 		else
 			WaitForConnectionsPromise.m_Promise.f_SetResult();
 
-		fg_AllDoneWrapped(ConnectResults) > [this, pCleanup]
-			(
-				TCAsyncResult<NContainer::TCMap<CDistributedActorTrustManager_Address, TCAsyncResult<void>>> &&_ConnectionResult
-			)
+		fg_AllDoneWrapped(ConnectResults) > [this, pCleanup](TCAsyncResult<NContainer::TCMap<CDistributedActorTrustManager_Address, TCAsyncResult<void>>> &&_ConnectionResult)
 			{
 				if (!_ConnectionResult)
 				{
-					DMibLogWithCategory
-						(
-							Mib/Concurrency/Trust
-							, Error
-							, "Failed to wait for connection results: {}"
-							, _ConnectionResult.f_GetExceptionStr()
-						)
-					;
+					DMibLogWithCategory(Mib/Concurrency/Trust, Error, "Failed to wait for connection results: {}", _ConnectionResult.f_GetExceptionStr());
 					return;
 				}
 				for (auto &ConnectionResult : *_ConnectionResult)
@@ -528,22 +480,15 @@ namespace NMib::NConcurrency
 
 		TCFuture<void> PublishFuture;
 		if (m_bSupportAuthentication)
-		{
-			PublishFuture = m_AuthenticationInterface.f_Publish<ICDistributedActorAuthentication>
-				(
-					m_ActorDistributionManager
-					, m_pThis
-				)
-			;
-		}
+			PublishFuture = m_AuthenticationInterface.f_Publish<ICDistributedActorAuthentication>(m_ActorDistributionManager, m_pThis);
 		else
 			PublishFuture = g_Void;
 
 		auto [TicketPublishResult, AuthenticationPublishResult] = co_await
 			(
-				m_TicketInterface->f_Publish<CTicketInterface>("Anonymous/com.malterlib/Concurrency/TrustManagerTicket", 0.0)
-				+ fg_Move(PublishFuture)
-			).f_Wrap()
+				m_TicketInterface->f_Publish<CTicketInterface>("Anonymous/com.malterlib/Concurrency/TrustManagerTicket", 0.0) + fg_Move(PublishFuture)
+			)
+			.f_Wrap()
 		;
 
 		if (!TicketPublishResult)
@@ -561,5 +506,5 @@ namespace NMib::NConcurrency
 }
 
 #ifndef DMibPNoShortCuts
-	using namespace NMib::NConcurrency;
+using namespace NMib::NConcurrency;
 #endif

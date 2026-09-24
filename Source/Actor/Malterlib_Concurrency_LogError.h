@@ -9,7 +9,7 @@ namespace NMib::NConcurrency
 	struct CLogErrorResultFunctor
 	{
 		template <typename tf_CResult>
-		void operator() (TCAsyncResult<tf_CResult> &&_Result) const;
+		void operator () (TCAsyncResult<tf_CResult> &&_Result) const;
 
 		friend void operator > (CAsyncResult const &_Result, CLogErrorResultFunctor const &_LogError);
 
@@ -45,15 +45,15 @@ namespace NMib::NConcurrency
 
 	// Logs unconsumed failures where the call completes; arguments must be string literals.
 	// Actor-deleted failures are normal for weak calls. With warning logging disabled, no result callback is installed.
-	#if (DMibSysLogSeverities) & DMibLogSeverity_Warning
-		#define DMibLogWarningOrDiscardResult(d_Call, d_Category, d_Description) \
-			( \
-				(d_Call) > ::NMib::NConcurrency::g_DirectResult \
-				/ ::NMib::NConcurrency::fg_LogWarning(::NMib::NStr::gc_Str<d_Category>.m_Str, ::NMib::NStr::gc_Str<d_Description>.m_Str).f_IgnoreActorDeleted() \
-			)
-	#else
-		#define DMibLogWarningOrDiscardResult(d_Call, d_Category, d_Description) ((d_Call).f_DiscardResult())
-	#endif
+#if (DMibSysLogSeverities) & DMibLogSeverity_Warning
+#	define DMibLogWarningOrDiscardResult(d_Call, d_Category, d_Description) \
+		( \
+			(d_Call) > ::NMib::NConcurrency::g_DirectResult \
+			/ ::NMib::NConcurrency::fg_LogWarning(::NMib::NStr::gc_Str<d_Category>.m_Str, ::NMib::NStr::gc_Str<d_Description>.m_Str).f_IgnoreActorDeleted() \
+		)
+#else
+#	define DMibLogWarningOrDiscardResult(d_Call, d_Category, d_Description) ((d_Call).f_DiscardResult())
+#endif
 
 	struct CLogError
 	{

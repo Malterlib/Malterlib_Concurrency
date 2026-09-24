@@ -16,6 +16,7 @@ namespace NMib::NConcurrency::NDDPBridgeHelper
 		~CDDPBridgeHelperActor();
 
 		struct CServer;
+
 	private:
 		TCFuture<void> fp_StartApp(NEncoding::CEJsonSorted const _Params) override;
 		TCFuture<void> fp_StopApp() override;

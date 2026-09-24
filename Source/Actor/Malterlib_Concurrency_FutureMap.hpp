@@ -66,7 +66,7 @@ namespace NMib::NConcurrency
 	}
 
 	template <typename t_CKey, typename t_CValue>
-	void TCFutureMap<t_CKey, t_CValue>::CResultReceived::operator ()(TCAsyncResult<t_CValue> &&_Result) const
+	void TCFutureMap<t_CKey, t_CValue>::CResultReceived::operator () (TCAsyncResult<t_CValue> &&_Result) const
 	{
 		mp_Result = fg_Move(_Result);
 	}
@@ -75,7 +75,6 @@ namespace NMib::NConcurrency
 	TCFutureMap<t_CKey, t_CValue>::TCFutureMap()
 		: mp_pInternal(fg_Construct())
 	{
-
 	}
 
 	template <typename t_CKey, typename t_CValue>
@@ -87,7 +86,7 @@ namespace NMib::NConcurrency
 
 	template <typename t_CKey, typename t_CValue>
 	template <typename tf_CKey>
-	auto TCFutureMap<t_CKey, t_CValue>::operator [](tf_CKey &&_Key) -> TCFutureMapBoundKey<t_CKey, t_CValue, tf_CKey &&>
+	auto TCFutureMap<t_CKey, t_CValue>::operator [] (tf_CKey &&_Key) -> TCFutureMapBoundKey<t_CKey, t_CValue, tf_CKey &&>
 	{
 		return {.m_This = *this, .m_Key = fg_Forward<tf_CKey>(_Key)};
 	}
@@ -139,7 +138,7 @@ namespace NMib::NConcurrency
 	template <typename t_CKey, typename t_CValue>
 	TCFuture<NContainer::TCSet<t_CKey>> TCFutureMap<t_CKey, t_CValue>::fp_GetUnwrappedResults()
 		requires (NTraits::cIsVoid<t_CValue>)
- 	{
+	{
 		TCPromiseFuturePair<NContainer::TCSet<t_CKey>> Promise;
 
 		fp_GetResults().f_OnResultSet

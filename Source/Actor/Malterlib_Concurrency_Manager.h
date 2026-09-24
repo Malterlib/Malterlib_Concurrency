@@ -95,16 +95,11 @@ namespace NMib::NConcurrency
 		void f_Stop();
 		void f_EnableShutdownLogging(bool _bEnabled);
 
-		template <typename tf_CType, typename... tfp_CParams, typename... tfp_CHolderParams>
-		TCActor<tf_CType> f_ConstructActor(TCConstruct<tf_CType, tfp_CParams...> &&_ConstructParams, tfp_CHolderParams&&... p_Params);
+		template <typename tf_CType, typename ...tfp_CParams, typename ...tfp_CHolderParams>
+		TCActor<tf_CType> f_ConstructActor(TCConstruct<tf_CType, tfp_CParams...> &&_ConstructParams, tfp_CHolderParams && ...p_Params);
 
-		template <typename tf_CType, typename... tfp_CParams>
-		TCActor<tf_CType> f_ConstructFromInternalActor
-			(
-				TCActorHolderSharedPointer<TCActorInternal<tf_CType>> &&_pInternalActor
-				, TCConstruct<tf_CType, tfp_CParams...> &&_ConstructParams
-			)
-		;
+		template <typename tf_CType, typename ...tfp_CParams>
+		TCActor<tf_CType> f_ConstructFromInternalActor(TCActorHolderSharedPointer<TCActorInternal<tf_CType>> &&_pInternalActor, TCConstruct<tf_CType, tfp_CParams...> &&_ConstructParams);
 
 		template <typename tf_CActor>
 		consteval static bool fs_HasOverridenDestroy()
@@ -170,22 +165,22 @@ namespace NMib::NConcurrency
 		/// \brief Snapshot of aggregated scheduling statistics
 		struct CSchedulerStats
 		{
-			umint m_nSignals = 0; ///< Semaphore signals posted to pool threads
-			umint m_nSleeps = 0; ///< Times pool threads went to sleep
-			umint m_nLocalEnqueues = 0; ///< Jobs enqueued to the producing thread's own local queue
-			umint m_nAtomicEnqueues = 0; ///< Jobs enqueued through the atomic queue
-			umint m_nCurrentThreadSelections = 0; ///< Jobs targeted at the producing pool thread's queue
-			umint m_nFixedSelections = 0; ///< Jobs targeted by fixed-queue pinning
+			umint m_nSignals = 0;                  ///< Semaphore signals posted to pool threads
+			umint m_nSleeps = 0;                   ///< Times pool threads went to sleep
+			umint m_nLocalEnqueues = 0;            ///< Jobs enqueued to the producing thread's own local queue
+			umint m_nAtomicEnqueues = 0;           ///< Jobs enqueued through the atomic queue
+			umint m_nCurrentThreadSelections = 0;  ///< Jobs targeted at the producing pool thread's queue
+			umint m_nFixedSelections = 0;          ///< Jobs targeted by fixed-queue pinning
 			umint m_nForcedNonLocalSelections = 0; ///< Jobs redistributed after a yield
-			umint m_nLastQueueSelections = 0; ///< Jobs targeted by last-queue affinity
-			umint m_nRoundRobinSelections = 0; ///< Jobs targeted by round-robin selection
-			umint m_nHandoffs = 0; ///< Jobs handed off to idle threads
-			umint m_nIdleClaims = 0; ///< Successful claims of idle threads
-			umint m_nRunProcess = 0; ///< Actor drain runs executed on pool threads
-			umint m_nEntriesDrained = 0; ///< Actor messages processed by drain runs on pool threads
-			umint m_nLongDrains = 0; ///< Drain runs that processed 16 or more messages
-			umint m_nGarbageCollectCalls = 0; ///< Owner-side arena garbage collect attempts from drain runs
-			umint m_nGarbageCollects = 0; ///< Owner-side arena garbage collects that found pending messages
+			umint m_nLastQueueSelections = 0;      ///< Jobs targeted by last-queue affinity
+			umint m_nRoundRobinSelections = 0;     ///< Jobs targeted by round-robin selection
+			umint m_nHandoffs = 0;                 ///< Jobs handed off to idle threads
+			umint m_nIdleClaims = 0;               ///< Successful claims of idle threads
+			umint m_nRunProcess = 0;               ///< Actor drain runs executed on pool threads
+			umint m_nEntriesDrained = 0;           ///< Actor messages processed by drain runs on pool threads
+			umint m_nLongDrains = 0;               ///< Drain runs that processed 16 or more messages
+			umint m_nGarbageCollectCalls = 0;      ///< Owner-side arena garbage collect attempts from drain runs
+			umint m_nGarbageCollects = 0;          ///< Owner-side arena garbage collects that found pending messages
 		};
 
 		CSchedulerStats f_GetSchedulerStats(EPriority _Priority);
@@ -215,22 +210,22 @@ namespace NMib::NConcurrency
 		/// \brief Scheduling statistics for one pool queue
 		struct align_cacheline CSchedulerQueueStats
 		{
-			NAtomic::TCAtomic<umint> m_nSignals = 0; ///< Semaphore signals posted to this queue
-			NAtomic::TCAtomic<umint> m_nSleeps = 0; ///< Times this queue's thread went to sleep
-			NAtomic::TCAtomic<umint> m_nLocalEnqueues = 0; ///< Jobs enqueued from this queue's own thread
-			NAtomic::TCAtomic<umint> m_nAtomicEnqueues = 0; ///< Jobs enqueued through the atomic queue
-			NAtomic::TCAtomic<umint> m_nCurrentThreadSelections = 0; ///< Jobs targeted at this queue because the producer runs on it
-			NAtomic::TCAtomic<umint> m_nFixedSelections = 0; ///< Jobs targeted at this queue by fixed-queue pinning
+			NAtomic::TCAtomic<umint> m_nSignals = 0;                  ///< Semaphore signals posted to this queue
+			NAtomic::TCAtomic<umint> m_nSleeps = 0;                   ///< Times this queue's thread went to sleep
+			NAtomic::TCAtomic<umint> m_nLocalEnqueues = 0;            ///< Jobs enqueued from this queue's own thread
+			NAtomic::TCAtomic<umint> m_nAtomicEnqueues = 0;           ///< Jobs enqueued through the atomic queue
+			NAtomic::TCAtomic<umint> m_nCurrentThreadSelections = 0;  ///< Jobs targeted at this queue because the producer runs on it
+			NAtomic::TCAtomic<umint> m_nFixedSelections = 0;          ///< Jobs targeted at this queue by fixed-queue pinning
 			NAtomic::TCAtomic<umint> m_nForcedNonLocalSelections = 0; ///< Jobs targeted at this queue after a yield
-			NAtomic::TCAtomic<umint> m_nLastQueueSelections = 0; ///< Jobs targeted at this queue by last-queue affinity
-			NAtomic::TCAtomic<umint> m_nRoundRobinSelections = 0; ///< Jobs targeted at this queue by round-robin selection
-			NAtomic::TCAtomic<umint> m_nHandoffs = 0; ///< Jobs handed off from this queue to an idle queue
-			NAtomic::TCAtomic<umint> m_nIdleClaims = 0; ///< Successful idle claims of this queue by producers
-			NAtomic::TCAtomic<umint> m_nRunProcess = 0; ///< Actor drain runs executed on this queue's thread
-			NAtomic::TCAtomic<umint> m_nEntriesDrained = 0; ///< Actor messages processed by drain runs on this queue's thread
-			NAtomic::TCAtomic<umint> m_nLongDrains = 0; ///< Drain runs on this queue's thread that processed 16 or more messages
-			NAtomic::TCAtomic<umint> m_nGarbageCollectCalls = 0; ///< Owner-side arena garbage collect attempts from drain runs
-			NAtomic::TCAtomic<umint> m_nGarbageCollects = 0; ///< Owner-side arena garbage collects that found pending messages
+			NAtomic::TCAtomic<umint> m_nLastQueueSelections = 0;      ///< Jobs targeted at this queue by last-queue affinity
+			NAtomic::TCAtomic<umint> m_nRoundRobinSelections = 0;     ///< Jobs targeted at this queue by round-robin selection
+			NAtomic::TCAtomic<umint> m_nHandoffs = 0;                 ///< Jobs handed off from this queue to an idle queue
+			NAtomic::TCAtomic<umint> m_nIdleClaims = 0;               ///< Successful idle claims of this queue by producers
+			NAtomic::TCAtomic<umint> m_nRunProcess = 0;               ///< Actor drain runs executed on this queue's thread
+			NAtomic::TCAtomic<umint> m_nEntriesDrained = 0;           ///< Actor messages processed by drain runs on this queue's thread
+			NAtomic::TCAtomic<umint> m_nLongDrains = 0;               ///< Drain runs on this queue's thread that processed 16 or more messages
+			NAtomic::TCAtomic<umint> m_nGarbageCollectCalls = 0;      ///< Owner-side arena garbage collect attempts from drain runs
+			NAtomic::TCAtomic<umint> m_nGarbageCollects = 0;          ///< Owner-side arena garbage collects that found pending messages
 		};
 #endif
 
@@ -260,8 +255,8 @@ namespace NMib::NConcurrency
 			umint m_iQueue;
 			TCActor<CTimerActorImpl> m_TimerActor;
 			TCActor<CTimerActor> m_TimerActorRef;
-			bool m_bTimerWorkEnabled = true; // Cleared by timer teardown before releasing its holder.
-			fp64 m_TimerDeadline = -1.0; // Owner-only deadline on the manager clock; negative when disarmed.
+			bool m_bTimerWorkEnabled = true;  // Cleared by timer teardown before releasing its holder.
+			fp64 m_TimerDeadline = -1.0;      // Owner-only deadline on the manager clock; negative when disarmed.
 			EPriority m_Priority;
 			bool m_bIoLoopParkActive = false; // Only the owner thread reads or writes this park choice.
 
@@ -269,7 +264,7 @@ namespace NMib::NConcurrency
 			NSys::ICIoLoop *m_pIoLoop = nullptr;
 			NStorage::TCUniquePointer<NThread::CThreadObjectNonTracked, NMemory::CAllocator_NonTrackedHeap> m_pThread;
 			NAtomic::TCAtomic<bool> m_bThreadCreated;
-			bool m_bIoLoopParksOnEvent = false; // The loop waits on m_Event, so signalling it needs no explicit loop wake.
+			bool m_bIoLoopParksOnEvent = false;               // The loop waits on m_Event, so signalling it needs no explicit loop wake.
 
 #if DMibConfig_Concurrency_SchedulerStats
 			CSchedulerQueueStats m_SchedulerStats;
@@ -290,9 +285,9 @@ namespace NMib::NConcurrency
 		umint fp_ClaimIdleQueue(EPriority _Priority, umint _iExclude);
 		void fp_SetQueueIdle(CQueue &_Queue);
 		void fp_ClearQueueIdle(CQueue &_Queue);
-#if DMibConfig_Concurrency_LocalFirstDistribution
+#	if DMibConfig_Concurrency_LocalFirstDistribution
 		void fp_OfferExcessWork(CQueue &_Queue, bool _bTransfer, umint _TargetSize = DMibConfig_Concurrency_LocalQueueTargetSize);
-#endif
+#	endif
 #endif
 		void fp_DrainCheckpoint(CQueue &_Queue, umint _OfferTargetSize);
 		bool fp_CheckTimers(CQueue &_Queue);
@@ -301,12 +296,7 @@ namespace NMib::NConcurrency
 		void fp_DispatchOnCurrentThreadOrConcurrent(EPriority _Priority, FActorQueueDispatchNoAlloc &&_ToQueue, CConcurrencyThreadLocal &_ThreadLocal);
 		void fp_DispatchOnCurrentThreadOrConcurrentFirst(EPriority _Priority, FActorQueueDispatchNoAlloc &&_ToQueue, CConcurrencyThreadLocal &_ThreadLocal);
 
-		static TCFuture<void> fsp_DestroySingletons
-			(
-				NContainer::TCVector<NStorage::TCUniquePointer<CSingleton>> _Singletons
-				, NContainer::TCVector<umint> _CreationOrder
-			)
-		;
+		static TCFuture<void> fsp_DestroySingletons(NContainer::TCVector<NStorage::TCUniquePointer<CSingleton>> _Singletons, NContainer::TCVector<umint> _CreationOrder);
 
 		void fp_AddedActor();
 		void fp_RemovedActor();
@@ -353,9 +343,9 @@ namespace NMib::NConcurrency
 		NContainer::TCVector<CIdleQueueMask> m_IdleQueueMasks[EPriority_Max];
 #endif
 
-		NThread::CMutual m_SingletonLock; // Recursive, as creating a singleton can ask for another one
+		NThread::CMutual m_SingletonLock;                                         // Recursive, as creating a singleton can ask for another one
 		NContainer::TCVector<NStorage::TCUniquePointer<CSingleton>> m_Singletons; // Indexed by the singleton index of the type
-		NContainer::TCVector<umint> m_SingletonCreationOrder; // Singletons are released in reverse creation order
+		NContainer::TCVector<umint> m_SingletonCreationOrder;                     // Singletons are released in reverse creation order
 		bool m_bSingletonsDestroyed = false;
 
 		bool m_bDestroyed = false;
@@ -467,11 +457,11 @@ namespace NMib::NConcurrency
 
 	bool fg_ActorRunning(TCActor<> &_Actor);
 
-	template <typename tf_CActor, typename... tfp_CParams>
-	TCActor<tf_CActor> fg_ConstructActor(tfp_CParams &&...p_Params);
+	template <typename tf_CActor, typename ...tfp_CParams>
+	TCActor<tf_CActor> fg_ConstructActor(tfp_CParams && ...p_Params);
 
-	template <typename tf_CActor, typename tf_CHolderType, typename... tfp_CHolderParams, typename... tfp_CParams>
-	TCActor<tf_CActor> fg_ConstructActor(TCConstruct<tf_CHolderType, tfp_CHolderParams...> &&_HolderParams, tfp_CParams &&...p_Params);
+	template <typename tf_CActor, typename tf_CHolderType, typename ...tfp_CHolderParams, typename ...tfp_CParams>
+	TCActor<tf_CActor> fg_ConstructActor(TCConstruct<tf_CHolderType, tfp_CHolderParams...> &&_HolderParams, tfp_CParams && ...p_Params);
 }
 
 #include "Malterlib_Concurrency_ActorHelpers.h"
@@ -489,5 +479,5 @@ namespace NMib::NConcurrency
 #include "Malterlib_Concurrency_Instantiate.hpp"
 
 #ifndef DMibPNoShortCuts
-	using namespace NMib::NConcurrency;
+using namespace NMib::NConcurrency;
 #endif

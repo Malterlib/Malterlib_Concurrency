@@ -132,7 +132,7 @@ class CDistributedActorBase : public CActor
 public:
 	enum : uint32
 	{
-		EProtocolVersion_Min = 0x101
+		EProtocolVersion_Min       = 0x101
 		, EProtocolVersion_Current = 0x101
 	};
 
@@ -146,6 +146,7 @@ public:
 	virtual void f_AddIntVirtual(uint32 _Value)
 	{
 	}
+
 	virtual uint32 f_GetResultVirtual() = 0;
 	virtual CStr f_GetCallingHostID() const = 0;
 };
@@ -171,7 +172,7 @@ class CDistributedActorInterface : public CActor
 public:
 	enum : uint32
 	{
-		EProtocolVersion_Min = 0x101
+		EProtocolVersion_Min       = 0x101
 		, EProtocolVersion_Current = 0x101
 	};
 
@@ -451,7 +452,8 @@ public:
 				, Exit = g_OnScopeExit / []
 				{
 				}
-			] (int32 _Value) -> TCAsyncGenerator<int32>
+			]
+			(int32 _Value) -> TCAsyncGenerator<int32>
 			{
 				co_yield 5;
 				co_yield 6;
@@ -521,11 +523,7 @@ public:
 		co_return {};
 	}
 
-	CMultipleSubscriptions f_RegisterActorFunctors
-		(
-			TCActorFunctorWithID<TCFuture<CStr> (CStr _Test), 0> &&_Callback0
-			, TCActorFunctorWithID<TCFuture<CStr> (CStr _Test), 1> &&_Callback1
-		)
+	CMultipleSubscriptions f_RegisterActorFunctors(TCActorFunctorWithID<TCFuture<CStr> (CStr _Test), 0> &&_Callback0, TCActorFunctorWithID<TCFuture<CStr> (CStr _Test), 1> &&_Callback1)
 	{
 		CMultipleSubscriptions Subscriptions;
 		m_ActorFunctors.f_SetLen(2);
@@ -545,10 +543,7 @@ public:
 		return Subscriptions;
 	}
 
-	CMultipleSubscriptionsVector f_RegisterActorFunctorsVector
-		(
-			TCVector<TCActorFunctorWithID<TCFuture<CStr> (CStr _Test), 0>> &&_Callbacks
-		)
+	CMultipleSubscriptionsVector f_RegisterActorFunctorsVector(TCVector<TCActorFunctorWithID<TCFuture<CStr> (CStr _Test), 0>> &&_Callbacks)
 	{
 		CMultipleSubscriptionsVector Subscriptions;
 
@@ -599,7 +594,7 @@ public:
 
 	TCActorFunctorWithID<TCFuture<CStr> (CStr _Test)> f_GetActorFunctorWithoutSubscription()
 	{
-		return g_ActorFunctor / [] (CStr _Test) -> TCFuture<CStr>
+		return g_ActorFunctor / [](CStr _Test) -> TCFuture<CStr>
 			{
 				co_return _Test + "WithoutSubscription";
 			}
@@ -615,7 +610,7 @@ public:
 					m_bReturnedFunctionActorSubscriptionCalled = true;
 				}
 			)
-			/ [] (CStr _Test) -> TCFuture<CStr>
+			/ [](CStr _Test) -> TCFuture<CStr>
 			{
 				co_return _Test + "WithSubscription";
 			}
@@ -678,12 +673,8 @@ public:
 		return fg_Construct<CActorSubscriptionReferenceDummy>();
 	}
 
-	CActorSubscription f_RegisterDual
-		(
-			TCActor<CActor> const &_Actor
-			, TCFunctionMovable<TCFuture<CStr> (CStr &&_Test)> &&_Callback0
-			, TCFunctionMovable<TCFuture<CStr> (CStr &&_Test)> &&_Callback1
-		)
+	auto f_RegisterDual(TCActor<CActor> const &_Actor, TCFunctionMovable<TCFuture<CStr> (CStr &&_Test)> &&_Callback0, TCFunctionMovable<TCFuture<CStr> (CStr &&_Test)> &&_Callback1)
+		-> CActorSubscription
 	{
 		*m_Callback[0] = fg_Move(_Callback0);
 		*m_Callback[1] = fg_Move(_Callback1);
@@ -814,9 +805,7 @@ public:
 	{
 		TCFutureVector<CStr> Results;
 		for (auto &Callback : m_Callbacks)
-		{
 			Callback.m_fCallback(_Message) > Results;
-		}
 
 		co_return co_await fg_AllDoneWrapped(Results);
 	}
@@ -893,7 +882,8 @@ public:
 		return m_CallingHostTests.f_FindEqual(_HostID) != nullptr;
 	}
 
-/*	template <typename tf_CTest>
+	/*
+	template <typename tf_CTest>
 	uint32 f_GetResultTemplated()
 	{
 		auto Ret = m_Value;
@@ -1059,7 +1049,8 @@ class CDistributedActor_Tests : public NMib::NTest::CTest
 			uint32 Result = Actor.f_CallActor(&CDistributedActor::f_GetResult)().f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
 			DMibExpect(Result, ==, 5);
 		}
-/*		{
+		/*
+		{
 			DMibTestPath("DirectTemplate");
 			TCDistributedActor<CDistributedActor> Actor = pState->f_CreateActor();
 			Actor.f_CallActor(&CDistributedActor::f_AddInt)(5).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
@@ -1172,7 +1163,15 @@ class CDistributedActor_Tests : public NMib::NTest::CTest
 				{
 					// Parameter destruction must queue subscription cleanup before synchronizing with its target actor.
 					Actor.f_CallActor(&CDistributedActor::f_Nop)().f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
-					fg_Dispatch(TestActor, [] {}).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
+					fg_Dispatch
+						(
+							TestActor
+							, []
+							{
+							}
+						)
+						.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
+					;
 				}
 			;
 			{
@@ -1263,7 +1262,8 @@ class CDistributedActor_Tests : public NMib::NTest::CTest
 								co_return DMibErrorInstance("Test exception 1");
 							co_return _Message + "1";
 						}
-					).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
+					)
+					.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
 				;
 			}
 		;
@@ -1560,7 +1560,8 @@ class CDistributedActor_Tests : public NMib::NTest::CTest
 						}
 					)
 					.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
-				).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
+				)
+				.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
 			;
 
 			DMibExpect(Value, ==, 10);
@@ -1573,7 +1574,13 @@ class CDistributedActor_Tests : public NMib::NTest::CTest
 			TCDistributedActor<CDistributedActor> Actor = pState->f_CreateActor();
 			auto Value = Actor.f_CallActor(&CDistributedActor::f_TestAsyncGeneratorFunctorSend)
 				(
-					g_ActorFunctor(g_ActorSubscription / [] {}) / [](int32 _Value) -> TCAsyncGenerator<int32>
+					g_ActorFunctor
+					(
+						g_ActorSubscription / []
+						{
+						}
+					)
+					/ [](int32 _Value) -> TCAsyncGenerator<int32>
 					{
 						co_yield 1;
 						co_yield 2;
@@ -1582,7 +1589,8 @@ class CDistributedActor_Tests : public NMib::NTest::CTest
 						co_yield _Value;
 						co_return {};
 					}
-				).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
+				)
+				.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
 			;
 
 			DMibExpect(Value, ==, 32);
@@ -1606,7 +1614,8 @@ class CDistributedActor_Tests : public NMib::NTest::CTest
 						}
 					)
 					.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
-				).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
+				)
+				.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
 			;
 
 			DMibExpect(Value, ==, 10);
@@ -1619,7 +1628,13 @@ class CDistributedActor_Tests : public NMib::NTest::CTest
 			TCDistributedActor<CDistributedActor> Actor = pState->f_CreateActor();
 			auto Value = Actor.f_CallActor(&CDistributedActor::f_TestAsyncGeneratorFunctorSendPipelined)
 				(
-					g_ActorFunctor(g_ActorSubscription / [] {}) / [](int32 _Value) -> TCAsyncGenerator<int32>
+					g_ActorFunctor
+					(
+						g_ActorSubscription / []
+						{
+						}
+					)
+					/ [](int32 _Value) -> TCAsyncGenerator<int32>
 					{
 						co_yield 1;
 						co_yield 2;
@@ -1628,7 +1643,8 @@ class CDistributedActor_Tests : public NMib::NTest::CTest
 						co_yield _Value;
 						co_return {};
 					}
-				).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
+				)
+				.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
 			;
 
 			DMibExpect(Value, ==, 32);
@@ -1694,7 +1710,15 @@ class CDistributedActor_Tests : public NMib::NTest::CTest
 				DMibExpectException(fCallInterface(), DMibErrorInstance("Remote actor no longer exists"));
 
 			Actor.f_CallActor(&CDistributedActor::f_ClearSetInterface)().f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
-			fg_Dispatch(TestActor, []{}).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
+			fg_Dispatch
+				(
+					TestActor
+					, []
+					{
+					}
+				)
+				.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
+			;
 
 			DMibExpectTrue(pSubscriptionCalled->f_Load());
 
@@ -1784,14 +1808,17 @@ class CDistributedActor_Tests : public NMib::NTest::CTest
 			TCActor<> TestActor1 = fg_ConstructActor<CActor>();
 
 			{
-				auto MultipleSubscription0 = Actor.f_CallActor(&CDistributedActor::f_RegisterCallbacks)(g_ActorFunctor(TestActor0) / fCallback0)
+				auto MultipleSubscription0 = Actor.f_CallActor(&CDistributedActor::f_RegisterCallbacks)
+					(g_ActorFunctor(TestActor0) / fCallback0)
 					.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
 				;
-				auto MultipleSubscription1 = Actor.f_CallActor(&CDistributedActor::f_RegisterCallbacks)(g_ActorFunctor(TestActor1) / fCallback1)
+				auto MultipleSubscription1 = Actor.f_CallActor(&CDistributedActor::f_RegisterCallbacks)
+					(g_ActorFunctor(TestActor1) / fCallback1)
 					.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
 				;
 
-				TCVector<TCAsyncResult<CStr>> MultipleReturn = Actor.f_CallActor(&CDistributedActor::f_CallRegisteredCallbacksWithReturn)("TestMessage")
+				TCVector<TCAsyncResult<CStr>> MultipleReturn = Actor.f_CallActor(&CDistributedActor::f_CallRegisteredCallbacksWithReturn)
+					("TestMessage")
 					.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
 				;
 				DMibExpect(*MultipleReturn[0], ==, "TestMessage0");
@@ -1801,7 +1828,6 @@ class CDistributedActor_Tests : public NMib::NTest::CTest
 				DMibExpectException(*MultipleReturn[0], DMibErrorInstance("Test exception 0"));
 				DMibExpectException(*MultipleReturn[1], DMibErrorInstance("Test exception 1"));
 			}
-
 
 			auto fRegisterWithError = [&]
 				{
@@ -1928,9 +1954,7 @@ class CDistributedActor_Tests : public NMib::NTest::CTest
 			ConnectAddress = fg_Format("wss://{}:31393/", _Address);
 		}
 		else
-		{
 			ConnectAddress = fg_Format("wss://[{}]/", _Address);
-		}
 
 		CActorDistributionListenSettings ListenSettings{fg_CreateVector(ConnectAddress)};
 		ListenSettings.f_SetCryptography(ServerCryptography);
@@ -2005,8 +2029,9 @@ class CDistributedActor_Tests : public NMib::NTest::CTest
 			}
 		;
 
-		CDistributedActorConnectionReference ClientConnectionReference
-			= ClientManager(&CActorDistributionManager::f_Connect, ConnectionSettings, 60.0).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout).m_ConnectionReference
+		CDistributedActorConnectionReference ClientConnectionReference = ClientManager(&CActorDistributionManager::f_Connect, ConnectionSettings, 60.0)
+			.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
+			.m_ConnectionReference
 		;
 
 		bool bConnectionSuccessful = true; // If not we would have had exceptions above
@@ -2117,7 +2142,7 @@ class CDistributedActor_Tests : public NMib::NTest::CTest
 
 		CStr HostID = Actor.f_CallActor(&CDistributedActor::f_TestOnDisconnect)().f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
 
-		DMibExpect(HostID, != , "");
+		DMibExpect(HostID, !=, "");
 		bool bHasClient = Actor.f_CallActor(&CDistributedActor::f_HasOnDisconnect)(HostID).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
 		DMibExpectTrue(bHasClient);
 		TestState.f_DisconnectClient(true);
@@ -2153,10 +2178,7 @@ class CDistributedActor_Tests : public NMib::NTest::CTest
 			DMibExpectException
 				(
 					Actor.f_CallActor(&CDistributedActor::f_TestGeneral)().f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
-					, DMibErrorInstance
-					(
-						"Remote host '{} [TestHelperServer]' no longer running: Invalid connection: Debug fail send"_f << TestState.f_GetServerHostID()
-					)
+					, DMibErrorInstance("Remote host '{} [TestHelperServer]' no longer running: Invalid connection: Debug fail send"_f << TestState.f_GetServerHostID())
 				)
 			;
 		}
@@ -2265,7 +2287,8 @@ class CDistributedActor_Tests : public NMib::NTest::CTest
 
 				DMibExpectException
 					(
-						Actor.f_CallActor(&CDistributedActor::f_TestReturnPacketSize)(CActorDistributionManager::mc_MaxMessageSize - ReturnOverhead + 1)
+						Actor.f_CallActor(&CDistributedActor::f_TestReturnPacketSize)
+						(CActorDistributionManager::mc_MaxMessageSize - ReturnOverhead + 1)
 						.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
 						, DMibErrorInstance("Reply was larger than max allowed packet size")
 					)
@@ -2313,6 +2336,7 @@ class CDistributedActor_Tests : public NMib::NTest::CTest
 			bool m_bRemoved = false;
 			bool m_bAdded = false;
 		};
+
 		TCSharedPointer<CState> pState = fg_Construct();
 
 		auto &ConcurrentActor = fg_ConcurrentActor();
@@ -2401,6 +2425,7 @@ class CDistributedActor_Tests : public NMib::NTest::CTest
 			bool m_bRemoved = false;
 			bool m_bAdded = false;
 		};
+
 		TCSharedPointer<CState> pState = fg_Construct();
 
 		// Signal initially so the first subscription callback can complete
@@ -2703,11 +2728,7 @@ public:
 
 			DMibTestCategory("Wrapped")
 			{
-				auto Wrapped = NMib::NException::fg_MakeException
-					(
-						NMib::NException::CExceptionWrapped(nullptr, "Outer failure", false, NMib::NException::CExceptionWrappedData(Exception))
-					)
-				;
+				auto Wrapped = NMib::NException::fg_MakeException(NMib::NException::CExceptionWrapped(nullptr, "Outer failure", false, NMib::NException::CExceptionWrappedData(Exception)));
 
 				auto fWrapped = [&](uint32 _ActorProtocolVersion) -> TCOptional<CVersionedData>
 					{
@@ -2747,13 +2768,7 @@ public:
 				NContainer::TCVector<NMib::NException::CExceptionPointer> Exceptions{Exception, Exception};
 				auto Vector = NMib::NException::fg_MakeException
 					(
-						NMib::NException::CExceptionExceptionVector
-						(
-							nullptr
-							, "Outer failures"
-							, false
-							, NMib::NException::CExceptionExceptionVectorData(fg_Move(Exceptions))
-						)
+						NMib::NException::CExceptionExceptionVector(nullptr, "Outer failures", false, NMib::NException::CExceptionExceptionVectorData(fg_Move(Exceptions)))
 					)
 				;
 

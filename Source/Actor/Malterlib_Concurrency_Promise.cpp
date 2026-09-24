@@ -42,7 +42,7 @@ namespace NMib::NConcurrency
 	{
 	}
 
-	void CCoroutineOnSuspendScope::operator ()()
+	void CCoroutineOnSuspendScope::operator () ()
 	{
 		m_fOnSuspend();
 	}
@@ -106,11 +106,7 @@ namespace NMib::NConcurrency
 		return CCaptureExceptionScope(m_pThis);
 	}
 
-	CFutureCoroutineContext::CCaptureExceptionWithTransformerScope::CCaptureExceptionWithTransformerScope
-		(
-			CFutureCoroutineContext *_pThis
-			, FExceptionTransformer &&_fTransformer
-		)
+	CFutureCoroutineContext::CCaptureExceptionWithTransformerScope::CCaptureExceptionWithTransformerScope(CFutureCoroutineContext *_pThis, FExceptionTransformer &&_fTransformer)
 		: mp_pThis(_pThis)
 		, mp_fTransformer(fg_Move(_fTransformer))
 		, mp_OriginalExceptions(NException::fg_UncaughtExceptions())
@@ -174,16 +170,16 @@ namespace NMib::NConcurrency
 		DMibSafeCheck(fg_Exchange(mp_bAwaited, true), "You forgot to co_await the on resume");
 		// Correct usage:
 		/*
-			auto OnResume = co_await fg_OnResume
-				(
-					[&]() -> CExceptionPointer
-					{
-						if (f_IsDestroyed())
-							return DMibErrorInstance("Shutting down");
-						return {};
-					}
-				)
-			;
+		auto OnResume = co_await fg_OnResume
+			(
+				[&]() -> CExceptionPointer
+				{
+					if (f_IsDestroyed())
+						return DMibErrorInstance("Shutting down");
+					return {};
+				}
+			)
+		;
 		*/
 	}
 
@@ -418,12 +414,7 @@ namespace NMib::NConcurrency
 			if (pPromiseData->m_BeforeSuspend.m_bAllocatedInCoroutineContext)
 			{
 				// Store end in coroutine pointer
-				pPromiseData->m_Coroutine = std::coroutine_handle<CFutureCoroutineContext>::from_address
-					(
-						(uint8 *)_pMemory
-						+ fg_AlignUp(_Size, umint(_Alignment))
-					)
-				;
+				pPromiseData->m_Coroutine = std::coroutine_handle<CFutureCoroutineContext>::from_address((uint8 *)_pMemory + fg_AlignUp(_Size, umint(_Alignment)));
 
 				return; // Will be deallocated when the promise is deleted
 			}
@@ -459,7 +450,7 @@ namespace NMib::NConcurrency
 
 	void COnResumeException::f_ApplyValue(NPrivate::CPromiseDataBase *)
 	{
-		DMibFastCheck(false);  // Should never be called - this type only holds exceptions
+		DMibFastCheck(false); // Should never be called - this type only holds exceptions
 	}
 
 	TCOnResumeResult<void>::TCOnResumeResult(TCAsyncResult<void> &&_Result)
@@ -470,7 +461,7 @@ namespace NMib::NConcurrency
 	NException::CExceptionPointer TCOnResumeResult<void>::f_TryGetException() &&
 	{
 		if (m_Result)
-			return {};  // Has value, not exception
+			return {}; // Has value, not exception
 
 		return fg_Move(m_Result).f_GetException();
 	}
@@ -543,7 +534,7 @@ namespace NMib::NConcurrency::NPrivate
 
 	inline_always_lto CAsyncResult &CPromiseDataBase::f_GetAsyncResult()
 	{
-		constexpr static umint gc_DefaultAlignment = fg_GetHighestBitSet(sizeof(void *));
+		static constexpr umint gc_DefaultAlignment = fg_GetHighestBitSet(sizeof(void *));
 		uint8 *pNextClass = (uint8 *)(void *)(this + 1) + sizeof(TCFutureOnResult<void>);
 		uint8 *pAlignedStart = fg_AlignUp(pNextClass, umint(1) << (m_BeforeSuspend.m_OverAlignment + gc_DefaultAlignment));
 

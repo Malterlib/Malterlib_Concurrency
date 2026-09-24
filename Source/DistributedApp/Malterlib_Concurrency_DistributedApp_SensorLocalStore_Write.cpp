@@ -55,7 +55,6 @@ namespace NMib::NConcurrency
 
 									pThis->f_Subscription_SensorInfoChanged(Sensor, &Value);
 								}
-
 							}
 						}
 
@@ -186,11 +185,7 @@ namespace NMib::NConcurrency
 		co_return nRemoved;
 	}
 
-	TCFuture<uint32> CDistributedAppSensorStoreLocal::f_SnoozeSensors
-		(
-			NContainer::TCSet<CDistributedAppSensorReporter::CSensorInfoKey> _SensorInfoKeys
-			, NTime::CTimeSpan _SnoozeDuration
-		)
+	TCFuture<uint32> CDistributedAppSensorStoreLocal::f_SnoozeSensors(NContainer::TCSet<CDistributedAppSensorReporter::CSensorInfoKey> _SensorInfoKeys, NTime::CTimeSpan _SnoozeDuration)
 	{
 		auto &Internal = *mp_pInternal;
 
@@ -265,7 +260,9 @@ namespace NMib::NConcurrency
 
 					auto SizeStats = WriteTransaction.m_Transaction.f_SizeStatistics();
 					smint BatchLimit = fg_Min(SizeStats.m_MapSize / (20 * 3), 4 * 1024 * 1024);
-					auto SizeLimit = smint(SizeStats.m_MapSize) - fg_Min(fg_Max(smint(SizeStats.m_MapSize) / 20, BatchLimit * 3, 32 * smint(SizeStats.m_PageSize)), smint(SizeStats.m_MapSize) / 3);
+					auto SizeLimit
+						= smint(SizeStats.m_MapSize) - fg_Min(fg_Max(smint(SizeStats.m_MapSize) / 20, BatchLimit * 3, 32 * smint(SizeStats.m_PageSize)), smint(SizeStats.m_MapSize) / 3)
+					;
 					smint nBytesLimit = smint(SizeLimit) - smint(SizeStats.m_UsedBytes);
 
 					CKnownHostKey KnownHostKey{.m_DbPrefix = Prefix, .m_HostID = HostID};
@@ -387,11 +384,7 @@ namespace NMib::NConcurrency
 		co_return {};
 	}
 
-	auto CDistributedAppSensorStoreLocal::CInternal::f_GetReportReadingsFunctor
-		(
-			CDistributedAppSensorReporter::CSensorInfoKey _SensorInfoKey
-			, CSensorReadingKey _DatabaseKey
-		)
+	auto CDistributedAppSensorStoreLocal::CInternal::f_GetReportReadingsFunctor(CDistributedAppSensorReporter::CSensorInfoKey _SensorInfoKey, CSensorReadingKey _DatabaseKey)
 		-> TCActorFunctorWithID<TCFuture<void> (NContainer::TCVector<CDistributedAppSensorReporter::CSensorReading> _Readings)>
 	{
 		return g_ActorFunctor
@@ -401,8 +394,7 @@ namespace NMib::NConcurrency
 					co_return co_await f_CleanupSensorReporter(_SensorInfoKey);
 				}
 			)
-			/ [this, _SensorInfoKey, _DatabaseKey, AllowDestroy = g_AllowWrongThreadDestroy]
-			(TCVector<CDistributedAppSensorReporter::CSensorReading> _Readings) mutable -> TCFuture<void>
+			/ [this, _SensorInfoKey, _DatabaseKey, AllowDestroy = g_AllowWrongThreadDestroy](TCVector<CDistributedAppSensorReporter::CSensorReading> _Readings) mutable -> TCFuture<void>
 			{
 				auto *pSensor = m_Sensors.f_FindEqual(_SensorInfoKey);
 				if (!pSensor)
@@ -438,11 +430,7 @@ namespace NMib::NConcurrency
 
 				auto pFrozenReadings = pReadings.f_ShareAsConst();
 
-				auto [DatabaseResult, UpstreamResult] = co_await
-					(
-						f_StoreSensorReadings(_SensorInfoKey, _DatabaseKey, pFrozenReadings)
-						+ f_NewSensorReadings(_SensorInfoKey, pFrozenReadings)
-					)
+				auto [DatabaseResult, UpstreamResult] = co_await (f_StoreSensorReadings(_SensorInfoKey, _DatabaseKey, pFrozenReadings) + f_NewSensorReadings(_SensorInfoKey, pFrozenReadings))
 					.f_Wrap()
 				;
 
@@ -464,8 +452,7 @@ namespace NMib::NConcurrency
 		;
 	}
 
-	auto CDistributedAppSensorStoreLocal::f_OpenSensorReporter(CDistributedAppSensorReporter::CSensorInfo _SensorInfo)
-		-> TCFuture<CDistributedAppSensorReporter::CSensorReporter>
+	auto CDistributedAppSensorStoreLocal::f_OpenSensorReporter(CDistributedAppSensorReporter::CSensorInfo _SensorInfo) -> TCFuture<CDistributedAppSensorReporter::CSensorReporter>
 	{
 		auto &Internal = *mp_pInternal;
 

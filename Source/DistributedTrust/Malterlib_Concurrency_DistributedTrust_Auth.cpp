@@ -18,10 +18,8 @@ namespace NMib::NConcurrency
 		DMibPublishActorFunction(ICDistributedActorAuthentication::f_AuthenticatePermissionPattern);
 	}
 
-	TCFuture<TCActorSubscriptionWithID<>> CDistributedActorTrustManager::CInternal::CDistributedActorAuthenticationImplementation::f_RegisterAuthenticationHandler
-		(
-			CRegisterAuthenticationHandlerParams _Params
-		)
+	auto CDistributedActorTrustManager::CInternal::CDistributedActorAuthenticationImplementation::f_RegisterAuthenticationHandler(CRegisterAuthenticationHandlerParams _Params)
+		-> TCFuture<TCActorSubscriptionWithID<>>
 	{
 		if (!_Params.m_Handler)
 			co_return DMibErrorInstance("Invalid authentication handler");
@@ -69,14 +67,7 @@ namespace NMib::NConcurrency
 				auto CheckDestroy = co_await pThis->f_CheckDestroyedOnResume();
 
 				auto &Internal = *pThis->mp_pInternal;
-				co_return co_await Internal.m_ActorDistributionManager
-					(
-						&CActorDistributionManager::f_RemoveAuthenticationHandler
-						, fg_Move(pHost)
-						, LastExecutionID
-						, HandlerID
-					)
-				;
+				co_return co_await Internal.m_ActorDistributionManager(&CActorDistributionManager::f_RemoveAuthenticationHandler, fg_Move(pHost), LastExecutionID, HandlerID);
 			}
 		;
 	}
@@ -159,7 +150,7 @@ namespace NMib::NConcurrency
 						, Info
 						, "Verify authentication response failed for user '{}': Factor of type '{}' not supported"
 						, _Challenge.m_UserID
-						,  pRegisteredFactor->m_AuthenticationFactor.m_Name
+						, pRegisteredFactor->m_AuthenticationFactor.m_Name
 					)
 				;
 				fAddFalseResult();

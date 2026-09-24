@@ -268,13 +268,7 @@ namespace NMib::NConcurrency::NUnwrap
 			DMibFastCheck(!mp_Result);
 
 			NStorage::TCUniquePointer<COnResumeException> pResult = fg_Construct(fg_TransformException(fg_Move(mp_Result).f_GetException(), mp_fExceptionTransform));
-			CoroutineContext.f_HandleAwaitedResult
-				(
-					fg_ConcurrencyThreadLocal()
-					, &tf_CCoroutineContext::fs_KeepaliveSetResultFunctor
-					, fg_Move(pResult)
-				)
-			;
+			CoroutineContext.f_HandleAwaitedResult(fg_ConcurrencyThreadLocal(), &tf_CCoroutineContext::fs_KeepaliveSetResultFunctor, fg_Move(pResult));
 			return true;
 		}
 
@@ -288,7 +282,7 @@ namespace NMib::NConcurrency::NUnwrap
 		DMibNoUniqueAddress t_FExceptionTransform mp_fExceptionTransform;
 	};
 
-	inline_always CUnwrapHelper::operator CUnwrapHelperWithTransformer const &()
+	inline_always CUnwrapHelper::operator CUnwrapHelperWithTransformer const & ()
 	{
 		return CUnwrapHelperWithTransformer::ms_EmptyTransformer;
 	}
@@ -333,26 +327,21 @@ namespace NMib::NConcurrency::NUnwrap
 namespace NMib::NConcurrency
 {
 	template <typename t_CReturnType>
-	auto operator co_await(TCAsyncResult<t_CReturnType> &&_Result)
+	auto operator co_await (TCAsyncResult<t_CReturnType> &&_Result)
 	{
 		return NUnwrap::TCUnwrapAwaiter<TCAsyncResult<t_CReturnType>>(fg_Move(_Result));
 	}
 
 	template <typename t_CReturnType>
-	auto operator co_await(TCWrapped<t_CReturnType> &&_Result)
+	auto operator co_await (TCWrapped<t_CReturnType> &&_Result)
 	{
-		return operator co_await(static_cast<TCAsyncResult<t_CReturnType> &&>(_Result));
+		return operator co_await (static_cast<TCAsyncResult<t_CReturnType> &&>(_Result));
 	}
 
 	template <typename t_CReturnType, typename tf_CTransformerParam>
 	auto operator % (TCAsyncResult<t_CReturnType> &&_Result, tf_CTransformerParam &&_Param)
 	{
-		return NUnwrap::TCUnwrapAwaiter<TCAsyncResult<t_CReturnType>, FExceptionTransformer>
-			(
-				fg_Move(_Result)
-				, fg_ExceptionTransformer(nullptr, fg_Forward<tf_CTransformerParam>(_Param))
-			)
-		;
+		return NUnwrap::TCUnwrapAwaiter<TCAsyncResult<t_CReturnType>, FExceptionTransformer>(fg_Move(_Result), fg_ExceptionTransformer(nullptr, fg_Forward<tf_CTransformerParam>(_Param)));
 	}
 
 	template <typename t_CReturnType, typename tf_CTransformerParam>

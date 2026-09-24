@@ -8,11 +8,7 @@
 
 namespace NMib::NConcurrency
 {
-	FExceptionTransformer fg_ExceptionTransformer
-		(
-			FExceptionTransformer &&_fPreviousTransformer
-			, NStr::CStr &&_Message
-		)
+	FExceptionTransformer fg_ExceptionTransformer(FExceptionTransformer &&_fPreviousTransformer, NStr::CStr &&_Message)
 	{
 		if (!_fPreviousTransformer)
 		{
@@ -21,11 +17,7 @@ namespace NMib::NConcurrency
 					if (NException::fg_ExceptionIsOfType<NException::CExceptionBase>(_pException))
 					{
 						auto ExceptionString = NException::fg_ExceptionString(_pException);
-						return NException::fg_MakeException
-							(
-								DMibErrorInstanceWrapped(NStr::fg_Format("{}: {}", Message, ExceptionString), fg_Move(_pException), false)
-							)
-						;
+						return NException::fg_MakeException(DMibErrorInstanceWrapped(NStr::fg_Format("{}: {}", Message, ExceptionString), fg_Move(_pException), false));
 					}
 					return fg_Move(_pException);
 				}
@@ -42,11 +34,7 @@ namespace NMib::NConcurrency
 					if (NException::fg_ExceptionIsOfType<NException::CExceptionBase>(pException))
 					{
 						auto ExceptionString = NException::fg_ExceptionString(pException);
-						return NException::fg_MakeException
-							(
-								DMibErrorInstanceWrapped(NStr::fg_Format("{}: {}", Message, ExceptionString), fg_Move(pException), false)
-							)
-						;
+						return NException::fg_MakeException(DMibErrorInstanceWrapped(NStr::fg_Format("{}: {}", Message, ExceptionString), fg_Move(pException), false));
 					}
 					return fg_Move(pException);
 				}
@@ -54,11 +42,7 @@ namespace NMib::NConcurrency
 		}
 	}
 
-	FExceptionTransformer fg_ExceptionTransformer
-		(
-			FExceptionTransformer &&_fPreviousTransformer
-			, NStr::CStr const &_Message
-		)
+	FExceptionTransformer fg_ExceptionTransformer(FExceptionTransformer &&_fPreviousTransformer, NStr::CStr const &_Message)
 	{
 		return fg_ExceptionTransformer(fg_Move(_fPreviousTransformer), fg_TempCopy(_Message));
 	}

@@ -13,16 +13,10 @@ namespace NMib::NConcurrency
 	class TCActorCallOnce
 	{
 	public:
-		TCActorCallOnce
-			(
-				TCActorFunctor<TCFuture<t_CResult> (tp_CParams...)> &&_fFunction
-				, bool _bSupportRetry
-				, NStr::CStr const &_ErrorOnRunning = NStr::CStr()
-			)
-		;
+		TCActorCallOnce(TCActorFunctor<TCFuture<t_CResult> (tp_CParams...)> &&_fFunction, bool _bSupportRetry, NStr::CStr const &_ErrorOnRunning = NStr::CStr());
 		~TCActorCallOnce();
 
-		TCFuture<t_CResult> operator()(tp_CParams ...p_Params);
+		TCFuture<t_CResult> operator () (tp_CParams ...p_Params);
 
 		TCFuture<void> f_Destroy();
 
@@ -31,13 +25,7 @@ namespace NMib::NConcurrency
 		{
 			using CActorHolder = CDelegatedActorHolder;
 
-			CCallState
-				(
-					TCActorFunctor<TCFuture<t_CResult> (tp_CParams...)> &&_fToPerform
-					, NStr::CStr const &_ErrorOnRunning
-					, bool _bSupportRetry
-				)
-			;
+			CCallState(TCActorFunctor<TCFuture<t_CResult> (tp_CParams...)> &&_fToPerform, NStr::CStr const &_ErrorOnRunning, bool _bSupportRetry);
 			TCFuture<t_CResult> f_Call(NTraits::TCDecay<tp_CParams> ...p_Params);
 
 			TCActorFunctor<TCFuture<t_CResult> (tp_CParams...)> m_fToPerform;

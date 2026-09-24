@@ -30,16 +30,7 @@ namespace NMib::NConcurrency
 		auto DistributionManager = State.m_DistributionManager.f_Lock();
 		DMibCheck(DistributionManager); // Should be called from place where distribution manager is referenced
 		if (DistributionManager)
-		{
-			DistributionManager.f_Bind<&CActorDistributionManager::fp_RegisterRemoteSubscription>
-				(
-					f_GetStatePtr()
-					, SubscriptionID
-					, _SubscriptionSequenceID
-				)
-				.f_DiscardResult()
-			;
-		}
+			DistributionManager.f_Bind<&CActorDistributionManager::fp_RegisterRemoteSubscription>(f_GetStatePtr(), SubscriptionID, _SubscriptionSequenceID).f_DiscardResult();
 
 		_Subscription = fg_Move(pSubscription);
 	}

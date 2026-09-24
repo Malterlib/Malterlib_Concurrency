@@ -18,7 +18,8 @@ namespace NMib::NConcurrency
 				NConcurrency::TCDistributedActorInterfaceWithID<CDistributedAppInterfaceBackup> _BackupInterface
 				, NConcurrency::CActorSubscription _ManifestFinished
 				, NStr::CStr _BackupRoot
-			) override
+			)
+			override
 		;
 
 		DMibDelegatedActorImplementation(CDistributedAppActor);

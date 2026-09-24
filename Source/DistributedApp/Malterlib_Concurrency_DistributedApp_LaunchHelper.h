@@ -33,13 +33,8 @@ namespace NMib::NConcurrency
 #if DMibConfig_Tests_Enable
 		TCFuture<NEncoding::CEJsonSorted> f_Test_Command(NStr::CStr &&_Command, NEncoding::CEJsonSorted &&_Params);
 
-		TCFuture<uint32> f_RunCommandLine
-			(
-				CCallingHostInfo &&_CallingHost
-				, NStr::CStr &&_Command
-				, NEncoding::CEJsonSorted &&_Params
-				, NStorage::TCSharedPointer<CCommandLineControl> &&_pCommandLine
-			)
+		auto f_RunCommandLine(CCallingHostInfo &&_CallingHost, NStr::CStr &&_Command, NEncoding::CEJsonSorted &&_Params, NStorage::TCSharedPointer<CCommandLineControl> &&_pCommandLine)
+			-> TCFuture<uint32>
 		;
 #endif
 
@@ -78,7 +73,8 @@ namespace NMib::NConcurrency
 					TCDistributedActorInterfaceWithID<CDistributedAppInterfaceClient> _ClientInterface
 					, TCDistributedActorInterfaceWithID<CDistributedActorTrustManagerInterface> _TrustInterface
 					, CRegisterInfo _RegisterInfo
-				) override
+				)
+				override
 			;
 			TCFuture<TCActorSubscriptionWithID<>> f_RegisterConfigFiles(CConfigFiles _ConfigFiles) override;
 
@@ -111,13 +107,8 @@ namespace NMib::NConcurrency
 		TCFuture<CDistributedApp_LaunchInfo> f_Launch(NStr::CStr _Description, NStr::CStr _Executable);
 		TCFuture<CDistributedApp_LaunchInfo> f_LaunchWithLaunch(NStr::CStr _Description, NProcess::CProcessLaunchActor::CLaunch _Launch, TCActor<CActor> _NotificationActor);
 
-		TCFuture<CDistributedApp_LaunchInfo> f_LaunchWithParams
-			(
-				NStr::CStr _Description
-				, NStr::CStr _Executable
-				, NContainer::TCVector<NStr::CStr> _ExtraParams
-				, CSystemEnvironment _Environment
-			)
+		auto f_LaunchWithParams(NStr::CStr _Description, NStr::CStr _Executable, NContainer::TCVector<NStr::CStr> _ExtraParams, CSystemEnvironment _Environment)
+			-> TCFuture<CDistributedApp_LaunchInfo>
 		;
 		TCFuture<CDistributedApp_LaunchInfo> f_LaunchInProcess
 			(

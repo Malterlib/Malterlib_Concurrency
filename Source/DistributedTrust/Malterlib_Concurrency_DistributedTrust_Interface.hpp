@@ -39,7 +39,6 @@ namespace NMib::NConcurrency
 	inline CDistributedActorTrustManagerInterface::CLocalCallingHostInfo::CLocalCallingHostInfo(CCallingHostInfo &&_Other)
 		: CCallingHostInfo(fg_Move(_Other))
 	{
-
 	}
 
 	inline CDistributedActorTrustManagerInterface::CLocalCallingHostInfo::CLocalCallingHostInfo(CCallingHostInfo const &_Other)
@@ -50,7 +49,6 @@ namespace NMib::NConcurrency
 	inline CDistributedActorTrustManagerInterface::CLocalAuthenticationData::CLocalAuthenticationData(CAuthenticationData &&_Other)
 		: CAuthenticationData(fg_Move(_Other))
 	{
-
 	}
 
 	inline CDistributedActorTrustManagerInterface::CLocalAuthenticationData::CLocalAuthenticationData(CAuthenticationData const &_Other)

@@ -106,13 +106,7 @@ namespace NMib::NConcurrency
 						ICDistributedActorTrustManagerDatabase::CServerCertificate ServerCert;
 						try
 						{
-							NCryptography::CCertificate::fs_GenerateClientCertificateRequest
-								(
-									Options
-									, CertificateRequest
-									, ServerCert.m_PrivateKey
-								)
-							;
+							NCryptography::CCertificate::fs_GenerateClientCertificateRequest(Options, CertificateRequest, ServerCert.m_PrivateKey);
 						}
 						catch (NException::CException const &_Exception)
 						{
@@ -123,7 +117,7 @@ namespace NMib::NConcurrency
 						{
 							NCryptography::CCertificateSignOptions SignOptions;
 							SignOptions.m_Serial = Serial;
-							SignOptions.m_Days = 10*365;
+							SignOptions.m_Days = 10 * 365;
 
 							SignOptions.m_OverrideSubjectCommonName = fg_Format("Malterlib Distributed Actors Listen - {}", Host).f_Left(64);
 
@@ -136,15 +130,7 @@ namespace NMib::NConcurrency
 							SignOptions.m_AllowedRequestExtensions.f_Insert("1.3.6.1.4.1.47722.1.1");
 							SignOptions.m_AllowedRequestExtensions.f_Insert("2.5.29.17");
 
-							NCryptography::CCertificate::fs_SignClientCertificate
-								(
-									CaCertificate
-									, CaPrivateKey
-									, CertificateRequest
-									, ServerCert.m_PublicCertificate
-									, SignOptions
-								)
-							;
+							NCryptography::CCertificate::fs_SignClientCertificate(CaCertificate, CaPrivateKey, CertificateRequest, ServerCert.m_PublicCertificate, SignOptions);
 						}
 						catch (NException::CException const &_Exception)
 						{
@@ -196,9 +182,9 @@ namespace NMib::NConcurrency
 
 		auto ConfigAddResult = co_await
 			(
-				Internal.m_Database.f_Bind<&ICDistributedActorTrustManagerDatabase::f_AddListenConfig>(_Address, ListenConfig)
-				% "Failed to save new listen config to database"
-			).f_Wrap()
+				Internal.m_Database.f_Bind<&ICDistributedActorTrustManagerDatabase::f_AddListenConfig>(_Address, ListenConfig) % "Failed to save new listen config to database"
+			)
+			.f_Wrap()
 		;
 
 		if (!ConfigAddResult)
@@ -353,11 +339,7 @@ namespace NMib::NConcurrency
 		co_return {};
 	}
 
-	TCFuture<NStr::CStr> CDistributedActorTrustManager::CInternal::f_ValidateClientAccess
-		(
-			NStr::CStr _HostID
-			, NContainer::TCVector<NContainer::CByteVector> _CertificateChain
-		)
+	TCFuture<NStr::CStr> CDistributedActorTrustManager::CInternal::f_ValidateClientAccess(NStr::CStr _HostID, NContainer::TCVector<NContainer::CByteVector> _CertificateChain)
 	{
 		if (_CertificateChain.f_IsEmpty())
 			co_return DMibErrorInstance("Empty certificate chain");
@@ -374,5 +356,5 @@ namespace NMib::NConcurrency
 }
 
 #ifndef DMibPNoShortCuts
-	using namespace NMib::NConcurrency;
+using namespace NMib::NConcurrency;
 #endif

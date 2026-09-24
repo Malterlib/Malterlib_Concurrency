@@ -73,12 +73,8 @@ namespace NMib::NConcurrency
 		co_return {};
 	}
 
-	TCFuture<CActorSubscription> CDistributedAppActor::fp_StartBackup
-		(
-			TCDistributedActorInterface<CDistributedAppInterfaceBackup> _BackupInterface
-			, CActorSubscription _ManifestFinished
-			, CStr _BackupRoot
-		)
+	auto CDistributedAppActor::fp_StartBackup(TCDistributedActorInterface<CDistributedAppInterfaceBackup> _BackupInterface, CActorSubscription _ManifestFinished, CStr _BackupRoot)
+		-> TCFuture<CActorSubscription>
 	{
 		co_return {};
 	}
@@ -251,7 +247,12 @@ namespace NMib::NConcurrency
 					if (_NewActor->f_InterfaceVersion() >= CDistributedAppInterfaceServer::EProtocolVersion_SupportConfigFiles)
 						RegisterConfigFilesFuture = _NewActor.f_CallActor(&CDistributedAppInterfaceServer::f_RegisterConfigFiles)(ConfigFiles);
 					else
-						RegisterConfigFilesFuture = g_ActorSubscription / []{};
+					{
+						RegisterConfigFilesFuture = g_ActorSubscription / []
+							{
+							}
+						;
+					}
 
 					auto [Subscription, RegisterConfigSubscription] = co_await
 						(
@@ -263,18 +264,9 @@ namespace NMib::NConcurrency
 					if (!Subscription)
 					{
 						auto ErrorStr = Subscription.f_GetExceptionStr();
-						DMibLogWithCategory
-							(
-								Mib/Concurrency/App
-								, Error
-								, "Register with app interface server {} failed: {}"
-								, _ActorInfo.m_HostInfo.f_GetDesc()
-								, ErrorStr
-							)
-						;
+						DMibLogWithCategory(Mib/Concurrency/App, Error, "Register with app interface server {} failed: {}", _ActorInfo.m_HostInfo.f_GetDesc(), ErrorStr);
 						co_return {};
 					}
-
 
 					DMibLogWithCategory(Mib/Concurrency/App, Info, "Successfully registered with {}", _ActorInfo.m_HostInfo.f_GetDesc());
 
@@ -287,15 +279,7 @@ namespace NMib::NConcurrency
 					else
 					{
 						auto ErrorStr = RegisterConfigSubscription.f_GetExceptionStr();
-						DMibLogWithCategory
-							(
-								Mib/Concurrency/App
-								, Error
-								, "Register config files with app interface server {} failed: {}"
-								, _ActorInfo.m_HostInfo.f_GetDesc()
-								, ErrorStr
-							)
-						;
+						DMibLogWithCategory(Mib/Concurrency/App, Error, "Register config files with app interface server {} failed: {}", _ActorInfo.m_HostInfo.f_GetDesc(), ErrorStr);
 					}
 
 					TCFutureVector<void> OnChangeResults;
@@ -354,14 +338,7 @@ namespace NMib::NConcurrency
 		pState->m_StdInSubscription = co_await pState->m_StdInActor
 			(
 				&CStdInActor::f_RegisterForInput
-				, g_ActorFunctor /
-				[
-					=
-					, Promise = fg_Move(Promise.m_Promise)
-					, this
-					, Buffer = CStrIO{}
-					, RequestMagicPrefix = _RequestMagic + ":"
-				]
+				, g_ActorFunctor / [=, Promise = fg_Move(Promise.m_Promise), this, Buffer = CStrIO{}, RequestMagicPrefix = _RequestMagic + ":"]
 				(EStdInReaderOutputType _Type, NStr::CStrIO _Input) mutable -> TCFuture<void>
 				{
 					auto &Internal = *mp_pInternal;
@@ -407,7 +384,10 @@ namespace NMib::NConcurrency
 		CStr ServerAddress = mp_Settings.m_InterfaceSettings.m_ServerAddress;
 		CStr RequestTicketMagic = mp_Settings.m_InterfaceSettings.m_RequestTicketMagic;
 		auto pRequestTicket = mp_Settings.m_InterfaceSettings.m_pRequestTicket;
-		Internal.m_bDelegateTrustToAppInterface = (mp_Settings.m_InterfaceSettings.m_Options & CDistributedAppActor_InterfaceSettings::EOption_DelegateTrustToAppInterface) != CDistributedAppActor_InterfaceSettings::EOption_None;
+		Internal.m_bDelegateTrustToAppInterface
+			= (mp_Settings.m_InterfaceSettings.m_Options & CDistributedAppActor_InterfaceSettings::EOption_DelegateTrustToAppInterface)
+			!= CDistributedAppActor_InterfaceSettings::EOption_None
+		;
 
 		if (ServerAddress.f_IsEmpty() || (RequestTicketMagic.f_IsEmpty() && pRequestTicket.f_IsEmpty()))
 			co_return co_await fp_SubscribeAppServerInterface(_Params);
@@ -418,11 +398,7 @@ namespace NMib::NConcurrency
 
 		auto [bHasCurrent, bHasExpected] = co_await
 			(
-				mp_State.m_TrustManager
-				(
-					&CDistributedActorTrustManager::f_HasClientConnection
-					, CURL(CurrentServerAddress.f_IsEmpty() ? ServerAddress: CurrentServerAddress)
-				)
+				mp_State.m_TrustManager(&CDistributedActorTrustManager::f_HasClientConnection, CURL(CurrentServerAddress.f_IsEmpty() ? ServerAddress : CurrentServerAddress))
 				+ mp_State.m_TrustManager(&CDistributedActorTrustManager::f_HasClientConnection, CURL(ServerAddress))
 			)
 		;

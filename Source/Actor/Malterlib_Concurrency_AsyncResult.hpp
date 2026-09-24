@@ -55,7 +55,7 @@ namespace NMib::NConcurrency
 	}
 
 	template <typename t_CType>
-	auto TCAsyncResult<t_CType>::operator =(TCAsyncResult &&_Other) -> TCAsyncResult &
+	auto TCAsyncResult<t_CType>::operator = (TCAsyncResult &&_Other) -> TCAsyncResult &
 	{
 		if (mp_Data.f_DataType() == EDataType_HasBeenSet)
 			m_ResultAggregate.f_Destruct();
@@ -113,25 +113,27 @@ namespace NMib::NConcurrency
 	}
 
 	template <typename t_CType>
-	mark_nodebug inline_always t_CType const &TCAsyncResult<t_CType>::operator *() const
+	mark_nodebug inline_always t_CType const &TCAsyncResult<t_CType>::operator * () const
 	{
-		return f_Get();;
-	}
-	template <typename t_CType>
-	mark_nodebug inline_always t_CType &TCAsyncResult<t_CType>::operator *()
-	{
-		return f_Get();;
+		return f_Get();
 	}
 
 	template <typename t_CType>
-	mark_nodebug inline_always t_CType const *TCAsyncResult<t_CType>::operator ->() const
+	mark_nodebug inline_always t_CType &TCAsyncResult<t_CType>::operator * ()
 	{
-		return &f_Get();;
+		return f_Get();
 	}
+
 	template <typename t_CType>
-	mark_nodebug inline_always t_CType *TCAsyncResult<t_CType>::operator ->()
+	mark_nodebug inline_always t_CType const *TCAsyncResult<t_CType>::operator -> () const
 	{
-		return &f_Get();;
+		return &f_Get();
+	}
+
+	template <typename t_CType>
+	mark_nodebug inline_always t_CType *TCAsyncResult<t_CType>::operator -> ()
+	{
+		return &f_Get();
 	}
 
 	template <typename t_CType>
@@ -165,11 +167,7 @@ namespace NMib::NConcurrency
 	template <typename t_CType>
 	template <typename tf_CAsyncResultType>
 	TCWrapped<t_CType>::TCWrapped(TCAsyncResult<tf_CAsyncResultType> const &_Other)
-		requires
-		(
-			!NTraits::cIsSame<t_CType, tf_CAsyncResultType>
-			&& NTraits::cIsConvertible<tf_CAsyncResultType const &, t_CType>
-		)
+		requires (!NTraits::cIsSame<t_CType, tf_CAsyncResultType> && NTraits::cIsConvertible<tf_CAsyncResultType const &, t_CType>)
 	{
 		if (_Other)
 			this->f_SetResult(*_Other);
@@ -180,11 +178,7 @@ namespace NMib::NConcurrency
 	template <typename t_CType>
 	template <typename tf_CAsyncResultType>
 	TCWrapped<t_CType>::TCWrapped(TCAsyncResult<tf_CAsyncResultType> &&_Other)
-		requires
-		(
-			!NTraits::cIsSame<t_CType, tf_CAsyncResultType>
-			&& NTraits::cIsConvertible<tf_CAsyncResultType &&, t_CType>
-		)
+		requires (!NTraits::cIsSame<t_CType, tf_CAsyncResultType> && NTraits::cIsConvertible<tf_CAsyncResultType &&, t_CType>)
 	{
 		if (_Other)
 			this->f_SetResult(fg_Move(*_Other));
@@ -195,11 +189,7 @@ namespace NMib::NConcurrency
 	template <typename t_CType>
 	template <typename tf_CWrappedType>
 	TCWrapped<t_CType>::TCWrapped(TCWrapped<tf_CWrappedType> const &_Other)
-		requires
-		(
-			!NTraits::cIsSame<t_CType, tf_CWrappedType>
-			&& NTraits::cIsConvertible<tf_CWrappedType const &, t_CType>
-		)
+		requires (!NTraits::cIsSame<t_CType, tf_CWrappedType> && NTraits::cIsConvertible<tf_CWrappedType const &, t_CType>)
 	{
 		if (_Other)
 			this->f_SetResult(*_Other);
@@ -210,11 +200,7 @@ namespace NMib::NConcurrency
 	template <typename t_CType>
 	template <typename tf_CWrappedType>
 	TCWrapped<t_CType>::TCWrapped(TCWrapped<tf_CWrappedType> &&_Other)
-		requires
-		(
-			!NTraits::cIsSame<t_CType, tf_CWrappedType>
-			&& NTraits::cIsConvertible<tf_CWrappedType &&, t_CType>
-		)
+		requires (!NTraits::cIsSame<t_CType, tf_CWrappedType> && NTraits::cIsConvertible<tf_CWrappedType &&, t_CType>)
 	{
 		if (_Other)
 			this->f_SetResult(fg_Move(*_Other));
@@ -225,7 +211,7 @@ namespace NMib::NConcurrency
 	template <typename t_CType>
 	template <typename tf_CException>
 	TCWrapped<t_CType>::TCWrapped(tf_CException &&_Exception)
-		requires(NException::cIsException<NTraits::TCRemoveReferenceAndQualifiers<tf_CException>>)
+		requires (NException::cIsException<NTraits::TCRemoveReferenceAndQualifiers<tf_CException>>)
 	{
 		this->f_SetException(fg_Forward<tf_CException>(_Exception));
 	}
@@ -244,7 +230,7 @@ namespace NMib::NConcurrency
 
 	template <typename tf_CException>
 	TCWrapped<void>::TCWrapped(tf_CException &&_Exception)
-		requires(NException::cIsException<NTraits::TCRemoveReferenceAndQualifiers<tf_CException>>)
+		requires (NException::cIsException<NTraits::TCRemoveReferenceAndQualifiers<tf_CException>>)
 	{
 		f_SetException(fg_Forward<tf_CException>(_Exception));
 	}

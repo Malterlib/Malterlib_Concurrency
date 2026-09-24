@@ -155,15 +155,7 @@ namespace NMib::NConcurrency
 			{
 				if (!_Ticket)
 				{
-					DMibLogWithCategory
-						(
-							Malterlib/Concurrency
-							, Error
-							, "Failed to generate ticket for '{}': {}"
-							, mp_Description
-							, _Ticket.f_GetExceptionStr()
-						)
-					;
+					DMibLogWithCategory(Malterlib/Concurrency, Error, "Failed to generate ticket for '{}': {}", mp_Description, _Ticket.f_GetExceptionStr());
 					return;
 				}
 				auto &Request = mp_HandleRequests[HandleRequestID];

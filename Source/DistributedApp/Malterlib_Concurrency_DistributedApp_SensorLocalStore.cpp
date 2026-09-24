@@ -44,7 +44,7 @@ namespace NMib::NConcurrency
 				Sensor.m_SensorReporters.f_Clear();
 			}
 
-			co_await fg_AllDone(Destroys).f_Wrap() > LogError.f_Warning("Failed destroy local sensor reporters remote");;
+			co_await fg_AllDone(Destroys).f_Wrap() > LogError.f_Warning("Failed destroy local sensor reporters remote");
 		}
 
 		co_return {};
@@ -81,11 +81,11 @@ namespace NMib::NConcurrency
 
 			Internal.m_SensorsInterfaceSubscription.f_Destroy() > Destroys;
 
-			co_await fg_AllDone(Destroys).f_Wrap() > LogError.f_Warning("Failed destroy local sensor store");;
+			co_await fg_AllDone(Destroys).f_Wrap() > LogError.f_Warning("Failed destroy local sensor store");
 		}
 
 		if (Internal.m_bOwnDatabase)
-			co_await fg_Move(Internal.m_Database).f_Destroy().f_Wrap() > LogError.f_Warning("Failed destroy database");;
+			co_await fg_Move(Internal.m_Database).f_Destroy().f_Wrap() > LogError.f_Warning("Failed destroy database");
 
 		co_return {};
 	}
@@ -340,11 +340,8 @@ namespace NMib::NConcurrency
 		co_return {};
 	}
 
-	TCFuture<CActorSubscription> CDistributedAppSensorStoreLocal::f_AddExtraSensorReporter
-		(
-			TCDistributedActorInterface<CDistributedAppSensorReporter> _SensorReporter
-			, CTrustedActorInfo _TrustInfo
-		)
+	auto CDistributedAppSensorStoreLocal::f_AddExtraSensorReporter(TCDistributedActorInterface<CDistributedAppSensorReporter> _SensorReporter, CTrustedActorInfo _TrustInfo)
+		-> TCFuture<CActorSubscription>
 	{
 		auto OnResume = co_await f_CheckDestroyedOnResume();
 

@@ -10,25 +10,25 @@ namespace NMib::NConcurrency
 {
 	enum EDistributedActorCommand : uint8
 	{
-		EDistributedActorCommand_Identify = 0
-		, EDistributedActorCommand_Acknowledge = 1
-		, EDistributedActorCommand_RemoteCall = 2
-		, EDistributedActorCommand_RemoteCallResult = 3
-		, EDistributedActorCommand_Publish = 4
-		, EDistributedActorCommand_Unpublish = 5
-		, EDistributedActorCommand_DestroySubscription = 6
-		, EDistributedActorCommand_InitialPublishFinished = 7
-		, EDistributedActorCommand_SubscriptionDestroyed = 8
-		, EDistributedActorCommand_NotifyConnectionLost = 9
-		, EDistributedActorCommand_RequestMissingPackets = 10
-		, EDistributedActorCommand_InitialPublishFinishedProcessing = 11
-		, EDistributedActorCommand_PublishFinished = 12
-		, EDistributedActorCommand_UnpublishFinished = 13
-		, EDistributedActorCommand_RemoteCallWithAuthHandler = 14
-		, EDistributedActorCommand_RemoteCallWithPriority = 15
+		EDistributedActorCommand_Identify                               = 0
+		, EDistributedActorCommand_Acknowledge                          = 1
+		, EDistributedActorCommand_RemoteCall                           = 2
+		, EDistributedActorCommand_RemoteCallResult                     = 3
+		, EDistributedActorCommand_Publish                              = 4
+		, EDistributedActorCommand_Unpublish                            = 5
+		, EDistributedActorCommand_DestroySubscription                  = 6
+		, EDistributedActorCommand_InitialPublishFinished               = 7
+		, EDistributedActorCommand_SubscriptionDestroyed                = 8
+		, EDistributedActorCommand_NotifyConnectionLost                 = 9
+		, EDistributedActorCommand_RequestMissingPackets                = 10
+		, EDistributedActorCommand_InitialPublishFinishedProcessing     = 11
+		, EDistributedActorCommand_PublishFinished                      = 12
+		, EDistributedActorCommand_UnpublishFinished                    = 13
+		, EDistributedActorCommand_RemoteCallWithAuthHandler            = 14
+		, EDistributedActorCommand_RemoteCallWithPriority               = 15
 		, EDistributedActorCommand_RemoteCallWithPriorityAndAuthHandler = 16
-		, EDistributedActorCommand_RemoteCallResultWithPriority = 17
-		, EDistributedActorCommand_AcknowledgeWithPriority = 18
+		, EDistributedActorCommand_RemoteCallResultWithPriority         = 17
+		, EDistributedActorCommand_AcknowledgeWithPriority              = 18
 	};
 
 	// Per-priority queue state for protocol messages

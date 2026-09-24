@@ -30,11 +30,11 @@ namespace NMib::NConcurrency
 	{
 		switch (_Category)
 		{
-			case EAuthenticationFactorCategory_Possession: return "Posession";
-			case EAuthenticationFactorCategory_Inherence: return "Inherence";
-			case EAuthenticationFactorCategory_Knowledge: return "Knowledge";
-			case EAuthenticationFactorCategory_None: return "None";
-			default: return "None";
+		case EAuthenticationFactorCategory_Possession: return "Posession";
+		case EAuthenticationFactorCategory_Inherence: return "Inherence";
+		case EAuthenticationFactorCategory_Knowledge: return "Knowledge";
+		case EAuthenticationFactorCategory_None: return "None";
+		default: return "None";
 		}
 	}
 }

@@ -100,13 +100,7 @@ namespace NMib::NConcurrency::NPrivate
 	}
 
 	template <typename tf_CResult>
-	void fg_CopyReplyToAsyncResult
-		(
-			TCAsyncResult<tf_CResult> &_AsyncResult
-			, NStream::CBinaryStorage const &_Data
-			, CDistributedActorStreamContext &_Context
-			, uint32 _Version
-		)
+	void fg_CopyReplyToAsyncResult(TCAsyncResult<tf_CResult> &_AsyncResult, NStream::CBinaryStorage const &_Data, CDistributedActorStreamContext &_Context, uint32 _Version)
 	{
 		CDistributedActorReadStream ReplyStream;
 		ReplyStream.f_OpenRead(_Data);
@@ -128,26 +122,14 @@ namespace NMib::NConcurrency::NPrivate
 	}
 
 	template <>
-	void fg_CopyReplyToAsyncResult
-		(
-			TCAsyncResult<void> &_Promise
-			, NStream::CBinaryStorage const &_Data
-			, CDistributedActorStreamContext &_Context
-			, uint32 _Version
-		)
-	;
+	void fg_CopyReplyToAsyncResult(TCAsyncResult<void> &_Promise, NStream::CBinaryStorage const &_Data, CDistributedActorStreamContext &_Context, uint32 _Version);
 
 	template <typename t_CTypes>
 	struct TCStreamArguments
 	{
 	};
 
-	template
-	<
-		typename t_CType
-		, typename t_CTypeFrom
-		, bool t_bIsSameType = NTraits::cIsSame<NTraits::TCRemoveReference<t_CType>, NTraits::TCRemoveReference<t_CTypeFrom>>
-	>
+	template <typename t_CType, typename t_CTypeFrom, bool t_bIsSameType = NTraits::cIsSame<NTraits::TCRemoveReference<t_CType>, NTraits::TCRemoveReference<t_CTypeFrom>>>
 	struct TCStreamForwardHelper
 	{
 		template <typename tf_CType>
@@ -191,13 +173,7 @@ namespace NMib::NConcurrency::NPrivate
 	struct TCStreamArguments<NMeta::TCTypeList<tp_CParam...>>
 	{
 		template <typename tf_CStream, typename ...tfp_CParam>
-		static auto fs_Stream
-			(
-				tf_CStream &_Stream
-				, CDistributedActorStreamContext &_Context
-				, uint32 _Version
-				, tfp_CParam && ...p_Params
-			)
+		static auto fs_Stream(tf_CStream &_Stream, CDistributedActorStreamContext &_Context, uint32 _Version, tfp_CParam && ...p_Params)
 		{
 			DMibBinaryStreamContext(_Stream, &_Context);
 			DMibBinaryStreamVersion(_Stream, _Version);
@@ -212,7 +188,6 @@ namespace NMib::NConcurrency::NPrivate
 			);
 		}
 	};
-
 }
 
 #include "Malterlib_Concurrency_DistributedActor_Stream_Private_Actor.hpp"

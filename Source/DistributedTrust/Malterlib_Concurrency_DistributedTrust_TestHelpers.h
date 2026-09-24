@@ -85,7 +85,8 @@ namespace NMib::NConcurrency
 				, NStr::CStr const &_SessionID = {}
 				, bool _bSupportAuthentication = true
 				, NCryptography::CPublicKeySetting const &_KeySetting = CDistributedActorTestKeySettings{}
-			) const
+			)
+			const
 		;
 
 		CTrustManagerTestHelper();
@@ -112,22 +113,13 @@ namespace NMib::NConcurrency
 		template <typename tf_CActor>
 		TCFuture<TCDistributedActor<tf_CActor>> f_SubscribeAsync(NStr::CStr _Namespace = tf_CActor::mc_pDefaultNamespace, NStr::CStr _HostID = {});
 		template <typename tf_CActor>
-		NContainer::TCVector<TCDistributedActor<tf_CActor>> f_SubscribeMultiple
-			(
-				CActorRunLoopTestHelper &_RunLoopHelper
-				, umint _nActors
-				, NStr::CStr const &_Namespace = tf_CActor::mc_pDefaultNamespace
-				, NStr::CStr const &_HostID = {}
-			)
+		auto f_SubscribeMultiple(CActorRunLoopTestHelper &_RunLoopHelper, umint _nActors, NStr::CStr const &_Namespace = tf_CActor::mc_pDefaultNamespace, NStr::CStr const &_HostID = {})
+			-> NContainer::TCVector<TCDistributedActor<tf_CActor>>
 		;
 
 		template <typename tf_CActor>
-		TCFuture<NContainer::TCVector<TCDistributedActor<tf_CActor>>> f_SubscribeMultipleAsync
-			(
-				umint _nActors
-				, NStr::CStr _Namespace = tf_CActor::mc_pDefaultNamespace
-				, NStr::CStr _HostID = {}
-			)
+		auto f_SubscribeMultipleAsync(umint _nActors, NStr::CStr _Namespace = tf_CActor::mc_pDefaultNamespace, NStr::CStr _HostID = {})
+			-> TCFuture<NContainer::TCVector<TCDistributedActor<tf_CActor>>>
 		;
 
 	private:

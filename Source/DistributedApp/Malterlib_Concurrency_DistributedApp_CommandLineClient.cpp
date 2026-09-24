@@ -259,12 +259,12 @@ namespace NMib::NConcurrency
 			{
 				auto Result = co_await CU2FHelpers::fs_Register
 					(
-							CU2FHelpers::CU2FRegister
-							{
-								.m_ChallengeDigest = fg_Move(_Register.m_ChallengeDigest)
-								, .m_AppDigest = fg_Move(_Register.m_AppDigest)
-								, .m_Prompt = fg_Move(_Register.m_Prompt)
-							}
+						CU2FHelpers::CU2FRegister
+						{
+							.m_ChallengeDigest = fg_Move(_Register.m_ChallengeDigest)
+							, .m_AppDigest = fg_Move(_Register.m_AppDigest)
+							, .m_Prompt = fg_Move(_Register.m_Prompt)
+						}
 					)
 				;
 
@@ -499,7 +499,8 @@ namespace NMib::NConcurrency
 						co_return {};
 					}
 					, NMib::NFile::CFileChangeNotificationActor::CCoalesceSettings{.m_Delay = 0.0}
-				).f_Wrap()
+				)
+				.f_Wrap()
 			;
 
 			if (!RegisterResult)
@@ -526,11 +527,7 @@ namespace NMib::NConcurrency
 		}
 	}
 
-	uint32 CDistributedAppCommandLineClient::fp_RunCommand
-		(
-			void const *_pCommand
-			, NEncoding::CEJsonSorted &&_Params
-		)
+	uint32 CDistributedAppCommandLineClient::fp_RunCommand(void const *_pCommand, NEncoding::CEJsonSorted &&_Params)
 	{
 		CDistributedAppCommandLineSpecification::CInternal::CCommand const *pCommand = fg_AutoStaticCast(_pCommand);
 		auto &Command = *pCommand;
@@ -602,13 +599,7 @@ namespace NMib::NConcurrency
 			NStorage::TCSharedPointer<CState> pState = fg_Construct();
 			pState->m_pRunLoop = Internal.m_pRunLoop;
 
-			CommandLineActor.f_CallActor(&ICCommandLine::f_RunCommandLine)
-				(
-					 Command.m_Names.f_GetFirst()
-					 , fg_Move(_Params)
-					 , fg_Move(CommandLineControl)
-				)
-				.f_OnResultSet
+			CommandLineActor.f_CallActor(&ICCommandLine::f_RunCommandLine)(Command.m_Names.f_GetFirst(), fg_Move(_Params), fg_Move(CommandLineControl)).f_OnResultSet
 				(
 					[pState](TCAsyncResult<uint32> &&_Result)
 					{
@@ -689,7 +680,7 @@ namespace NMib::NConcurrency
 						Result.f_SetException(DMibErrorInstance("No result"));
 				}
 				else
-					 Result = pState->m_Result;
+					Result = pState->m_Result;
 			}
 
 			fg_Move(pCommandLineControl).f_Destroy().f_CallSync(Internal.m_pRunLoop);
@@ -759,7 +750,7 @@ namespace NMib::NConcurrency
 			CStr RemoteCommandLineHostID;
 			if (auto pValue = _Params.f_GetMember("RemoteCommandLine"); pValue && pValue->f_Boolean())
 			{
-				TrustDatabase = Internal.m_Settings.m_RootDirectory  / ("TrustDatabase.{}"_f << Internal.m_Settings.m_AppName);
+				TrustDatabase = Internal.m_Settings.m_RootDirectory / ("TrustDatabase.{}"_f << Internal.m_Settings.m_AppName);
 
 				if (auto pValue = _Params.f_GetMember("RemoteCommandLineHost"))
 					RemoteCommandLineHostID = pValue->f_String();
@@ -786,7 +777,8 @@ namespace NMib::NConcurrency
 
 							co_return {};
 						}
-					).f_CallSync(Internal.m_pRunLoop, 60.0);
+					)
+					.f_CallSync(Internal.m_pRunLoop, 60.0);
 				}
 			}
 
@@ -857,5 +849,5 @@ namespace NMib::NConcurrency
 	}
 
 	CDistributedAppCommandLineClient::CDistributedAppCommandLineClient(CDistributedAppCommandLineClient &&_Other) = default;
-	CDistributedAppCommandLineClient &CDistributedAppCommandLineClient::operator =(CDistributedAppCommandLineClient &&_Other) = default;
+	CDistributedAppCommandLineClient &CDistributedAppCommandLineClient::operator = (CDistributedAppCommandLineClient &&_Other) = default;
 }

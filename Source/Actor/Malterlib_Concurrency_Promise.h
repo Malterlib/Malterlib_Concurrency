@@ -60,10 +60,10 @@ namespace NMib::NConcurrency
 
 	enum EFutureResultFlag : uint8
 	{
-		EFutureResultFlag_None = 0
-		, EFutureResultFlag_DataSet = DMibBit(0)
+		EFutureResultFlag_None               = 0
+		, EFutureResultFlag_DataSet          = DMibBit(0)
 		, EFutureResultFlag_ResultFunctorSet = DMibBit(1)
-		, EFutureResultFlag_DiscardResult = DMibBit(2)
+		, EFutureResultFlag_DiscardResult    = DMibBit(2)
 	};
 
 	struct CCoroutineOnResumeScope;
@@ -152,7 +152,7 @@ namespace NMib::NConcurrency
 		template <typename ...tfp_CExceptions>
 		CCaptureExceptionsHelperWithTransformer f_Specific() const;
 
-		operator CCaptureExceptionsHelperWithTransformer const &();
+		operator CCaptureExceptionsHelperWithTransformer const & ();
 	};
 
 	struct CCaptureExceptionsHelperWithTransformer
@@ -191,12 +191,7 @@ namespace NMib::NConcurrency
 
 		struct [[nodiscard("You need to capture the scope")]] CCaptureExceptionWithTransformerScope : public CCoroutineThreadLocalHandler
 		{
-			CCaptureExceptionWithTransformerScope
-				(
-					CFutureCoroutineContext *_pThis
-					, FExceptionTransformer &&_fTransformer
-				)
-			;
+			CCaptureExceptionWithTransformerScope(CFutureCoroutineContext *_pThis, FExceptionTransformer &&_fTransformer);
 			CCaptureExceptionWithTransformerScope(CCaptureExceptionWithTransformerScope &&_Other);
 			~CCaptureExceptionWithTransformerScope();
 			void f_Suspend() noexcept override;
@@ -241,15 +236,15 @@ namespace NMib::NConcurrency
 #ifndef DMibClangAnalyzerWorkaround
 			DMibFastCheck(m_Flags & ECoroutineFlag_UnsafeThisPointer); // You don't need to move this
 
-#if DMibEnableSafeCheck > 0
+#	if DMibEnableSafeCheck > 0
 			if constexpr ((tf_Flags & (ECoroutineFlag_CaptureExceptions | ECoroutineFlag_CaptureMalterlibExceptions | ECoroutineFlag_AllowReferences)) != ECoroutineFlag_None)
 				m_Flags |= tf_Flags;
 			if (!(m_Flags & ECoroutineFlag_UnsafeReferenceParameters))
 				m_Flags |= ECoroutineFlag_AllowReferences;
-#else
+#	else
 			if constexpr ((tf_Flags & (ECoroutineFlag_CaptureExceptions | ECoroutineFlag_CaptureMalterlibExceptions)) != ECoroutineFlag_None)
 				m_Flags |= tf_Flags;
-#endif
+#	endif
 #endif
 			return fg_Move(_MoveThis);
 		}
@@ -326,6 +321,7 @@ namespace NMib::NConcurrency
 				NMib::NIntrusive::CDLinkAggregateListNoPrevPtr m_Link;
 				CCoroutineHandler *m_pPreviousCoroutineHandler;
 			};
+
 			NContainer::TCVector<TCFuture<void>> m_AsyncDestructors;
 		};
 
@@ -520,8 +516,15 @@ namespace NMib::NConcurrency::NPrivate
 
 		struct CAccessCoroutineAwaiter
 		{
-			constexpr bool await_ready() const noexcept { return true; }
-			constexpr void await_suspend(auto &&) const noexcept {}
+			constexpr bool await_ready() const noexcept
+			{
+				return true;
+			}
+
+			constexpr void await_suspend(auto &&) const noexcept
+			{
+			}
+
 			constexpr TCFutureCoroutineContextShared &await_resume() const noexcept
 			{
 				return m_This;
@@ -560,22 +563,22 @@ namespace NMib::NConcurrency::NPrivate
 		{
 		}
 
-		inline_always void *operator new(size_t _Size, std::align_val_t _Alignment)
+		inline_always void *operator new (size_t _Size, std::align_val_t _Alignment)
 		{
 			return CFutureCoroutineContext::fs_New(_Size, (size_t)_Alignment, sizeof(TCPromiseData<t_CReturnType>), alignof(TCPromiseData<t_CReturnType>));
 		}
 
-		inline_always void operator delete(void *_pMemory, size_t _Size, std::align_val_t _Alignment)
+		inline_always void operator delete (void *_pMemory, size_t _Size, std::align_val_t _Alignment)
 		{
 			return CFutureCoroutineContext::fs_Delete(_pMemory, _Size, (size_t)_Alignment);
 		}
 
-		inline_always void *operator new(size_t _Size)
+		inline_always void *operator new (size_t _Size)
 		{
 			return CFutureCoroutineContext::fs_New(_Size, umint(1) << NMib::fg_GetLowestBitSetNoZero(_Size), sizeof(TCPromiseData<t_CReturnType>), alignof(TCPromiseData<t_CReturnType>));
 		}
 
-		inline_always void operator delete(void *_pMemory, size_t _Size)
+		inline_always void operator delete (void *_pMemory, size_t _Size)
 		{
 			return CFutureCoroutineContext::fs_Delete(_pMemory, _Size, umint(1) << NMib::fg_GetLowestBitSetNoZero(_Size));
 		}
@@ -623,7 +626,7 @@ namespace NMib::NConcurrency::NPrivate
 
 	enum EConsumeFutureOnResultSetFlag : uint32
 	{
-		EConsumeFutureOnResultSetFlag_None = 0
+		EConsumeFutureOnResultSetFlag_None            = 0
 		, EConsumeFutureOnResultSetFlag_ResetSafeCall = DMibBit(0)
 	};
 
@@ -648,16 +651,16 @@ namespace NMib::NConcurrency::NPrivate
 
 	enum EConsumePromiseDebugFlag : uint32
 	{
-		EConsumePromiseDebugFlag_None = 0
+		EConsumePromiseDebugFlag_None            = 0
 		, EConsumePromiseDebugFlag_ResetSafeCall = DMibBit(0)
 	};
 
 	enum EConsumePromiseFlag : uint32
 	{
-		EConsumePromiseFlag_None = 0
-		, EConsumePromiseFlag_UsePromise = DMibBit(0)
+		EConsumePromiseFlag_None             = 0
+		, EConsumePromiseFlag_UsePromise     = DMibBit(0)
 		, EConsumePromiseFlag_HaveAllocation = DMibBit(2)
-		, EConsumePromiseFlag_FromCoroutine = DMibBit(3)
+		, EConsumePromiseFlag_FromCoroutine  = DMibBit(3)
 	};
 
 	template <typename tf_CType, EConsumePromiseFlag tf_Flags>
@@ -687,11 +690,11 @@ namespace NMib::NConcurrency::NPrivate
 
 	struct CPromiseDataBaseRefCount : public NStorage::TCIntrusiveRefCount<NStorage::ESharedPointerOption_None, int32>
 	{
-		constexpr static int32 mc_FutureBits = 2;
-		constexpr static int32 mc_FutureOffset = sizeof(int32) * 8 - 3;
-		constexpr static int32 mc_FutureBit = DMibBitTyped(mc_FutureOffset, int32);
-		constexpr static int32 mc_FutureMask = DMibBitRangeTyped(mc_FutureOffset, mc_FutureOffset + mc_FutureBits - 1, int32);
-		constexpr static int32 mc_PromiseMask = DMibBitRangeTyped(0, mc_FutureOffset - 1, int32);
+		static constexpr int32 mc_FutureBits = 2;
+		static constexpr int32 mc_FutureOffset = sizeof(int32) * 8 - 3;
+		static constexpr int32 mc_FutureBit = DMibBitTyped(mc_FutureOffset, int32);
+		static constexpr int32 mc_FutureMask = DMibBitRangeTyped(mc_FutureOffset, mc_FutureOffset + mc_FutureBits - 1, int32);
+		static constexpr int32 mc_PromiseMask = DMibBitRangeTyped(0, mc_FutureOffset - 1, int32);
 
 		using NStorage::TCIntrusiveRefCount<NStorage::ESharedPointerOption_None, int32>::TCIntrusiveRefCount;
 
@@ -738,11 +741,11 @@ namespace NMib::NConcurrency::NPrivate
 			DMibFastCheck(Return >= 0);
 			if ((Return - mc_FutureBit) < 0)
 			{
-	#ifdef DMibSanitizerEnabled_Thread
+#ifdef DMibSanitizerEnabled_Thread
 				m_RefCount.f_Load(NAtomic::gc_MemoryOrder_Acquire);
-	#else
+#else
 				NAtomic::fg_MemoryFence(NAtomic::gc_MemoryOrder_Acquire);
-	#endif
+#endif
 				return true;
 			}
 
@@ -760,11 +763,11 @@ namespace NMib::NConcurrency::NPrivate
 			auto OldValue = m_RefCount.f_FetchSub(1, NAtomic::gc_MemoryOrder_Release);
 			if (OldValue == 0)
 			{
-	#ifdef DMibSanitizerEnabled_Thread
+#ifdef DMibSanitizerEnabled_Thread
 				m_RefCount.f_Load(NAtomic::gc_MemoryOrder_Acquire);
-	#else
+#else
 				NAtomic::fg_MemoryFence(NAtomic::gc_MemoryOrder_Acquire);
-	#endif
+#endif
 				return true;
 			}
 
@@ -775,17 +778,18 @@ namespace NMib::NConcurrency::NPrivate
 		int32 f_Increase
 			(
 				NStorage::CRefCountDebugReference &o_Reference
-#if DMibEnableSafeCheck > 0
+#	if DMibEnableSafeCheck > 0
 				, bool _bAllowRevive = false
-#endif
-			) const
+#	endif
+			)
+			const
 		{
 			auto Return = NStorage::TCIntrusiveRefCount<NStorage::ESharedPointerOption_None, int32>::f_Increase
 				(
 					o_Reference
-#if DMibEnableSafeCheck > 0
+#	if DMibEnableSafeCheck > 0
 					, _bAllowRevive
-#endif
+#	endif
 				)
 			;
 
@@ -795,10 +799,11 @@ namespace NMib::NConcurrency::NPrivate
 #else
 		int32 f_Increase
 			(
-#if DMibEnableSafeCheck > 0
+#	if DMibEnableSafeCheck > 0
 				bool _bAllowRevive = false
-#endif
-			) const
+#	endif
+			)
+			const
 		{
 			int32 Return = m_RefCount.f_FetchAdd(1, NAtomic::gc_MemoryOrder_Relaxed);
 			DMibFastCheck(Return >= 0 || _bAllowRevive && Return == -1);
@@ -862,7 +867,7 @@ namespace NMib::NConcurrency::NPrivate
 			uint8 m_bIsCoroutine:1 = false;
 			uint8 m_bAllocatedInCoroutineContext:1 = false;
 			uint8 m_bPromiseConsumed:1 = false;
-			uint8 m_OverAlignment: 3 = 0;
+			uint8 m_OverAlignment:3 = 0;
 
 			void f_NeedAtomicRead();
 		};
@@ -951,7 +956,6 @@ namespace NMib::NConcurrency::NPrivate
 		void f_SetResult(TCPromise<t_CReturnValue> &_Result) = delete;
 		void f_SetResult(TCPromise<t_CReturnValue> &&_Result);
 
-
 		void f_SetResultNoReport(TCPromise<t_CReturnValue> const &_Result) = delete;
 		void f_SetResultNoReport(TCPromise<t_CReturnValue> &_Result) = delete;
 		void f_SetResultNoReport(TCPromise<t_CReturnValue> &&_Result);
@@ -994,13 +998,13 @@ namespace NMib::NConcurrency::NPrivate
 template <typename t_CReturnValue>
 struct NMib::NStorage::TCHasIntrusiveRefCountOverride<NMib::NConcurrency::NPrivate::TCPromiseData<t_CReturnValue>>
 {
-	constexpr static bool mc_bValue = true;
+	static constexpr bool mc_bValue = true;
 };
 
 template <typename t_CReturnValue>
 struct NMib::NTraits::TCHasVirtualDestructorOverride<NMib::NConcurrency::NPrivate::TCPromiseData<t_CReturnValue>>
 {
-	constexpr static bool mc_Value = false;
+	static constexpr bool mc_Value = false;
 };
 
 extern "C" mark_nodebug void fg_MalterlibConcurrency_TCFutureFunctionEnter(void *_pThisFunction, void *_pCallSite);
@@ -1019,16 +1023,16 @@ namespace NMib::NConcurrency
 	template <typename t_CReturnValue = void>
 	struct [[nodiscard]] TCPromise;
 
-	#if defined(DCompiler_clang) && DMibEnableSafeCheck > 0
-		#if __has_cpp_attribute(clang::instrument_non_coroutine_function_enter)
-			#define DMibConcurrencyInstrumentFunctionEnter [[clang::instrument_non_coroutine_function_enter("fg_MalterlibConcurrency_TCFutureFunctionEnter")]]
-			#define DMibConcurrencySupportCoroutineFreeFunctionDebug 1
-		#else
-			#define DMibConcurrencyInstrumentFunctionEnter
-		#endif
-	#else
-		#define DMibConcurrencyInstrumentFunctionEnter
-	#endif
+#if defined(DCompiler_clang) && DMibEnableSafeCheck > 0
+#	if __has_cpp_attribute(clang::instrument_non_coroutine_function_enter)
+#		define DMibConcurrencyInstrumentFunctionEnter [[clang::instrument_non_coroutine_function_enter("fg_MalterlibConcurrency_TCFutureFunctionEnter")]]
+#		define DMibConcurrencySupportCoroutineFreeFunctionDebug 1
+#	else
+#		define DMibConcurrencyInstrumentFunctionEnter
+#	endif
+#else
+#	define DMibConcurrencyInstrumentFunctionEnter
+#endif
 
 	namespace NPrivate
 	{
@@ -1041,33 +1045,33 @@ namespace NMib::NConcurrency
 		template <typename t_CCoroutineContext>
 		struct TCIsAsyncGeneratorCoroutineContext
 		{
-			constexpr static bool mc_Value = false;
+			static constexpr bool mc_Value = false;
 		};
 
 		template <typename t_CReturnType>
 		struct TCIsAsyncGeneratorCoroutineContext<TCAsyncGeneratorCoroutineContext<t_CReturnType>>
 		{
 			using CReturnType = t_CReturnType;
-			constexpr static bool mc_Value = true;
+			static constexpr bool mc_Value = true;
 		};
 
 		template <typename t_CReturnType, ECoroutineFlag t_Flags>
 		struct TCIsAsyncGeneratorCoroutineContext<TCAsyncGeneratorCoroutineContextWithFlags<t_CReturnType, t_Flags>>
 		{
 			using CReturnType = t_CReturnType;
-			constexpr static bool mc_Value = true;
+			static constexpr bool mc_Value = true;
 		};
 
 		template <typename t_CType>
 		struct TCIsActorResultCallHelper
 		{
-			constexpr static bool mc_bValue = false;
+			static constexpr bool mc_bValue = false;
 		};
 
 		template <typename t_CActor, typename t_CFunctor>
 		struct TCIsActorResultCallHelper<TCActorResultCall<t_CActor, t_CFunctor>>
 		{
-			constexpr static bool mc_bValue = true;
+			static constexpr bool mc_bValue = true;
 		};
 
 		template <typename t_CType>
@@ -1121,7 +1125,7 @@ namespace NMib::NConcurrency
 		struct CNoUnwrapAsyncResult
 		{
 			TCFuture *m_pWrapped;
-			auto operator co_await() &&;
+			auto operator co_await () &&;
 		};
 
 		using CInitializationValue = TCConditional<NTraits::cIsVoid<t_CReturnValue>, CVoidTag, t_CReturnValue>;
@@ -1130,8 +1134,8 @@ namespace NMib::NConcurrency
 		~TCFuture();
 		TCFuture(NException::CExceptionPointer &&_pException);
 		TCFuture(NException::CExceptionBase const &_Exception);
-		TCFuture(CInitializationValue &&_ReturnValue) requires(!NTraits::cIsSame<CInitializationValue, NException::CExceptionPointer>);
-		TCFuture(CInitializationValue const &_ReturnValue) requires(!NTraits::cIsSame<CInitializationValue, NException::CExceptionPointer>);
+		TCFuture(CInitializationValue &&_ReturnValue) requires (!NTraits::cIsSame<CInitializationValue, NException::CExceptionPointer>);
+		TCFuture(CInitializationValue const &_ReturnValue) requires (!NTraits::cIsSame<CInitializationValue, NException::CExceptionPointer>);
 		TCFuture(TCAsyncResult<CValue> &&_ReturnValue);
 		TCFuture(TCAsyncResult<CValue> const &_ReturnValue);
 
@@ -1166,7 +1170,7 @@ namespace NMib::NConcurrency
 
 		bool f_IsSet() const;
 
-		template<typename tf_CFunctor>
+		template <typename tf_CFunctor>
 		void operator > (tf_CFunctor &&_Functor) &&
 			requires (NTraits::cIsCallableWith<NTraits::TCRemoveReferenceAndQualifiers<tf_CFunctor>, void (TCAsyncResult<t_CReturnValue> &&)>)
 		;
@@ -1204,7 +1208,7 @@ namespace NMib::NConcurrency
 		auto operator % (NStr::CStr const &_ErrorString) && -> TCFutureWithExceptionTransformer<t_CReturnValue, TCFuture>;
 
 		CNoUnwrapAsyncResult f_Wrap() &&;
-		auto operator co_await() &&;
+		auto operator co_await () &&;
 
 		NStorage::TCSharedPointer<NPrivate::TCPromiseData<t_CReturnValue>> const &f_Unsafe_PromiseData() const;
 		NStorage::TCSharedPointer<NPrivate::TCPromiseData<t_CReturnValue>> &&f_Unsafe_MovePromiseData() &&;
@@ -1234,12 +1238,7 @@ namespace NMib::NConcurrency
 
 	// Deduction guides for TCFuture
 	template <typename t_CType>
-		requires
-		(
-			!NTraits::cIsSame<t_CType, CVoidTag>
-			&& !NTraits::cIsSame<t_CType, NException::CExceptionPointer>
-			&& !NTraits::cIsBaseOf<t_CType, NException::CExceptionBase>
-		)
+		requires (!NTraits::cIsSame<t_CType, CVoidTag> && !NTraits::cIsSame<t_CType, NException::CExceptionPointer> && !NTraits::cIsBaseOf<t_CType, NException::CExceptionBase>)
 	TCFuture(t_CType) -> TCFuture<t_CType>;
 
 	TCFuture(CVoidTag) -> TCFuture<void>;
@@ -1268,8 +1267,8 @@ namespace NMib::NConcurrency
 
 		TCPromise(TCPromise const &_Other);
 		TCPromise(TCPromise &&_Other);
-		TCPromise &operator =(TCPromise const &_Other);
-		TCPromise &operator =(TCPromise &&_Other);
+		TCPromise &operator = (TCPromise const &_Other);
+		TCPromise &operator = (TCPromise &&_Other);
 		TCPromise(CConcurrencyThreadLocal &_ThreadLocal = fg_ConcurrencyThreadLocal());
 		~TCPromise();
 
@@ -1317,10 +1316,8 @@ namespace NMib::NConcurrency
 		mark_no_coroutine_debug TCFuture<t_CReturnValue> operator <<= (TCFuture<t_CReturnValue> &&_Future);
 
 		template <typename tf_CReturn, typename tf_CActor, typename tf_FFunctionPointer, CBindActorOptions tf_BindOptions, bool tf_bByValue, typename ...tfp_CParams>
-		mark_no_coroutine_debug TCFuture<t_CReturnValue> operator <<=
-			(
-				TCBoundActorCall<tf_CReturn, tf_CActor, tf_FFunctionPointer, tf_BindOptions, tf_bByValue, tfp_CParams...> &&_BoundActorCall
-			)
+		mark_no_coroutine_debug auto operator <<= (TCBoundActorCall<tf_CReturn, tf_CActor, tf_FFunctionPointer, tf_BindOptions, tf_bByValue, tfp_CParams...> &&_BoundActorCall)
+			-> TCFuture<t_CReturnValue>
 		;
 
 		template <typename tf_CResult, TCEnableIf<!NTraits::cIsBaseOf<NTraits::TCRemoveReference<tf_CResult>, NException::CExceptionBase>> * = nullptr>
@@ -1360,10 +1357,10 @@ namespace NMib::NConcurrency
 				CPromiseThreadLocal &_ThreadLocal
 				, void *_pAllocation
 				, int32 _RefCount
-	#if DMibEnableSafeCheck > 0
+#if DMibEnableSafeCheck > 0
 				, void const *_pConsumedBy
 				, NPrivate::EConsumePromiseDebugFlag _DebugFlags
-	#endif
+#endif
 			)
 		;
 
@@ -1408,7 +1405,7 @@ namespace NMib::NConcurrency
 		struct CNoUnwrapAsyncResult
 		{
 			TCFutureWithExceptionTransformer *m_pWrapped;
-			auto operator co_await() &&;
+			auto operator co_await () &&;
 		};
 
 		TCFutureWithExceptionTransformer(t_CFutureLike &&_Future, FExceptionTransformer &&_fTransfomer);
@@ -1422,7 +1419,7 @@ namespace NMib::NConcurrency
 		template <typename tf_CRight>
 		auto operator > (tf_CRight &&_Right) &&;
 
-		auto operator co_await() &&;
+		auto operator co_await () &&;
 		CNoUnwrapAsyncResult f_Wrap() &&;
 
 		TCFuture<t_CReturnValue> f_Dispatch() &&;
@@ -1438,7 +1435,7 @@ namespace NMib::NConcurrency
 		~CCoroutineOnSuspendScope();
 		void f_Suspend() noexcept override;
 		void f_ResumeNoExcept() noexcept override;
-		void operator ()();
+		void operator () ();
 
 	private:
 		NFunction::TCFunctionMovable<void ()> m_fOnSuspend;

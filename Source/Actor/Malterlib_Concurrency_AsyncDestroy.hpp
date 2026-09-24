@@ -52,7 +52,7 @@ namespace NMib::NConcurrency
 	}
 
 	template <typename t_FDestroy>
-	TCFutureAwaiter<void, false> TCAsyncDestroy<t_FDestroy>::CNoUnwrap::operator co_await() &&
+	TCFutureAwaiter<void, false> TCAsyncDestroy<t_FDestroy>::CNoUnwrap::operator co_await () &&
 	{
 		DMibFastCheck(m_pWrapped->mp_pCoroutineContext);
 		m_pWrapped->mp_pCoroutineContext = nullptr;
@@ -69,7 +69,7 @@ namespace NMib::NConcurrency
 	}
 
 	template <typename t_FDestroy>
-	TCFutureAwaiter<void, true> TCAsyncDestroy<t_FDestroy>::operator co_await() &&
+	TCFutureAwaiter<void, true> TCAsyncDestroy<t_FDestroy>::operator co_await () &&
 	{
 		DMibFastCheck(mp_pCoroutineContext);
 		mp_pCoroutineContext = nullptr;
@@ -78,7 +78,6 @@ namespace NMib::NConcurrency
 		else
 			return {fg_CallSafe(fg_Move(mp_fDestroy)), {}};
 	}
-
 
 	template <typename t_FDestroy, typename t_FDestroyFinal>
 	template <typename tf_FDestroy>
@@ -113,24 +112,24 @@ namespace NMib::NConcurrency
 		DMibSafeCheck(fg_Exchange(mp_bAwaited, true), "You forgot to co_await the async destroy");
 		// Correct usage:
 		/*
-			CClass Object;
+		CClass Object;
 
-			auto AsyncDestroy = co_await fg_AsyncDestroy(Object);
-			// Or
-			auto AsyncDestroy = co_await fg_AsyncDestroy
-				(
-					[&]() -> TCFuture<void>
-					{
-						// Keep object alive in this frame
-						auto ObjectMove = fg_Move(Object);
+		auto AsyncDestroy = co_await fg_AsyncDestroy(Object);
+		// Or
+		auto AsyncDestroy = co_await fg_AsyncDestroy
+			(
+				[&]() -> TCFuture<void>
+				{
+					// Keep object alive in this frame
+					auto ObjectMove = fg_Move(Object);
 
-						co_await ObjectMove.f_Destroy();
+					co_await ObjectMove.f_Destroy();
 
-						co_return {};
-					}
-				)
-			;
-		 */
+					co_return {};
+				}
+			)
+		;
+		*/
 	}
 
 	template <typename t_FDestroy, typename t_FDestroyFinal>

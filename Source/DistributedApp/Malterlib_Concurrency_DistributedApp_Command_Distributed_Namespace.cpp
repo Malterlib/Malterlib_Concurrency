@@ -13,14 +13,8 @@ namespace NMib::NConcurrency
 	using namespace NCommandLine;
 	using namespace NContainer;
 
-	TCFuture<uint32> CDistributedAppActor::f_CommandLine_ListNamespaces
-		(
-			TCSharedPointer<CCommandLineControl> _pCommandLine
-			, bool _bIncludeTrustedHosts
-			, CStr _TableType
-		)
+	TCFuture<uint32> CDistributedAppActor::f_CommandLine_ListNamespaces(TCSharedPointer<CCommandLineControl> _pCommandLine, bool _bIncludeTrustedHosts, CStr _TableType)
 	{
-
 		auto Namespaces = co_await mp_State.m_TrustManager(&CDistributedActorTrustManager::f_EnumNamespacePermissions, _bIncludeTrustedHosts);
 
 		CTableRenderHelper TableRenderer = _pCommandLine->f_TableRenderer();
@@ -64,12 +58,7 @@ namespace NMib::NConcurrency
 		co_return 0;
 	}
 
-	TCFuture<uint32> CDistributedAppActor::f_CommandLine_TrustHostForNamespace
-		(
-			TCSharedPointer<CCommandLineControl> _pCommandLine
-			, CStr _Namespace
-			, CStr _Host
-		)
+	TCFuture<uint32> CDistributedAppActor::f_CommandLine_TrustHostForNamespace(TCSharedPointer<CCommandLineControl> _pCommandLine, CStr _Namespace, CStr _Host)
 	{
 		TCSet<CStr> Hosts;
 		Hosts[_Host];
@@ -80,12 +69,7 @@ namespace NMib::NConcurrency
 		co_return 0;
 	}
 
-	TCFuture<uint32> CDistributedAppActor::f_CommandLine_UntrustHostForNamespace
-		(
-			TCSharedPointer<CCommandLineControl> _pCommandLine
-			, CStr _Namespace
-			, CStr _Host
-		)
+	TCFuture<uint32> CDistributedAppActor::f_CommandLine_UntrustHostForNamespace(TCSharedPointer<CCommandLineControl> _pCommandLine, CStr _Namespace, CStr _Host)
 	{
 		TCSet<CStr> Hosts;
 		Hosts[_Host];

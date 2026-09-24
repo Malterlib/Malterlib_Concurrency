@@ -63,6 +63,7 @@ namespace NMib::NConcurrency
 		{
 			CInternal();
 			~CInternal();
+
 		public:
 			friend struct TCFutureMap;
 
@@ -79,9 +80,10 @@ namespace NMib::NConcurrency
 		{
 			TCAsyncResult<t_CValue> &mp_Result;
 			NStorage::TCSharedPointer<CInternal> mp_pInternal;
+
 		public:
 			CResultReceived(TCAsyncResult<t_CValue> &_Result, NStorage::TCSharedPointer<CInternal> const &_pInternal);
-			void operator ()(TCAsyncResult<t_CValue> &&_Result) const;
+			void operator () (TCAsyncResult<t_CValue> &&_Result) const;
 		};
 
 	public:
@@ -90,7 +92,7 @@ namespace NMib::NConcurrency
 		bool f_IsEmpty() const;
 
 		template <typename tf_CKey>
-		auto operator [](tf_CKey &&_Key) -> TCFutureMapBoundKey<t_CKey, t_CValue, tf_CKey &&>;
+		auto operator [] (tf_CKey &&_Key) -> TCFutureMapBoundKey<t_CKey, t_CValue, tf_CKey &&>;
 
 	private:
 		template <typename tf_CKey>

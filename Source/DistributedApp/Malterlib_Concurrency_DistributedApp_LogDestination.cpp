@@ -140,7 +140,8 @@ namespace NMib::NConcurrency
 					}
 					co_return {};
 				}
-			).f_CallSync()
+			)
+			.f_CallSync()
 		;
 		{
 			DMibLock(Internal.m_Lock);
@@ -165,7 +166,7 @@ namespace NMib::NConcurrency
 		;
 	}
 
-	void CDistributedAppLogDestination::operator()
+	void CDistributedAppLogDestination::operator ()
 		(
 			umint _ThreadID
 			, NTime::CTime const &_Time

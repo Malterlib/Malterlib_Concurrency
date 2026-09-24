@@ -111,7 +111,7 @@ namespace NMib::NConcurrency
 	}
 
 	template <typename t_CType>
-	void TCFutureVector<t_CType>::CResultReceived::operator ()(TCAsyncResult<t_CType> &&_Result) const
+	void TCFutureVector<t_CType>::CResultReceived::operator () (TCAsyncResult<t_CType> &&_Result) const
 	{
 		auto &Internal = *mp_pInternal;
 		if (Internal.mp_bDefinedSize || Internal.mp_bLazyResultsGotten.f_Load(NAtomic::gc_MemoryOrder_Acquire))
@@ -139,7 +139,6 @@ namespace NMib::NConcurrency
 	TCFutureVector<t_CType>::TCFutureVector()
 		: mp_pInternal(fg_Construct())
 	{
-
 	}
 
 	template <typename t_CType>
@@ -148,7 +147,6 @@ namespace NMib::NConcurrency
 	{
 		mp_pInternal->mp_bDefinedSize = true;
 		mp_pInternal->mp_Results.f_SetLen(_DefinedSize);
-
 	}
 
 	template <typename t_CType>
@@ -192,7 +190,7 @@ namespace NMib::NConcurrency
 
 	template <typename t_CType>
 	TCFuture<NContainer::TCVector<t_CType>> TCFutureVector<t_CType>::fp_GetUnwrappedResults()
-		requires(!NTraits::cIsVoid<t_CType>)
+		requires (!NTraits::cIsVoid<t_CType>)
 	{
 		TCPromiseFuturePair<NContainer::TCVector<t_CType>> Promise;
 
@@ -213,7 +211,7 @@ namespace NMib::NConcurrency
 
 	template <typename t_CType>
 	TCFuture<void> TCFutureVector<t_CType>::fp_GetUnwrappedResults()
-		requires(NTraits::cIsVoid<t_CType>)
+		requires (NTraits::cIsVoid<t_CType>)
 	{
 		TCPromiseFuturePair<void> Promise;
 

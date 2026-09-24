@@ -97,6 +97,7 @@ namespace NMib::NConcurrency
 				NMisc::fg_Random(); // Fix deadlock
 			}
 		};
+
 		struct CSubSystem_Concurrency : public CSubSystem_ConcurrencyInit
 		{
 			NThread::CMutual m_ConcurrencyManagerLock;
@@ -254,7 +255,6 @@ namespace NMib::NConcurrency
 	CConcurrencyThreadLocal::CConcurrencyThreadLocal(NThread::CThreadLocalConstructionContext const &_Context)
 		: m_SystemThreadLocal(fg_SystemThreadLocal(_Context.m_ThreadID))
 	{
-
 		m_SystemThreadLocal.m_PromiseThreadLocal.m_pConcurrencyThreadLocal = this;
 
 		umint nThreads = NPrivate::fg_DefaultThreadCount();
@@ -482,7 +482,8 @@ namespace NMib::NConcurrency
 			{
 				co_return 0;
 			}
-		).f_CallSync();
+		)
+		.f_CallSync();
 #endif
 	}
 
@@ -624,7 +625,7 @@ namespace NMib::NConcurrency
 				{
 					DMibTrace("    TCFuture<{}>   RefCount {}{\n}", Future.m_FutureTypeName, Future.m_RefCount.f_Get());
 
-	#if DMibConfig_RefCountDebugging
+#	if DMibConfig_RefCountDebugging
 					[[maybe_unused]] umint iCallstack = 0;
 					DMibLock(Future.m_RefCount.m_Debug->m_Lock);
 					for (auto &Callstack : Future.m_RefCount.m_Debug->m_Callstacks)
@@ -633,7 +634,7 @@ namespace NMib::NConcurrency
 						Callstack.f_Trace(12);
 						++iCallstack;
 					}
-	#endif
+#	endif
 				}
 			}
 			DMibFastCheck(DebugFutures.m_Futures.f_IsEmpty());
@@ -660,17 +661,10 @@ namespace NMib::NConcurrency
 		EExecutionPriority ThreadPrio = _pThis->m_ExecutionPriority[m_Priority];
 		switch (m_Priority)
 		{
-		case EPriority_Low:
-			Name = NStr::gc_Str<"LP">;
-			break;
-		case EPriority_NormalHighCPU:
-			Name = NStr::gc_Str<"HC">;
-			break;
-		case EPriority_Normal:
-			break;
-		case EPriority_Max:
-			DMibFastCheck(false);
-			break;
+		case EPriority_Low: Name = NStr::gc_Str<"LP">; break;
+		case EPriority_NormalHighCPU: Name = NStr::gc_Str<"HC">; break;
+		case EPriority_Normal: break;
+		case EPriority_Max: DMibFastCheck(false); break;
 		}
 
 		m_pThread =
@@ -915,9 +909,14 @@ namespace NMib::NConcurrency
 			Queue.f_Signal(this);
 	}
 
-	constexpr static const umint gc_ProcessingMask = DMibBitTyped(sizeof(umint) * 8 - 1, umint);
+	static constexpr umint const gc_ProcessingMask = DMibBitTyped(sizeof(umint) * 8 - 1, umint);
 
-	bool CConcurrencyManager::fp_AddToQueue(CQueue &_Queue, NStorage::TCUniquePointer<CConcurrentRunQueueEntry_FunctorNonVirtualNoAlloc> &&_pQueueEntry, CConcurrencyThreadLocal &_ThreadLocal)
+	bool CConcurrencyManager::fp_AddToQueue
+		(
+			CQueue &_Queue
+			, NStorage::TCUniquePointer<CConcurrentRunQueueEntry_FunctorNonVirtualNoAlloc> &&_pQueueEntry
+			, CConcurrencyThreadLocal &_ThreadLocal
+		)
 	{
 		if (_ThreadLocal.m_pThisQueue == &_Queue)
 		{
@@ -1005,7 +1004,7 @@ namespace NMib::NConcurrency
 	}
 
 #if DMibConfig_Concurrency_LocalFirstScheduler
-	constexpr static const umint gc_IdleMaskBitsPerChunk = sizeof(umint) * 8;
+	static constexpr umint const gc_IdleMaskBitsPerChunk = sizeof(umint) * 8;
 
 	umint CConcurrencyManager::fp_ClaimIdleQueue(EPriority _Priority, umint _iExclude)
 	{
@@ -1059,7 +1058,7 @@ namespace NMib::NConcurrency
 		Chunk.f_FetchAnd(~(umint(1) << (_Queue.m_iQueue % gc_IdleMaskBitsPerChunk)));
 	}
 
-#if DMibConfig_Concurrency_LocalFirstDistribution
+#	if DMibConfig_Concurrency_LocalFirstDistribution
 	void CConcurrencyManager::fp_OfferExcessWork(CQueue &_Queue, bool _bTransfer, umint _TargetSize)
 	{
 		constexpr umint c_MaxChunkSize = DMibConfig_Concurrency_LocalQueueTargetSize;
@@ -1135,7 +1134,7 @@ namespace NMib::NConcurrency
 				Target.f_Signal(this);
 		}
 	}
-#endif
+#	endif
 #endif
 
 	void CConcurrencyManager::fp_RunThread(CQueue &_Queue, NThread::CThreadObjectNonTracked *_pThread)
@@ -1181,8 +1180,7 @@ namespace NMib::NConcurrency
 					umint OriginalWorking = _Queue.m_Working.f_FetchOr(gc_ProcessingMask);
 					if ((OriginalWorking & gc_ProcessingMask) == 0)
 					{
-						auto UnLock
-							= fg_OnScopeExit
+						auto UnLock = fg_OnScopeExit
 							(
 								[&]
 								{
@@ -1285,11 +1283,7 @@ namespace NMib::NConcurrency
 	// One singleton at a time in reverse creation order, so a singleton that was created from another one
 	// has finished its teardown before that one starts destroying. Static, as a coroutine that keeps a this
 	// pointer across a suspension may only be called through the actor that owns it
-	TCFuture<void> CConcurrencyManager::fsp_DestroySingletons
-		(
-			NContainer::TCVector<NStorage::TCUniquePointer<CSingleton>> _Singletons
-			, NContainer::TCVector<umint> _CreationOrder
-		)
+	TCFuture<void> CConcurrencyManager::fsp_DestroySingletons(NContainer::TCVector<NStorage::TCUniquePointer<CSingleton>> _Singletons, NContainer::TCVector<umint> _CreationOrder)
 	{
 		for (auto &iSingleton : fg_Move(_CreationOrder).f_Reverse())
 		{
@@ -1403,15 +1397,15 @@ namespace NMib::NConcurrency
 			// on here, and outside the lock, as a teardown can ask for the singleton lock. The destroys are
 			// not waited for, so that the wait below, which keeps firing timeouts, is what drives them
 			(
-				g_Dispatch(f_GetConcurrentActor())
-				/ [Singletons = fg_Move(Singletons), CreationOrder = fg_Move(CreationOrder)]() mutable
+				g_Dispatch(f_GetConcurrentActor()) / [Singletons = fg_Move(Singletons), CreationOrder = fg_Move(CreationOrder)]() mutable
 				{
 					fsp_DestroySingletons(fg_Move(Singletons), fg_Move(CreationOrder)).f_DiscardResult();
 				}
-			).f_DiscardResult();
+			)
+			.f_DiscardResult();
 		}
 
-		auto fCallTimerActors = [this](void (CTimerActor::*_fMember)())
+		auto fCallTimerActors = [this](void (CTimerActor:: *_fMember)())
 			{
 				TCFutureVector<void> Results;
 				for (auto &Queues : m_Queues)
@@ -1431,7 +1425,7 @@ namespace NMib::NConcurrency
 		NTime::CStopwatch FireTimersStopwatch{true};
 		NTime::CStopwatch TimerCheckStopwatch{true};
 #if DMibConfig_Concurrency_DebugBlockDestroy
- 		NTime::CStopwatch DebugBlockDestroyStopwatch{true};
+		NTime::CStopwatch DebugBlockDestroyStopwatch{true};
 #endif
 
 		static constexpr umint c_nShutdownYields = 4000;
@@ -1461,7 +1455,8 @@ namespace NMib::NConcurrency
 			auto fHasUserActors = [&]
 				{
 					DMibLock(m_BlockingActorsLock);
-					umint nExpectedActors = m_ConcurrentActors[EPriority_Normal].f_GetLen()
+					umint nExpectedActors
+						= m_ConcurrentActors[EPriority_Normal].f_GetLen()
 						+ m_ConcurrentActors[EPriority_NormalHighCPU].f_GetLen()
 						+ m_ConcurrentActors[EPriority_Low].f_GetLen()
 						+ nTimerActors
@@ -1473,7 +1468,7 @@ namespace NMib::NConcurrency
 				}
 			;
 #if DMibConfig_Concurrency_DebugBlockDestroy
-			volatile static bool s_AbortLoop = false;
+			static bool volatile s_AbortLoop = false;
 #endif
 			fCallTimerActors(&CTimerActor::f_FireAtExit);
 
@@ -1511,23 +1506,23 @@ namespace NMib::NConcurrency
 						for (auto &Actor : this->m_Actors)
 						{
 							if
-								(
-									Actor.m_ActorTypeName.f_Find("NMib::NConcurrency::CConcurrentActorImpl") >= 0
-									|| Actor.m_ActorTypeName.f_Find("NMib::NConcurrency::CConcurrentActorLowPrioImpl") >= 0
-									|| Actor.m_ActorTypeName.f_Find("NMib::NConcurrency::CConcurrentActorHighCPUImpl") >= 0
-									|| Actor.m_ActorTypeName.f_Find("NMib::NConcurrency::CTimerActor") >= 0
-									|| Actor.m_ActorTypeName.f_Find("NMib::NConcurrency::CDirectCallActorImpl") >= 0
-									|| Actor.m_ActorTypeName.f_Find("NMib::NConcurrency::CThisConcurrentActorImpl") >= 0
-									|| Actor.m_ActorTypeName.f_Find("NMib::NConcurrency::CThisConcurrentActorLowPrioImpl") >= 0
-									|| Actor.m_ActorTypeName.f_Find("NMib::NConcurrency::CThisConcurrentActorHighCPUImpl") >= 0
-									|| Actor.m_ActorTypeName.f_Find("NMib::NConcurrency::COtherConcurrentActorImpl") >= 0
-									|| Actor.m_ActorTypeName.f_Find("NMib::NConcurrency::COtherConcurrentActorLowPrioImpl") >= 0
-									|| Actor.m_ActorTypeName.f_Find("NMib::NConcurrency::COtherConcurrentActorHighCPUImpl") >= 0
-									|| Actor.m_ActorTypeName.f_Find("NMib::NConcurrency::CDynamicConcurrentActorImpl") >= 0
-									|| Actor.m_ActorTypeName.f_Find("NMib::NConcurrency::CDynamicConcurrentActorLowPrioImpl") >= 0
-									|| Actor.m_ActorTypeName.f_Find("NMib::NConcurrency::CDynamicConcurrentActorHighCPUImpl") >= 0
-									|| Actor.m_ActorTypeName.f_Find("NMib::NConcurrency::CBlockingActor") >= 0
-								)
+							(
+								Actor.m_ActorTypeName.f_Find("NMib::NConcurrency::CConcurrentActorImpl") >= 0
+								|| Actor.m_ActorTypeName.f_Find("NMib::NConcurrency::CConcurrentActorLowPrioImpl") >= 0
+								|| Actor.m_ActorTypeName.f_Find("NMib::NConcurrency::CConcurrentActorHighCPUImpl") >= 0
+								|| Actor.m_ActorTypeName.f_Find("NMib::NConcurrency::CTimerActor") >= 0
+								|| Actor.m_ActorTypeName.f_Find("NMib::NConcurrency::CDirectCallActorImpl") >= 0
+								|| Actor.m_ActorTypeName.f_Find("NMib::NConcurrency::CThisConcurrentActorImpl") >= 0
+								|| Actor.m_ActorTypeName.f_Find("NMib::NConcurrency::CThisConcurrentActorLowPrioImpl") >= 0
+								|| Actor.m_ActorTypeName.f_Find("NMib::NConcurrency::CThisConcurrentActorHighCPUImpl") >= 0
+								|| Actor.m_ActorTypeName.f_Find("NMib::NConcurrency::COtherConcurrentActorImpl") >= 0
+								|| Actor.m_ActorTypeName.f_Find("NMib::NConcurrency::COtherConcurrentActorLowPrioImpl") >= 0
+								|| Actor.m_ActorTypeName.f_Find("NMib::NConcurrency::COtherConcurrentActorHighCPUImpl") >= 0
+								|| Actor.m_ActorTypeName.f_Find("NMib::NConcurrency::CDynamicConcurrentActorImpl") >= 0
+								|| Actor.m_ActorTypeName.f_Find("NMib::NConcurrency::CDynamicConcurrentActorLowPrioImpl") >= 0
+								|| Actor.m_ActorTypeName.f_Find("NMib::NConcurrency::CDynamicConcurrentActorHighCPUImpl") >= 0
+								|| Actor.m_ActorTypeName.f_Find("NMib::NConcurrency::CBlockingActor") >= 0
+							)
 							{
 								continue;
 							}
@@ -1542,7 +1537,7 @@ namespace NMib::NConcurrency
 								)
 							;
 
-	#if DMibConfig_RefCountDebugging
+#	if DMibConfig_RefCountDebugging
 							[[maybe_unused]] umint iCallstack = 0;
 							DMibLock(Actor.m_RefCount.m_Debug->m_Lock);
 							for (auto &Callstack : Actor.m_RefCount.m_Debug->m_Callstacks)
@@ -1558,11 +1553,11 @@ namespace NMib::NConcurrency
 								Callstack.f_Trace(12);
 								++iCallstack;
 							}
-	#endif
+#	endif
 						}
 					}
 
-#if DMibConfig_Concurrency_DebugFutures
+#	if DMibConfig_Concurrency_DebugFutures
 					if (m_bReportFutures)
 					{
 						auto &DebugFutures = NPrivate::fg_DebugFutures();
@@ -1574,7 +1569,7 @@ namespace NMib::NConcurrency
 							{
 								DMibTrace("    TCFuture<{}>   RefCount {}{\n}", Future.m_FutureTypeName, Future.m_RefCount.f_Get());
 
-		#if DMibConfig_RefCountDebugging
+#		if DMibConfig_RefCountDebugging
 								[[maybe_unused]] umint iCallstack = 0;
 								DMibLock(Future.m_RefCount.m_Debug->m_Lock);
 								for (auto &Callstack : Future.m_RefCount.m_Debug->m_Callstacks)
@@ -1583,11 +1578,11 @@ namespace NMib::NConcurrency
 									Callstack.f_Trace(12);
 									++iCallstack;
 								}
-		#endif
+#		endif
 							}
 						}
 					}
-#endif
+#	endif
 					DebugBlockDestroyStopwatch.f_Start();
 				}
 				if (s_AbortLoop)
@@ -1687,7 +1682,8 @@ namespace NMib::NConcurrency
 
 		// Blocking actors can still depend on timers while releasing their checkouts.
 		{
-			umint nExpectedActors = m_ConcurrentActors[EPriority_Normal].f_GetLen()
+			umint nExpectedActors
+				= m_ConcurrentActors[EPriority_Normal].f_GetLen()
 				+ m_ConcurrentActors[EPriority_NormalHighCPU].f_GetLen()
 				+ m_ConcurrentActors[EPriority_Low].f_GetLen()
 				+ nTimerActors
@@ -2051,19 +2047,20 @@ namespace NMib::NConcurrency
 		}
 	}
 
-// Diagnostics must work in release builds and leave stdout available for structured output.
-#define DSchedulerStatsTrace(...) NSys::fg_ConsoleErrorOutput(NStr::fg_Format<NStr::CStrNonTracked>(__VA_ARGS__))
+	// Diagnostics must work in release builds and leave stdout available for structured output.
+#	define DSchedulerStatsTrace(...) NSys::fg_ConsoleErrorOutput(NStr::fg_Format<NStr::CStrNonTracked>(__VA_ARGS__))
 
 	inline_never void CConcurrencyManager::fp_DumpSchedulerStats()
 	{
-		constexpr static ch8 const *c_pPriorityNames[EPriority_Max] = {"Low", "NormalHighCPU", "Normal"};
+		static constexpr ch8 const *c_pPriorityNames[EPriority_Max] = {"Low", "NormalHighCPU", "Normal"};
 
 		for (umint Priority = EPriority_Low; Priority < EPriority_Max; ++Priority)
 		{
 			CSchedulerStats Stats = f_GetSchedulerStats(static_cast<EPriority>(Priority));
 			DSchedulerStatsTrace
 				(
-					"Scheduler stats {}: Signals {} Sleeps {} LocalEnqueues {} AtomicEnqueues {} CurrentThread {} Fixed {} ForcedNonLocal {} LastQueue {} RoundRobin {} Handoffs {} IdleClaims {} RunProcess {} Drained {} LongDrains {} GCCalls {} GCCollects {}\n"
+					"Scheduler stats {}: Signals {} Sleeps {} LocalEnqueues {} AtomicEnqueues {} CurrentThread {} Fixed {} ForcedNonLocal {} LastQueue {} RoundRobin {} Handoffs {}"
+					" IdleClaims {} RunProcess {} Drained {} LongDrains {} GCCalls {} GCCollects {}\n"
 					, c_pPriorityNames[Priority]
 					, Stats.m_nSignals
 					, Stats.m_nSleeps
@@ -2343,7 +2340,7 @@ namespace NMib::NConcurrency
 		m_Checkouts.f_Reserve(_Capacity);
 	}
 
-	CBlockingActorCheckout &CRoundRobinBlockingActors::operator *()
+	CBlockingActorCheckout &CRoundRobinBlockingActors::operator * ()
 	{
 		umint iCheckout = m_iCheckout;
 		++m_iCheckout;
@@ -2448,7 +2445,8 @@ namespace NMib::NConcurrency
 				iQueue = pHolder->mp_iFixedQueue;
 			else if
 			(
-				ThreadLocal.m_pThisQueue && ThreadLocal.m_pThisQueue->m_Priority == Priority
+				ThreadLocal.m_pThisQueue
+				&& ThreadLocal.m_pThisQueue->m_Priority == Priority
 				&& ThreadLocal.m_pThisQueue->m_iQueue < m_nThreads
 				&& &m_Queues[Priority][ThreadLocal.m_pThisQueue->m_iQueue] == ThreadLocal.m_pThisQueue
 				&& (!pHolder || pHolder == ThreadLocal.m_pCurrentlyProcessingActorHolder)
@@ -2470,7 +2468,6 @@ namespace NMib::NConcurrency
 		DMibFastCheck(iQueue < m_Queues[Priority].f_GetLen());
 		return m_Queues[Priority][iQueue].m_TimerActorRef;
 	}
-
 
 	CFutureCoroutineContextOnResumeScopeAwaiter fg_CurrentActorCheckDestroyedOnResume()
 	{

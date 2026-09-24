@@ -11,7 +11,7 @@ namespace NMib::NConcurrency::NUnwrap
 
 	struct CUnwrapHelper
 	{
-		operator CUnwrapHelperWithTransformer const &();
+		operator CUnwrapHelperWithTransformer const & ();
 	};
 
 	struct CUnwrapFirstHelper

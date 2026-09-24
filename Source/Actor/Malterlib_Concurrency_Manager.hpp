@@ -46,7 +46,6 @@ namespace NMib::NConcurrency
 
 			return Index - 1;
 		}
-
 	}
 
 	template <typename t_CActor>
@@ -90,12 +89,9 @@ namespace NMib::NConcurrency
 		return ((TCSingleton<t_CActor> *)m_Singletons[iSingleton].f_Get())->m_Actor;
 	}
 
-	template <typename tf_CType, typename... tfp_CParams>
-	TCActor<tf_CType> CConcurrencyManager::f_ConstructFromInternalActor
-		(
-			TCActorHolderSharedPointer<TCActorInternal<tf_CType>> &&_pInternalActor
-			, TCConstruct<tf_CType, tfp_CParams...> &&_ConstructParams
-		)
+	template <typename tf_CType, typename ...tfp_CParams>
+	auto CConcurrencyManager::f_ConstructFromInternalActor(TCActorHolderSharedPointer<TCActorInternal<tf_CType>> &&_pInternalActor, TCConstruct<tf_CType, tfp_CParams...> &&_ConstructParams)
+		-> TCActor<tf_CType>
 	{
 		TCActorInternal<tf_CType> &InternalActor = *_pInternalActor.f_Get();
 
@@ -122,8 +118,8 @@ namespace NMib::NConcurrency
 		return fg_Move(_pInternalActor);
 	}
 
-	template <typename tf_CType, typename... tfp_CParams, typename... tfp_CHolderParams>
-	TCActor<tf_CType> CConcurrencyManager::f_ConstructActor(TCConstruct<tf_CType, tfp_CParams...> &&_ConstructParams, tfp_CHolderParams&&... p_Params)
+	template <typename tf_CType, typename ...tfp_CParams, typename ...tfp_CHolderParams>
+	TCActor<tf_CType> CConcurrencyManager::f_ConstructActor(TCConstruct<tf_CType, tfp_CParams...> &&_ConstructParams, tfp_CHolderParams && ...p_Params)
 	{
 		TCActorHolderSharedPointer<TCActorInternal<tf_CType>> pActor = fg_Construct(this, nullptr, fg_Forward<tfp_CHolderParams>(p_Params)...);
 
@@ -140,16 +136,16 @@ namespace NMib::NConcurrency
 		return fg_Move(pReturn);
 	}
 
-	template <typename tf_CActor, typename... tfp_CParams>
-	TCActor<tf_CActor> fg_ConstructActor(tfp_CParams &&...p_Params)
+	template <typename tf_CActor, typename ...tfp_CParams>
+	TCActor<tf_CActor> fg_ConstructActor(tfp_CParams && ...p_Params)
 	{
 		return fg_ConcurrencyManager().f_ConstructActor(fg_Construct<tf_CActor>(fg_Forward<tfp_CParams>(p_Params)...));
 	}
 
 	namespace NPrivate
 	{
-		template <typename tf_CActor, typename tf_CHolderType, typename... tfp_CHolderParams, typename... tfp_CParams, umint... tfp_Indidies>
-		TCActor<tf_CActor> fg_ConstructActorHelper(TCConstruct<tf_CHolderType, tfp_CHolderParams...> &&_HolderParams, NMeta::TCIndices<tfp_Indidies...> const&, tfp_CParams &&...p_Params)
+		template <typename tf_CActor, typename tf_CHolderType, typename ...tfp_CHolderParams, typename ...tfp_CParams, umint ...tfp_Indidies>
+		TCActor<tf_CActor> fg_ConstructActorHelper(TCConstruct<tf_CHolderType, tfp_CHolderParams...> &&_HolderParams, NMeta::TCIndices<tfp_Indidies...> const &, tfp_CParams && ...p_Params)
 		{
 			return fg_ConcurrencyManager().f_ConstructActor
 				(
@@ -160,16 +156,10 @@ namespace NMib::NConcurrency
 		}
 	}
 
-	template <typename tf_CActor, typename tf_CHolderType, typename... tfp_CHolderParams, typename... tfp_CParams>
-	TCActor<tf_CActor> fg_ConstructActor(TCConstruct<tf_CHolderType, tfp_CHolderParams...> &&_HolderParams, tfp_CParams &&...p_Params)
+	template <typename tf_CActor, typename tf_CHolderType, typename ...tfp_CHolderParams, typename ...tfp_CParams>
+	TCActor<tf_CActor> fg_ConstructActor(TCConstruct<tf_CHolderType, tfp_CHolderParams...> &&_HolderParams, tfp_CParams && ...p_Params)
 	{
-		return NPrivate::fg_ConstructActorHelper<tf_CActor>
-			(
-				fg_Move(_HolderParams)
-				, NMeta::TCConsecutiveIndices<sizeof...(tfp_CHolderParams)>()
-				, fg_Forward<tfp_CParams>(p_Params)...
-			)
-		;
+		return NPrivate::fg_ConstructActorHelper<tf_CActor>(fg_Move(_HolderParams), NMeta::TCConsecutiveIndices<sizeof...(tfp_CHolderParams)>(), fg_Forward<tfp_CParams>(p_Params)...);
 	}
 
 	struct COnScopeExitActorHelperWithActor
@@ -186,13 +176,7 @@ namespace NMib::NConcurrency
 				(
 					[Actor = fg_Move(m_Actor), fOnExitFunctor = fg_Move(_fOnExitFunctor)]() mutable
 					{
-						fg_Dispatch
-							(
-								fg_Move(Actor)
-								, fg_Move(fOnExitFunctor)
-							)
-							.f_DiscardResult()
-						;
+						fg_Dispatch(fg_Move(Actor), fg_Move(fOnExitFunctor)).f_DiscardResult();
 					}
 				)
 			;
@@ -211,13 +195,7 @@ namespace NMib::NConcurrency
 				(
 					[Actor = fg_CurrentActor(), fOnExitFunctor = fg_Move(_fOnExitFunctor)]() mutable
 					{
-						fg_Dispatch
-							(
-								fg_Move(Actor)
-								, fg_Move(fOnExitFunctor)
-							)
-							.f_DiscardResult()
-						;
+						fg_Dispatch(fg_Move(Actor), fg_Move(fOnExitFunctor)).f_DiscardResult();
 					}
 				)
 			;

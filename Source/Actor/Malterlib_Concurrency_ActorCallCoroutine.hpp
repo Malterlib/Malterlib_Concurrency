@@ -7,9 +7,9 @@ namespace NMib::NConcurrency
 {
 	enum ECoroutineAwaiterResult
 	{
-		ECoroutineAwaiterResult_None = 0
+		ECoroutineAwaiterResult_None       = 0
 		, ECoroutineAwaiterResult_Observed = DMibBit(0)
-		, ECoroutineAwaiterResult_Set = DMibBit(1)
+		, ECoroutineAwaiterResult_Set      = DMibBit(1)
 	};
 
 	template <typename tf_FExceptionTransform>
@@ -29,30 +29,21 @@ namespace NMib::NConcurrency
 		return fg_Move(*this).f_Dispatch() > fg_Forward<tf_CRight>(_Right);
 	}
 
-	template <bool t_bUnwrap, typename t_FExceptionTransform, typename... tp_CFutures>
+	template <bool t_bUnwrap, typename t_FExceptionTransform, typename ...tp_CFutures>
 	TCFuturePackAwaiter<t_bUnwrap, t_FExceptionTransform, tp_CFutures...>::TCFuturePackAwaiter(NStorage::TCTuple<tp_CFutures...> &&_Futures, t_FExceptionTransform &&_fExceptionTransform)
 		: mp_Futures(fg_Move(_Futures))
 		, mp_fExceptionTransform(fg_Move(_fExceptionTransform))
 	{
 	}
 
-	template <bool t_bUnwrap, typename t_FExceptionTransform, typename... tp_CFutures>
+	template <bool t_bUnwrap, typename t_FExceptionTransform, typename ...tp_CFutures>
 	TCFuturePackAwaiter<t_bUnwrap, t_FExceptionTransform, tp_CFutures...>::~TCFuturePackAwaiter()
 	{
 	}
 
-	template <bool t_bUnwrap, typename t_FExceptionTransform, typename... tp_CFutures>
-	template
-	<
-		typename tf_CResultFunctor
-		, umint... tfp_Indices
-	>
-	void TCFuturePackAwaiter<t_bUnwrap, t_FExceptionTransform, tp_CFutures...>::fp_ActorCall
-		(
-			tf_CResultFunctor &&_ResultFunctor
-			, TCActor<> &&_ResultActor
-			, NMeta::TCIndices<tfp_Indices...>
-		)
+	template <bool t_bUnwrap, typename t_FExceptionTransform, typename ...tp_CFutures>
+	template <typename tf_CResultFunctor, umint ...tfp_Indices>
+	void TCFuturePackAwaiter<t_bUnwrap, t_FExceptionTransform, tp_CFutures...>::fp_ActorCall(tf_CResultFunctor &&_ResultFunctor, TCActor<> &&_ResultActor, NMeta::TCIndices<tfp_Indices...>)
 	{
 		using CTypeList = NMeta::TCTypeList<typename tp_CFutures::CValue...>;
 		using CStorage = NPrivate::TCCallMutipleActorStorage<false, tf_CResultFunctor, TCActor<>, CTypeList>;
@@ -78,15 +69,15 @@ namespace NMib::NConcurrency
 		);
 	}
 
-	template <bool t_bUnwrap, typename t_FExceptionTransform, typename... tp_CFutures>
-	template <umint... tfp_Indices>
+	template <bool t_bUnwrap, typename t_FExceptionTransform, typename ...tp_CFutures>
+	template <umint ...tfp_Indices>
 	auto TCFuturePackAwaiter<t_bUnwrap, t_FExceptionTransform, tp_CFutures...>::fp_Unwrap(NMeta::TCIndices<tfp_Indices...>) -> CUnwrappedType
 	{
 		return {fg_Move(*fg_Get<tfp_Indices>(mp_Results))...};
 	}
 
-	template <bool t_bUnwrap, typename t_FExceptionTransform, typename... tp_CFutures>
-	template <umint... tfp_Indices>
+	template <bool t_bUnwrap, typename t_FExceptionTransform, typename ...tp_CFutures>
+	template <umint ...tfp_Indices>
 	NException::CExceptionPointer TCFuturePackAwaiter<t_bUnwrap, t_FExceptionTransform, tp_CFutures...>::fp_HasException(NMeta::TCIndices<tfp_Indices...>)
 	{
 		NException::CExceptionExceptionVectorData::CErrorCollector ErrorCollector;
@@ -112,8 +103,8 @@ namespace NMib::NConcurrency
 			return fg_Move(ErrorCollector).f_GetException();
 	}
 
-	template <bool t_bUnwrap, typename t_FExceptionTransform, typename... tp_CFutures>
-	template <umint... tfp_Indices>
+	template <bool t_bUnwrap, typename t_FExceptionTransform, typename ...tp_CFutures>
+	template <umint ...tfp_Indices>
 	void TCFuturePackAwaiter<t_bUnwrap, t_FExceptionTransform, tp_CFutures...>::fp_TransformExceptions(CWrappedType &o_Results, NMeta::TCIndices<tfp_Indices...>)
 	{
 		(
@@ -128,13 +119,13 @@ namespace NMib::NConcurrency
 		);
 	}
 
-	template <bool t_bUnwrap, typename t_FExceptionTransform, typename... tp_CFutures>
+	template <bool t_bUnwrap, typename t_FExceptionTransform, typename ...tp_CFutures>
 	bool TCFuturePackAwaiter<t_bUnwrap, t_FExceptionTransform, tp_CFutures...>::await_ready() const noexcept
 	{
 		return false;
 	}
 
-	template <bool t_bUnwrap, typename t_FExceptionTransform, typename... tp_CFutures>
+	template <bool t_bUnwrap, typename t_FExceptionTransform, typename ...tp_CFutures>
 	template <typename tf_CCoroutineContext>
 	bool TCFuturePackAwaiter<t_bUnwrap, t_FExceptionTransform, tp_CFutures...>::await_suspend(TCCoroutineHandle<tf_CCoroutineContext> &&_Handle)
 	{
@@ -176,13 +167,7 @@ namespace NMib::NConcurrency
 						if (auto pException = fp_HasException(NMeta::TCConsecutiveIndices<sizeof...(tp_CFutures)>()))
 						{
 							NStorage::TCUniquePointer<COnResumeException> pResult = fg_Construct(fg_TransformException(fg_Move(pException), mp_fExceptionTransform));
-							CoroutineContext.f_HandleAwaitedResult
-								(
-									ConcurrencyThreadLocal
-									, &tf_CCoroutineContext::fs_KeepaliveSetResultFunctor
-									, fg_Move(pResult)
-								)
-							;
+							CoroutineContext.f_HandleAwaitedResult(ConcurrencyThreadLocal, &tf_CCoroutineContext::fs_KeepaliveSetResultFunctor, fg_Move(pResult));
 							return;
 						}
 					}
@@ -206,13 +191,7 @@ namespace NMib::NConcurrency
 				if (auto pException = fp_HasException(NMeta::TCConsecutiveIndices<sizeof...(tp_CFutures)>()))
 				{
 					NStorage::TCUniquePointer<COnResumeException> pResult = fg_Construct(fg_TransformException(fg_Move(pException), mp_fExceptionTransform));
-					CoroutineContext.f_HandleAwaitedResult
-						(
-							ConcurrencyThreadLocal
-							, &tf_CCoroutineContext::fs_KeepaliveSetResultFunctor
-							, fg_Move(pResult)
-						)
-					;
+					CoroutineContext.f_HandleAwaitedResult(ConcurrencyThreadLocal, &tf_CCoroutineContext::fs_KeepaliveSetResultFunctor, fg_Move(pResult));
 					return true;
 				}
 			}
@@ -224,7 +203,7 @@ namespace NMib::NConcurrency
 		return true;
 	}
 
-	template <bool t_bUnwrap, typename t_FExceptionTransform, typename... tp_CFutures>
+	template <bool t_bUnwrap, typename t_FExceptionTransform, typename ...tp_CFutures>
 	auto TCFuturePackAwaiter<t_bUnwrap, t_FExceptionTransform, tp_CFutures...>::await_resume() noexcept(!t_bUnwrap)
 	{
 		if constexpr (t_bUnwrap)
@@ -251,28 +230,24 @@ namespace NMib::NConcurrency
 	}
 
 	template <typename t_CFuturePack, typename ...tp_CFutures>
-	auto TCFuturePackWithError<t_CFuturePack, tp_CFutures...>::operator co_await() &&
+	auto TCFuturePackWithError<t_CFuturePack, tp_CFutures...>::operator co_await () &&
 	{
-		return TCFuturePackAwaiter
-			<
-				true
-				, FExceptionTransformer
-				, tp_CFutures...
-			>
-			{fg_Move(mp_pFuturePack->m_Futures), fg_Move(*this).f_GetTransformer()}
+		return TCFuturePackAwaiter<true, FExceptionTransformer, tp_CFutures...>
+			{
+				fg_Move(mp_pFuturePack->m_Futures)
+				, fg_Move(*this).f_GetTransformer()
+			}
 		;
 	}
 
 	template <typename t_CFuturePack, typename ...tp_CFutures>
-	auto TCFuturePackWithError<t_CFuturePack, tp_CFutures...>::CNoUnwrapAsyncResult::operator co_await() &&
+	auto TCFuturePackWithError<t_CFuturePack, tp_CFutures...>::CNoUnwrapAsyncResult::operator co_await () &&
 	{
-		return TCFuturePackAwaiter
-			<
-				false
-				, FExceptionTransformer
-				, tp_CFutures...
-			>
-			{fg_Move(m_pWrapped->mp_pFuturePack->m_Futures), fg_Move(*m_pWrapped).f_GetTransformer()}
+		return TCFuturePackAwaiter<false, FExceptionTransformer, tp_CFutures...>
+			{
+				fg_Move(m_pWrapped->mp_pFuturePack->m_Futures)
+				, fg_Move(*m_pWrapped).f_GetTransformer()
+			}
 		;
 	}
 }

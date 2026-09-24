@@ -24,9 +24,9 @@ using namespace NMib::NTest;
 using namespace NMib::NNetwork;
 
 #if DMibConfig_Concurrency_DebugSubscriptions
-	static fp64 g_Timeout = 60.0 * gc_TimeoutMultiplier * 10.0;
+static fp64 g_Timeout = 60.0 * gc_TimeoutMultiplier * 10.0;
 #else
-	static fp64 g_Timeout = 60.0 * gc_TimeoutMultiplier;
+static fp64 g_Timeout = 60.0 * gc_TimeoutMultiplier;
 #endif
 
 namespace NDistributedActorPriorityTests
@@ -53,7 +53,7 @@ namespace NDistributedActorPriorityTests
 		{
 			enum : uint32
 			{
-				EProtocolVersion_Min = 0x10B // Priority support version
+				EProtocolVersion_Min       = 0x10B // Priority support version
 				, EProtocolVersion_Current = 0x10B
 			};
 

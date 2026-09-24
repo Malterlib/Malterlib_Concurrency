@@ -72,13 +72,7 @@ namespace NMib::NConcurrency::NSensorStore
 	;
 
 	template <typename tf_CSensor, typename tf_CReading>
-	bool fg_FilterSensorReadingValueWithSensor
-		(
-			tf_CSensor const &_Sensor
-			, tf_CReading const &_Reading
-			, CDistributedAppSensorReader_SensorReadingFilter::ESensorReadingsFlag _Flags
-		)
-	;
+	bool fg_FilterSensorReadingValueWithSensor(tf_CSensor const &_Sensor, tf_CReading const &_Reading, CDistributedAppSensorReader_SensorReadingFilter::ESensorReadingsFlag _Flags);
 }
 
 #include "Malterlib_Concurrency_DistributedApp_SensorLocalStore_Filter.hpp"

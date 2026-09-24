@@ -73,7 +73,7 @@ namespace NMib::NConcurrency
 				AddMetadata[iMetadata->f_Name()] = iMetadata->f_Value();
 		}
 
-		co_await mp_State.m_TrustManager(&CDistributedActorTrustManager::f_SetUserInfo,  UserID, UserName, RemoveMetadata, AddMetadata);
+		co_await mp_State.m_TrustManager(&CDistributedActorTrustManager::f_SetUserInfo, UserID, UserName, RemoveMetadata, AddMetadata);
 
 		DMibLogWithCategory(Mib/Concurrency/App, Info, "Set metadata for user '{}' from command line", UserID);
 
@@ -129,13 +129,7 @@ namespace NMib::NConcurrency
 		co_return 0;
 	}
 
-	TCFuture<uint32> CDistributedAppActor::f_CommandLine_RegisterAuthenticationFactor
-		(
-			TCSharedPointer<CCommandLineControl> _pCommandLine
-			, CStr _UserID
-			, CStr _Factor
-			, bool _bQuiet
-		)
+	TCFuture<uint32> CDistributedAppActor::f_CommandLine_RegisterAuthenticationFactor(TCSharedPointer<CCommandLineControl> _pCommandLine, CStr _UserID, CStr _Factor, bool _bQuiet)
 	{
 		CStr FactorID = co_await mp_State.m_TrustManager(&CDistributedActorTrustManager::f_RegisterUserAuthenticationFactor, _pCommandLine, _UserID, _Factor);
 
@@ -147,12 +141,7 @@ namespace NMib::NConcurrency
 		co_return 0;
 	}
 
-	TCFuture<uint32> CDistributedAppActor::f_CommandLine_UnregisterAuthenticationFactor
-		(
-			TCSharedPointer<CCommandLineControl> _pCommandLine
-			, CStr _UserID
-			, CStr _Factor
-		)
+	TCFuture<uint32> CDistributedAppActor::f_CommandLine_UnregisterAuthenticationFactor(TCSharedPointer<CCommandLineControl> _pCommandLine, CStr _UserID, CStr _Factor)
 	{
 		co_await mp_State.m_TrustManager(&CDistributedActorTrustManager::f_RemoveUserAuthenticationFactor, _UserID, _Factor);
 
@@ -252,11 +241,7 @@ namespace NMib::NConcurrency
 		for (auto const &AuthenticationActorInfo : AuthenticationActors)
 		{
 			AuthenticationActorInfo.m_Actor.f_CallActor(&ICDistributedActorAuthentication::f_AuthenticatePermissionPattern)
-				(
-					Pattern
-					, Factors
-					, MultipleRequestData.m_ID
-				)
+				(Pattern, Factors, MultipleRequestData.m_ID)
 				.f_Timeout(10.0, "Timeout waiting for manager to reply")
 				> AuthenticationResults
 			;

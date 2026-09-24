@@ -10,11 +10,7 @@ namespace NMib::NConcurrency
 	template <typename tf_CActor>
 	TCActor<tf_CActor> CActorHolder::fp_GetAsActor()
 	{
-		return TCActorHolderSharedPointer<TCActorInternal<tf_CActor>>
-			(
-				fg_Explicit(static_cast<TCActorInternal<tf_CActor> *>(this))
-			)
-		;
+		return TCActorHolderSharedPointer<TCActorInternal<tf_CActor>>(fg_Explicit(static_cast<TCActorInternal<tf_CActor> *>(this)));
 	}
 
 	inline_always CConcurrencyManager &CActorHolder::f_ConcurrencyManager() const

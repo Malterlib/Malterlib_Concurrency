@@ -14,8 +14,8 @@ namespace NMib::NConcurrency
 		CThreadPool(umint _nThreads = fg_Max(aint(NSys::fg_Thread_GetVirtualCores()) - 3, 0));
 		~CThreadPool();
 
-		void f_Dispatch(NFunction::TCFunction<void ()> && _Functor);
-		void f_Dispatch(NFunction::TCFunction<void ()> const& _Functor);
+		void f_Dispatch(NFunction::TCFunction<void ()> &&_Functor);
+		void f_Dispatch(NFunction::TCFunction<void ()> const &_Functor);
 		bool f_DispatchOne();
 		bool f_IsSingleThreaded() const;
 
@@ -37,5 +37,5 @@ namespace NMib::NConcurrency
 #include "Malterlib_Concurrency_ParallellForEach.hpp"
 
 #ifndef DMibPNoShortCuts
-	using namespace NMib::NConcurrency;
+using namespace NMib::NConcurrency;
 #endif

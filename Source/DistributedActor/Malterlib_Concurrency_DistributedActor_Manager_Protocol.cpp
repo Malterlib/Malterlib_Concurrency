@@ -112,11 +112,7 @@ namespace NMib::NConcurrency
 		}
 	}
 
-	bool CActorDistributionManagerInternal::fp_HandleProtocolIncoming
-		(
-			CConnection *_pConnection
-			, NStorage::TCSharedPointer<NStream::CBinaryStorage const> const &_pMessage
-		)
+	bool CActorDistributionManagerInternal::fp_HandleProtocolIncoming(CConnection *_pConnection, NStorage::TCSharedPointer<NStream::CBinaryStorage const> const &_pMessage)
 	{
 		umint Length = _pMessage->f_GetTotalLength();
 		if (Length < 1)
@@ -206,9 +202,7 @@ namespace NMib::NConcurrency
 #if 0
 					// This seems to not be needed
 					if (!Identify.m_LastSeenExecutionID.f_IsEmpty() && Identify.m_LastSeenExecutionID != m_ExecutionID)
-					{
 						bShouldReset = true;
-					}
 #endif
 					if (bShouldReset && !Host.m_LastExecutionID.f_IsEmpty())
 						fp_ResetHostState(*pHost, _pConnection, true, "Identify with new execution ID");
@@ -236,7 +230,8 @@ namespace NMib::NConcurrency
 									, _pConnection->f_GetConnectionID()
 									, Identify.m_ProtocolVersion
 									, HostActorProtocolVersion
-								);
+								)
+							;
 							if (!_pConnection->m_IdentifyPromise.f_IsSet())
 								_pConnection->m_IdentifyPromise.f_SetException(DMibErrorInstance("Inconsistent protocol version"));
 							return false;
@@ -356,7 +351,8 @@ namespace NMib::NConcurrency
 
 					DMibLog
 						(
-							SubscriptionLogVerbosity, " ---- {} {} Identify AllowAll {} Allowed {vs} Host {}"
+							SubscriptionLogVerbosity
+							, " ---- {} {} Identify AllowAll {} Allowed {vs} Host {}"
 							, Host.m_bIncoming
 							, _pConnection->f_GetConnectionID()
 							, Identify.m_bAllowAllNamespaces
@@ -497,8 +493,8 @@ namespace NMib::NConcurrency
 					for (auto &PublishFinished : _pConnection->m_PublishFinished)
 						PublishFinished.f_Future() > PublishResults;
 
-					fg_AllDone(PublishResults).f_Timeout(30.0, "")
-						> [pConnection = NStorage::TCSharedPointer<CConnection, NStorage::CSupportWeakTag>(fg_Explicit(_pConnection)), this](auto &&_Result)
+					fg_AllDone(PublishResults).f_Timeout(30.0, "") > [pConnection = NStorage::TCSharedPointer<CConnection, NStorage::CSupportWeakTag>(fg_Explicit(_pConnection)), this]
+						(auto &&_Result)
 						{
 							if (!pConnection->m_pHost)
 								return;

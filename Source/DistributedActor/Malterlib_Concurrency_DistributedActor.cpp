@@ -67,13 +67,7 @@ namespace NMib::NConcurrency
 		{
 			fg_ConcurrencyManager(); // Add dependency to subsystem
 
-			NCryptography::CCertificate::fs_RegisterExtension
-				(
-					"1.3.6.1.4.1.47722.1.1"
-					, "MalterlibHostID"
-					, "Malterlib Host ID"
-				)
-			;
+			NCryptography::CCertificate::fs_RegisterExtension("1.3.6.1.4.1.47722.1.1", "MalterlibHostID", "Malterlib Host ID");
 		}
 
 		CSubSystem_Concurrency_DistributedActor::~CSubSystem_Concurrency_DistributedActor()
@@ -91,13 +85,8 @@ namespace NMib::NConcurrency
 			return *g_MalterlibSubSystem_Concurrency_DistributedActor;
 		}
 
-		TCFuture<CDistributedActorPublication> fg_PublishActor
-			(
-				TCDistributedActor<CActor> &&_Actor
-				, NPrivate::CDistributedActorInterfaceInfo &&_InterfaceInfo
-				, NStr::CStr const &_Namespace
-				, fp32 _WaitForPublicationsTimeout
-			)
+		auto fg_PublishActor(TCDistributedActor<CActor> &&_Actor, NPrivate::CDistributedActorInterfaceInfo &&_InterfaceInfo, NStr::CStr const &_Namespace, fp32 _WaitForPublicationsTimeout)
+			-> TCFuture<CDistributedActorPublication>
 		{
 			NPrivate::CDistributedActorData *pDistributedData = (NPrivate::CDistributedActorData *)_Actor->f_GetDistributedActorData().f_Get();
 			TCActor<CActorDistributionManager> DistributionManager;
@@ -113,15 +102,7 @@ namespace NMib::NConcurrency
 					return DMibErrorInstance("Distribution manager has been deleted");
 			}
 
-			return DistributionManager
-				(
-					&CActorDistributionManager::fp_PublishActor
-					, fg_Move(_Actor)
-					, _Namespace
-					, fg_Move(_InterfaceInfo)
-					, _WaitForPublicationsTimeout
-				)
-			;
+			return DistributionManager(&CActorDistributionManager::fp_PublishActor, fg_Move(_Actor), _Namespace, fg_Move(_InterfaceInfo), _WaitForPublicationsTimeout);
 		}
 	}
 
@@ -390,6 +371,7 @@ namespace NMib::NConcurrency
 				: m_Priority(_Priority)
 			{
 			}
+
 			uint8 m_Priority;
 			NStorage::TCUniquePointer<CPriorityScope> m_Scope;
 #if DMibEnableSafeCheck > 0
@@ -478,16 +460,9 @@ namespace NMib::NConcurrency
 
 		NCryptography::CCertificateSignOptions SignOptions;
 		SignOptions.m_Serial = 1;
-		SignOptions.m_Days = 10*365;
+		SignOptions.m_Days = 10 * 365;
 
-		NCryptography::CCertificate::fs_GenerateSelfSignedCertAndKey
-			(
-				Options
-				, m_PublicCertificate
-				, m_PrivateKey
-				, SignOptions
-			)
-		;
+		NCryptography::CCertificate::fs_GenerateSelfSignedCertAndKey(Options, m_PublicCertificate, m_PrivateKey, SignOptions);
 
 		// These are now all invalid
 		m_RemoteClientCertificates.f_Clear();
@@ -507,13 +482,7 @@ namespace NMib::NConcurrency
 		Extension.m_bCritical = false;
 		Extension.m_Value = m_HostID;
 
-		NCryptography::CCertificate::fs_GenerateClientCertificateRequest
-			(
-				Options
-				, Return
-				, KeyData
-			)
-		;
+		NCryptography::CCertificate::fs_GenerateClientCertificateRequest(Options, Return, KeyData);
 		return Return;
 	}
 
@@ -521,7 +490,7 @@ namespace NMib::NConcurrency
 	{
 		NCryptography::CCertificateSignOptions SignOptions;
 		SignOptions.m_Serial = ++m_Serial;
-		SignOptions.m_Days = 10*365;
+		SignOptions.m_Days = 10 * 365;
 
 		// Transports do not verify hostnames; constrain issued leaves to clientAuth so a client cannot impersonate the server.
 		SignOptions.m_LeafRole = NCryptography::ECertificateLeafRole_ClientAuth;
@@ -536,24 +505,11 @@ namespace NMib::NConcurrency
 		SignOptions.m_OverrideSubjectCommonName = fg_Format("Malterlib Distributed Actor Client - {}", RequestHostID).f_Left(64);
 
 		NContainer::CByteVector Return;
-		NCryptography::CCertificate::fs_SignClientCertificate
-			(
-				m_PublicCertificate
-				, m_PrivateKey
-				, _Request
-				, Return
-				, SignOptions
-			)
-		;
+		NCryptography::CCertificate::fs_SignClientCertificate(m_PublicCertificate, m_PrivateKey, _Request, Return, SignOptions);
 		return Return;
 	}
 
-	void CActorDistributionCryptographySettings::f_AddRemoteServer
-		(
-			NWeb::NHTTP::CURL const &_URL
-			, NContainer::CByteVector const &_ServerCert
-			, NContainer::CByteVector const &_ClientCert
-		)
+	void CActorDistributionCryptographySettings::f_AddRemoteServer(NWeb::NHTTP::CURL const &_URL, NContainer::CByteVector const &_ServerCert, NContainer::CByteVector const &_ClientCert)
 	{
 		auto &NewRemote = m_RemoteClientCertificates[_URL];
 		NewRemote.m_PublicServerCertificate = _ServerCert;
@@ -819,7 +775,8 @@ namespace NMib::NConcurrency
 
 		if (nParsed == 2)
 		{
-			Return += "[{}{}{}@{}{}{}]"_f
+			Return
+				+= "[{}{}{}@{}{}{}]"_f
 				<< AnsiEncoding.f_Foreground256(75)
 				<< UserName
 				<< AnsiEncoding.f_Foreground256(246)
@@ -846,12 +803,7 @@ namespace NMib::NConcurrency
 	bool CDistributedActorProtocolVersions::f_HighestSupportedVersion(CDistributedActorProtocolVersions const &_Other, uint32 &o_Version) const
 	{
 		uint32 Version = fg_Min(m_MaxSupported, _Other.m_MaxSupported);
-		bool bSuccess =
-			Version >= m_MinSupported
-			&& Version <= m_MaxSupported
-			&& Version >= _Other.m_MinSupported
-			&& Version <= _Other.m_MaxSupported
-		;
+		bool bSuccess = Version >= m_MinSupported && Version <= m_MaxSupported && Version >= _Other.m_MinSupported && Version <= _Other.m_MaxSupported;
 		if (bSuccess)
 			o_Version = Version;
 		return bSuccess;
@@ -864,7 +816,6 @@ namespace NMib::NConcurrency
 
 	CDistributedActorIdentifier::CDistributedActorIdentifier()
 	{
-
 	}
 
 	CDistributedActorIdentifier::CDistributedActorIdentifier(NStorage::TCWeakPointer<NPrivate::ICHost> const &_pHost, NStr::CStr const &_ActorID)
@@ -965,11 +916,7 @@ namespace NMib::NConcurrency
 			, NMib::NStream::CBinaryStorage &&
 			, NMib::NConcurrency::NPrivate::CDistributedActorStreamContext &
 		>
-		(
-			NMib::NStorage::TCSharedPointer<NPrivate::CDistributedActorData> &&
-			, NMib::NStream::CBinaryStorage &&
-			, NPrivate::CDistributedActorStreamContext &
-		) const &
+		(NMib::NStorage::TCSharedPointer<NPrivate::CDistributedActorData> &&, NMib::NStream::CBinaryStorage &&, NPrivate::CDistributedActorStreamContext &) const &
 		-> TCFuture<NStream::CBinaryStorage>
 	;
 
@@ -981,11 +928,7 @@ namespace NMib::NConcurrency
 			, NMib::NStream::CBinaryStorage &&
 			, NMib::NConcurrency::NPrivate::CDistributedActorStreamContext &
 		>
-		(
-			NMib::NStorage::TCSharedPointer<NPrivate::CDistributedActorData> &&
-			, NMib::NStream::CBinaryStorage &&
-			, NPrivate::CDistributedActorStreamContext &
-		) &&
+		(NMib::NStorage::TCSharedPointer<NPrivate::CDistributedActorData> &&, NMib::NStream::CBinaryStorage &&, NPrivate::CDistributedActorStreamContext &) &&
 		-> TCFuture<NStream::CBinaryStorage>
 	;
 #endif

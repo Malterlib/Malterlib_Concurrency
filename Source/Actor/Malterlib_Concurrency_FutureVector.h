@@ -57,6 +57,7 @@ namespace NMib::NConcurrency
 		{
 			CInternal();
 			~CInternal();
+
 		public:
 			friend struct TCFutureVector;
 
@@ -77,9 +78,10 @@ namespace NMib::NConcurrency
 		{
 			umint mp_iResult;
 			NStorage::TCSharedPointer<CInternal> mp_pInternal;
+
 		public:
 			CResultReceived(umint _iResult, NStorage::TCSharedPointer<CInternal> const &_pInternal);
-			void operator ()(TCAsyncResult<t_CType> &&_Result) const;
+			void operator () (TCAsyncResult<t_CType> &&_Result) const;
 		};
 
 	public:
@@ -94,10 +96,10 @@ namespace NMib::NConcurrency
 
 		auto fp_GetResults();
 		TCFuture<NContainer::TCVector<t_CType>> fp_GetUnwrappedResults()
-			requires(!NTraits::cIsVoid<t_CType>)
+			requires (!NTraits::cIsVoid<t_CType>)
 		;
 		TCFuture<void> fp_GetUnwrappedResults()
-			requires(NTraits::cIsVoid<t_CType>)
+			requires (NTraits::cIsVoid<t_CType>)
 		;
 
 		NStorage::TCSharedPointer<CInternal> mp_pInternal;

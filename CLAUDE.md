@@ -498,14 +498,15 @@ auto Functor = g_ActorFunctor
 ```cpp
 // Ensure an actor is destroyed even if the coroutine exits early
 TCActor<CFileTransferSend> Upload = fg_ConstructActor<CFileTransferSend>(_Path);
-co_await fg_AsyncDestroy(Upload); // Schedule destruction when co-routine goes out of scope
+auto DestroyUpload = co_await fg_AsyncDestroy(Upload); // Destroys Upload when DestroyUpload goes out of scope
 
-// Destroy by value (functor/lambda) after use
-co_await fg_AsyncDestroy
+// Destroy with a cleanup function
+auto DestroyResult = co_await fg_AsyncDestroy
 	(
-		[&AsyncResult]() -> TCFuture<void>
+		[&]() -> TCFuture<void>
 		{
-			co_await fg_Move(AsyncResult).f_Destroy();
+			auto ToDestroy = fg_Move(AsyncResult); // Copy or move out before the first suspension
+			co_await fg_Move(ToDestroy).f_Destroy();
 			co_return {};
 		}
 	)
@@ -535,7 +536,8 @@ TCFuture<void> f_Process(CStr _Key)
 ```
 
 - Use the `fg_AsyncDestroy` helper instead of manual `g_OnScopeExit` plumbing when an actor/functor needs structured teardown.
-- Schedule the helper before the first suspension and capture by reference only while the cleanup body stays before its first real suspension. `co_await ECoroutineFlag_CaptureExceptions` does not suspend, so captured references are still safe across that await. After the first actual suspension point of the cleanup function the references WILL be invalid, so copy or move anything needed into locals before that point.
+- `co_await` the helper and keep its result in a named variable: the cleanup runs when that variable goes out of scope. Do not move the result to a longer-lived place, since the cleanup would then run after the locals it refers to are gone.
+- The cleanup function may capture by reference, but may use those references only before its own first real suspension. `co_await ECoroutineFlag_CaptureExceptions` does not suspend, so captured references are still safe across that await. After the first actual suspension point of the cleanup function the references WILL be invalid, so copy or move anything needed into locals before that point.
 - These helpers schedule destruction on the owning actor.
 - Pair `fg_OnResume` with any pointer captures when the coroutine is going to suspend before dereferencing actor-owned data. While the coroutine is cancelled if the actor dies, other actor calls can mutate or erase those structures during the suspension, so re-validation on resume avoids stale references.
 

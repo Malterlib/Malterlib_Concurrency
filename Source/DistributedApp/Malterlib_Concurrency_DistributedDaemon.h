@@ -38,7 +38,13 @@ namespace NMib::NConcurrency
 		bool m_bRequiresGraphicalSessionInUserMode = true;
 
 	private:
-		void fp_AddDaemonCommands(CDistributedAppCommandLineSpecification &o_CommandLine, CDistributedAppActor_Settings const &_Settings);
+		void fp_AddDaemonCommands
+			(
+				CDistributedAppCommandLineSpecification &o_CommandLine
+				, CDistributedAppActor_Settings const &_Settings
+				, NEncoding::CEJsonSorted &&_DaemonSettings
+			)
+		;
 
 		NFunction::TCFunction<TCActor<CDistributedAppActor> ()> mp_fActorFactory;
 		CDistributedAppActor_Settings mp_Settings;

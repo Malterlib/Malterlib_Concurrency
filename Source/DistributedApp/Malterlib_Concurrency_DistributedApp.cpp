@@ -1241,7 +1241,7 @@ namespace NMib::NConcurrency
 	aint CRunDistributedAppHelper::f_RunCommandLine
 		(
 			NFunction::TCFunction<TCActor<CDistributedAppActor> ()> const &_fActorFactory
-			, NFunction::TCFunction<void (CDistributedAppCommandLineSpecification &o_CommandLine, CDistributedAppActor_Settings const &_Settings)> const &_fMutateCommandLine
+			, CDistributedAppActor::FMutateCommandLine const &_fMutateCommandLine
 			, bool _bStartApp
 			, NStorage::TCSharedPointer<CRunLoop> const &_pRunLoop
 		)
@@ -1293,10 +1293,39 @@ namespace NMib::NConcurrency
 				;
 				m_AppActor = _fActorFactory();
 			}
-			CDistributedAppCommandLineClient CommandLineClient = m_AppActor(&CDistributedAppActor::f_GetCommandLineClient, m_pRunLoop).f_CallSync(m_pRunLoop);
-
+			CDistributedAppActor::FMutateCommandLine fMutateCommandLine;
 			if (_fMutateCommandLine)
-				CommandLineClient.f_MutateCommandLineSpecification(_fMutateCommandLine);
+			{
+				// The app actor runs the mutation, and the remote command line state above is local to this thread. The state is
+				// only set until the mutation first suspends, so the mutation has to read it before that
+				fMutateCommandLine = [_fMutateCommandLine, bRemoteCommandLine, bRemoteCommandLineConfigure]
+					(NStorage::TCSharedPointer<CDistributedAppCommandLineSpecification> _pCommandLine, CDistributedAppActor_Settings _Settings)
+					-> TCFuture<void>
+					{
+						TCFuture<void> MutateFuture;
+						{
+							auto &ThreadLocal = fg_DistributedAppThreadLocal();
+							auto bOldRemoteCommandLine = fg_Exchange(ThreadLocal.m_bRemoteCommandLine, bRemoteCommandLine);
+							auto bOldRemoteCommandLineConfigure = fg_Exchange(ThreadLocal.m_bRemoteCommandLineConfigure, bRemoteCommandLineConfigure);
+							auto Restore = g_OnScopeExit / [&]
+								{
+									ThreadLocal.m_bRemoteCommandLine = bOldRemoteCommandLine;
+									ThreadLocal.m_bRemoteCommandLineConfigure = bOldRemoteCommandLineConfigure;
+								}
+							;
+
+							MutateFuture = fg_CallSafe(_fMutateCommandLine, fg_Move(_pCommandLine), fg_Move(_Settings));
+						}
+
+						co_await fg_Move(MutateFuture);
+						co_return {};
+					}
+				;
+			}
+
+			CDistributedAppCommandLineClient CommandLineClient = m_AppActor(&CDistributedAppActor::f_GetCommandLineClient, m_pRunLoop, fg_Move(fMutateCommandLine))
+				.f_CallSync(m_pRunLoop)
+			;
 
 			CommandLineClient.f_SetLazyPreRunDirectCommand
 				(
@@ -1433,7 +1462,7 @@ namespace NMib::NConcurrency
 	aint fg_RunApp
 		(
 			NFunction::TCFunction<TCActor<CDistributedAppActor> ()> const &_fActorFactory
-			, NFunction::TCFunction<void (CDistributedAppCommandLineSpecification &o_CommandLine, CDistributedAppActor_Settings const &_Settings)> const &_fMutateCommandLine
+			, CDistributedAppActor::FMutateCommandLine const &_fMutateCommandLine
 			, bool _bStartApp
 			, TCSharedPointer<CRunLoop> const &_pRunLoop
 		)

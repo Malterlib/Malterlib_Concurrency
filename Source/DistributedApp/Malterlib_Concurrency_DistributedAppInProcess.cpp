@@ -77,12 +77,13 @@ namespace NMib::NConcurrency
 		NEncoding::CEJsonSorted AppParams;
 		{
 			using namespace NStr;
-			CDistributedAppCommandLineClient CommandLineClient = co_await mp_DistributedApp(&CDistributedAppActor::f_GetCommandLineClient, nullptr);
-			CommandLineClient.f_MutateCommandLineSpecification
+			CDistributedAppCommandLineClient CommandLineClient = co_await mp_DistributedApp
 				(
-					[&](CDistributedAppCommandLineSpecification &_Spec, CDistributedAppActor_Settings const &_Settings)
+					&CDistributedAppActor::f_GetCommandLineClient
+					, nullptr
+					, [](NStorage::TCSharedPointer<CDistributedAppCommandLineSpecification> _pCommandLine, CDistributedAppActor_Settings _Settings) -> TCFuture<void>
 					{
-						_Spec.f_GetDefaultSection().f_RegisterDirectCommand
+						_pCommandLine->f_GetDefaultSection().f_RegisterDirectCommand
 							(
 								{
 									"Names"_o= _o["--daemon-run-in-app"]
@@ -94,6 +95,8 @@ namespace NMib::NConcurrency
 								}
 							)
 						;
+
+						co_return {};
 					}
 				)
 			;

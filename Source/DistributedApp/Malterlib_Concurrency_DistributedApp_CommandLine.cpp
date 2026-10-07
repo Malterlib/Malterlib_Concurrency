@@ -193,4 +193,9 @@ namespace NMib::NConcurrency
 	void CDistributedAppActor::fp_BuildCommandLine(CDistributedAppCommandLineSpecification &o_CommandLine)
 	{
 	}
+
+	TCFuture<void> CDistributedAppActor::fp_FinalizeCommandLine(NStorage::TCSharedPointer<CDistributedAppCommandLineSpecification> _pCommandLine)
+	{
+		co_return {};
+	}
 }

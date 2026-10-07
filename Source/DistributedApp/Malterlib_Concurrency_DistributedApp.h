@@ -129,7 +129,17 @@ namespace NMib::NConcurrency
 
 		TCFuture<CInProcessCommandLine> f_GetInProcessCommandLine();
 
-		TCFuture<CDistributedAppCommandLineClient> f_GetCommandLineClient(NStorage::TCSharedPointer<CRunLoop> _pRunLoop);
+		using FMutateCommandLine = NFunction::TCFunction
+			<
+				TCFuture<void>
+				(
+					NStorage::TCSharedPointer<CDistributedAppCommandLineSpecification> _pCommandLine
+					, CDistributedAppActor_Settings _Settings
+				)
+			>
+		;
+
+		TCFuture<CDistributedAppCommandLineClient> f_GetCommandLineClient(NStorage::TCSharedPointer<CRunLoop> _pRunLoop, FMutateCommandLine _fMutateCommandLine);
 
 		TCFuture<uint32> f_RunCommandLine
 			(
@@ -499,6 +509,7 @@ namespace NMib::NConcurrency
 			)
 		;
 		virtual void fp_BuildCommandLine(CDistributedAppCommandLineSpecification &o_CommandLine);
+		virtual TCFuture<void> fp_FinalizeCommandLine(NStorage::TCSharedPointer<CDistributedAppCommandLineSpecification> _pCommandLine);
 
 		virtual TCFuture<void> fp_PreRunCommandLine(NStr::CStr _Command, NEncoding::CEJsonSorted const _Params, NStorage::TCSharedPointer<CCommandLineControl> _pCommandLine);
 		virtual void fp_PopulateAppInterfaceInfo
@@ -647,7 +658,7 @@ namespace NMib::NConcurrency
 		aint f_RunCommandLine
 			(
 				NFunction::TCFunction<TCActor<CDistributedAppActor> ()> const &_fActorFactory
-				, NFunction::TCFunction<void (CDistributedAppCommandLineSpecification &o_CommandLine, CDistributedAppActor_Settings const &_Settings)> const &_fMutateCommandLine = nullptr
+				, CDistributedAppActor::FMutateCommandLine const &_fMutateCommandLine = nullptr
 				, bool _bStartApp = true
 				, NStorage::TCSharedPointer<CRunLoop> const &_pRunLoop = nullptr
 			)
@@ -665,7 +676,7 @@ namespace NMib::NConcurrency
 	aint fg_RunApp
 		(
 			NFunction::TCFunction<TCActor<CDistributedAppActor> ()> const &_fActorFactory
-			, NFunction::TCFunction<void (CDistributedAppCommandLineSpecification &o_CommandLine, CDistributedAppActor_Settings const &_Settings)> const &_fMutateCommandLine = nullptr
+			, CDistributedAppActor::FMutateCommandLine const &_fMutateCommandLine = nullptr
 			, bool _bStartApp = true
 			, NStorage::TCSharedPointer<CRunLoop> const &_pRunLoop = nullptr
 		)

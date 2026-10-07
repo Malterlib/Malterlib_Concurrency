@@ -17,6 +17,15 @@ namespace NMib::NPlatform
 namespace NMib::NConcurrency
 {
 	using namespace NDaemon;
+
+	namespace
+	{
+		NStr::CStr fg_DaemonSettingsFile(CDistributedAppActor_Settings const &_Settings)
+		{
+			return fg_Format("{}/{}DaemonSettings.json", _Settings.m_RootDirectory, _Settings.m_AppName);
+		}
+	}
+
 	struct CDistributedDaemonDaemon : public CDaemonImp
 	{
 		CDistributedDaemonDaemon(TCActor<CDistributedAppActor> const &_Actor, NEncoding::CEJsonSorted const &_Params, NStorage::TCSharedPointer<CRunLoop> const &_pRunLoop)
@@ -208,7 +217,7 @@ namespace NMib::NConcurrency
 
 			if (_bSaveSettings && Result == 0 && _Params["Daemon_SaveSettings"].f_Boolean())
 			{
-				NStr::CStr SettingsFile = fg_Format("{}/{}DaemonSettings.json", _Settings.m_RootDirectory, _Settings.m_AppName);
+				NStr::CStr SettingsFile = fg_DaemonSettingsFile(_Settings);
 				NEncoding::CEJsonSorted DaemonSettings;
 				if (NFile::CFile::fs_FileExists(SettingsFile))
 					DaemonSettings = NEncoding::CEJsonSorted::fs_FromString(NFile::CFile::fs_ReadStringFromFile(SettingsFile), SettingsFile);
@@ -226,15 +235,18 @@ namespace NMib::NConcurrency
 		}
 	}
 
-	void CDistributedDaemon::fp_AddDaemonCommands(CDistributedAppCommandLineSpecification &o_CommandLine, CDistributedAppActor_Settings const &_Settings)
+	void CDistributedDaemon::fp_AddDaemonCommands
+		(
+			CDistributedAppCommandLineSpecification &o_CommandLine
+			, CDistributedAppActor_Settings const &_Settings
+			, NEncoding::CEJsonSorted &&_DaemonSettings
+		)
 	{
 		mp_Settings = _Settings;
 		auto Section = o_CommandLine.f_AddSection("Daemon", "Commands for managing running the application as a system or user daemon.", "Distributed Computing");
 
-		NStr::CStr SettingsFile = fg_Format("{}/{}DaemonSettings.json", _Settings.m_RootDirectory, _Settings.m_AppName);
-		NEncoding::CEJsonSorted DaemonSettings;
-		if (NFile::CFile::fs_FileExists(SettingsFile))
-			DaemonSettings = NEncoding::CEJsonSorted::fs_FromString(NFile::CFile::fs_ReadStringFromFile(SettingsFile), SettingsFile);
+		NStr::CStr SettingsFile = fg_DaemonSettingsFile(_Settings);
+		NEncoding::CEJsonSorted DaemonSettings = fg_Move(_DaemonSettings);
 
 		if (!DaemonSettings.f_GetMember("Name", NEncoding::EJsonType_String))
 			DaemonSettings["Name"] = m_DaemonName;
@@ -588,10 +600,29 @@ namespace NMib::NConcurrency
 					m_AppActor = mp_fActorFactory();
 					return m_AppActor;
 				}
-				, [this](CDistributedAppCommandLineSpecification &o_CommandLine, CDistributedAppActor_Settings const &_Settings)
+				, [this](NStorage::TCSharedPointer<CDistributedAppCommandLineSpecification> _pCommandLine, CDistributedAppActor_Settings _Settings) -> TCFuture<void>
 				{
-					if (!fg_DistributedAppThreadLocal().m_bRemoteCommandLine)
-						fp_AddDaemonCommands(o_CommandLine, _Settings);
+					// The run helper sets the remote command line state only until the first suspension
+					if (fg_DistributedAppThreadLocal().m_bRemoteCommandLine)
+						co_return {};
+
+					NStr::CStr SettingsFile = fg_DaemonSettingsFile(_Settings);
+
+					auto BlockingActorCheckout = fg_BlockingActor();
+					NEncoding::CEJsonSorted DaemonSettings = co_await
+						(
+							g_Dispatch(BlockingActorCheckout) / [SettingsFile]() -> NEncoding::CEJsonSorted
+							{
+								if (!NFile::CFile::fs_FileExists(SettingsFile))
+									return {};
+
+								return NEncoding::CEJsonSorted::fs_FromString(NFile::CFile::fs_ReadStringFromFile(SettingsFile), SettingsFile);
+							}
+						)
+					;
+
+					fp_AddDaemonCommands(*_pCommandLine, _Settings, fg_Move(DaemonSettings));
+					co_return {};
 				}
 				, false
 				, m_pRunLoop

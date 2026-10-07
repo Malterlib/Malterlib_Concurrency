@@ -690,15 +690,6 @@ namespace NMib::NConcurrency
 		return 0;
 	}
 
-	void CDistributedAppCommandLineClient::f_MutateCommandLineSpecification
-		(
-			NFunction::TCFunction<void (CDistributedAppCommandLineSpecification &o_CommandLine, CDistributedAppActor_Settings const &_Settings)> const &_fMutate
-		)
-	{
-		auto &Internal = *mp_pInternal;
-		_fMutate(*mp_pCommandLineSpecification, Internal.m_Settings);
-	}
-
 	CDistributedAppCommandLineClient::CDistributedAppCommandLineClient
 		(
 			CDistributedAppActor_Settings const &_Settings
@@ -807,9 +798,16 @@ namespace NMib::NConcurrency
 		}
 	}
 
-	TCFuture<CDistributedAppCommandLineClient> CDistributedAppActor::f_GetCommandLineClient(NStorage::TCSharedPointer<CRunLoop> _pRunLoop)
+	// _fMutateCommandLine adds commands that the code running the app owns, such as the daemon commands. It runs before
+	// fp_FinalizeCommandLine, so the app sees the complete command line there
+	TCFuture<CDistributedAppCommandLineClient> CDistributedAppActor::f_GetCommandLineClient(NStorage::TCSharedPointer<CRunLoop> _pRunLoop, FMutateCommandLine _fMutateCommandLine)
 	{
 		auto &Internal = *mp_pInternal;
+
+		if (_fMutateCommandLine)
+			co_await fg_CallSafe(fg_Move(_fMutateCommandLine), Internal.m_pCommandLineSpec, mp_Settings);
+
+		co_await fp_FinalizeCommandLine(Internal.m_pCommandLineSpec);
 
 		co_return CDistributedAppCommandLineClient(mp_Settings, Internal.m_pCommandLineSpec, fp_GetTranslateHostnames(), _pRunLoop, fg_ThisActor(this));
 	}

@@ -20,12 +20,6 @@ namespace NMib::NConcurrency
 	{
 		using FStopApp = NFunction::TCFunction<bool ()>;
 
-		void f_MutateCommandLineSpecification
-			(
-				NFunction::TCFunction<void (CDistributedAppCommandLineSpecification &o_CommandLine, CDistributedAppActor_Settings const &_Settings)> const &_fMutate
-			)
-		;
-
 		void f_SetLazyStartApp(NFunction::TCFunction<FStopApp (NEncoding::CEJsonSorted const &_Params, EDistributedAppCommandFlag _Flags)> const &_fLazyStartApp);
 		void f_SetLazyPreRunDirectCommand(NFunction::TCFunction<void (NEncoding::CEJsonSorted const &_Params, EDistributedAppCommandFlag _Flags)> const &_fLazyPreRunDirectCommand);
 

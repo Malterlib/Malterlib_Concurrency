@@ -104,9 +104,10 @@ namespace NMib::NConcurrency
 		auto Return = mp_pInternal->m_RunHelper.f_RunCommandLine
 			(
 				mp_fActorFactory
-				, [this](CDistributedAppCommandLineSpecification &o_CommandLine, CDistributedAppActor_Settings const &_Settings)
+				, [this](NStorage::TCSharedPointer<CDistributedAppCommandLineSpecification> _pCommandLine, CDistributedAppActor_Settings _Settings) -> TCFuture<void>
 				{
-					fp_AddCommands(o_CommandLine, _Settings);
+					fp_AddCommands(*_pCommandLine, _Settings);
+					co_return {};
 				}
 				, false
 				, mp_pInternal->m_pRunLoop

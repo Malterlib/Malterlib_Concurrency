@@ -81,7 +81,12 @@ namespace NMib::NConcurrency
 	{
 		auto &Internal = *mp_pInternal;
 		if (Internal.m_bConnectionsInitialized)
+		{
+			if (Internal.m_pInitialConnectionException)
+				co_return Internal.m_pInitialConnectionException;
+
 			co_return {};
+		}
 		co_return co_await Internal.m_AwaitingConnection.f_Insert().f_Future();
 	}
 
@@ -405,9 +410,18 @@ namespace NMib::NConcurrency
 			auto &Address = ClientConnectionEntry.f_Key();
 			TCPromiseFuturePair<void> ConnectPromise;
 
-			m_ActorDistributionManager(&CActorDistributionManager::f_Connect, f_GetConnectionSettings(ClientConnectionEntry.f_Value()), m_InitialConnectionTimeout)
+			auto ConnectionSettings = f_GetConnectionSettings(ClientConnectionEntry.f_Value());
+			ConnectionSettings.m_bRetryConnectOnFirstFailure = m_bRetryConnectOnFailureDuringInit;
+
+			m_ActorDistributionManager(&CActorDistributionManager::f_Connect, ConnectionSettings, m_InitialConnectionTimeout)
 				> [this, Address, ConnectPromise = fg_Move(ConnectPromise.m_Promise)](TCAsyncResult<CActorDistributionManager::CConnectionResult> &&_ConnectionResult)
 				{
+					if (!_ConnectionResult && !m_bRetryConnectOnFailureDuringInit)
+					{
+						ConnectPromise.f_SetException(fg_Move(_ConnectionResult).f_GetException());
+						return;
+					}
+
 					if (!_ConnectionResult)
 					{
 						DMibLogWithCategory
@@ -474,18 +488,29 @@ namespace NMib::NConcurrency
 							, ConnectionResult.f_GetExceptionStr()
 						)
 					;
+
+					if (!m_pInitialConnectionException)
+						m_pInitialConnectionException = ConnectionResult.f_GetException();
 				}
 
 				m_bConnectionsInitialized = true;
 
 				for (auto &Waiting : m_AwaitingConnection)
-					Waiting.f_SetResult();
+				{
+					if (m_pInitialConnectionException)
+						Waiting.f_SetException(m_pInitialConnectionException);
+					else
+						Waiting.f_SetResult();
+				}
 
 				m_AwaitingConnection.f_Clear();
 			}
 		;
 
-		auto [ListenResultsUnwrapped, ConnectionResults] = co_await (fg_AllDone(ListenResults) + fg_Move(WaitForConnectionsPromise.m_Future));
+		auto ListenResultsUnwrapped = co_await fg_AllDone(ListenResults);
+
+		// A failed initial connection is reported by f_WaitForInitialConnection and does not fail the initialization
+		auto ConnectionResult = co_await fg_Move(WaitForConnectionsPromise.m_Future).f_Wrap();
 
 		for (auto &ListenResult : ListenResultsUnwrapped.f_Entries())
 		{

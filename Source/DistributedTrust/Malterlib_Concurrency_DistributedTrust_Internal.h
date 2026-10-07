@@ -299,6 +299,7 @@ namespace NMib::NConcurrency
 
 		EInitialize m_Initialize = EInitialize_None;
 		NException::CExceptionPointer m_pInitializeException;
+		NException::CExceptionPointer m_pInitialConnectionException;
 
 		NContainer::TCVector<TCPromise<void>> m_AwaitingConnection;
 
@@ -311,6 +312,7 @@ namespace NMib::NConcurrency
 		uint64 m_DefaultSendWindowBytes = 0;
 
 		bool m_bRetryOnListenFailureDuringInit = true;
+		bool m_bRetryConnectOnFailureDuringInit = true;
 		bool m_bWaitForConnectionsDuringInit = true;
 		bool m_bSupportAuthentication = true;
 		bool m_bConnectionsInitialized = false;

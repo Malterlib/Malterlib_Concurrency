@@ -49,6 +49,7 @@ namespace NMib::NConcurrency
 		CDistributedAppActor_Settings &&f_CommandLineBeforeAppStart(bool _bCommandLineBeforeAppStart) &&;
 		CDistributedAppActor_Settings &&f_TimeoutForUnixSockets(bool _bTimeoutForUnixSockets) &&;
 		CDistributedAppActor_Settings &&f_InProcessCommandLineOnly(bool _bInProcessCommandLineOnly) &&;
+		CDistributedAppActor_Settings &&f_NotRunningMessage(NStr::CStr const &_Message) &&;
 		CDistributedAppActor_Settings &&f_TLSForLocalSockets(bool _bTLSForLocalSockets) &&;
 		CDistributedAppActor_Settings &&f_ReconnectDelay(fp64 _ReconnectDelay) &&;
 		CDistributedAppActor_Settings &&f_HostTimeoutOnShutdown(fp64 _HostTimeoutOnShutdown) &&;

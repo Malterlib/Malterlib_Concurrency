@@ -53,6 +53,7 @@ namespace NMib::NConcurrency
 		, m_DefaultConnectionConcurrency(_Options.m_DefaultConnectionConcurrency)
 		, m_DefaultSendWindowBytes(_Options.m_DefaultSendWindowBytes)
 		, m_bRetryOnListenFailureDuringInit(_Options.m_bRetryOnListenFailureDuringInit)
+		, m_bRetryConnectOnFailureDuringInit(_Options.m_bRetryConnectOnFailureDuringInit)
 		, m_bWaitForConnectionsDuringInit(_Options.m_bWaitForConnectionsDuringInit)
 		, m_bSupportAuthentication(_Options.m_bSupportAuthentication)
 		, m_HostTimeout(_Options.m_HostTimeout)

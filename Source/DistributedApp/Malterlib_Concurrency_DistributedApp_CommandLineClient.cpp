@@ -565,7 +565,10 @@ namespace NMib::NConcurrency
 
 			if (!CommandLineActor)
 			{
-				fp_Init(_Params);
+				auto *pRemoteCommandLine = _Params.f_GetMember("RemoteCommandLine");
+				bool bFailIfNotRunning = (Command.m_Flags & EDistributedAppCommandFlag_FailIfNotRunning) && (!pRemoteCommandLine || !pRemoteCommandLine->f_Boolean());
+
+				fp_Init(_Params, bFailIfNotRunning);
 
 				DistributionManager = Internal.m_DistributionManager;
 
@@ -726,7 +729,7 @@ namespace NMib::NConcurrency
 		}
 	}
 
-	void CDistributedAppCommandLineClient::fp_Init(NEncoding::CEJsonSorted const &_Params)
+	void CDistributedAppCommandLineClient::fp_Init(NEncoding::CEJsonSorted const &_Params, bool _bFailIfNotRunning)
 	{
 		using namespace NStr;
 
@@ -750,6 +753,7 @@ namespace NMib::NConcurrency
 			Options.m_DefaultConnectionConcurrency = -1;
 			Options.m_bSupportAuthentication = false;
 			Options.m_ReconnectDelay = Internal.m_Settings.m_ReconnectDelay;
+			Options.m_bRetryConnectOnFailureDuringInit = !_bFailIfNotRunning;
 
 			CStr TrustDatabase;
 			CStr RemoteCommandLineHostID;
@@ -768,17 +772,22 @@ namespace NMib::NConcurrency
 				// so on a cold first install we must not read it before the daemon has written its
 				// command line connection ticket. Wait (via file change notifications) for the ticket
 				// to appear; best-effort, so a missing daemon still falls through after the timeout.
-				auto BlockingActor = fg_BlockingActor();
-				(
-					g_Dispatch(BlockingActor) / [TrustDatabase, RootDir = Internal.m_Settings.m_RootDirectory] -> TCFuture<void>
-					{
-						CStr ClientConnectionsGlob = TrustDatabase / "ClientConnections/*.json";
+				// A command that fails when the app is not running does not wait: an app that has not
+				// written its ticket yet counts as not running.
+				if (!_bFailIfNotRunning)
+				{
+					auto BlockingActor = fg_BlockingActor();
+					(
+						g_Dispatch(BlockingActor) / [TrustDatabase, RootDir = Internal.m_Settings.m_RootDirectory] -> TCFuture<void>
+						{
+							CStr ClientConnectionsGlob = TrustDatabase / "ClientConnections/*.json";
 
-						co_await fg_WaitForConnection(ClientConnectionsGlob, RootDir, 10.0);
+							co_await fg_WaitForConnection(ClientConnectionsGlob, RootDir, 10.0);
 
-						co_return {};
-					}
-				).f_CallSync(Internal.m_pRunLoop, 60.0);
+							co_return {};
+						}
+					).f_CallSync(Internal.m_pRunLoop, 60.0);
+				}
 			}
 
 			Internal.m_TrustManager = fg_ConstructActor<CDistributedActorTrustManager>
@@ -789,6 +798,35 @@ namespace NMib::NConcurrency
 			;
 
 			Internal.m_TrustManager(&CDistributedActorTrustManager::f_Initialize).f_CallSync(Internal.m_pRunLoop, 60.0);
+
+			if (_bFailIfNotRunning)
+			{
+				// The client connections are the app's local sockets. Without retries a connection fails at once when nothing
+				// listens on its socket, and an app that has never run has written no connection
+				CStr NotRunningReason;
+				if (Internal.m_TrustManager(&CDistributedActorTrustManager::f_EnumClientConnections).f_CallSync(Internal.m_pRunLoop).f_IsEmpty())
+					NotRunningReason = fg_Format("No connection to the app in '{}'", TrustDatabase);
+				else
+				{
+					try
+					{
+						Internal.m_TrustManager(&CDistributedActorTrustManager::f_WaitForInitialConnection).f_CallSync(Internal.m_pRunLoop);
+					}
+					catch (NNetwork::CExceptionNet const &_Exception)
+					{
+						NotRunningReason = fg_Format("Connecting to the app failed: {}", _Exception.f_GetErrorStr());
+					}
+				}
+
+				if (NotRunningReason)
+				{
+					CStr NotRunningMessage = Internal.m_Settings.m_NotRunningMessage;
+					if (!NotRunningMessage)
+						NotRunningMessage = fg_Format("{} is not running", Internal.m_Settings.m_AppName);
+
+					DMibError(fg_Format("{}\n\n{}", NotRunningMessage, NotRunningReason));
+				}
+			}
 			Internal.m_DistributionManager = Internal.m_TrustManager(&CDistributedActorTrustManager::f_GetDistributionManager).f_CallSync(Internal.m_pRunLoop);
 			Internal.m_CommandLineSubscription = fg_ConstructActor<TCDistributedActorSingleSubscription<ICCommandLine>>
 				(

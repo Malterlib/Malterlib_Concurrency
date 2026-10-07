@@ -40,7 +40,7 @@ namespace NMib::NConcurrency
 		CDistributedAppCommandLineClient &operator =(CDistributedAppCommandLineClient &&_Other);
 
 	private:
-		void fp_Init(NEncoding::CEJsonSorted const &_Params);
+		void fp_Init(NEncoding::CEJsonSorted const &_Params, bool _bFailIfNotRunning);
 
 		friend struct NCommandLine::TCCommandLineClient<CCommandLineSpecificationDistributedAppCustomization, CDistributedAppCommandLineClient>;
 

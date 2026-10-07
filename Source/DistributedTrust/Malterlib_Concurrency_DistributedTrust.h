@@ -298,6 +298,7 @@ namespace NMib::NConcurrency
 			int32 m_DefaultConnectionConcurrency = 1;
 			uint64 m_DefaultSendWindowBytes = 0; // Default bytes in flight; zero leaves the transport default of eight frames.
 			bool m_bRetryOnListenFailureDuringInit = true;
+			bool m_bRetryConnectOnFailureDuringInit = true; // When false, f_WaitForInitialConnection fails with the first failed connection
 			bool m_bWaitForConnectionsDuringInit = true;
 			bool m_bSupportAuthentication = true;
 			bool m_bTimeoutForUnixSockets = true;

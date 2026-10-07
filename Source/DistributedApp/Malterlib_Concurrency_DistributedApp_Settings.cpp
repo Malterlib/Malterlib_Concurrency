@@ -258,6 +258,12 @@ namespace NMib::NConcurrency
 		return fg_Move(*this);
 	}
 
+	CDistributedAppActor_Settings &&CDistributedAppActor_Settings::f_NotRunningMessage(NStr::CStr const &_Message) &&
+	{
+		m_NotRunningMessage = _Message;
+		return fg_Move(*this);
+	}
+
 	CDistributedAppActor_Settings &&CDistributedAppActor_Settings::f_ReconnectDelay(fp64 _ReconnectDelay) &&
 	{
 		m_ReconnectDelay = _ReconnectDelay;

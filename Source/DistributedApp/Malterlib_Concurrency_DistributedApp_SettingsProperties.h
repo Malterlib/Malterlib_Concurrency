@@ -88,6 +88,7 @@ namespace NMib::NConcurrency
 		NStr::CStr m_RunAsUser;
 		NStr::CStr m_RunAsGroup;
 		NStr::CStr m_Enclave;
+		NStr::CStr m_NotRunningMessage; // For commands with EDistributedAppCommandFlag_FailIfNotRunning
 		NCryptography::CPublicKeySetting m_KeySetting = CActorDistributionCryptographySettings::fs_DefaultKeySetting();
 		NCryptography::ECryptoStrength m_MinimumCryptoStrength = NCryptography::ECryptoStrength::mc_EquivalentSymmetric256bit;
 		NNetwork::ENetFlag m_ListenFlags = NNetwork::ENetFlag_None;

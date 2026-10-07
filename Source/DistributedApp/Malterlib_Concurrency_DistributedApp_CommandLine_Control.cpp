@@ -33,6 +33,7 @@ namespace NMib::NConcurrency
 		DMibPublishActorFunction(ICCommandLineControl::f_StdOut);
 		DMibPublishActorFunction(ICCommandLineControl::f_StdOutBinary);
 		DMibPublishActorFunction(ICCommandLineControl::f_StdErr);
+		DMibPublishActorFunction(ICCommandLineControl::f_StdErrBinary);
 		DMibPublishActorFunction(ICCommandLineControl::f_U2F_Register);
 		DMibPublishActorFunction(ICCommandLineControl::f_U2F_Authenticate);
 	}
@@ -66,8 +67,35 @@ namespace NMib::NConcurrency
 		return fg_Move(Promise.m_Future);
 	}
 
-	TCFuture<void> CCommandLineControl::fsp_SendStdOutBinary(CCommandLineControl const &_This, uint8 const *_pData, umint _DataLen)
+	// Sent in chunks that fit in a message. A peer from before f_StdErrBinary gets stderr as text
+	TCFuture<void> CCommandLineControl::fsp_SendBinary(CCommandLineControl const &_This, uint8 const *_pData, umint _DataLen, bool _bStdErr)
 	{
+		if (!_This.m_ControlActor)
+			return g_Void;
+
+		bool bStdErrAsText = _bStdErr && _This.m_ControlActor.f_GetProtocolVersions().m_MaxSupported < ICCommandLineControl::EProtocolVersion_SupportStdErrBinary;
+
+		auto fSend = [&](umint _Start, umint _Len) -> TCFuture<void>
+			{
+				if (bStdErrAsText)
+				{
+					CStrIO ToSend;
+					ToSend.f_AddStr((ch8 const *)(_pData + _Start), _Len);
+					return _This.m_ControlActor.f_CallActor(&ICCommandLineControl::f_StdErr)(fg_Move(ToSend));
+				}
+
+				CIOByteVector ToSend;
+				ToSend.f_Insert(_pData + _Start, _Len);
+				if (_bStdErr)
+					return _This.m_ControlActor.f_CallActor(&ICCommandLineControl::f_StdErrBinary)(fg_Move(ToSend));
+				else
+					return _This.m_ControlActor.f_CallActor(&ICCommandLineControl::f_StdOutBinary)(fg_Move(ToSend));
+			}
+		;
+
+		if (_DataLen <= CActorDistributionManager::mc_HalfMaxMessageSize)
+			return fSend(0, _DataLen);
+
 		TCFutureVector<void> Results;
 		NMisc::fg_ChunkRange
 			(
@@ -76,9 +104,7 @@ namespace NMib::NConcurrency
 				, CActorDistributionManager::mc_HalfMaxMessageSize
 				, [&](umint _Start, umint _Len)
 				{
-					CIOByteVector ToSend;
-					ToSend.f_Insert(_pData + _Start, _Len);
-					_This.m_ControlActor.f_CallActor(&ICCommandLineControl::f_StdOutBinary)(fg_Move(ToSend)) > Results;
+					fSend(_Start, _Len) > Results;
 				}
 			)
 		;
@@ -91,26 +117,22 @@ namespace NMib::NConcurrency
 
 	TCFuture<void> CCommandLineControl::f_StdOutBinary(CSecureByteVector const &_Output) const
 	{
-		if (!m_ControlActor)
-			return g_Void;
-
-		umint OutputLen = _Output.f_GetLen();
-		if (OutputLen <= CActorDistributionManager::mc_HalfMaxMessageSize)
-			return m_ControlActor.f_CallActor(&ICCommandLineControl::f_StdOutBinary)(CIOByteVector::fs_AllowInsecureConversion(_Output));
-
-		return fsp_SendStdOutBinary(*this, _Output.f_GetArray(), OutputLen);
+		return fsp_SendBinary(*this, _Output.f_GetArray(), _Output.f_GetLen(), false);
 	}
 
 	TCFuture<void> CCommandLineControl::f_StdOutBinary(CByteVector const &_Output) const
 	{
-		if (!m_ControlActor)
-			return g_Void;
+		return fsp_SendBinary(*this, _Output.f_GetArray(), _Output.f_GetLen(), false);
+	}
 
-		umint OutputLen = _Output.f_GetLen();
-		if (OutputLen <= CActorDistributionManager::mc_HalfMaxMessageSize)
-			return m_ControlActor.f_CallActor(&ICCommandLineControl::f_StdOutBinary)(CIOByteVector::fs_AllowInsecureConversion(_Output));
+	TCFuture<void> CCommandLineControl::f_StdErrBinary(CSecureByteVector const &_Output) const
+	{
+		return fsp_SendBinary(*this, _Output.f_GetArray(), _Output.f_GetLen(), true);
+	}
 
-		return fsp_SendStdOutBinary(*this, _Output.f_GetArray(), OutputLen);
+	TCFuture<void> CCommandLineControl::f_StdErrBinary(CByteVector const &_Output) const
+	{
+		return fsp_SendBinary(*this, _Output.f_GetArray(), _Output.f_GetLen(), true);
 	}
 
 	TCFuture<void> CCommandLineControl::f_StdErr(CStrIO const &_Output) const
@@ -376,5 +398,15 @@ namespace NMib::NConcurrency
 	void CCommandLineControl::operator += (CSecureByteVector const &_StdOut) const
 	{
 		f_StdOutBinary(_StdOut).f_DiscardResult();
+	}
+
+	void CCommandLineControl::operator %= (CByteVector const &_StdErr) const
+	{
+		f_StdErrBinary(_StdErr).f_DiscardResult();
+	}
+
+	void CCommandLineControl::operator %= (CSecureByteVector const &_StdErr) const
+	{
+		f_StdErrBinary(_StdErr).f_DiscardResult();
 	}
 }

@@ -205,6 +205,12 @@ namespace NMib::NConcurrency
 				co_return {};
 			}
 
+			TCFuture<void> f_StdErrBinary(NContainer::CIOByteVector _Output) override
+			{
+				NSys::fg_ConsoleErrorOutputBinary(_Output);
+				co_return {};
+			}
+
 			TCFuture<void> f_Clipboard_SetText(NStr::CStrIO _Text) override
 			{
 				if (auto Destroyed = fp_CheckDestroyed())

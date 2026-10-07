@@ -55,8 +55,9 @@ namespace NMib::NConcurrency
 
 			, EProtocolVersion_SupportScreenChange = 0x108
 			, EProtocolVersion_SupportClipboard = 0x109
+			, EProtocolVersion_SupportStdErrBinary = 0x10A
 
-			, EProtocolVersion_Current = 0x109
+			, EProtocolVersion_Current = 0x10A
 		};
 
 		struct CU2FAuthenticate
@@ -145,6 +146,7 @@ namespace NMib::NConcurrency
 		virtual NConcurrency::TCFuture<void> f_StdOutBinary(NContainer::CIOByteVector _Output) = 0;
 		virtual NConcurrency::TCFuture<void> f_StdOut(NStr::CStrIO _Output) = 0;
 		virtual NConcurrency::TCFuture<void> f_StdErr(NStr::CStrIO _Output) = 0;
+		virtual NConcurrency::TCFuture<void> f_StdErrBinary(NContainer::CIOByteVector _Output) = 0;
 
 		// Clipboard access targets the client host, including for remote applications.
 		virtual NConcurrency::TCFuture<void> f_Clipboard_SetText(NStr::CStrIO _Text) = 0;
@@ -160,6 +162,8 @@ namespace NMib::NConcurrency
 		NConcurrency::TCFuture<void> f_StdOutBinary(NContainer::CByteVector const &_Output) const;
 		NConcurrency::TCFuture<void> f_StdOut(NStr::CStrIO const &_Output) const;
 		NConcurrency::TCFuture<void> f_StdErr(NStr::CStrIO const &_Output) const;
+		NConcurrency::TCFuture<void> f_StdErrBinary(NContainer::CSecureByteVector const &_Output) const;
+		NConcurrency::TCFuture<void> f_StdErrBinary(NContainer::CByteVector const &_Output) const;
 		NCommandLine::CTableRenderHelper f_TableRenderer() const;
 		NCommandLine::CAnsiEncoding f_AnsiEncoding() const;
 
@@ -181,6 +185,8 @@ namespace NMib::NConcurrency
 
 		void operator += (NContainer::CByteVector const &_StdOut) const;
 		void operator += (NContainer::CSecureByteVector const &_StdOut) const;
+		void operator %= (NContainer::CByteVector const &_StdErr) const;
+		void operator %= (NContainer::CSecureByteVector const &_StdErr) const;
 
 		NConcurrency::TCFuture<NConcurrency::TCActorSubscriptionWithID<>> f_RegisterForStdIn(ICCommandLineControl::FOnInput &&_fOnInput, NProcess::EStdInReaderFlag _Flags) const;
 		NConcurrency::TCFuture<NConcurrency::TCActorSubscriptionWithID<>>
@@ -215,7 +221,7 @@ namespace NMib::NConcurrency
 		NCommandLine::EAnsiEncodingFlag m_AnsiFlags = NCommandLine::EAnsiEncodingFlag_None;
 		CCommandLineClientInfo m_ClientInfo;
 	private:
-		static TCFuture<void> fsp_SendStdOutBinary(CCommandLineControl const &_This, uint8 const *_pData, umint _DataLen);
+		static TCFuture<void> fsp_SendBinary(CCommandLineControl const &_This, uint8 const *_pData, umint _DataLen, bool _bStdErr);
 	};
 
 	struct ICCommandLine : public CActor

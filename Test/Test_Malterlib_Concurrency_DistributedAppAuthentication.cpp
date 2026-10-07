@@ -944,6 +944,12 @@ namespace NTestAuthentication
 			co_return {};
 		}
 
+		TCFuture<void> f_StdErrBinary(NContainer::CIOByteVector _Output) override
+		{
+			DMibNeverGetHere;
+			co_return {};
+		}
+
 		TCFuture<void> f_Clipboard_SetText(NStr::CStrIO _Text) override
 		{
 			DMibNeverGetHere;

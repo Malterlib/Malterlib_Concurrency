@@ -79,15 +79,15 @@ namespace NMib::NConcurrency
 		if (iSingleton >= m_Singletons.f_GetLen())
 			m_Singletons.f_SetLen(iSingleton + 1);
 
-		auto &pSingleton = m_Singletons[iSingleton];
-
-		if (pSingleton.f_IsEmpty())
+		if (m_Singletons[iSingleton].f_IsEmpty())
 		{
-			pSingleton = fg_Construct<TCSingleton<t_CActor>>(_fCreate());
+			// A singleton that _fCreate asks for can grow m_Singletons, so the slot is only indexed once it has returned
+			NStorage::TCUniquePointer<CSingleton> pSingleton = fg_Construct<TCSingleton<t_CActor>>(_fCreate());
+			m_Singletons[iSingleton] = fg_Move(pSingleton);
 			m_SingletonCreationOrder.f_InsertLast(iSingleton);
 		}
 
-		return ((TCSingleton<t_CActor> *)pSingleton.f_Get())->m_Actor;
+		return ((TCSingleton<t_CActor> *)m_Singletons[iSingleton].f_Get())->m_Actor;
 	}
 
 	template <typename tf_CType, typename... tfp_CParams>

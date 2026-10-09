@@ -521,9 +521,9 @@ namespace NMib::NConcurrency::NPrivate
 	{
 		DMibFastCheck(_OverAlignment <= 7);
 #if DMibConfig_Concurrency_DebugFutures
-		auto &ConcurrencyManager = fg_ConcurrencyManager();
-		DMibLock(ConcurrencyManager.m_FutureListLock);
-		ConcurrencyManager.m_Futures.f_Insert(this);
+		auto &DebugFutures = fg_DebugFutures();
+		DMibLock(DebugFutures.m_Lock);
+		DebugFutures.m_Futures.f_Insert(this);
 #endif
 #if DMibConfig_Concurrency_DebugActorCallstacks
 		if (_OnResultSet & EFutureResultFlag_DataSet)
@@ -534,8 +534,8 @@ namespace NMib::NConcurrency::NPrivate
 #if DMibConfig_Concurrency_DebugFutures
 	CPromiseDataBase::~CPromiseDataBase()
 	{
-		auto &ConcurrencyManager = fg_ConcurrencyManager();
-		DMibLock(ConcurrencyManager.m_FutureListLock);
+		auto &DebugFutures = fg_DebugFutures();
+		DMibLock(DebugFutures.m_Lock);
 		m_Link.f_Unlink();
 		m_LinkCoro.f_Unlink();
 	}

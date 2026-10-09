@@ -101,6 +101,9 @@ namespace NMib::NConcurrency
 		{
 			NThread::CMutual m_ConcurrencyManagerLock;
 			NStorage::TCUniquePointer<NConcurrency::CConcurrencyManager, NMemory::CAllocator_NonTrackedHeap> m_pConcurrencyManager;
+#if DMibConfig_Concurrency_DebugFutures
+			CDebugFutures m_DebugFutures;
+#endif
 
 			void f_PreDestroyThreadSpecific() override
 			{
@@ -123,6 +126,9 @@ namespace NMib::NConcurrency
 					if (!m_pConcurrencyManager)
 					{
 						m_pConcurrencyManager = fg_Construct(m_DefaultExecutionPriority, m_PriorityClamp);
+#if DMibConfig_Concurrency_DebugFutures
+						m_pConcurrencyManager->m_bReportFutures = true;
+#endif
 						m_pConcurrencyManager->f_Init();
 					}
 
@@ -144,6 +150,13 @@ namespace NMib::NConcurrency
 		};
 
 		constinit TCSubSystem<CSubSystem_Concurrency, ESubSystemDestruction_BeforeMemoryManager> g_SubSystem_Concurrency = {DAggregateInit};
+
+#if DMibConfig_Concurrency_DebugFutures
+		CDebugFutures &fg_DebugFutures()
+		{
+			return g_SubSystem_Concurrency->m_DebugFutures;
+		}
+#endif
 	}
 
 	void fg_SetConcurrencyManagerDefaultExecutionPriority(EPriority _Priority, EExecutionPriority _ExecutionPriority)
@@ -600,12 +613,14 @@ namespace NMib::NConcurrency
 			}
 		}
 #if DMibConfig_Concurrency_DebugFutures
+		if (m_bReportFutures)
 		{
-			DMibLock(m_FutureListLock);
-			if (!this->m_Futures.f_IsEmpty())
+			auto &DebugFutures = NPrivate::fg_DebugFutures();
+			DMibLock(DebugFutures.m_Lock);
+			if (!DebugFutures.m_Futures.f_IsEmpty())
 			{
 				DMibTrace("Futures alive in ~CConcurrencyManager():{\n}", 0);
-				for (auto &Future : this->m_Futures)
+				for (auto &Future : DebugFutures.m_Futures)
 				{
 					DMibTrace("    TCFuture<{}>   RefCount {}{\n}", Future.m_FutureTypeName, Future.m_RefCount.f_Get());
 
@@ -621,7 +636,7 @@ namespace NMib::NConcurrency
 	#endif
 				}
 			}
-			DMibFastCheck(m_Futures.f_IsEmpty());
+			DMibFastCheck(DebugFutures.m_Futures.f_IsEmpty());
 		}
 #endif
 	}
@@ -1548,12 +1563,14 @@ namespace NMib::NConcurrency
 					}
 
 #if DMibConfig_Concurrency_DebugFutures
+					if (m_bReportFutures)
 					{
-						DMibLock(m_FutureListLock);
-						if (!this->m_Futures.f_IsEmpty())
+						auto &DebugFutures = NPrivate::fg_DebugFutures();
+						DMibLock(DebugFutures.m_Lock);
+						if (!DebugFutures.m_Futures.f_IsEmpty())
 						{
 							DMibTrace("Futures alive:{\n}", 0);
-							for (auto &Future : this->m_Futures)
+							for (auto &Future : DebugFutures.m_Futures)
 							{
 								DMibTrace("    TCFuture<{}>   RefCount {}{\n}", Future.m_FutureTypeName, Future.m_RefCount.f_Get());
 

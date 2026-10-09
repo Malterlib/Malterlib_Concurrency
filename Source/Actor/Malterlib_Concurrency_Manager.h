@@ -31,6 +31,19 @@ namespace NMib::NConcurrency
 
 		template <typename t_CActor>
 		umint fg_GetSingletonIndex();
+
+#if DMibConfig_Concurrency_DebugFutures
+		// The futures and coroutines of the process, whichever manager runs them. Kept outside the managers, as getting the default
+		// manager constructs it, which must not happen while a coroutine is being set up
+		struct CDebugFutures
+		{
+			NThread::CLowLevelLock m_Lock;
+			DMibListLinkDS_List(CPromiseDataBase, m_Link) m_Futures;
+			DMibListLinkDS_List(CPromiseDataBase, m_LinkCoro) m_Coroutines;
+		};
+
+		CDebugFutures &fg_DebugFutures();
+#endif
 	}
 
 	struct CConcurrencyThreadLocal;
@@ -181,9 +194,7 @@ namespace NMib::NConcurrency
 #endif
 
 #if DMibConfig_Concurrency_DebugFutures
-		NThread::CLowLevelLock m_FutureListLock;
-		DMibListLinkDS_List(NPrivate::CPromiseDataBase, m_Link) m_Futures;
-		DMibListLinkDS_List(NPrivate::CPromiseDataBase, m_LinkCoro) m_Coroutines;
+		bool m_bReportFutures = false; // Set on the default manager, which reports the futures that outlive it
 #endif
 	private:
 		template <typename t_CActor>
@@ -198,9 +209,6 @@ namespace NMib::NConcurrency
 		friend struct CCurrentActorScope;
 		friend struct CCurrentlyProcessingActorScope;
 		friend struct CConcurrencyThreadLocal;
-#if DMibConfig_Concurrency_DebugFutures
-		friend struct NPrivate::CPromiseDataBase;
-#endif
 		friend struct CBlockingActorCheckout;
 
 #if DMibConfig_Concurrency_SchedulerStats

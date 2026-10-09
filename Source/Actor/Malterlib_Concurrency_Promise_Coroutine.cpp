@@ -447,9 +447,9 @@ namespace NMib::NConcurrency
 
 #if DMibConfig_Concurrency_DebugFutures
 		{
-			auto &ConcurrencyManager = fg_ConcurrencyManager();
-			DMibLock(ConcurrencyManager.m_FutureListLock);
-			ConcurrencyManager.m_Coroutines.f_Insert(_pPromiseData);
+			auto &DebugFutures = NPrivate::fg_DebugFutures();
+			DMibLock(DebugFutures.m_Lock);
+			DebugFutures.m_Coroutines.f_Insert(_pPromiseData);
 		}
 #endif
 

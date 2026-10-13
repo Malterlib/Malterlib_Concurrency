@@ -180,6 +180,12 @@ namespace NMib::NConcurrency::NPrivate
 	}
 
 	template <typename t_CException>
+	uint32 TCRuntimeTypeRegistryEntry_Exception<t_CException>::f_StreamVersion() const
+	{
+		return t_CException::mc_StreamVersion;
+	}
+
+	template <typename t_CException>
 	TCRuntimeTypeRegistryEntry_ExceptionInit<t_CException> TCExceptionRegistry<t_CException>::ms_EntryInit;
 
 	template <typename t_CException>

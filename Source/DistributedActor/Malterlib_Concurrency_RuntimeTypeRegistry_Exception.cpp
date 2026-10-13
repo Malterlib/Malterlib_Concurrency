@@ -33,14 +33,24 @@ namespace NMib::NConcurrency::NPrivate
 
 		_Stream << TypeHash;
 
+		// A peer from before exception stream versions reads the layout of version 0
+		uint32 StreamVersion = 0;
+		if (_ActorProtocolVersion >= EDistributedActorProtocolVersion_ExceptionStreamVersions)
+		{
+			StreamVersion = pEntry->f_StreamVersion();
+			_Stream << StreamVersion;
+		}
+
 		if (_ActorProtocolVersion >= EDistributedActorProtocolVersion_GeneralExceptionsSupported)
 		{
 			NStream::TCBinaryStreamNull<NStream::CBinaryStreamDefault> MeasureSizeStream;
+			DMibBinaryStreamVersion(MeasureSizeStream, StreamVersion);
 			pEntry->f_Feed(MeasureSizeStream, _Exception);
 			uint64 Size = MeasureSizeStream.f_GetLength();
 			NStream::fg_FeedLenToStream(_Stream, Size);
 		}
 
+		DMibBinaryStreamVersion(_Stream, StreamVersion);
 		pEntry->f_Feed(_Stream, _Exception);
 	}
 
@@ -81,7 +91,10 @@ namespace NMib::NConcurrency::NPrivate
 		return Stream.f_MoveStorage();
 	}
 
-	void fg_FeedException(NStream::CBinaryStreamDefault &_Stream, NException::CExceptionBase const &_Exception)
+	/// Feeds an exception with or without its stream version. Feed it versioned only to a reader that has exception stream versions,
+	/// such as data whose own stream version says so, and consume it with the same _bVersioned. Versioned it has the layout of
+	/// actor replies; unversioned it streams as version 0, which leaves out newer fields.
+	void fg_FeedException(NStream::CBinaryStreamDefault &_Stream, NException::CExceptionBase const &_Exception, bool _bVersioned)
 	{
 		uint32 TypeHash = _Exception.f_TypeHash();
 		DMibFastCheck(TypeHash);
@@ -91,14 +104,43 @@ namespace NMib::NConcurrency::NPrivate
 		DMibFastCheck(pEntry);
 
 		_Stream << TypeHash;
+
+		uint32 StreamVersion = 0;
+		if (_bVersioned)
 		{
-			NStream::TCBinaryStreamNull<NStream::CBinaryStreamDefault> MeasureSizeStream;
-			pEntry->f_Feed(MeasureSizeStream, _Exception);
-			uint64 Size = MeasureSizeStream.f_GetLength();
-			NStream::fg_FeedLenToStream(_Stream, Size);
+			StreamVersion = pEntry->f_StreamVersion();
+			_Stream << StreamVersion;
 		}
 
+		{
+			NStream::TCBinaryStreamNull<NStream::CBinaryStreamDefault> MeasureSizeStream;
+			DMibBinaryStreamVersion(MeasureSizeStream, StreamVersion);
+			pEntry->f_Feed(MeasureSizeStream, _Exception);
+			NStream::fg_FeedLenToStream(_Stream, MeasureSizeStream.f_GetLength());
+		}
+
+		DMibBinaryStreamVersion(_Stream, StreamVersion);
 		pEntry->f_Feed(_Stream, _Exception);
+	}
+
+	void fg_FeedException(NStream::CBinaryStreamDefault &_Stream, NException::CExceptionPointer const &_pException, bool _bVersioned)
+	{
+		NException::CDisableExceptionTraceScope DisableTrace;
+		if
+			(
+				!NException::fg_VisitException<NException::CExceptionBase>
+				(
+					_pException
+					, [&](NException::CExceptionBase const &_Exception)
+					{
+						fg_FeedException(_Stream, _Exception, _bVersioned);
+					}
+				)
+			)
+		{
+			// Unknow exception cannot be streamed
+			DMibPDebugBreak;
+		}
 	}
 
 	// Recovers the base message for an unregistered type, or returns a generic error if decoding fails.
@@ -139,39 +181,38 @@ namespace NMib::NConcurrency::NPrivate
 		return DMibErrorInstance(NStr::fg_Format("Unknown exception type received (type hash {nh})", _TypeHash)).f_ExceptionPointer();
 	}
 
-	NException::CExceptionPointer fg_ConsumeException(NStream::CBinaryStreamDefault &_Stream)
+	/// Consumes what fg_FeedException fed with the same _bVersioned, reads it with the sender's stream version, and continues after the
+	/// payload whatever this version read of it
+	NException::CExceptionPointer fg_ConsumeException(NStream::CBinaryStreamDefault &_Stream, bool _bVersioned)
 	{
 		uint32 TypeHash;
 		_Stream >> TypeHash;
+
+		uint32 StreamVersion = 0;
+		if (_bVersioned)
+			_Stream >> StreamVersion;
 
 		uint64 ExceptionStreamSize = 0;
 		NStream::fg_ConsumeLenFromStream(_Stream, ExceptionStreamSize);
 
 		auto &TypeRegistry = fg_RuntimeTypeRegistry();
 		auto pEntry = TypeRegistry.m_EntryByHash_Exception.f_FindEqual(TypeHash);
-		if (pEntry)
-			return pEntry->f_Consume(_Stream);
+		if (!pEntry)
+			return fg_ConsumeUnknownException(_Stream, TypeHash, ExceptionStreamSize);
 
-		return fg_ConsumeUnknownException(_Stream, TypeHash, ExceptionStreamSize);
-	}
+		NStream::CFilePos EndPosition = _Stream.f_GetPosition() + NStream::CFilePos(ExceptionStreamSize);
 
-	void fg_FeedException(NStream::CBinaryStreamDefault &_Stream, NException::CExceptionPointer const &_pException)
-	{
-		NException::CDisableExceptionTraceScope DisableTrace;
-		if
-			(
-				!NException::fg_VisitException<NException::CExceptionBase>
-				(
-					_pException
-					, [&](NException::CExceptionBase const &_Exception)
-					{
-						fg_FeedException(_Stream, _Exception);
-					}
-				)
-			)
+		NException::CExceptionPointer pException;
 		{
-			// Unknow exception cannot be streamed
-			DMibPDebugBreak;
+			DMibBinaryStreamVersion(_Stream, StreamVersion);
+			pException = pEntry->f_Consume(_Stream);
 		}
+
+		// Seeking back would decode what follows from bytes the exception already used
+		if (_Stream.f_GetPosition() > EndPosition)
+			DMibError(NStr::fg_Format("The exception (type hash {nh}) is longer than the size it was sent with", TypeHash));
+
+		_Stream.f_SetPosition(EndPosition);
+		return pException;
 	}
 }

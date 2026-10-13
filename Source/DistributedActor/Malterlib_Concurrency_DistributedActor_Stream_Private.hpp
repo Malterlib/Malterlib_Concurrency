@@ -47,6 +47,10 @@ namespace NMib::NConcurrency::NPrivate
 			uint32 TypeHash;
 			_Stream >> TypeHash;
 
+			uint32 StreamVersion = 0;
+			if (_ActorProtocolVersion >= NConcurrency::EDistributedActorProtocolVersion_ExceptionStreamVersions)
+				_Stream >> StreamVersion;
+
 			uint64 ExceptionStreamSize = 0;
 			if (_ActorProtocolVersion >= NConcurrency::EDistributedActorProtocolVersion_GeneralExceptionsSupported)
 				NStream::fg_ConsumeLenFromStream(_Stream, ExceptionStreamSize);
@@ -70,7 +74,25 @@ namespace NMib::NConcurrency::NPrivate
 				return true;
 			}
 
-			_PromiseOrAsyncResult.f_SetException(pEntry->f_Consume(_Stream));
+			NStream::CFilePos EndPosition = _Stream.f_GetPosition() + NStream::CFilePos(ExceptionStreamSize);
+			NException::CExceptionPointer pException;
+			{
+				// Read with the sender's version, which can be older or newer than this one's
+				DMibBinaryStreamVersion(_Stream, StreamVersion);
+				pException = pEntry->f_Consume(_Stream);
+			}
+
+			// A newer sender's version can have fields after the ones this one knows. Seeking back would instead decode what follows
+			// from bytes the exception already used.
+			if (_ActorProtocolVersion >= NConcurrency::EDistributedActorProtocolVersion_GeneralExceptionsSupported)
+			{
+				if (_Stream.f_GetPosition() > EndPosition)
+					pException = DMibErrorInstance(NStr::fg_Format("The exception (type hash {nh}) is longer than the size it was sent with", TypeHash)).f_ExceptionPointer();
+				else
+					_Stream.f_SetPosition(EndPosition);
+			}
+
+			_PromiseOrAsyncResult.f_SetException(fg_Move(pException));
 
 			return true;
 		}

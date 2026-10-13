@@ -26,6 +26,8 @@ namespace NMib::NConcurrency
 		virtual void f_Feed(NStream::CBinaryStreamDefault &_Stream, NException::CExceptionBase const &_Exception) = 0;
 		virtual void f_Feed(NStream::TCBinaryStreamNull<NStream::CBinaryStreamDefault> &_Stream, NException::CExceptionBase const &_Exception) = 0;
 
+		virtual uint32 f_StreamVersion() const = 0; // The exception type's mc_StreamVersion
+
 		uint32 m_Hash;
 
 		NIntrusive::TCAVLLink<> m_HashLink;
@@ -47,6 +49,8 @@ namespace NMib::NConcurrency::NPrivate
 		void f_Feed(NStream::CBinaryStreamDefault &_Stream, NException::CExceptionBase const &_Exception) override;
 		void f_Feed(NStream::TCBinaryStreamNull<NStream::CBinaryStreamDefault> &_Stream, NException::CExceptionBase const &_Exception) override;
 
+		uint32 f_StreamVersion() const override;
+
 		static constexpr uint32 c_NameHash = DMibConstantTypeHash(t_CException);
 	};
 
@@ -62,9 +66,9 @@ namespace NMib::NConcurrency::NPrivate
 		static TCRuntimeTypeRegistryEntry_ExceptionInit<t_CException> ms_EntryInit;
 	};
 
-	void fg_FeedException(NStream::CBinaryStreamDefault &_Stream, NException::CExceptionPointer const &_pException);
-	void fg_FeedException(NStream::CBinaryStreamDefault &_Stream, NException::CExceptionBase const &_pException);
-	NException::CExceptionPointer fg_ConsumeException(NStream::CBinaryStreamDefault &_Stream);
+	void fg_FeedException(NStream::CBinaryStreamDefault &_Stream, NException::CExceptionPointer const &_pException, bool _bVersioned);
+	void fg_FeedException(NStream::CBinaryStreamDefault &_Stream, NException::CExceptionBase const &_Exception, bool _bVersioned);
+	NException::CExceptionPointer fg_ConsumeException(NStream::CBinaryStreamDefault &_Stream, bool _bVersioned);
 
 	NException::CExceptionPointer fg_ConsumeUnknownException(NStream::CBinaryStreamDefault &_Stream, uint32 _TypeHash, uint64 _ExceptionStreamSize);
 

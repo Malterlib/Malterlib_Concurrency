@@ -582,6 +582,7 @@ namespace NMib::NConcurrency
 		{
 			NThread::CMutual m_ResultLock;
 			TCAsyncResult<void> m_Result;
+			NThread::CEventAutoReset m_Event; // The waiter can see m_Finished before it is signalled, so it lives until m_ResultLock is released
 			align_cacheline NAtomic::TCAtomic<smint> m_Finished;
 		};
 
@@ -609,8 +610,6 @@ namespace NMib::NConcurrency
 			}
 			else
 			{
-				NThread::CEventAutoReset Event;
-
 				fg_Move(pActor).f_Destroy().f_OnResultSet
 					(
 						[&](TCAsyncResult<void> &&_Result)
@@ -618,13 +617,13 @@ namespace NMib::NConcurrency
 							DMibLock(State.m_ResultLock);
 							State.m_Result = fg_Move(_Result);
 							State.m_Finished.f_Exchange(1);
-							Event.f_Signal();
+							State.m_Event.f_Signal();
 						}
 					)
 				;
 
 				while (State.m_Finished.f_Load() != 1)
-					Event.f_Wait();
+					State.m_Event.f_Wait();
 			}
 		}
 

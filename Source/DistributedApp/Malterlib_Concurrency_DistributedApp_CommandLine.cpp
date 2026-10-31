@@ -104,6 +104,9 @@ namespace NMib::NConcurrency
 	{
 		auto &Internal = *mp_pInternal;
 
+		// A client in this process calls without a calling host; its commands run as the app's own host
+		auto CallingHostInfoScope = fp_PopulateCurrentHostInfoIfMissing("Command line");
+
 		auto Auditor = f_Auditor();
 		auto &CallingHostInfo = Auditor.f_HostInfo();
 

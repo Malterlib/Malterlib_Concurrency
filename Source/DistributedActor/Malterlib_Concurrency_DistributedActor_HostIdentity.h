@@ -21,4 +21,5 @@ namespace NMib::NConcurrency
 	TCFuture<CLocalHostIdentity> fg_GetLocalHostIdentity();
 
 	CLocalHostIdentity fg_GetLocalHostIdentityNow();
+	NStorage::TCOptional<CLocalHostIdentity> fg_GetLocalHostIdentityIfResolved();
 }

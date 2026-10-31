@@ -118,4 +118,15 @@ namespace NMib::NConcurrency
 
 		return fg_LookUpLocalHostIdentity();
 	}
+
+	// Returns the identity only when a lookup has already resolved it; never looks it up.
+	NStorage::TCOptional<CLocalHostIdentity> fg_GetLocalHostIdentityIfResolved()
+	{
+		auto &State = *g_LocalHostIdentity;
+		DMibLock(State.m_Lock);
+		if (State.m_bResolved && State.m_Result)
+			return *State.m_Result;
+
+		return {};
+	}
 }

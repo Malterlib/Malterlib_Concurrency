@@ -81,6 +81,30 @@ namespace
 
 			Section.f_RegisterCommand
 				(
+					{"Names"_o= _o["--test-remote-session"], "Description"_o= "Return 1 for a session through the app's listener."}
+					, [](NEncoding::CEJsonSorted const _Params, NStorage::TCSharedPointer<CCommandLineControl> _pCommandLine) -> TCFuture<uint32>
+					{
+						co_return _pCommandLine->m_ClientInfo.m_UTCOffsetSeconds ? 1 : 0;
+					}
+				)
+			;
+
+			Section.f_RegisterCommand
+				(
+					{"Names"_o= _o["--test-calling-host"], "Description"_o= "Return 1 when the command runs as the app's own host."}
+					, [this](NEncoding::CEJsonSorted const _Params, NStorage::TCSharedPointer<CCommandLineControl> _pCommandLine) -> TCFuture<uint32>
+					{
+						auto &CallingHostInfo = fg_GetCallingHostInfo();
+						bool bOwnHost = CallingHostInfo.f_GetRealHostID() == mp_State.m_HostID;
+						bool bLocalName = CallingHostInfo.f_GetHostInfo().m_FriendlyName.f_EndsWith("(Local Command line)");
+
+						co_return bOwnHost && bLocalName ? 1 : 0;
+					}
+				)
+			;
+
+			Section.f_RegisterCommand
+				(
 					{"Names"_o= _o["--test-input"], "Description"_o= "Exercise redirected input subscriptions."}
 					, [](CEJsonSorted, NStorage::TCSharedPointer<CCommandLineControl> _pCommandLine) -> TCFuture<uint32>
 					{
@@ -389,6 +413,24 @@ namespace
 								DMibExpect(Ret, ==, 66);
 							}
 							, "TestDistAppCommandLineActor"
+						)
+					;
+				};
+
+				DMibTestSuite("In process")
+				{
+					// An app that runs in the client's process runs its commands without connecting to its own listener
+					fp_RunTests
+						(
+							[](CDistributedAppCommandLineClient &_Client)
+							{
+								aint Ret = _Client.f_RunCommandLine(fg_CreateVector<CStr>("App", "--test-remote-session"));
+								DMibExpect(Ret, ==, 0);
+
+								aint OwnHost = _Client.f_RunCommandLine(fg_CreateVector<CStr>("App", "--test-calling-host"));
+								DMibExpect(OwnHost, ==, 1);
+							}
+							, "TestDistAppCommandLineInProcess"
 						)
 					;
 				};

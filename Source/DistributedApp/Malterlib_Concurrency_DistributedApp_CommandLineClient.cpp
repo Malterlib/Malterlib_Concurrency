@@ -553,7 +553,10 @@ namespace NMib::NConcurrency
 			TCActor<CActorDistributionManager> DistributionManager;
 			TCDistributedActor<ICCommandLine> CommandLineActor;
 
-			if (auto AppActor = Internal.m_AppActor.f_Lock())
+			auto *pRemoteCommandLine = _Params.f_GetMember("RemoteCommandLine");
+			bool bRemoteCommandLine = pRemoteCommandLine && pRemoteCommandLine->f_Boolean();
+
+			if (auto AppActor = Internal.m_AppActor.f_Lock(); AppActor && !bRemoteCommandLine)
 			{
 				auto InProcess = AppActor(&CDistributedAppActor::f_GetInProcessCommandLine).f_CallSync(Internal.m_pRunLoop);
 
@@ -565,8 +568,7 @@ namespace NMib::NConcurrency
 
 			if (!CommandLineActor)
 			{
-				auto *pRemoteCommandLine = _Params.f_GetMember("RemoteCommandLine");
-				bool bFailIfNotRunning = (Command.m_Flags & EDistributedAppCommandFlag_FailIfNotRunning) && (!pRemoteCommandLine || !pRemoteCommandLine->f_Boolean());
+				bool bFailIfNotRunning = (Command.m_Flags & EDistributedAppCommandFlag_FailIfNotRunning) && !bRemoteCommandLine;
 
 				fp_Init(_Params, bFailIfNotRunning);
 

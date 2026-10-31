@@ -299,7 +299,13 @@ namespace NMib::NConcurrency
 
 		if (CurrentCallingHostInfo.f_GetRealHostID().f_IsEmpty())
 		{
-			CStr LocalName = fg_Format("{}/{}", fg_GetLocalHostIdentityNow().f_UserAtComputer(), mp_Settings.m_AppName);
+			// Without the user and computer when nothing has looked them up yet, as in-process-only apps defer the lookup
+			CStr LocalName = mp_Settings.m_AppName;
+			if (!mp_Settings.m_FriendlyName.f_IsEmpty())
+				LocalName = mp_Settings.f_GetCompositeFriendlyName();
+			else if (auto Identity = fg_GetLocalHostIdentityIfResolved())
+				LocalName = mp_Settings.f_GetCompositeFriendlyName(*Identity);
+
 			if (_Description.f_IsEmpty())
 				FriendlyName = fg_Format("{} (Local)", LocalName);
 			else

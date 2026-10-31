@@ -229,12 +229,13 @@ namespace NMib::NConcurrency
 		co_return {};
 	}
 
-	// Returns empty actors unless an in-process-only command line has been constructed.
+	// Returns empty actors until the app has started and constructed its command line. A client in this process calls it directly
+	// instead of connecting to the app's listener.
 	TCFuture<CDistributedAppActor::CInProcessCommandLine> CDistributedAppActor::f_GetInProcessCommandLine()
 	{
 		auto &Internal = *mp_pInternal;
 
-		if (!mp_Settings.m_bInProcessCommandLineOnly || !Internal.m_CommandLine)
+		if (!Internal.m_CommandLine)
 			co_return CInProcessCommandLine{};
 
 		co_return CInProcessCommandLine
@@ -276,7 +277,8 @@ namespace NMib::NConcurrency
 
 	bool CDistributedAppActor::fp_HasCommandLineAccess(CStr const &_HostID)
 	{
-		return _HostID == mp_State.m_CommandLineHostID;
+		// A command from this process runs with the app's own host, see f_RunCommandLine
+		return _HostID == mp_State.m_HostID || _HostID == mp_State.m_CommandLineHostID;
 	}
 
 	TCFuture<void> CDistributedAppActor::fp_SetupRemoteCommandLine()

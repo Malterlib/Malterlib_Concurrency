@@ -557,7 +557,8 @@ namespace NMib::NConcurrency
 		NStr::CStr m_HostID;
 		NStr::CStr m_FriendlyName;
 		NFunction::TCFunction<NStr::CStr ()> m_fGetFriendlyName; // Asked for the name on first use when m_FriendlyName is empty
-		NStr::CStr m_Enclave; // Hosts with the same enclave are assumed to be from the same distribution manager instance. If two use the same enclave they will disconnect each other.
+		NStr::CStr m_Enclave;                                    // Hosts with the same enclave are assumed to be from the same distribution
+		                                                         // manager instance. If two use the same enclave they will disconnect each other.
 
 		fp64 m_HostTimeout = 10_minutes;
 		fp64 m_HostDaemonTimeout = 4_hours;

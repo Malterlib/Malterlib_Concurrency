@@ -490,12 +490,21 @@ namespace NMib::NConcurrency
 				try
 				{
 					NContainer::TCSet<NStr::CStr> Files;
+					NContainer::TCSet<NStr::CStr> StagedFiles;
 					for (auto &WildcardPath : WildcardPaths)
 					{
 						for (auto &File : CFile::fs_FindFiles(WildcardPath, EFileAttrib_File))
 						{
 							if (!Files.f_FindEqual(File))
 								Files.f_Insert(File);
+						}
+
+						// A staged path keeps the start of the file name, see fg_GetStagedUnixSocketPath
+						CStr StagedWildcardPath = WildcardPath.f_Extract(0, WildcardPath.f_FindChar('*')) + "*~*";
+						for (auto &File : CFile::fs_FindFiles(StagedWildcardPath, EFileAttrib_File))
+						{
+							if (NSys::NNetwork::fg_IsStagedUnixSocketPath(File) && !StagedFiles.f_FindEqual(File))
+								StagedFiles.f_Insert(File);
 						}
 					}
 
@@ -516,14 +525,42 @@ namespace NMib::NConcurrency
 							catch (NException::CException const &_Exception)
 							{
 								(void)_Exception;
-								DMibLogWithCategory(Mib/Concurrency/App, Info, "Cleaned up stale enclave socket '{}': {}", File, _Exception);
 								CFile::fs_DeleteFile(File);
+								DMibLogWithCategory(Mib/Concurrency/App, Info, "Cleaned up stale enclave socket '{}': {}", File, _Exception);
 							}
 						}
 						catch (NException::CException const &_Exception)
 						{
+							// Another instance's sweep can delete the same stale socket first
+							if (!CFile::fs_FileExists(File))
+								continue;
+
 							(void)_Exception;
 							DMibLogWithCategory(Mib/Concurrency/App, Error, "Failed to clean up enclave socket '{}': {}", File, _Exception);
+						}
+					}
+
+					// Nothing connects to a staged file, so only its age tells the leftover of a listener that died before it listened
+					// from a listener that is starting
+					NTime::CTime Now = NTime::CTime::fs_NowUTC();
+					for (auto &File : StagedFiles)
+					{
+						try
+						{
+							// On Windows a socket file is a reparse point, which only opens without following it
+							if (Now - CFile::fs_GetWriteTimeOnLink(File) < NTime::CTimeSpanConvert::fs_CreateMinuteSpan(5))
+								continue;
+
+							CFile::fs_DeleteFile(File);
+							DMibLogWithCategory(Mib/Concurrency/App, Info, "Cleaned up stale staged enclave socket '{}'", File);
+						}
+						catch (NException::CException const &_Exception)
+						{
+							if (!CFile::fs_FileExists(File))
+								continue;
+
+							(void)_Exception;
+							DMibLogWithCategory(Mib/Concurrency/App, Error, "Failed to clean up staged enclave socket '{}': {}", File, _Exception);
 						}
 					}
 				}

@@ -38,11 +38,12 @@ namespace
 
 	struct CTestDistributedApp : public CDistributedAppActor
 	{
-		CTestDistributedApp(CStr const &_Name, bool _bInProcessOnly = false)
+		CTestDistributedApp(CStr const &_Name, bool _bInProcessOnly = false, CStr const &_Enclave = {})
 			: CDistributedAppActor
 			(
 				CDistributedAppActor_Settings(_Name)
 				.f_RootDirectory(NFile::CFile::fs_GetProgramDirectory() / _Name)
+				.f_Enclave(_Enclave)
 				.f_SeparateDistributionManager(true)
 				.f_InProcessCommandLineOnly(_bInProcessOnly)
 				.f_KeySetting(NConcurrency::CDistributedActorTestKeySettings{})
@@ -228,6 +229,62 @@ namespace
 					OtherApp.m_AppName += "Other";
 					DMibExpect(OtherApp.f_GetLocalSocketFileName(Flags, OtherApp.m_Enclave), !=, Path);
 				}
+			};
+
+			DMibTestSuite("Enclave socket sweep")
+			{
+				using NFile::CFile;
+
+				CStr Name = "TestDistAppEnclaveSweep";
+				CStr RootDirectory = CFile::fs_GetProgramDirectory() / Name;
+				fg_TestAddCleanupPath(RootDirectory);
+				if (CFile::fs_FileExists(RootDirectory))
+					CFile::fs_DeleteDirectoryRecursive(RootDirectory);
+				CFile::fs_CreateDirectory(RootDirectory);
+
+				// Other instances' paths are only enclave specific with an enclave of their own
+				CDistributedAppActor_Settings Settings(Name);
+				Settings.m_RootDirectory = RootDirectory;
+				Settings.m_Enclave = NCryptography::fg_RandomID();
+				auto fOtherSocketPath = [&]
+					{
+						return Settings.f_GetLocalSocketFileName(ELocalSocketFlag::mc_EnclaveSpecific, NCryptography::fg_RandomID());
+					}
+				;
+
+				CStr StalePath = fOtherSocketPath();
+				CFile::fs_CreateDirectoryForFile(StalePath); // Long root directories put sockets in a fallback directory
+				CFile::fs_WriteStringToFile(StalePath, "Stale", false);
+
+				CStr LivePath = fOtherSocketPath();
+				NNetwork::CSocket Live;
+				Live.f_Listen(NNetwork::CSocket::fs_ResolveAddress("UNIX:" + LivePath), nullptr, NNetwork::ENetFlag_None);
+
+				CStr OldStagedPath = NSys::NNetwork::fg_GetStagedUnixSocketPath(fOtherSocketPath());
+				CFile::fs_WriteStringToFile(OldStagedPath, "Leftover", false);
+				CFile::fs_SetWriteTime(OldStagedPath, NTime::CTime::fs_NowUTC() - NTime::CTimeSpanConvert::fs_CreateMinuteSpan(10));
+
+				CStr StartingStagedPath = NSys::NNetwork::fg_GetStagedUnixSocketPath(fOtherSocketPath());
+				CFile::fs_WriteStringToFile(StartingStagedPath, "Starting", false);
+
+				CActorRunLoopTestHelper RunLoopHelper;
+				auto AppActor = fg_ConstructActor<CTestDistributedApp>(Name, false, NCryptography::fg_RandomID());
+				AppActor(&CDistributedAppActor::f_StartApp, NEncoding::CEJsonSorted{}, TCActor<CDistiributedAppLogActor>{}, EDistributedAppType_InProcess)
+					.f_CallSync(RunLoopHelper.m_pRunLoop)
+				;
+
+				// The sweep runs in the background of the startup
+				NTime::CStopwatch Stopwatch{true};
+				while ((CFile::fs_FileExists(StalePath) || CFile::fs_FileExists(OldStagedPath)) && Stopwatch.f_GetTime() < 60.0)
+					NSys::fg_Thread_Sleep(0.05f);
+
+				DMibExpectFalse(CFile::fs_FileExists(StalePath));
+				DMibExpectFalse(CFile::fs_FileExists(OldStagedPath));
+				DMibExpectTrue(CFile::fs_FileExists(LivePath));
+				DMibExpectTrue(CFile::fs_FileExists(StartingStagedPath));
+
+				AppActor->f_BlockDestroy(RunLoopHelper.m_pRunLoop->f_ActorDestroyLoop());
+				Live.f_Close();
 			};
 
 			DMibTestCategory("Send window")

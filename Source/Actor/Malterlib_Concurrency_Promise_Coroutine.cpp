@@ -240,6 +240,14 @@ namespace NMib::NConcurrency
 		DMibFastCheck(m_CoroutineHandlers.m_nThreadLocalScopes == 0); // Oustanding thread local scopes cannot escape suspension point,
 		// if needed convert thread local scope to CCoroutineThreadLocalHandler interface
 
+		auto iHandler = m_CoroutineHandlers.m_ThreadLocalHandlers.f_GetIterator();
+		iHandler.f_Reverse(m_CoroutineHandlers.m_ThreadLocalHandlers);
+
+		for (; iHandler; --iHandler)
+			iHandler->f_Suspend();
+
+		// Stored after the coroutine's own scopes are suspended, so only the scopes of the callers remain; the coroutine's own scopes
+		// are restored by their resume
 		if (!_ThreadLocal.m_CrossActorStateScopes.f_IsEmpty()) [[unlikely]]
 		{
 			for (auto &Scope : _ThreadLocal.m_CrossActorStateScopes)
@@ -249,12 +257,6 @@ namespace NMib::NConcurrency
 					m_RestoreScopes.f_Insert(fg_Move(fRestoreScope));
 			}
 		}
-
-		auto iHandler = m_CoroutineHandlers.m_ThreadLocalHandlers.f_GetIterator();
-		iHandler.f_Reverse(m_CoroutineHandlers.m_ThreadLocalHandlers);
-
-		for (; iHandler; --iHandler)
-			iHandler->f_Suspend();
 
 		DMibFastCheck(m_bRuntimeStateConstructed);
 		DMibFastCheck(m_bPreviousCoroutineHandlerConstructed);
@@ -372,6 +374,13 @@ namespace NMib::NConcurrency
 			return {};
 		}
 #endif
+		// The scopes of the callers are restored below the coroutine's own scopes, so that the coroutine's scopes end or suspend
+		// before the callers' scopes are removed after the resume
+		auto RestoreScopes = fg_Move(m_RestoreScopes);
+
+		for (auto &fRestoreScope : RestoreScopes)
+			fRestoreScope();
+
 		auto iHandler = m_CoroutineHandlers.m_ThreadLocalHandlers.f_GetIterator();
 		for (; iHandler; ++iHandler)
 		{
@@ -390,11 +399,6 @@ namespace NMib::NConcurrency
 				return {};
 			}
 		}
-
-		auto RestoreScopes = fg_Move(m_RestoreScopes);
-
-		for (auto &fRestoreScope : RestoreScopes)
-			fRestoreScope();
 
 		return RestoreScopes;
 	}

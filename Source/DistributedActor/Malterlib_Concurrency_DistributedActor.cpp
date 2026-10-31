@@ -172,6 +172,7 @@ namespace NMib::NConcurrency
 	void CCallingHostInfoScope::f_Suspend() noexcept
 	{
 		auto &ThreadLocal = *NPrivate::fg_DistributedActorSubSystem().m_ThreadLocal;
+		mp_NewInfo = fg_Move(ThreadLocal.m_CallingHostInfo);
 		ThreadLocal.m_CallingHostInfo = fg_Move(mp_PrevInfo);
 		ThreadLocal.m_pCurrentCallingHostInfoScope = mp_pPrevScope;
 		CCrossActorCallStateScope::f_Suspend();

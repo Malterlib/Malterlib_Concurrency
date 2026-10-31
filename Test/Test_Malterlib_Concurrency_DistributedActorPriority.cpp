@@ -45,6 +45,67 @@ namespace NDistributedActorPriorityTests
 		}
 	};
 
+	struct CPriorityYieldActor : public CActor
+	{
+		TCFuture<void> f_Yield()
+		{
+			co_return {};
+		}
+	};
+
+	// Runs on a thread of its own, so a priority left on its thread shows in its next call
+	struct CPriorityScopeThreadActor : public CActor
+	{
+		using CActorHolder = CSeparateThreadActorHolder;
+
+		struct CObserved
+		{
+			uint8 m_BeforeOwnScope = 0;
+			uint8 m_AfterResume = 0;
+		};
+
+		TCFuture<CObserved> f_RunWithOwnScope(TCActor<CPriorityYieldActor> _YieldActor)
+		{
+			CObserved Observed;
+			Observed.m_BeforeOwnScope = CPriorityScope::fs_GetCurrentPriority();
+
+			CPriorityScope Own(CPriorityScope::mc_PriorityHigh);
+			co_await _YieldActor(&CPriorityYieldActor::f_Yield);
+			Observed.m_AfterResume = CPriorityScope::fs_GetCurrentPriority();
+
+			co_return Observed;
+		}
+
+		uint8 f_GetPriority()
+		{
+			return CPriorityScope::fs_GetCurrentPriority();
+		}
+
+		TCFuture<TCVector<CStr>> f_RunWithOwnCallingHost(TCActor<CPriorityYieldActor> _YieldActor)
+		{
+			CCallingHostInfoScope Own
+				(
+					CCallingHostInfo({}, {}, "Unique host", CHostInfo("Real host", "Friendly name"), "Execution", 0, "User ID", "User name", nullptr, 128)
+				)
+			;
+
+			TCVector<CStr> Observed;
+			for (umint i = 0; i < 2; ++i)
+			{
+				co_await _YieldActor(&CPriorityYieldActor::f_Yield);
+				auto &CallingHostInfo = fg_GetCallingHostInfo();
+				Observed.f_Insert("{} {} {}"_f << CallingHostInfo.f_GetRealHostID() << CallingHostInfo.f_GetUniqueHostID() << CallingHostInfo.f_GetClaimedUserID());
+			}
+
+			co_return Observed;
+		}
+
+		CStr f_GetCallingHost()
+		{
+			return fg_GetCallingHostInfo().f_GetRealHostID();
+		}
+	};
+
 	class CDistributedActorPriority_Tests : public NMib::NTest::CTest
 	{
 	public:
@@ -162,6 +223,51 @@ namespace NDistributedActorPriorityTests
 					}
 					DMibExpect(CPriorityScope::fs_GetCurrentPriority(), ==, uint8(128));
 				}
+			};
+		}
+
+		void fp_CoroutineSuspensionTests()
+		{
+			DMibTestSuite("Coroutine suspension")
+			{
+				CActorRunLoopTestHelper RunLoopHelper;
+
+				TCActor<CPriorityScopeThreadActor> ThreadActor(fg_Construct(), "Priority scope thread");
+				TCActor<CPriorityYieldActor> YieldActor = fg_Construct();
+
+				for (bool bCallerScope : {false, true})
+				{
+					DMibTestPath(bCallerScope ? "Caller scope" : "No caller scope");
+
+					CPriorityScopeThreadActor::CObserved Observed;
+					{
+						NStorage::TCOptional<CPriorityScope> CallerScope;
+						if (bCallerScope)
+							CallerScope = fg_Construct(CPriorityScope::mc_PriorityLow);
+
+						Observed = ThreadActor(&CPriorityScopeThreadActor::f_RunWithOwnScope, YieldActor).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
+					}
+
+					DMibExpect(Observed.m_BeforeOwnScope, ==, uint8(bCallerScope ? 192 : 128));
+					DMibExpect(Observed.m_AfterResume, ==, uint8(64));
+
+					// The coroutine's scope and the caller's scope have both ended on the actor's thread
+					uint8 PriorityAfter = ThreadActor(&CPriorityScopeThreadActor::f_GetPriority).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
+					DMibExpect(PriorityAfter, ==, uint8(128));
+				}
+
+				{
+					DMibTestPath("Calling host over two suspensions");
+					auto Observed = ThreadActor(&CPriorityScopeThreadActor::f_RunWithOwnCallingHost, YieldActor).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
+
+					DMibExpect(Observed, ==, (TCVector<CStr>{"Real host Unique host User ID", "Real host Unique host User ID"}));
+
+					CStr CallingHostAfter = ThreadActor(&CPriorityScopeThreadActor::f_GetCallingHost).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
+					DMibExpect(CallingHostAfter, ==, "");
+				}
+
+				fg_Move(ThreadActor).f_Destroy().f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
+				fg_Move(YieldActor).f_Destroy().f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
 			};
 		}
 
@@ -536,6 +642,7 @@ namespace NDistributedActorPriorityTests
 			DMibTestCategory("Distributed Actor Priority")
 			{
 				fp_CPriorityScopeTests();
+				fp_CoroutineSuspensionTests();
 				fp_RemoteCallPriorityTests();
 				fp_ReconnectRecoveryTests();
 				fp_MixedPriorityTests();

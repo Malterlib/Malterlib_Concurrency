@@ -51,9 +51,9 @@ namespace NMib::NConcurrency
 		Destroying actor functor on wrong thread
 		To allow destroy on wrong thread, capture allow destroy in the lambda:
 
-		   / [AllowDestroy = g_AllowWrongThreadDestroy]
-		   {
-		   }
+			/ [AllowDestroy = g_AllowWrongThreadDestroy]
+			{
+			}
 		;
 		*/
 #else

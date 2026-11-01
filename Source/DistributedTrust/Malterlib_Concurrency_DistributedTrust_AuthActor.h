@@ -36,20 +36,22 @@ namespace NMib::NConcurrency
 		virtual ~ICDistributedActorTrustManagerAuthenticationActor();
 
 		virtual TCFuture<CAuthenticationData> f_RegisterFactor(NStr::CStr _UserID, NStorage::TCSharedPointer<CCommandLineControl> _pCommandLine) = 0;
-		virtual TCFuture<ICDistributedActorAuthenticationHandler::CResponse> f_SignAuthenticationRequest
+		virtual auto f_SignAuthenticationRequest
 			(
 				NStorage::TCSharedPointer<CCommandLineControl> _pCommandLine
 				, NStr::CStr _Description
 				, ICDistributedActorAuthenticationHandler::CSignedProperties _SignedProperties
 				, NContainer::TCMap<NStr::CStr, CAuthenticationData> _Factors
-			) = 0
+			)
+			-> TCFuture<ICDistributedActorAuthenticationHandler::CResponse> = 0
 		;
-		virtual TCFuture<CVerifyAuthenticationReturn> f_VerifyAuthenticationResponse
+		virtual auto f_VerifyAuthenticationResponse
 			(
 				ICDistributedActorAuthenticationHandler::CResponse _Response
 				, ICDistributedActorAuthenticationHandler::CChallenge _Challenge
 				, CAuthenticationData _AuthenticationData
-			) = 0
+			)
+			-> TCFuture<CVerifyAuthenticationReturn> = 0
 		;
 
 		static NContainer::TCMap<NStr::CStr, CAuthenticationActorInfo> fs_GetRegisteredAuthenticationFactors(TCActor<CDistributedActorTrustManager> _TrustManager);
@@ -62,15 +64,15 @@ namespace NMib::NConcurrency
 	};
 }
 
-#define	DMibAuthenticationFactorRegister(d_ClassName)												\
-			DMibRuntimeClassNamedCasted																\
-				(																					\
-					NMib::NConcurrency::ICDistributedActorTrustManagerAuthenticationActorFactory	\
-					, d_ClassName																	\
-					, NMib::NConcurrency::d_ClassName												\
-					, NMib::NConcurrency::ICDistributedActorTrustManagerAuthenticationActorFactory	\
-				)
+#define	DMibAuthenticationFactorRegister(d_ClassName)										\
+	DMibRuntimeClassNamedCasted																\
+		(																					\
+			NMib::NConcurrency::ICDistributedActorTrustManagerAuthenticationActorFactory	\
+			, d_ClassName																	\
+			, NMib::NConcurrency::d_ClassName												\
+			, NMib::NConcurrency::ICDistributedActorTrustManagerAuthenticationActorFactory	\
+		)
 
 #ifndef DMibPNoShortCuts
-	using namespace NMib::NConcurrency;
+using namespace NMib::NConcurrency;
 #endif

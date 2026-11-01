@@ -4,7 +4,7 @@
 namespace NMib::NConcurrency::NSensorStore
 {
 	template <typename tf_CKey>
-	bool fg_FilterSensorKey
+	auto fg_FilterSensorKey
 		(
 			tf_CKey const &_Key
 			, CDistributedAppSensorReader_SensorFilter const &_Filter
@@ -12,6 +12,7 @@ namespace NMib::NConcurrency::NSensorStore
 			, CDistributedAppSensorReporter::CSensorInfo const *_pSensorInfo
 			, NSensorStoreLocalDatabase::CKnownHostValue const *_pKnownHost
 		)
+		-> bool
 	{
 		if (_Filter.m_HostID && _Key.m_HostID != *_Filter.m_HostID)
 			return false;
@@ -45,10 +46,10 @@ namespace NMib::NConcurrency::NSensorStore
 			return false;
 
 		if
-			(
-				_Filter.m_IdentifierScope
-				&& NStr::fg_StrMatchWildcard(_Key.m_IdentifierScope.f_GetStr(), _Filter.m_IdentifierScope->f_GetStr()) != EMatchWildcardResult_WholeStringMatchedAndPatternExhausted
-			)
+		(
+			_Filter.m_IdentifierScope
+			&& NStr::fg_StrMatchWildcard(_Key.m_IdentifierScope.f_GetStr(), _Filter.m_IdentifierScope->f_GetStr()) != EMatchWildcardResult_WholeStringMatchedAndPatternExhausted
+		)
 		{
 			return false;
 		}
@@ -82,7 +83,7 @@ namespace NMib::NConcurrency::NSensorStore
 	}
 
 	template <typename tf_CKey>
-	bool fg_FilterSensorKey
+	auto fg_FilterSensorKey
 		(
 			tf_CKey const &_Key
 			, NContainer::TCVector<CDistributedAppSensorReader_SensorFilter> const &_Filters
@@ -90,6 +91,7 @@ namespace NMib::NConcurrency::NSensorStore
 			, CDistributedAppSensorReporter::CSensorInfo const *_pSensorInfo
 			, NSensorStoreLocalDatabase::CKnownHostValue const *_pKnownHost
 		)
+		-> bool
 	{
 		bool bPassFilter = _Filters.f_IsEmpty();
 		for (auto &Filter : _Filters)
@@ -117,7 +119,7 @@ namespace NMib::NConcurrency::NSensorStore
 	}
 
 	template <typename tf_CSensor, typename tf_CReading>
-	bool fg_FilterSensorValueStatus
+	auto fg_FilterSensorValueStatus
 		(
 			tf_CSensor const &_Sensor
 			, tf_CReading const &_Reading
@@ -125,6 +127,7 @@ namespace NMib::NConcurrency::NSensorStore
 			, CDistributedAppSensorReader_SensorReadingFilter::ESensorReadingsFlag _Flags
 			, NTime::CTime const &_Now
 		)
+		-> bool
 	{
 		if (!(_Flags & CDistributedAppSensorReader_SensorReadingFilter::ESensorReadingsFlag_OnlyProblems))
 			return true;
@@ -163,12 +166,7 @@ namespace NMib::NConcurrency::NSensorStore
 	}
 
 	template <typename tf_CSensor, typename tf_CReading>
-	bool fg_FilterSensorReadingValueWithSensor
-		(
-			tf_CSensor const &_Sensor
-			, tf_CReading const &_Reading
-			, CDistributedAppSensorReader_SensorReadingFilter::ESensorReadingsFlag _Flags
-		)
+	bool fg_FilterSensorReadingValueWithSensor(tf_CSensor const &_Sensor, tf_CReading const &_Reading, CDistributedAppSensorReader_SensorReadingFilter::ESensorReadingsFlag _Flags)
 	{
 		if (!(_Flags & CDistributedAppSensorReader_SensorReadingFilter::ESensorReadingsFlag_OnlyProblems))
 			return true;

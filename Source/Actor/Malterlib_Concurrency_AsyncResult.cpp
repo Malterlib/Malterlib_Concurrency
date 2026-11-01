@@ -17,7 +17,7 @@ namespace NMib::NConcurrency
 		using namespace NException;
 
 		if (_Other.f_DataType() == EDataType_Exception)
-			new (&m_pException) CExceptionPointer(_Other.m_pException);
+			new(&m_pException) CExceptionPointer(_Other.m_pException);
 		else
 			m_DataType = _Other.m_DataType;
 	}
@@ -27,7 +27,7 @@ namespace NMib::NConcurrency
 		using namespace NException;
 
 		if (_Other.f_DataType() == EDataType_Exception)
-			new (&m_pException) CExceptionPointer(fg_Move(_Other.m_pException));
+			new(&m_pException) CExceptionPointer(fg_Move(_Other.m_pException));
 		else
 			m_DataType = _Other.m_DataType;
 	}
@@ -40,7 +40,7 @@ namespace NMib::NConcurrency
 			m_pException.~CExceptionPointer();
 
 		if (_Other.f_DataType() == EDataType_Exception)
-			new (&m_pException) CExceptionPointer(_Other.m_pException);
+			new(&m_pException) CExceptionPointer(_Other.m_pException);
 		else
 			m_DataType = _Other.m_DataType;
 
@@ -55,7 +55,7 @@ namespace NMib::NConcurrency
 			m_pException.~CExceptionPointer();
 
 		if (_Other.f_DataType() == EDataType_Exception)
-			new (&m_pException) CExceptionPointer(fg_Move(_Other.m_pException));
+			new(&m_pException) CExceptionPointer(fg_Move(_Other.m_pException));
 		else
 			m_DataType = _Other.m_DataType;
 
@@ -72,8 +72,8 @@ namespace NMib::NConcurrency
 	CAsyncResult::CAsyncResult(CAsyncResult const &_Other) = default;
 	CAsyncResult::CAsyncResult(CAsyncResult &&_Other) = default;
 	CAsyncResult::CAsyncResult() = default;
-	CAsyncResult &CAsyncResult::operator =(CAsyncResult const &_Other) = default;
-	CAsyncResult &CAsyncResult::operator =(CAsyncResult &&_Other) = default;
+	CAsyncResult &CAsyncResult::operator = (CAsyncResult const &_Other) = default;
+	CAsyncResult &CAsyncResult::operator = (CAsyncResult &&_Other) = default;
 
 	NException::CExceptionPointer const &CAsyncResult::f_ExceptionPointer() const
 	{
@@ -164,16 +164,16 @@ namespace NMib::NConcurrency
 		{
 			NStr::CStr Return;
 			if
+			(
+				!NException::fg_VisitException<NException::CExceptionBase>
 				(
-					!NException::fg_VisitException<NException::CExceptionBase>
-					(
-						mp_Data.m_pException
-						, [&](NException::CExceptionBase const& _Exception)
-						{
-							Return = _Exception.f_GetErrorStr();
-						}
-					)
+					mp_Data.m_pException
+					, [&](NException::CExceptionBase const &_Exception)
+					{
+						Return = _Exception.f_GetErrorStr();
+					}
 				)
+			)
 			{
 				return NStr::gc_Str<"Unknown exception type">;
 			}
@@ -194,7 +194,7 @@ namespace NMib::NConcurrency
 			NException::fg_VisitException<NException::CExceptionBase>
 				(
 					mp_Data.m_pException
-					, [&](NException::CExceptionBase const& _Exception)
+					, [&](NException::CExceptionBase const &_Exception)
 					{
 						Return = _Exception.f_GetCallstackStr(_Indent);
 					}
@@ -210,8 +210,8 @@ namespace NMib::NConcurrency
 	TCAsyncResult<void>::TCAsyncResult() = default;
 	TCAsyncResult<void>::TCAsyncResult(TCAsyncResult &&_Other) = default;
 	TCAsyncResult<void>::TCAsyncResult(TCAsyncResult const &_Other) = default;
-	TCAsyncResult<void> &TCAsyncResult<void>::operator =(TCAsyncResult &&_Other) = default;
-	TCAsyncResult<void> &TCAsyncResult<void>::operator =(TCAsyncResult const &_Other) = default;
+	TCAsyncResult<void> &TCAsyncResult<void>::operator = (TCAsyncResult &&_Other) = default;
+	TCAsyncResult<void> &TCAsyncResult<void>::operator = (TCAsyncResult const &_Other) = default;
 
 	TCAsyncResult<void>::~TCAsyncResult() = default;
 
@@ -276,12 +276,12 @@ namespace NMib::NConcurrency
 		fp_AccessSlowPath();
 	}
 
-	mark_nodebug inline_always_lto CVoidTag TCAsyncResult<void>::operator *() const
+	mark_nodebug inline_always_lto CVoidTag TCAsyncResult<void>::operator * () const
 	{
 		return f_Get();
 	}
 
-	mark_nodebug inline_always_lto CVoidTag TCAsyncResult<void>::operator *()
+	mark_nodebug inline_always_lto CVoidTag TCAsyncResult<void>::operator * ()
 	{
 		return f_Get();
 	}
@@ -310,7 +310,7 @@ namespace NMib::NConcurrency
 		if (mp_Data.f_DataType() == EDataType_Exception)
 			mp_Data.m_pException.~CExceptionPointer();
 
-		new (&mp_Data.m_pException) CExceptionPointer(_pException);
+		new(&mp_Data.m_pException) CExceptionPointer(_pException);
 	}
 
 	void CAsyncResult::f_SetException(NException::CExceptionPointer &&_pException)
@@ -322,7 +322,7 @@ namespace NMib::NConcurrency
 		if (mp_Data.f_DataType() == EDataType_Exception)
 			mp_Data.m_pException.~CExceptionPointer();
 
-		new (&mp_Data.m_pException) CExceptionPointer(fg_Move(_pException));
+		new(&mp_Data.m_pException) CExceptionPointer(fg_Move(_pException));
 	}
 
 	void CAsyncResult::f_SetExceptionAppendable(NException::CExceptionPointer &&_pException)

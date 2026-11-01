@@ -247,8 +247,7 @@ namespace NMib::NConcurrency
 				{
 					pThis->f_WaitOnce();
 				}
-				,
-				[pThis]
+				, [pThis]
 				{
 					pThis->f_Wake();
 				}

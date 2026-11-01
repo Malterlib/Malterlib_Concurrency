@@ -13,9 +13,9 @@ namespace NMib::NConcurrency
 
 		enum : uint32
 		{
-			EProtocolVersion_Min = 0x101
+			EProtocolVersion_Min            = 0x101
 			, EProtocolVersion_AddHandlerID = 0x102
-			, EProtocolVersion_Current = EProtocolVersion_AddHandlerID
+			, EProtocolVersion_Current      = EProtocolVersion_AddHandlerID
 		};
 
 		struct CRegisterAuthenticationHandlerParams
@@ -28,18 +28,8 @@ namespace NMib::NConcurrency
 			uint32 m_HandlerID = 0;
 		};
 
-		virtual TCFuture<TCActorSubscriptionWithID<>> f_RegisterAuthenticationHandler
-			(
-				CRegisterAuthenticationHandlerParams _Params
-			) = 0
-		;
-		virtual TCFuture<bool> f_AuthenticatePermissionPattern
-			(
-				NStr::CStr _Pattern
-				, NContainer::TCSet<NStr::CStr> _AuthenticationFactors
-				, NStr::CStr _RequestID
-			) = 0
-		;
+		virtual TCFuture<TCActorSubscriptionWithID<>> f_RegisterAuthenticationHandler(CRegisterAuthenticationHandlerParams _Params) = 0;
+		virtual TCFuture<bool> f_AuthenticatePermissionPattern(NStr::CStr _Pattern, NContainer::TCSet<NStr::CStr> _AuthenticationFactors, NStr::CStr _RequestID) = 0;
 	};
 }
 

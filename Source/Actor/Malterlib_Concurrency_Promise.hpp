@@ -32,7 +32,7 @@ namespace NMib::NConcurrency
 
 	template <typename t_CReturnValue>
 	TCFuture<t_CReturnValue>::TCFuture(CInitializationValue &&_ReturnValue)
-		requires(!NTraits::cIsSame<CInitializationValue, NException::CExceptionPointer>)
+		requires (!NTraits::cIsSame<CInitializationValue, NException::CExceptionPointer>)
 		: mp_pData(fsp_CreateData())
 	{
 		auto *pData = mp_pData.f_Get();
@@ -44,7 +44,7 @@ namespace NMib::NConcurrency
 
 	template <typename t_CReturnValue>
 	TCFuture<t_CReturnValue>::TCFuture(CInitializationValue const &_ReturnValue)
-		requires(!NTraits::cIsSame<CInitializationValue, NException::CExceptionPointer>)
+		requires (!NTraits::cIsSame<CInitializationValue, NException::CExceptionPointer>)
 		: mp_pData(fsp_CreateData())
 	{
 		auto *pData = mp_pData.f_Get();
@@ -442,12 +442,14 @@ namespace NMib::NConcurrency
 	{
 		this->mp_pData->f_SetResult();
 	}
+
 	template <typename t_CReturnValue>
 	template <typename tf_CResult>
 	void TCPromise<t_CReturnValue>::f_SetResult(tf_CResult &&_Result) const
 	{
 		this->mp_pData->f_SetResult(fg_Forward<tf_CResult>(_Result));
 	}
+
 	template <typename t_CReturnValue>
 	template <typename tf_CResult>
 	void TCPromise<t_CReturnValue>::f_SetException(tf_CResult &&_Result) const
@@ -524,10 +526,9 @@ namespace NMib::NConcurrency
 
 	template <typename t_CReturnValue>
 	template <typename tf_CReturn, typename tf_CActor, typename tf_FFunctionPointer, CBindActorOptions tf_BindOptions, bool tf_bByValue, typename ...tfp_CParams>
-	mark_no_coroutine_debug TCFuture<t_CReturnValue> TCPromise<t_CReturnValue>::operator <<=
-		(
-			TCBoundActorCall<tf_CReturn, tf_CActor, tf_FFunctionPointer, tf_BindOptions, tf_bByValue, tfp_CParams...> &&_BoundActorCall
-		)
+	mark_no_coroutine_debug auto TCPromise<t_CReturnValue>
+		::operator <<= (TCBoundActorCall<tf_CReturn, tf_CActor, tf_FFunctionPointer, tf_BindOptions, tf_bByValue, tfp_CParams...> &&_BoundActorCall)
+		-> TCFuture<t_CReturnValue>
 	{
 		fg_Move(_BoundActorCall) > fg_TempCopy(*this);
 		return f_MoveFuture();
@@ -596,8 +597,7 @@ namespace NMib::NConcurrency
 	template <typename tf_FResultHandler>
 	auto TCPromise<t_CReturnValue>::operator / (tf_FResultHandler &&_fResultHandler) const &
 	{
-		return [Promise = *this, fResultHandler = fg_Forward<tf_FResultHandler>(_fResultHandler)]
-			(auto &&...p_Results) mutable
+		return [Promise = *this, fResultHandler = fg_Forward<tf_FResultHandler>(_fResultHandler)](auto && ...p_Results) mutable
 			{
 				bool bFailed = false;
 				(
@@ -627,8 +627,7 @@ namespace NMib::NConcurrency
 	template <typename tf_FResultHandler>
 	auto TCPromise<t_CReturnValue>::operator / (tf_FResultHandler &&_fResultHandler) &&
 	{
-		return [Promise = fg_Move(*this), fResultHandler = fg_Forward<tf_FResultHandler>(_fResultHandler)]
-			(auto &&...p_Results) mutable
+		return [Promise = fg_Move(*this), fResultHandler = fg_Forward<tf_FResultHandler>(_fResultHandler)](auto && ...p_Results) mutable
 			{
 				bool bFailed = false;
 				(
@@ -677,8 +676,7 @@ namespace NMib::NConcurrency
 	template <typename tf_FResultHandler>
 	auto TCPromiseWithExceptionTransfomer<t_CReturnValue>::operator / (tf_FResultHandler &&_fResultHandler) &&
 	{
-		return [Promise = fg_Move(m_Promise), fResultHandler = fg_Forward<tf_FResultHandler>(_fResultHandler), fTransformer = fg_Move(*this).f_GetTransformer()]
-			(auto &&...p_Results) mutable
+		return [Promise = fg_Move(m_Promise), fResultHandler = fg_Forward<tf_FResultHandler>(_fResultHandler), fTransformer = fg_Move(*this).f_GetTransformer()](auto && ...p_Results) mutable
 			{
 				bool bFailed = false;
 				(
@@ -857,14 +855,7 @@ namespace NMib::NConcurrency
 				OnResultSet |= EFutureResultFlag_DataSet | EFutureResultFlag_ResultFunctorSet;
 			}
 			else
-			{
-				PreviousFlags = (EFutureResultFlag)pData->m_OnResultSet.f_FetchOr
-					(
-						EFutureResultFlag_DataSet | EFutureResultFlag_ResultFunctorSet
-						, NAtomic::gc_MemoryOrder_AcquireRelease
-					)
-				;
-			}
+				PreviousFlags = (EFutureResultFlag)pData->m_OnResultSet.f_FetchOr(EFutureResultFlag_DataSet | EFutureResultFlag_ResultFunctorSet, NAtomic::gc_MemoryOrder_AcquireRelease);
 #else
 			EFutureResultFlag PreviousFlags = (EFutureResultFlag)pData->m_OnResultSet.f_FetchOr
 				(
@@ -926,7 +917,7 @@ namespace NMib::NConcurrency
 		return fg_Move(*this);
 	}
 
-	inline_always CCaptureExceptionsHelper::operator CCaptureExceptionsHelperWithTransformer const &()
+	inline_always CCaptureExceptionsHelper::operator CCaptureExceptionsHelperWithTransformer const & ()
 	{
 		return CCaptureExceptionsHelperWithTransformer::ms_EmptyTransformer;
 	}
@@ -1026,7 +1017,7 @@ namespace NMib::NConcurrency
 					{
 						auto pException = fOnResume();
 						if (!pException)
-							return {};  // Continue coroutine
+							return {}; // Continue coroutine
 
 						return fg_Construct<COnResumeException>(fg_Move(pException));
 					}
@@ -1042,7 +1033,7 @@ namespace NMib::NConcurrency
 					{
 						auto Result = fOnResume();
 						if (!Result.f_IsSet())
-							return {};  // Continue coroutine
+							return {}; // Continue coroutine
 
 						NStorage::TCUniquePointer<TCOnResumeResult<CValueType>> pResult = fg_Construct(fg_Move(Result));
 						return pResult;
@@ -1160,7 +1151,7 @@ namespace NMib::NConcurrency::NPrivate
 #endif
 		)
 		, m_fOnResult(fg_Move(_fOnResult))
- 	{
+	{
 		DMibFastCheck(!!m_fOnResult);
 #if DMibConfig_Concurrency_DebugUnobservedException
 		m_Callstack.f_Capture();
@@ -1242,14 +1233,7 @@ namespace NMib::NConcurrency::NPrivate
 			OnResultSet |= EFutureResultFlag_DataSet | EFutureResultFlag_DiscardResult;
 		}
 		else
-		{
-			PreviousFlags = (EFutureResultFlag)m_OnResultSet.f_FetchOr
-				(
-					EFutureResultFlag_DataSet | EFutureResultFlag_DiscardResult
-					, NAtomic::gc_MemoryOrder_AcquireRelease
-				)
-			;
-		}
+			PreviousFlags = (EFutureResultFlag)m_OnResultSet.f_FetchOr(EFutureResultFlag_DataSet | EFutureResultFlag_DiscardResult, NAtomic::gc_MemoryOrder_AcquireRelease);
 #else
 		EFutureResultFlag PreviousFlags = (EFutureResultFlag)m_OnResultSet.f_FetchOr
 			(
@@ -1283,14 +1267,7 @@ namespace NMib::NConcurrency::NPrivate
 			OnResultSet |= EFutureResultFlag_DataSet | EFutureResultFlag_ResultFunctorSet;
 		}
 		else
-		{
-			PreviousFlags = (EFutureResultFlag)m_OnResultSet.f_FetchOr
-				(
-					EFutureResultFlag_DataSet | EFutureResultFlag_ResultFunctorSet
-					, NAtomic::gc_MemoryOrder_Acquire
-				)
-			;
-		}
+			PreviousFlags = (EFutureResultFlag)m_OnResultSet.f_FetchOr(EFutureResultFlag_DataSet | EFutureResultFlag_ResultFunctorSet, NAtomic::gc_MemoryOrder_Acquire);
 #else
 		EFutureResultFlag PreviousFlags = (EFutureResultFlag)m_OnResultSet.f_FetchOr
 			(
@@ -1312,10 +1289,10 @@ namespace NMib::NConcurrency::NPrivate
 			m_fOnResult.f_Clear();
 		}
 		else if
-			(
-				((PreviousFlags & (EFutureResultFlag_DataSet | EFutureResultFlag_ResultFunctorSet | EFutureResultFlag_DiscardResult)) == EFutureResultFlag_DataSet)
-				&& !m_BeforeSuspend.m_bIsGenerator
-			)
+		(
+			((PreviousFlags & (EFutureResultFlag_DataSet | EFutureResultFlag_ResultFunctorSet | EFutureResultFlag_DiscardResult)) == EFutureResultFlag_DataSet)
+			&& !m_BeforeSuspend.m_bIsGenerator
+		)
 		{
 			if (!m_Result)
 			{
@@ -1335,12 +1312,12 @@ namespace NMib::NConcurrency::NPrivate
 		auto &ThreadLocal = fg_SystemThreadLocal();
 
 		if
-			(
-				ThreadLocal.m_PromiseThreadLocal.m_bCaptureDebugException
-				&& !(m_OnResultSet.f_Load() & EFutureResultFlag_DataSet)
-				&& NException::fg_UncaughtExceptions()
-				&& ThreadLocal.m_PromiseThreadLocal.m_pOnResultSetConsumedBy == (void *)this
-			)
+		(
+			ThreadLocal.m_PromiseThreadLocal.m_bCaptureDebugException
+			&& !(m_OnResultSet.f_Load() & EFutureResultFlag_DataSet)
+			&& NException::fg_UncaughtExceptions()
+			&& ThreadLocal.m_PromiseThreadLocal.m_pOnResultSetConsumedBy == (void *)this
+		)
 		{
 			NException::CDisableExceptionFilterScope DisableExceptionFilter;
 
@@ -1356,8 +1333,7 @@ namespace NMib::NConcurrency::NPrivate
 
 			DMibFastCheck
 				(
-					fg_ConcurrencyThreadLocal().m_pCurrentlyProcessingActorHolder == m_pCoroutineOwner
-					|| m_BeforeSuspend.m_bIsGenerator
+					fg_ConcurrencyThreadLocal().m_pCurrentlyProcessingActorHolder == m_pCoroutineOwner || m_BeforeSuspend.m_bIsGenerator
 					//|| fg_ConcurrencyThreadLocal().m_pCurrentlyProcessingActorHolder->f_IsHolderDestroyed()
 				)
 			;
@@ -1383,7 +1359,7 @@ namespace NMib::NConcurrency::NPrivate
 		if (m_BeforeSuspend.m_bOnResultSetAtInit)
 		{
 			auto &OnResultSet = m_OnResultSet.f_NonAtomic();
-			PreviousFlags = (EFutureResultFlag )OnResultSet;
+			PreviousFlags = (EFutureResultFlag)OnResultSet;
 			OnResultSet |= EFutureResultFlag_DataSet;
 		}
 		else
@@ -1418,7 +1394,7 @@ namespace NMib::NConcurrency::NPrivate
 		if (m_BeforeSuspend.m_bOnResultSetAtInit)
 		{
 			auto &OnResultSet = m_OnResultSet.f_NonAtomic();
-			PreviousFlags = (EFutureResultFlag )OnResultSet;
+			PreviousFlags = (EFutureResultFlag)OnResultSet;
 			OnResultSet |= EFutureResultFlag_DataSet;
 		}
 		else
@@ -1453,12 +1429,7 @@ namespace NMib::NConcurrency::NPrivate
 #endif
 
 		DMibFastCheck(!(PreviousFlags & EFutureResultFlag_DataSet)); // You can only set result once
-		DMibFastCheck
-			(
-				m_RefCount.f_Get() == 0
-				|| m_RefCount.f_Get() == (NPrivate::CPromiseDataBaseRefCount::mc_FutureBit - 1)
-			)
-		;
+		DMibFastCheck(m_RefCount.f_Get() == 0 || m_RefCount.f_Get() == (NPrivate::CPromiseDataBaseRefCount::mc_FutureBit - 1));
 #if DMibConfig_Concurrency_DebugActorCallstacks
 		if (!(PreviousFlags & EFutureResultFlag_DataSet))
 			m_ResultSetCallstack.f_Capture();

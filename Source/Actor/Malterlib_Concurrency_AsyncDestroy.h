@@ -27,14 +27,14 @@ namespace NMib::NConcurrency
 
 		struct [[nodiscard("You need to co_await the wrapped result")]] CNoUnwrap
 		{
-			TCFutureAwaiter<void, false> operator co_await() &&;
+			TCFutureAwaiter<void, false> operator co_await () &&;
 
 			TCAsyncDestroy *m_pWrapped;
 		};
 
 		CNoUnwrap f_Wrap() &&;
 
-		TCFutureAwaiter<void, true> operator co_await() &&;
+		TCFutureAwaiter<void, true> operator co_await () &&;
 
 	private:
 		t_FDestroy mp_fDestroy;

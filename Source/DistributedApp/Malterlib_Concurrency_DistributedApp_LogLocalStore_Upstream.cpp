@@ -27,11 +27,7 @@ namespace NMib::NConcurrency
 		;
 	}
 
-	TCFuture<void> CDistributedAppLogStoreLocal::CInternal::f_UpdateLogForReporter
-		(
-			CDistributedAppLogReporter::CLogInfoKey _LogInfoKey
-			, TCWeakDistributedActor<CActor> _WeakActor
-		)
+	TCFuture<void> CDistributedAppLogStoreLocal::CInternal::f_UpdateLogForReporter(CDistributedAppLogReporter::CLogInfoKey _LogInfoKey, TCWeakDistributedActor<CActor> _WeakActor)
 	{
 		CLog *pLog;
 		CLogReporter *pLogReporter;
@@ -328,11 +324,12 @@ namespace NMib::NConcurrency
 		co_return {};
 	}
 
-	TCFuture<uint32> CDistributedAppLogStoreLocal::CInternal::f_NewLogEntries
+	auto CDistributedAppLogStoreLocal::CInternal::f_NewLogEntries
 		(
 			CDistributedAppLogReporter::CLogInfoKey _LogInfoKey
 			, NStorage::TCSharedPointer<TCVector<CDistributedAppLogReporter::CLogEntry> const> _pEntries
 		)
+		-> TCFuture<uint32>
 	{
 		auto *pLog = m_Logs.f_FindEqual(_LogInfoKey);
 		if (!pLog)
@@ -434,11 +431,7 @@ namespace NMib::NConcurrency
 		co_return MaxReportDepth + 1;
 	}
 
-	TCFuture<void> CDistributedAppLogStoreLocal::CInternal::f_LogReporterInterfaceAdded
-		(
-			TCDistributedActorInterface<CDistributedAppLogReporter> _Actor
-			, CTrustedActorInfo _TrustInfo
-		)
+	TCFuture<void> CDistributedAppLogStoreLocal::CInternal::f_LogReporterInterfaceAdded(TCDistributedActorInterface<CDistributedAppLogReporter> _Actor, CTrustedActorInfo _TrustInfo)
 	{
 		TCWeakDistributedActor<CActor> WeakActor = _Actor.f_Weak();
 		auto &LogInterface = m_LogInterfaces[WeakActor];

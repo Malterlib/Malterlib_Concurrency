@@ -12,8 +12,7 @@ namespace NMib::NConcurrency
 {
 	using namespace NSensorStoreLocalDatabase;
 
-	auto CDistributedAppSensorStoreLocal::f_GetSensors(CDistributedAppSensorReader::CGetSensors _Params)
-		-> TCAsyncGenerator<TCVector<CDistributedAppSensorReporter::CSensorInfo>>
+	auto CDistributedAppSensorStoreLocal::f_GetSensors(CDistributedAppSensorReader::CGetSensors _Params) -> TCAsyncGenerator<TCVector<CDistributedAppSensorReporter::CSensorInfo>>
 	{
 		auto &Internal = *mp_pInternal;
 
@@ -33,11 +32,7 @@ namespace NMib::NConcurrency
 
 		auto CaptureScope = co_await
 			(
-				g_CaptureExceptions %
-				(
-					fg_LogCritical("SensorLocalStore", "Error reading sensor data from database (f_GetSensors)")
-					% "Internal error reading from database, see log"
-				)
+				g_CaptureExceptions % (fg_LogCritical("SensorLocalStore", "Error reading sensor data from database (f_GetSensors)") % "Internal error reading from database, see log")
 			)
 		;
 
@@ -134,11 +129,7 @@ namespace NMib::NConcurrency
 
 		auto CaptureScope = co_await
 			(
-				g_CaptureExceptions %
-				(
-					fg_LogCritical("SensorLocalStore", "Error reading sensor data from database (f_GetSensorReadings)")
-					% "Internal error reading from database, see log"
-				)
+				g_CaptureExceptions % (fg_LogCritical("SensorLocalStore", "Error reading sensor data from database (f_GetSensorReadings)") % "Internal error reading from database, see log")
 			)
 		;
 
@@ -330,11 +321,7 @@ namespace NMib::NConcurrency
 
 		auto CaptureScope = co_await
 			(
-				g_CaptureExceptions %
-				(
-					fg_LogCritical("SensorLocalStore", "Error reading sensor data from database (f_GetSensorStatus)")
-					% "Internal error reading from database, see log"
-				)
+				g_CaptureExceptions % (fg_LogCritical("SensorLocalStore", "Error reading sensor data from database (f_GetSensorStatus)") % "Internal error reading from database, see log")
 			)
 		;
 

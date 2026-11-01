@@ -75,16 +75,7 @@ namespace NMib::NConcurrency
 					{
 						auto Result = co_await fg_Exchange(Internal.m_AppSensorStoreLocalExtraSensorInterfaceSubscription, nullptr)->f_Destroy().f_Wrap();
 						if (!Result)
-						{
-							DMibLogWithCategory
-								(
-									Mib/Concurrency/App
-									, Error
-									, "Exception destroying extra sensor interface subscription: {}"
-									, Result.f_GetExceptionStr()
-								)
-							;
-						}
+							DMibLogWithCategory(Mib/Concurrency/App, Error, "Exception destroying extra sensor interface subscription: {}", Result.f_GetExceptionStr());
 					}
 
 					auto SensorInterface = co_await mp_State.m_AppInterfaceServer.f_CallActor(&CDistributedAppInterfaceServer::f_GetSensorReporter)();
@@ -108,8 +99,7 @@ namespace NMib::NConcurrency
 		co_return Internal.m_AppSensorStoreLocal;
 	}
 
-	auto CDistributedAppActor::fp_OpenSensorReporter(CDistributedAppSensorReporter::CSensorInfo _SensorInfo)
-		-> TCFuture<CDistributedAppSensorReporter::CSensorReporter>
+	auto CDistributedAppActor::fp_OpenSensorReporter(CDistributedAppSensorReporter::CSensorInfo _SensorInfo) -> TCFuture<CDistributedAppSensorReporter::CSensorReporter>
 	{
 		auto Store = co_await fp_OpenSensorStoreLocal();
 

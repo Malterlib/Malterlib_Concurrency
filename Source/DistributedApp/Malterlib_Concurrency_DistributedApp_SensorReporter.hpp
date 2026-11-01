@@ -106,9 +106,9 @@ namespace NMib::NConcurrency
 		ch8 const *pOperator = "?";
 		switch (m_Operator)
 		{
-			case EValueComparisonOperator_LessThan: pOperator = "<"; break;
-			case EValueComparisonOperator_GreaterThan: pOperator = ">"; break;
-			case EValueComparisonOperator_Equal: pOperator = "=="; break;
+		case EValueComparisonOperator_LessThan: pOperator = "<"; break;
+		case EValueComparisonOperator_GreaterThan: pOperator = ">"; break;
+		case EValueComparisonOperator_Equal: pOperator = "=="; break;
 		}
 
 		if (m_CompareToValue.f_IsOfType<void>())

@@ -24,12 +24,7 @@ namespace NMib::NConcurrency
 	{
 	}
 
-	TCFuture<uint32> CDistributedAppActor::CCommandLine::f_RunCommandLine
-		(
-			 CStr _Command
-			 , CEJsonSorted _Params
-			 , CCommandLineControl _CommandLine
-		)
+	TCFuture<uint32> CDistributedAppActor::CCommandLine::f_RunCommandLine(CStr _Command, CEJsonSorted _Params, CCommandLineControl _CommandLine)
 	{
 		co_return co_await mp_Actor
 			(

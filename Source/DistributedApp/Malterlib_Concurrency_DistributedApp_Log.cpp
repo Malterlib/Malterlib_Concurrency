@@ -44,11 +44,10 @@ namespace NMib::NConcurrency
 	{
 		CLogError LogError("DistiributedAppLogActor");
 
-		co_await f_StopDeferring().f_Wrap() > LogError.f_Warning("Failed to stop deferring");;
+		co_await f_StopDeferring().f_Wrap() > LogError.f_Warning("Failed to stop deferring");
 
 		co_return {};
 	}
-
 
 	TCFuture<TCActor<CDistributedAppLogStoreLocal>> CDistributedAppActor::fp_OpenLogStoreLocal()
 	{
@@ -118,16 +117,7 @@ namespace NMib::NConcurrency
 					{
 						auto Result = co_await fg_Exchange(Internal.m_AppLogStoreLocalExtraLogInterfaceSubscription, nullptr)->f_Destroy().f_Wrap();
 						if (!Result)
-						{
-							DMibLogWithCategory
-								(
-									Mib/Concurrency/App
-									, Error
-									, "Exception destroying extra Log interface subscription: {}"
-									, Result.f_GetExceptionStr()
-								)
-							;
-						}
+							DMibLogWithCategory(Mib/Concurrency/App, Error, "Exception destroying extra Log interface subscription: {}", Result.f_GetExceptionStr());
 					}
 
 					if (mp_State.m_AppInterfaceServer->f_InterfaceVersion() >= CDistributedAppInterfaceServer::EProtocolVersion_SupportLogReporter)
@@ -155,8 +145,7 @@ namespace NMib::NConcurrency
 #endif
 	}
 
-	auto CDistributedAppActor::fp_OpenLogReporter(CDistributedAppLogReporter::CLogInfo _LogInfo)
-		-> TCFuture<CDistributedAppLogReporter::CLogReporter>
+	auto CDistributedAppActor::fp_OpenLogReporter(CDistributedAppLogReporter::CLogInfo _LogInfo) -> TCFuture<CDistributedAppLogReporter::CLogReporter>
 	{
 		auto Store = co_await fp_OpenLogStoreLocal();
 

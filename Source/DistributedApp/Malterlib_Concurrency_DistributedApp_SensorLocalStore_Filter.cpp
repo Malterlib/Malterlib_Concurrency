@@ -20,13 +20,14 @@ namespace NMib::NConcurrency::NSensorStore
 		return CachedValue.m_pValue;
 	}
 
-	bool fg_FilterSensorReadingValue
+	auto fg_FilterSensorReadingValue
 		(
 			CSensorReadingValue const &_Reading
 			, CDistributedAppSensorReader_SensorReadingFilter::ESensorReadingsFlag _Flags
 			, CSensorReadingKey const &_ReadingKey
 			, CFilterSensorKeyContext &_Context
 		)
+		-> bool
 	{
 		if (!(_Flags & CDistributedAppSensorReader_SensorReadingFilter::ESensorReadingsFlag_OnlyProblems))
 			return true;

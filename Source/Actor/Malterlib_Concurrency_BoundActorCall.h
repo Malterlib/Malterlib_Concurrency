@@ -13,17 +13,11 @@ namespace NMib::NConcurrency
 	{
 		using CIndices = NMeta::TCConsecutiveIndices<sizeof...(tp_CParams)>;
 		using CValue = t_CReturn;
-		using CParamsType = TCConditional
-			<
-				t_bByValue
-				, NStorage::TCTuple<tp_CParams...>
-				, NStorage::TCTuple<NMib::NTraits::TCAddLValueReference<tp_CParams>...>
-			>
-		;
+		using CParamsType = TCConditional<t_bByValue, NStorage::TCTuple<tp_CParams...>, NStorage::TCTuple<NMib::NTraits::TCAddLValueReference<tp_CParams>...>>;
 
 		struct CNoUnwrapAsyncResult
 		{
-			TCBoundActorCallAwaiter<t_CReturn, TCBoundActorCall, false, CVoidTag> operator co_await() &&;
+			TCBoundActorCallAwaiter<t_CReturn, TCBoundActorCall, false, CVoidTag> operator co_await () &&;
 
 			TCBoundActorCall *m_pWrapped;
 		};
@@ -65,7 +59,7 @@ namespace NMib::NConcurrency
 
 		inline_always CNoUnwrapAsyncResult f_Wrap() &&;
 
-		TCBoundActorCallAwaiter<t_CReturn, TCBoundActorCall, true, CVoidTag> operator co_await() &&;
+		TCBoundActorCallAwaiter<t_CReturn, TCBoundActorCall, true, CVoidTag> operator co_await () &&;
 
 		template <typename tf_CType>
 		inline_always auto operator + (TCFuture<tf_CType> &&_Other) &&;

@@ -13,12 +13,13 @@ namespace NMib::NConcurrency
 		NConcurrency::TCFuture<void> f_GetAppStartResult() override;
 		NConcurrency::TCFuture<void> f_PreUpdate() override;
 		NConcurrency::TCFuture<void> f_PreStop() override;
-		NConcurrency::TCFuture<NConcurrency::TCActorSubscriptionWithID<>> f_StartBackup
+		auto f_StartBackup
 			(
 				NConcurrency::TCDistributedActorInterfaceWithID<CDistributedAppInterfaceBackup> _BackupInterface
 				, NConcurrency::CActorSubscription _ManifestFinished
 				, NStr::CStr _BackupRoot
-			) override
+			)
+			-> NConcurrency::TCFuture<NConcurrency::TCActorSubscriptionWithID<>> override
 		;
 
 		DMibDelegatedActorImplementation(CDistributedAppActor);

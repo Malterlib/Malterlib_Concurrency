@@ -14,7 +14,7 @@ namespace NMib::NConcurrency
 
 	struct CDistributedActorTrustManagerAuthenticationCache
 	{
-		friend class CDistributedActorTrustManager;	// To simplify creation of new trusted permission subscriptions
+		friend class CDistributedActorTrustManager; // To simplify creation of new trusted permission subscriptions
 
 		bool f_HasAuthenticatedPermission(CPermissionIdentifiers const &_Identity, NStr::CStr const &_Permission, bool _bIsWildcard, int64 _MaximumAuthenticationLifetime);
 		void f_AddAuthenticatedPermission(CPermissionIdentifiers const &_Identity, NStr::CStr const &_Permission, NTime::CTime const &_ExpirationTime, NTime::CTime const &_CacheTime);

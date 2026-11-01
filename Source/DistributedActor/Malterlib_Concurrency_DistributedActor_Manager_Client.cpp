@@ -13,11 +13,7 @@ namespace NMib::NConcurrency
 	CDistributedActorConnectionReference::CDistributedActorConnectionReference(CDistributedActorConnectionReference &&) = default;
 	CDistributedActorConnectionReference &CDistributedActorConnectionReference::operator = (CDistributedActorConnectionReference &&) = default;
 
-	CDistributedActorConnectionReference::CDistributedActorConnectionReference
-		(
-			TCWeakActor<CActorDistributionManager> const &_DistributionManager
-			, NStr::CStr const &_ConnectionID
-		)
+	CDistributedActorConnectionReference::CDistributedActorConnectionReference(TCWeakActor<CActorDistributionManager> const &_DistributionManager, NStr::CStr const &_ConnectionID)
 		: mp_DistributionManager(_DistributionManager)
 		, mp_ConnectionID(_ConnectionID)
 	{
@@ -188,7 +184,7 @@ namespace NMib::NConcurrency
 		if (auto *pTranslate = m_TranslateHostnames.f_FindEqual(_Hostname))
 			return *pTranslate;
 
-		return _Hostname;;
+		return _Hostname;
 	}
 
 	NWeb::NHTTP::CURL CActorDistributionManagerInternal::fp_TranslateURL(NWeb::NHTTP::CURL const &_URL) const
@@ -266,12 +262,7 @@ namespace NMib::NConcurrency
 		// assumed, so a server that predates the extension leaves masking on
 		ConnectSettings.m_bNegotiateUnmaskedFrames = !bAuthenticatedUnix;
 
-		m_WebsocketClientConnector
-			(
-				&NWeb::CWebSocketClientActor::f_Connect
-				, fg_Move(ConnectSettings)
-			)
-			.f_Timeout(_Timeout, "Timed out waiting for websocket connection")
+		m_WebsocketClientConnector(&NWeb::CWebSocketClientActor::f_Connect, fg_Move(ConnectSettings)).f_Timeout(_Timeout, "Timed out waiting for websocket connection")
 			> [this, pConnectionWeak = _pConnection.f_Weak(), _pPromise, Sequence, _bRetry, _bRetryOnFirst]
 			(NConcurrency::TCAsyncResult<NWeb::CWebSocketNewClientConnection> &&_Result) mutable
 			{
@@ -424,8 +415,7 @@ namespace NMib::NConcurrency
 				Host.m_bOutgoing = true;
 
 				Result.m_fOnClose = g_ActorFunctorWeak / [this, pConnectionWeak, Sequence, _bRetry]
-					(NWeb::EWebSocketStatus _Reason, NStr::CStr _Message, NWeb::EWebSocketCloseOrigin _Origin)
-					-> TCFuture<void>
+					(NWeb::EWebSocketStatus _Reason, NStr::CStr _Message, NWeb::EWebSocketCloseOrigin _Origin) -> TCFuture<void>
 					{
 						auto pConnection = pConnectionWeak.f_Lock();
 						if (!pConnection)
@@ -472,8 +462,8 @@ namespace NMib::NConcurrency
 					}
 				;
 
-				Result.m_fOnReceiveBinaryMessage = g_ActorFunctorWeak / [this, pConnectionWeak, Sequence](NStorage::TCSharedPointer<NStream::CBinaryStorage const> _pMessage)
-					-> TCFuture<void>
+				Result.m_fOnReceiveBinaryMessage = g_ActorFunctorWeak / [this, pConnectionWeak, Sequence]
+					(NStorage::TCSharedPointer<NStream::CBinaryStorage const> _pMessage) -> TCFuture<void>
 					{
 						auto pConnection = pConnectionWeak.f_Lock();
 						if (!pConnection)
@@ -513,18 +503,7 @@ namespace NMib::NConcurrency
 				pConnection->m_MaxFragmentSize = uint32(Result.m_MaxFragmentSize);
 				pConnection->m_Connection = Result.f_Accept
 					(
-						fg_ThisActor(m_pThis)
-						/
-						[
-							this
-							, pConnectionWeak
-							, _pPromise
-							, Sequence
-							, RealHostID
-							, UniqueHostID
-							, CertificateChain = pSocketInfo->m_CertificateChain
-							, fReportError
-						]
+						fg_ThisActor(m_pThis) / [this, pConnectionWeak, _pPromise, Sequence, RealHostID, UniqueHostID, CertificateChain = pSocketInfo->m_CertificateChain, fReportError]
 						(NConcurrency::TCAsyncResult<NConcurrency::CActorSubscription> &&_Callback) mutable
 						{
 							auto pConnection = pConnectionWeak.f_Lock();
@@ -544,25 +523,14 @@ namespace NMib::NConcurrency
 
 							if (!pConnection->m_Connection)
 							{
-								NStr::CStr Error = fg_Format
-									(
-										"Disconnected: {}"
-										, pConnection->m_LastConnectionError
-									)
-								;
+								NStr::CStr Error = fg_Format("Disconnected: {}", pConnection->m_LastConnectionError);
 								fReportError(Error, fg_MakeException(DMibErrorInstance("Disconnected")));
 								return;
 							}
 
 							if (!_Callback)
 							{
-								NStr::CStr Error = fg_Format
-									(
-										"Error accepting connection to '{}': {}"
-										, pConnection->m_ServerURL.f_Encode()
-										, _Callback.f_GetExceptionStr()
-									)
-								;
+								NStr::CStr Error = fg_Format("Error accepting connection to '{}': {}", pConnection->m_ServerURL.f_Encode(), _Callback.f_GetExceptionStr());
 								fReportError(Error, _Callback.f_GetException());
 								return;
 							}
@@ -570,17 +538,7 @@ namespace NMib::NConcurrency
 							pConnection->m_ConnectionSubscription = fg_Move(*_Callback);
 
 							pConnection->m_IdentifyPromise.f_Future()
-								>
-								[
-									this
-									, RealHostID
-									, UniqueHostID
-									, Sequence
-									, pConnectionWeak
-									, _pPromise
-									, CertificateChain = fg_Move(CertificateChain)
-									, fReportError
-								]
+								> [this, RealHostID, UniqueHostID, Sequence, pConnectionWeak, _pPromise, CertificateChain = fg_Move(CertificateChain), fReportError]
 								(TCAsyncResult<bool> &&_Result) mutable
 								{
 									auto pConnection = pConnectionWeak.f_Lock();
@@ -639,11 +597,8 @@ namespace NMib::NConcurrency
 		;
 	}
 
-	NException::CExceptionPointer CActorDistributionManagerInternal::fp_DecodeClientConnectionSettings
-		(
-			CActorDistributionConnectionSettings const &_Settings
-			, CDecodedClientConnectionSetting &o_DecodedSettings
-		)
+	auto CActorDistributionManagerInternal::fp_DecodeClientConnectionSettings(CActorDistributionConnectionSettings const &_Settings, CDecodedClientConnectionSetting &o_DecodedSettings)
+		-> NException::CExceptionPointer
 	{
 		bool &bAnonymous = o_DecodedSettings.m_bAnonymous;
 		NStr::CStr &RealHostID = o_DecodedSettings.m_RealHostID;

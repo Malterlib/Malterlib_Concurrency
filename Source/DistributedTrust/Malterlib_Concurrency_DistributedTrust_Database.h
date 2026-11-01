@@ -16,7 +16,7 @@ namespace NMib::NConcurrency::NDistributedActorTrustManagerDatabase
 	{
 		enum
 		{
-			EVersion = 0x102
+			EVersion             = 0x102
 			, EConversionVersion = 0x102
 		};
 

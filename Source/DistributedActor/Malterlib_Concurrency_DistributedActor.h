@@ -90,13 +90,8 @@ namespace NMib::NConcurrency
 			NAtomic::TCAtomic<bool> m_bDeleted = false;
 		};
 
-		TCFuture<CDistributedActorPublication> fg_PublishActor
-			(
-				TCDistributedActor<CActor> &&_Actor
-				, CDistributedActorInterfaceInfo &&_InterfaceInfo
-				, NStr::CStr const &_Namespace
-				, fp32 _WaitForPublicationsTimeout
-			)
+		auto fg_PublishActor(TCDistributedActor<CActor> &&_Actor, CDistributedActorInterfaceInfo &&_InterfaceInfo, NStr::CStr const &_Namespace, fp32 _WaitForPublicationsTimeout)
+			-> TCFuture<CDistributedActorPublication>
 		;
 	}
 }
@@ -125,7 +120,6 @@ namespace NMib::NConcurrency
 		void f_Format(tf_CStr &o_Str) const;
 
 	private:
-
 		NStorage::TCWeakPointer<NPrivate::ICHost> mp_pHost;
 		NStr::CStr mp_ActorID;
 	};
@@ -157,25 +151,26 @@ namespace NMib::NConcurrency
 	template <typename t_CActor>
 	struct TCDistributedActorWrapper : public t_CActor
 	{
-		template <typename... tf_CActor>
-		TCDistributedActorWrapper(tf_CActor &&...p_Params);
+		template <typename ...tf_CActor>
+		TCDistributedActorWrapper(tf_CActor && ...p_Params);
 	};
 
 	template <typename t_CActor>
 	using TCWeakDistributedActor = TCWeakActor<TCDistributedActorWrapper<t_CActor>>;
 
-	template <typename tf_CActor, typename... tfp_CParams>
-	TCActor<TCDistributedActorWrapper<tf_CActor>> fg_ConstructDistributedActor(TCActor<CActorDistributionManager> const &_DistributionManager, tfp_CParams &&...p_Params);
+	template <typename tf_CActor, typename ...tfp_CParams>
+	TCActor<TCDistributedActorWrapper<tf_CActor>> fg_ConstructDistributedActor(TCActor<CActorDistributionManager> const &_DistributionManager, tfp_CParams && ...p_Params);
 
-	template <typename tf_CActor, typename... tfp_CParams>
-	TCDistributedActor<tf_CActor> fg_ConstructRemoteDistributedActor
+	template <typename tf_CActor, typename ...tfp_CParams>
+	auto fg_ConstructRemoteDistributedActor
 		(
 			TCActor<CActorDistributionManager> const &_DistributionManager
 			, NStr::CStr const &_ActorID
 			, NStorage::TCWeakPointer<NPrivate::ICHost> const &_pHost
 			, uint32 _ProtocolVersion
-			, tfp_CParams &&...p_Params
+			, tfp_CParams && ...p_Params
 		)
+		-> TCDistributedActor<tf_CActor>
 	;
 
 	template
@@ -184,10 +179,9 @@ namespace NMib::NConcurrency
 		DMibIfNotSupportMemberNameFromMemberPointer(, uint32 tf_NameHash)
 		, EVirtualCall tf_VirtualCall
 		, typename tf_CActor
-		, typename... tfp_CParams
+		, typename ...tfp_CParams
 	>
-	auto fg_CallActor(TCActor<TCDistributedActorWrapper<tf_CActor>> &&_Actor, tfp_CParams && ...p_Params)
-		-> NPrivate::TCFutureReturn<decltype(tf_pMemberFunction)>
+	auto fg_CallActor(TCActor<TCDistributedActorWrapper<tf_CActor>> &&_Actor, tfp_CParams && ...p_Params) -> NPrivate::TCFutureReturn<decltype(tf_pMemberFunction)>
 		requires cActorCallableWithFunctor<tf_pMemberFunction, tf_CActor, tfp_CParams...>
 	;
 
@@ -245,7 +239,7 @@ namespace NMib::NConcurrency
 
 		void f_SetCryptography(CActorDistributionCryptographySettings const &_Settings);
 
-		NWeb::NHTTP::CURL m_ServerURL; // The scheme selects the transport: wss uses TLS, wsa uses the authenticated unix handshake
+		NWeb::NHTTP::CURL m_ServerURL;           // The scheme selects the transport: wss uses TLS, wsa uses the authenticated unix handshake
 		NContainer::CByteVector m_PublicServerCertificate;
 		NContainer::CByteVector m_PublicClientCertificate;
 		NContainer::CSecureByteVector m_PrivateClientKey;
@@ -254,7 +248,7 @@ namespace NMib::NConcurrency
 		bool m_bRetryConnectOnFirstFailure = true;
 		bool m_bRetryConnectOnFailure = true;
 		bool m_bAllowInsecureConnection = false; // Only enabled when m_PublicServerCertificate is empty
-		uint64 m_SendWindowBytes = 0; // Bytes in flight allowed on sends; 0 is the transport default of eight frames
+		uint64 m_SendWindowBytes = 0;            // Bytes in flight allowed on sends; 0 is the transport default of eight frames
 	};
 
 	struct CActorDistributionListenSettings
@@ -273,7 +267,7 @@ namespace NMib::NConcurrency
 		NCryptography::ECryptoStrength m_MinimumCryptoStrength = NCryptography::ECryptoStrength::mc_EquivalentSymmetric256bit;
 		NNetwork::ENetFlag m_ListenFlags = NNetwork::ENetFlag_None;
 		bool m_bRetryOnListenFailure = true;
-		uint64 m_SendWindowBytes = 0; // Bytes in flight allowed on each accepted connection's sends; 0 is the transport default of eight frames
+		uint64 m_SendWindowBytes = 0;                              // Bytes in flight allowed on each accepted connection's sends; 0 is the transport default of eight frames
 	};
 
 	struct CDistributedActorProtocolVersions
@@ -397,13 +391,14 @@ namespace NMib::NConcurrency
 		TCUnsafeFuture<void> f_Destroy();
 
 		template <typename tf_CFirstInterface, typename ...tfp_CInterfaces, typename tf_CThis>
-		TCUnsafeFuture<void> f_Publish
+		auto f_Publish
 			(
 				TCActor<CActorDistributionManager> const &_DistributionManager
 				, tf_CThis *_pThis
 				, fp32 _WaitForPublicationsTimeout = 10.0
 				, NStr::CStr const &_Namespace = tf_CFirstInterface::mc_pDefaultNamespace
 			)
+			-> TCUnsafeFuture<void>
 		;
 		template <typename tf_CThis>
 		void f_Construct(TCActor<CActorDistributionManager> const &_DistributionManager, tf_CThis *_pThis);
@@ -411,6 +406,7 @@ namespace NMib::NConcurrency
 		TCDistributedActor<t_CImplementation> m_Actor;
 		CDistributedActorPublication m_Publication;
 		t_CImplementation *m_pActor = nullptr;
+
 	private:
 #if DMibEnableSafeCheck > 0
 		CActor *mp_pThis = nullptr;
@@ -484,12 +480,7 @@ namespace NMib::NConcurrency
 		NContainer::TCVector<NContainer::CByteVector> const &f_GetCertificateChain() const;
 
 	private:
-		CDistributedActorConnectionReference
-			(
-				TCWeakActor<CActorDistributionManager> const &_DistributionManager
-				, NStr::CStr const &_ConnectionID
-			)
-		;
+		CDistributedActorConnectionReference(TCWeakActor<CActorDistributionManager> const &_DistributionManager, NStr::CStr const &_ConnectionID);
 
 		TCWeakActor<CActorDistributionManager> mp_DistributionManager;
 		NStr::CStr mp_ConnectionID;
@@ -587,11 +578,11 @@ namespace NMib::NConcurrency
 			)
 		;
 
-		template <typename tf_CActor, typename... tfp_CParams>
-		TCActor<TCDistributedActorWrapper<tf_CActor>> f_ConstructActor(tfp_CParams &&...p_Params);
+		template <typename tf_CActor, typename ...tfp_CParams>
+		TCActor<TCDistributedActorWrapper<tf_CActor>> f_ConstructActor(tfp_CParams && ...p_Params);
 
-		template <typename tf_CActor, typename tf_CDelegateTo, typename... tfp_CParams>
-		TCActor<TCDistributedActorWrapper<TCDistributedInterfaceDelegator<tf_CActor, tf_CDelegateTo>>> f_ConstructInterface(tf_CDelegateTo *_pDelegateTo, tfp_CParams &&...p_Params);
+		template <typename tf_CActor, typename tf_CDelegateTo, typename ...tfp_CParams>
+		TCActor<TCDistributedActorWrapper<TCDistributedInterfaceDelegator<tf_CActor, tf_CDelegateTo>>> f_ConstructInterface(tf_CDelegateTo *_pDelegateTo, tfp_CParams && ...p_Params);
 	};
 
 	struct CCallingHostInfoScope final : public CCrossActorCallStateScope
@@ -765,7 +756,7 @@ namespace NMib::NConcurrency
 		{
 			enum class EVersion : uint32
 			{
-				mc_Initial = 0x101
+				mc_Initial             = 0x101
 				, mc_AddPrioritization = 0x102
 			};
 
@@ -784,7 +775,7 @@ namespace NMib::NConcurrency
 		void f_SetAccessHandler(TCActor<ICActorDistributionManagerAccessHandler> const &_AccessHandler);
 		void f_SetHostnameTranslate(NContainer::TCMap<NStr::CStr, NStr::CStr> const &_TranslateHostnames);
 
-		TCFuture<void> f_SetAuthenticationHandler
+		auto f_SetAuthenticationHandler
 			(
 				NStorage::TCSharedPointerSupportWeak<NPrivate::ICHost> _pHost
 				, NStr::CStr _LastExecutionID
@@ -793,50 +784,45 @@ namespace NMib::NConcurrency
 				, NStr::CStr _UserName
 				, uint32 _HandlerID
 			)
+			-> TCFuture<void>
 		;
-		TCFuture<void> f_RemoveAuthenticationHandler
-			(
-				NStorage::TCSharedPointerSupportWeak<NPrivate::ICHost> _pHost
-				, NStr::CStr _LastExecutionID
-				, uint32 _HandlerID
-			)
-		;
+		TCFuture<void> f_RemoveAuthenticationHandler(NStorage::TCSharedPointerSupportWeak<NPrivate::ICHost> _pHost, NStr::CStr _LastExecutionID, uint32 _HandlerID);
 
 		TCFuture<CDistributedActorListenReference> f_Listen(CActorDistributionListenSettings _Settings);
 		TCFuture<CConnectionResult> f_Connect(CActorDistributionConnectionSettings _Settings, fp64 _Timeout);
 
-		TCFuture<NStream::CBinaryStorage> f_CallRemote
+		auto f_CallRemote
 			(
 				NStorage::TCSharedPointer<NPrivate::CDistributedActorData> _pDistributedActorData
 				, NStream::CBinaryStorage _CallData
 				, NPrivate::CDistributedActorStreamContext _Context
 			)
+			-> TCFuture<NStream::CBinaryStorage>
 		;
 
 		TCFuture<void> f_KickHost(NStr::CStr _HostID);
 		TCFuture<CHostState> f_GetHostState(NStr::CStr _UniqueHostID);
 
-		TCFuture<CActorSubscription> f_SubscribeActors
+		auto f_SubscribeActors
 			(
 				NStr::CStr _NameSpace /// Leave empty to subscribe to all actors
 				, TCActor<CActor> _Actor
 				, NFunction::TCFunctionMovable<TCFuture<void> (CAbstractDistributedActor &&_NewActor)> _fOnNewActor
 				, NFunction::TCFunctionMovable<TCFuture<void> (CDistributedActorIdentifier &&_RemovedActor)> _fOnRemovedActor
 			)
+			-> TCFuture<CActorSubscription>
 		;
 
 		CActorSubscription f_SubscribeHostInfoChanged(TCActorFunctorWeak<TCFuture<void> (CHostInfo _HostInfo)> &&_fHostInfoChanged);
 
-		TCFuture<CActorSubscription> f_RegisterWebsocketHandler
+		auto f_RegisterWebsocketHandler
 			(
 				NStr::CStr _Path
 				, TCActor<> _Actor
-				, NFunction::TCFunctionMutable
-				<
-					TCFuture<void> (NStorage::TCSharedPointer<NWeb::CWebSocketNewServerConnection> const &_pNewServerConnection, NStr::CStr const &_RealHostID)
-				>
+				, NFunction::TCFunctionMutable<TCFuture<void> (NStorage::TCSharedPointer<NWeb::CWebSocketNewServerConnection> const &_pNewServerConnection, NStr::CStr const &_RealHostID)>
 				_fNewWebsocketConnection
 			)
+			-> TCFuture<CActorSubscription>
 		;
 
 		void f_PrepareShutdown(fp64 _HostTimeout, fp64 _KillHostsTimeout);
@@ -865,13 +851,8 @@ namespace NMib::NConcurrency
 	private:
 		TCFuture<void> fp_Destroy() override;
 
-		TCFuture<CDistributedActorPublication> fp_PublishActor
-			(
-				TCDistributedActor<CActor>_Actor
-				, NStr::CStr _Namespace
-				, NPrivate::CDistributedActorInterfaceInfo _InterfaceInfo
-				, fp32 _WaitForPublicationsTimeout
-			)
+		auto fp_PublishActor(TCDistributedActor<CActor> _Actor, NStr::CStr _Namespace, NPrivate::CDistributedActorInterfaceInfo _InterfaceInfo, fp32 _WaitForPublicationsTimeout)
+			-> TCFuture<CDistributedActorPublication>
 		;
 
 		void fp_RegisterRemoteSubscription
@@ -881,13 +862,7 @@ namespace NMib::NConcurrency
 				, uint32 _SubscriptionSequenceID
 			)
 		;
-		TCFuture<void> fp_DestroyRemoteSubscription
-			(
-				NStorage::TCSharedPointerSupportWeak<NPrivate::ICHost> _pHost
-				, NStr::CStr _SubscriptionID
-				, NStr::CStr _LastExecutionID
-			)
-		;
+		TCFuture<void> fp_DestroyRemoteSubscription(NStorage::TCSharedPointerSupportWeak<NPrivate::ICHost> _pHost, NStr::CStr _SubscriptionID, NStr::CStr _LastExecutionID);
 		void fp_CleanupRemoteContext(NFunction::TCFunction<void (CActorDistributionManagerInternal &_Internal)> const &_fCleanup);
 		void fp_FlushSendPacketQueue(NStorage::TCSharedPointerSupportWeak<NPrivate::ICHost> _pHost);
 		TCFuture<void> fp_RemoveListen(NStr::CStr _ListenID);
@@ -903,21 +878,16 @@ namespace NMib::NConcurrency
 		TCFuture<void> fp_RepublishActorPublication(NStr::CStr _NamespaceID, NStr::CStr _ActorID, NStr::CStr _HostID, fp32 _WaitForPublicationsTimeout);
 		TCFuture<CDistributedActorConnectionStatus> fp_GetConnectionStatus(NStr::CStr _ConnectionID);
 		TCFuture<void> fp_Reconnect(NStr::CStr _ConnectionID);
-		CActorSubscription fp_OnRemoteDisconnect
-			(
-				TCActorFunctorWeak<TCFuture<void> ()> _fOnDisconnect
-				, NStr::CStr _UniqueHostID
-				, NStr::CStr _LastExecutionID
-			)
-		;
+		CActorSubscription fp_OnRemoteDisconnect(TCActorFunctorWeak<TCFuture<void> ()> _fOnDisconnect, NStr::CStr _UniqueHostID, NStr::CStr _LastExecutionID);
 
-		friend TCFuture<CDistributedActorPublication> NPrivate::fg_PublishActor
+		friend auto NPrivate::fg_PublishActor
 			(
 				TCDistributedActor<CActor> &&_Actor
 				, NPrivate::CDistributedActorInterfaceInfo &&_InterfaceInfo
 				, NStr::CStr const &_Namespace
 				, fp32 _WaitForPublicationsTimeout
 			)
+			-> TCFuture<CDistributedActorPublication>
 		;
 		friend struct CDistributedActorPublication;
 		friend struct CDistributedActorPublication;
@@ -943,7 +913,6 @@ namespace NMib::NConcurrency
 
 	template <typename tf_CActor>
 	NStr::CStr fg_GetRemoteActorID(TCWeakDistributedActor<tf_CActor> const &_NewActor);
-
 }
 
 #define DMibPublishActorFunction(d_Function) DMibConcurrencyRegisterMemberFunctionWithStreams \
@@ -962,11 +931,11 @@ namespace NMib::NConcurrency
 
 #ifdef DMibDebug
 #	define DMibDelegatedActorImplementation(d_ThisType) \
-	d_ThisType *m_pThis; \
-	CEmpty self;
+		d_ThisType *m_pThis; \
+		CEmpty self;
 #else
 #	define DMibDelegatedActorImplementation(d_ThisType) \
-	d_ThisType *m_pThis;
+		d_ThisType *m_pThis;
 #endif
 
 #ifndef DMibPNoShortCuts
@@ -975,14 +944,13 @@ namespace NMib::NConcurrency
 #endif
 
 #ifndef DMibPNoShortCuts
-	using namespace NMib::NConcurrency;
+using namespace NMib::NConcurrency;
 #endif
 
 #include "Malterlib_Concurrency_DistributedActor_Private.h"
 #include "Malterlib_Concurrency_DistributedActor_Stream.h"
 #include "Malterlib_Concurrency_DistributedActor_AuthenticationHandler.h"
 #include "Malterlib_Concurrency_DistributedActor.hpp"
-
 
 #ifndef DCompiler_MSVC_Workaround
 namespace NMib::NConcurrency
@@ -997,11 +965,7 @@ namespace NMib::NConcurrency
 			, NMib::NStream::CBinaryStorage &&
 			, NMib::NConcurrency::NPrivate::CDistributedActorStreamContext &
 		>
-		(
-			NMib::NStorage::TCSharedPointer<NPrivate::CDistributedActorData> &&
-			, NMib::NStream::CBinaryStorage &&
-			, NPrivate::CDistributedActorStreamContext &
-		) const &
+		(NMib::NStorage::TCSharedPointer<NPrivate::CDistributedActorData> &&, NMib::NStream::CBinaryStorage &&, NPrivate::CDistributedActorStreamContext &) const &
 		-> TCFuture<NStream::CBinaryStorage>
 	;
 
@@ -1013,11 +977,7 @@ namespace NMib::NConcurrency
 			, NMib::NStream::CBinaryStorage &&
 			, NMib::NConcurrency::NPrivate::CDistributedActorStreamContext &
 		>
-		(
-			NMib::NStorage::TCSharedPointer<NPrivate::CDistributedActorData> &&
-			, NMib::NStream::CBinaryStorage &&
-			, NPrivate::CDistributedActorStreamContext &
-		) &&
+		(NMib::NStorage::TCSharedPointer<NPrivate::CDistributedActorData> &&, NMib::NStream::CBinaryStorage &&, NPrivate::CDistributedActorStreamContext &) &&
 		-> TCFuture<NStream::CBinaryStorage>
 	;
 }

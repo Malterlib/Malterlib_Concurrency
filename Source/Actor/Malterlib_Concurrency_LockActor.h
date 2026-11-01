@@ -28,15 +28,15 @@ namespace NMib::NConcurrency
 		struct CLockReference
 		{
 			CLockReference(CLockReference &&_Other);
-			CLockReference &operator =(CLockReference &&_Other);
+			CLockReference &operator = (CLockReference &&_Other);
 			~CLockReference();
-			t_CType &operator *();
+			t_CType &operator * ();
 
 		private:
 			friend struct TCLockActor;
 			CLockReference(TCLockActor *_pActor, aint _LockSequence);
 			CLockReference(CLockReference const &_Other);
-			CLockReference &operator =(CLockReference const &_Other);
+			CLockReference &operator = (CLockReference const &_Other);
 
 			NStorage::TCSharedPointer<CState> mp_pState;
 			TCWeakActor<TCLockActor> mp_pActor;
@@ -44,8 +44,8 @@ namespace NMib::NConcurrency
 		};
 
 		CLockReference f_Lock();
-	private:
 
+	private:
 		void fp_Unlock(aint _LockSequence);
 		TCFuture<void> fp_Destroy() override;
 

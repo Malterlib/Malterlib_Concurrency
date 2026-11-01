@@ -6,7 +6,7 @@
 #include <Mib/Core/Core>
 
 #if defined(DPlatformFamily_macOS)
-#include <IOKit/IOKitLib.h>
+#	include <IOKit/IOKitLib.h>
 #endif
 
 namespace NMib::NConcurrency
@@ -50,5 +50,5 @@ namespace NMib::NConcurrency
 }
 
 #ifndef DMibPNoShortCuts
-	using namespace NMib::NConcurrency;
+using namespace NMib::NConcurrency;
 #endif

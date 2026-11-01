@@ -24,8 +24,8 @@ namespace NMib::NConcurrency::NPrivate
 
 		CDistributedActorStreamContext(CDistributedActorStreamContext const &);
 		CDistributedActorStreamContext(CDistributedActorStreamContext &&);
-		CDistributedActorStreamContext& operator =(CDistributedActorStreamContext const &);
-		CDistributedActorStreamContext& operator =(CDistributedActorStreamContext &&);
+		CDistributedActorStreamContext &operator = (CDistributedActorStreamContext const &);
+		CDistributedActorStreamContext &operator = (CDistributedActorStreamContext &&);
 
 		bool f_ValidateContext(NStr::CStr &o_Error);
 		uint32 f_ActorProtocolVersion() const;
@@ -36,6 +36,7 @@ namespace NMib::NConcurrency::NPrivate
 		{
 			return m_Magic == constant_uint64(0x5541e982e952851c);
 		}
+
 		uint64 m_Magic = constant_uint64(0x5541e982e952851c);
 #endif
 		NStorage::TCSharedPointer<CDistributedActorStreamContextState> m_pState;
@@ -126,7 +127,7 @@ namespace NMib::NConcurrency
 		void f_Consume(TCActorSubscriptionWithID<tf_SubscriptionID> &_Subscription);
 
 		void f_ConsumeActor(TCActor<> &_Actor, uint32 _SubscriptionSequenceID);
-		TCDistributedActor<> f_ConsumeInterface
+		auto f_ConsumeInterface
 			(
 				uint32 _TypeHash
 				, CDistributedActorProtocolVersions const &_SupportedVersions
@@ -135,6 +136,7 @@ namespace NMib::NConcurrency
 				, CActorSubscription &o_Subscription
 				, uint32 &o_SubscriptionID
 			)
+			-> TCDistributedActor<>
 		;
 
 		template <typename tf_CActor>

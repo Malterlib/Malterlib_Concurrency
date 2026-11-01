@@ -19,8 +19,8 @@ namespace NMib::NConcurrency::NPrivate
 
 	CDistributedActorStreamContext::CDistributedActorStreamContext(CDistributedActorStreamContext const &) = default;
 	CDistributedActorStreamContext::CDistributedActorStreamContext(CDistributedActorStreamContext &&) = default;
-	CDistributedActorStreamContext& CDistributedActorStreamContext::operator =(CDistributedActorStreamContext const &) = default;
-	CDistributedActorStreamContext& CDistributedActorStreamContext::operator =(CDistributedActorStreamContext &&) = default;
+	CDistributedActorStreamContext &CDistributedActorStreamContext::operator = (CDistributedActorStreamContext const &) = default;
+	CDistributedActorStreamContext &CDistributedActorStreamContext::operator = (CDistributedActorStreamContext &&) = default;
 
 	bool CDistributedActorStreamContext::f_ValidateContext(NStr::CStr &o_Error)
 	{

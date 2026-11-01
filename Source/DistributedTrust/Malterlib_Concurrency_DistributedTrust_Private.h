@@ -61,7 +61,7 @@ namespace NMib::NConcurrency::NPrivate
 
 		TCFuture<void> f_AddPermissions(CPermissionIdentifiers const &_Identity, NContainer::TCMap<NStr::CStr, CPermissionRequirements> const &_PermissionsAdded);
 		TCFuture<void> f_RemovePermissions(CPermissionIdentifiers const &_Identity, NContainer::TCSet<NStr::CStr> const &_PermissionsRemoved);
-		TCFuture<void> f_SetAuthenticatedPermissionPattern
+		auto f_SetAuthenticatedPermissionPattern
 			(
 				CPermissionIdentifiers const &_Identity
 				, NStr::CStr &&_Pattern
@@ -69,14 +69,10 @@ namespace NMib::NConcurrency::NPrivate
 				, NTime::CTime const &_ExpirationTime
 				, NTime::CTime const &_CacheTime
 			)
+			-> TCFuture<void>
 		;
-		TCFuture<void> f_AddAuthenticatedPermission
-			(
-				CPermissionIdentifiers const &_Identity
-				, NStr::CStr const &_Permission
-				, NTime::CTime const &_ExpirationTime
-				, NTime::CTime const &_CacheTime
-			)
+		auto f_AddAuthenticatedPermission(CPermissionIdentifiers const &_Identity, NStr::CStr const &_Permission, NTime::CTime const &_ExpirationTime, NTime::CTime const &_CacheTime)
+			-> TCFuture<void>
 		;
 	};
 }

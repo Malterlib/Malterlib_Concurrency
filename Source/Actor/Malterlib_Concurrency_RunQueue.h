@@ -7,8 +7,8 @@
 
 namespace NMib::NConcurrency
 {
-	constexpr static const umint gc_ActorQueueDispatchFunctionMemory = fg_AlignUpConstExpr(sizeof(void*)*4*2, umint(DMibPMemoryCacheLineSize));
-	constexpr static const uint32 gc_InvalidQueue = TCLimitsInt<uint16>::mc_Max;
+	static constexpr umint const gc_ActorQueueDispatchFunctionMemory = fg_AlignUpConstExpr(sizeof(void *) * 4 * 2, umint(DMibPMemoryCacheLineSize));
+	static constexpr uint32 const gc_InvalidQueue = TCLimitsInt<uint16>::mc_Max;
 
 	/*
 	void * // VTable
@@ -16,19 +16,13 @@ namespace NMib::NConcurrency
 	void * // NextPtr
 	void * // TCFunction VTable
 	*/
-	constexpr static const umint gc_ActorQueueDispatchQueueEntryOverhead = sizeof(void *) * 4;
+	static constexpr umint const gc_ActorQueueDispatchQueueEntryOverhead = sizeof(void *) * 4;
 
 	using FActorQueueDispatch = NFunction::TCFunction
 		<
 			void (NFunction::CThisTag &, CConcurrencyThreadLocal &_ThreadLocal)
 			, NFunction::CFunctionNoCopyTag
-			, NFunction::TCFunctionNoAllocOptions
-			<
-				true
-				, gc_ActorQueueDispatchFunctionMemory - gc_ActorQueueDispatchQueueEntryOverhead
-				, sizeof(void *)
-				, false
-			>
+			, NFunction::TCFunctionNoAllocOptions<true, gc_ActorQueueDispatchFunctionMemory - gc_ActorQueueDispatchQueueEntryOverhead, sizeof(void *), false>
 		>
 	;
 
@@ -36,13 +30,7 @@ namespace NMib::NConcurrency
 		<
 			void (NFunction::CThisTag &, CConcurrencyThreadLocal &_ThreadLocal)
 			, NFunction::CFunctionNoCopyTag
-			, NFunction::TCFunctionNoAllocOptions
-			<
-				true
-				, 0
-				, sizeof(void *)
-				, false
-			>
+			, NFunction::TCFunctionNoAllocOptions<true, 0, sizeof(void *), false>
 		>
 	;
 
@@ -187,7 +175,7 @@ namespace NMib::NConcurrency
 }
 
 #ifndef DMibPNoShortCuts
-	using namespace NMib::NConcurrency;
+using namespace NMib::NConcurrency;
 #endif
 
 #include "Malterlib_Concurrency_RunQueue.hpp"

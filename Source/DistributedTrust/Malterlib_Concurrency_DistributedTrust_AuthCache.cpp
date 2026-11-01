@@ -73,13 +73,14 @@ namespace NMib::NConcurrency
 		}
 	}
 
-	bool CDistributedActorTrustManagerAuthenticationCache::f_HasAuthenticatedPermission
+	auto CDistributedActorTrustManagerAuthenticationCache::f_HasAuthenticatedPermission
 		(
 			CPermissionIdentifiers const &_Identity
 			, CStr const &_Permission
 			, bool _bIsWildcard
 			, int64 _MaximumAuthenticationLifetime
 		)
+		-> bool
 	{
 		DMibRequire(_Identity.f_GetHostID() && _Identity.f_GetUserID());
 
@@ -130,12 +131,13 @@ namespace NMib::NConcurrency
 		f_StartPeriodicCleanup();
 	}
 
-	TCSet<CStr> CDistributedActorTrustManagerAuthenticationCache::f_HasAuthenticatedPermissionPattern
+	auto CDistributedActorTrustManagerAuthenticationCache::f_HasAuthenticatedPermissionPattern
 		(
 			CPermissionIdentifiers const &_Identity
 			, CStr const &_Permission
 			, int64 _MaximumAuthenticationLifetime
 		)
+		-> TCSet<CStr>
 	{
 		DMibRequire(_Identity.f_GetHostID() && _Identity.f_GetUserID());
 

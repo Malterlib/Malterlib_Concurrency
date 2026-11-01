@@ -49,6 +49,7 @@ namespace NMib::NConcurrency
 		: m_pInternalActor(fg_Move(_pActor))
 	{
 	}
+
 	template <typename t_CActor>
 	TCWeakActor<t_CActor>::TCWeakActor(TCWeakActor const &_Other)
 		: m_pInternalActor(_Other.m_pInternalActor)
@@ -131,42 +132,42 @@ namespace NMib::NConcurrency
 	}
 
 	template <typename t_CActor>
-	TCWeakActor<t_CActor> &TCWeakActor<t_CActor>::operator =(TCActorHolderSharedPointer<CActorInternal> const &_pActor)
+	TCWeakActor<t_CActor> &TCWeakActor<t_CActor>::operator = (TCActorHolderSharedPointer<CActorInternal> const &_pActor)
 	{
 		m_pInternalActor = _pActor;
 		return *this;
 	}
 
 	template <typename t_CActor>
-	TCWeakActor<t_CActor> &TCWeakActor<t_CActor>::operator =(TCActorHolderSharedPointer<CActorInternal> &&_pActor)
+	TCWeakActor<t_CActor> &TCWeakActor<t_CActor>::operator = (TCActorHolderSharedPointer<CActorInternal> &&_pActor)
 	{
 		m_pInternalActor = fg_Move(_pActor);
 		return *this;
 	}
 
 	template <typename t_CActor>
-	TCWeakActor<t_CActor> &TCWeakActor<t_CActor>::operator =(TCActorHolderWeakPointer<CActorInternal> const &_pActor)
+	TCWeakActor<t_CActor> &TCWeakActor<t_CActor>::operator = (TCActorHolderWeakPointer<CActorInternal> const &_pActor)
 	{
 		m_pInternalActor = _pActor;
 		return *this;
 	}
 
 	template <typename t_CActor>
-	TCWeakActor<t_CActor> &TCWeakActor<t_CActor>::operator =(TCActorHolderWeakPointer<CActorInternal> &&_pActor)
+	TCWeakActor<t_CActor> &TCWeakActor<t_CActor>::operator = (TCActorHolderWeakPointer<CActorInternal> &&_pActor)
 	{
 		m_pInternalActor = fg_Move(_pActor);
 		return *this;
 	}
 
 	template <typename t_CActor>
-	TCWeakActor<t_CActor> &TCWeakActor<t_CActor>::operator =(TCWeakActor const &_Other)
+	TCWeakActor<t_CActor> &TCWeakActor<t_CActor>::operator = (TCWeakActor const &_Other)
 	{
 		m_pInternalActor = _Other.m_pInternalActor;
 		return *this;
 	}
 
 	template <typename t_CActor>
-	TCWeakActor<t_CActor> &TCWeakActor<t_CActor>::operator =(TCWeakActor &&_Other)
+	TCWeakActor<t_CActor> &TCWeakActor<t_CActor>::operator = (TCWeakActor &&_Other)
 	{
 		m_pInternalActor = fg_Move(_Other.m_pInternalActor);
 
@@ -175,10 +176,9 @@ namespace NMib::NConcurrency
 		return *this;
 	}
 
-
 	template <typename t_CActor>
 	template <typename tf_CActor>
-	TCWeakActor<t_CActor> &TCWeakActor<t_CActor>::operator =(TCWeakActor<tf_CActor> const &_Other)
+	TCWeakActor<t_CActor> &TCWeakActor<t_CActor>::operator = (TCWeakActor<tf_CActor> const &_Other)
 	{
 		static_assert(NStorage::NPrivate::TCIsValidConversion<t_CActor, tf_CActor, CInternalActorAllocator, CInternalActorAllocator>::mc_Value, "Not a valid conversion");
 		m_pInternalActor = fg_StaticCast<t_CActor>(_Other.m_pInternalActor);
@@ -187,7 +187,7 @@ namespace NMib::NConcurrency
 
 	template <typename t_CActor>
 	template <typename tf_CActor>
-	TCWeakActor<t_CActor> &TCWeakActor<t_CActor>::operator =(TCWeakActor<tf_CActor> &&_Other)
+	TCWeakActor<t_CActor> &TCWeakActor<t_CActor>::operator = (TCWeakActor<tf_CActor> &&_Other)
 	{
 		static_assert(NStorage::NPrivate::TCIsValidConversion<t_CActor, tf_CActor, CInternalActorAllocator, CInternalActorAllocator>::mc_Value, "Not a valid conversion");
 		m_pInternalActor = fg_StaticCast<t_CActor>(fg_Move(_Other.m_pInternalActor));
@@ -199,7 +199,7 @@ namespace NMib::NConcurrency
 
 	template <typename t_CActor>
 	template <typename tf_CActor>
-	TCWeakActor<t_CActor> &TCWeakActor<t_CActor>::operator =(TCActor<tf_CActor> const &_Other)
+	TCWeakActor<t_CActor> &TCWeakActor<t_CActor>::operator = (TCActor<tf_CActor> const &_Other)
 	{
 		static_assert(NStorage::NPrivate::TCIsValidConversion<t_CActor, tf_CActor, CInternalActorAllocator, CInternalActorAllocator>::mc_Value, "Not a valid conversion");
 		m_pInternalActor = fg_StaticCast<t_CActor>(_Other.m_pInternalActor);
@@ -208,7 +208,7 @@ namespace NMib::NConcurrency
 
 	template <typename t_CActor>
 	template <typename tf_CActor>
-	TCWeakActor<t_CActor> &TCWeakActor<t_CActor>::operator =(TCActor<tf_CActor> &&_Other)
+	TCWeakActor<t_CActor> &TCWeakActor<t_CActor>::operator = (TCActor<tf_CActor> &&_Other)
 	{
 		static_assert(NStorage::NPrivate::TCIsValidConversion<t_CActor, tf_CActor, CInternalActorAllocator, CInternalActorAllocator>::mc_Value, "Not a valid conversion");
 		m_pInternalActor = fg_StaticCast<t_CActor>(fg_Move(_Other.m_pInternalActor));
@@ -231,7 +231,6 @@ namespace NMib::NConcurrency
 			return !m_pInternalActor;
 		else
 			return m_pInternalActor.f_IsEmpty();
-
 	}
 
 	template <typename t_CActor>
@@ -263,70 +262,46 @@ namespace NMib::NConcurrency
 
 	template <typename t_CActor>
 	template <typename tf_CActor>
-	COrdering_Strong  TCWeakActor<t_CActor>::operator <=> (TCWeakActor<tf_CActor> const& _Right) const noexcept
+	COrdering_Strong TCWeakActor<t_CActor>::operator <=> (TCWeakActor<tf_CActor> const &_Right) const noexcept
 	{
-		return (TCActorHolderWeakPointer<CActorHolder> const &)m_pInternalActor
-			<=> (TCActorHolderWeakPointer<CActorHolder> const &)_Right.m_pInternalActor
-		;
+		return (TCActorHolderWeakPointer<CActorHolder> const &)m_pInternalActor <=> (TCActorHolderWeakPointer<CActorHolder> const &)_Right.m_pInternalActor;
 	}
 
 	template <typename t_CActor>
 	template <typename tf_CActor>
-	COrdering_Strong TCWeakActor<t_CActor>::operator <=> (TCActor<tf_CActor> const& _Right) const noexcept
+	COrdering_Strong TCWeakActor<t_CActor>::operator <=> (TCActor<tf_CActor> const &_Right) const noexcept
 	{
-		return (TCActorHolderWeakPointer<CActorHolder> const &)m_pInternalActor
-			<=> (TCActorHolderSharedPointer<CActorHolder> const &)_Right.m_pInternalActor
-		;
+		return (TCActorHolderWeakPointer<CActorHolder> const &)m_pInternalActor <=> (TCActorHolderSharedPointer<CActorHolder> const &)_Right.m_pInternalActor;
 	}
 
 	template <typename t_CActor>
 	template <typename tf_CActor>
-	bool TCWeakActor<t_CActor>::operator == (TCWeakActor<tf_CActor> const& _Right) const noexcept
+	bool TCWeakActor<t_CActor>::operator == (TCWeakActor<tf_CActor> const &_Right) const noexcept
 	{
-		return (TCActorHolderWeakPointer<CActorHolder> const &)m_pInternalActor
-			== (TCActorHolderWeakPointer<CActorHolder> const &)_Right.m_pInternalActor
-		;
+		return (TCActorHolderWeakPointer<CActorHolder> const &)m_pInternalActor == (TCActorHolderWeakPointer<CActorHolder> const &)_Right.m_pInternalActor;
 	}
 
 	template <typename t_CActor>
 	template <typename tf_CActor>
-	bool TCWeakActor<t_CActor>::operator == (TCActor<tf_CActor> const& _Right) const noexcept
+	bool TCWeakActor<t_CActor>::operator == (TCActor<tf_CActor> const &_Right) const noexcept
 	{
-		return (TCActorHolderWeakPointer<CActorHolder> const &)m_pInternalActor
-			== (TCActorHolderSharedPointer<CActorHolder> const &)_Right.m_pInternalActor
-		;
+		return (TCActorHolderWeakPointer<CActorHolder> const &)m_pInternalActor == (TCActorHolderSharedPointer<CActorHolder> const &)_Right.m_pInternalActor;
 	}
 
 	template <typename t_CActor>
-	inline_small TCWeakActor<t_CActor>::operator bool() const
+	inline_small TCWeakActor<t_CActor>::operator bool () const
 	{
 		return !m_pInternalActor.f_IsEmpty();
 	}
 
 	template <typename t_CActor>
-	template <typename tf_CMemberFunction, typename... tfp_CCallParams>
-	auto TCWeakActor<t_CActor>::operator () (tf_CMemberFunction &&_pMemberFunction, tfp_CCallParams &&... p_CallParams) const &
-		-> TCBoundActorCall
-		<
-			NPrivate::TCFutureReturn<tf_CMemberFunction>
-			, TCWeakActor<t_CActor> const &
-			, tf_CMemberFunction
-			, CBindActorOptions::fs_Default()
-			, false
-			, tfp_CCallParams...
-		>
+	template <typename tf_CMemberFunction, typename ...tfp_CCallParams>
+	auto TCWeakActor<t_CActor>::operator () (tf_CMemberFunction &&_pMemberFunction, tfp_CCallParams && ...p_CallParams) const &
+		-> TCBoundActorCall<NPrivate::TCFutureReturn<tf_CMemberFunction>, TCWeakActor<t_CActor> const &, tf_CMemberFunction, CBindActorOptions::fs_Default(), false, tfp_CCallParams...>
 		requires cActorCallableWith<tf_CMemberFunction, t_CActor, tfp_CCallParams...>
 	{
 		DMibFastCheck(!f_IsEmpty());
-		return TCBoundActorCall
-			<
-				NPrivate::TCFutureReturn<tf_CMemberFunction>
-				, TCWeakActor<t_CActor> const &
-				, tf_CMemberFunction
-				, CBindActorOptions::fs_Default()
-				, false
-				, tfp_CCallParams...
-			>
+		return TCBoundActorCall<NPrivate::TCFutureReturn<tf_CMemberFunction>, TCWeakActor<t_CActor> const &, tf_CMemberFunction, CBindActorOptions::fs_Default(), false, tfp_CCallParams...>
 			{
 				.mp_pMemberFunction = _pMemberFunction
 				, .mp_Actor{*this}
@@ -336,29 +311,13 @@ namespace NMib::NConcurrency
 	}
 
 	template <typename t_CActor>
-	template <typename tf_CMemberFunction, typename... tfp_CCallParams>
-	auto TCWeakActor<t_CActor>::operator () (tf_CMemberFunction &&_pMemberFunction, tfp_CCallParams &&... p_CallParams) &&
-		-> TCBoundActorCall
-		<
-			NPrivate::TCFutureReturn<tf_CMemberFunction>
-			, TCWeakActor<t_CActor> &&
-			, tf_CMemberFunction
-			, CBindActorOptions::fs_Default()
-			, false
-			, tfp_CCallParams...
-		>
+	template <typename tf_CMemberFunction, typename ...tfp_CCallParams>
+	auto TCWeakActor<t_CActor>::operator () (tf_CMemberFunction &&_pMemberFunction, tfp_CCallParams && ...p_CallParams) &&
+		-> TCBoundActorCall<NPrivate::TCFutureReturn<tf_CMemberFunction>, TCWeakActor<t_CActor> &&, tf_CMemberFunction, CBindActorOptions::fs_Default(), false, tfp_CCallParams...>
 		requires cActorCallableWith<tf_CMemberFunction, t_CActor, tfp_CCallParams...>
 	{
 		DMibFastCheck(!f_IsEmpty());
-		return TCBoundActorCall
-			<
-				NPrivate::TCFutureReturn<tf_CMemberFunction>
-				, TCWeakActor<t_CActor> &&
-				, tf_CMemberFunction
-				, CBindActorOptions::fs_Default()
-				, false
-				, tfp_CCallParams...
-			>
+		return TCBoundActorCall<NPrivate::TCFutureReturn<tf_CMemberFunction>, TCWeakActor<t_CActor> &&, tf_CMemberFunction, CBindActorOptions::fs_Default(), false, tfp_CCallParams...>
 			{
 				.mp_pMemberFunction = _pMemberFunction
 				, .mp_Actor{fg_Move(*this)}
@@ -368,8 +327,8 @@ namespace NMib::NConcurrency
 	}
 
 	template <typename t_CActor>
-	template <auto tf_pFunctionPointer, CBindActorOptions tf_BindOptions, typename... tfp_CCallParams>
-	auto TCWeakActor<t_CActor>::f_Bind(tfp_CCallParams &&... p_CallParams) const &
+	template <auto tf_pFunctionPointer, CBindActorOptions tf_BindOptions, typename ...tfp_CCallParams>
+	auto TCWeakActor<t_CActor>::f_Bind(tfp_CCallParams && ...p_CallParams) const &
 		-> TCBoundActorCall
 		<
 			NPrivate::TCFutureReturn<decltype(tf_pFunctionPointer)>
@@ -401,8 +360,8 @@ namespace NMib::NConcurrency
 	}
 
 	template <typename t_CActor>
-	template <auto tf_pFunctionPointer, CBindActorOptions tf_BindOptions, typename... tfp_CCallParams>
-	auto TCWeakActor<t_CActor>::f_Bind(tfp_CCallParams &&... p_CallParams) &&
+	template <auto tf_pFunctionPointer, CBindActorOptions tf_BindOptions, typename ...tfp_CCallParams>
+	auto TCWeakActor<t_CActor>::f_Bind(tfp_CCallParams && ...p_CallParams) &&
 		-> TCBoundActorCall
 		<
 			NPrivate::TCFutureReturn<decltype(tf_pFunctionPointer)>
@@ -434,8 +393,8 @@ namespace NMib::NConcurrency
 	}
 
 	template <typename t_CActor>
-	template <auto tf_pFunctionPointer, CBindActorOptions tf_BindOptions, typename... tfp_CCallParams>
-	auto TCWeakActor<t_CActor>::f_BindByValue(tfp_CCallParams &&... p_CallParams) const &
+	template <auto tf_pFunctionPointer, CBindActorOptions tf_BindOptions, typename ...tfp_CCallParams>
+	auto TCWeakActor<t_CActor>::f_BindByValue(tfp_CCallParams && ...p_CallParams) const &
 		-> TCBoundActorCall
 		<
 			NPrivate::TCFutureReturn<decltype(tf_pFunctionPointer)>
@@ -467,8 +426,8 @@ namespace NMib::NConcurrency
 	}
 
 	template <typename t_CActor>
-	template <auto tf_pFunctionPointer, CBindActorOptions tf_BindOptions, typename... tfp_CCallParams>
-	auto TCWeakActor<t_CActor>::f_BindByValue(tfp_CCallParams &&... p_CallParams) &&
+	template <auto tf_pFunctionPointer, CBindActorOptions tf_BindOptions, typename ...tfp_CCallParams>
+	auto TCWeakActor<t_CActor>::f_BindByValue(tfp_CCallParams && ...p_CallParams) &&
 		-> TCBoundActorCall
 		<
 			NPrivate::TCFutureReturn<decltype(tf_pFunctionPointer)>

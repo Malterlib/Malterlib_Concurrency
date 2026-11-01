@@ -24,13 +24,7 @@ namespace NMib::NConcurrency
 				o_CommandLine.f_AddSection("Sensor", "Use these commands to manage the local store of sensor logs.")
 				, ""
 				, g_ActorFunctor / [this]
-				(
-					CEJsonSorted const _Params
-					, TCSharedPointer<CCommandLineControl> _pCommandLine
-					, CDistributedAppSensorReader_SensorFilter _Filter
-					, ESensorOutputFlag _Flags
-					, CStr _TableType
-				)
+				(CEJsonSorted const _Params, TCSharedPointer<CCommandLineControl> _pCommandLine, CDistributedAppSensorReader_SensorFilter _Filter, ESensorOutputFlag _Flags, CStr _TableType)
 				-> TCFuture<uint32>
 				{
 					co_return co_await f_CommandLine_SensorList(_pCommandLine, _Filter, _Flags, _TableType);
@@ -79,7 +73,8 @@ namespace NMib::NConcurrency
 					, ESensorOutputFlag _Flags
 					, CStr _TableType
 				)
-			> &&_fSensorList
+			>
+			&&_fSensorList
 			, TCActorFunctor
 			<
 				TCFuture<uint32>
@@ -90,9 +85,9 @@ namespace NMib::NConcurrency
 					, ESensorOutputFlag _Flags
 					, CStr _TableType
 				)
-			> &&_fSensorStatus
-			,
-			TCActorFunctor
+			>
+			&&_fSensorStatus
+			, TCActorFunctor
 			<
 				TCFuture<uint32>
 				(
@@ -103,7 +98,8 @@ namespace NMib::NConcurrency
 					, ESensorOutputFlag _Flags
 					, CStr _TableType
 				)
-			> && _fSensorReadingsList
+			>
+			&&_fSensorReadingsList
 			, EDistributedAppCommandFlag _CommandFlags
 		)
 	{
@@ -271,15 +267,7 @@ namespace NMib::NConcurrency
 				}
 				, [fSensorList = fg_Move(_fSensorList), fParseSensorFilter, fParseFlags](CEJsonSorted const _Params, TCSharedPointer<CCommandLineControl> _pCommandLine) -> TCFuture<uint32>
 				{
-					co_return co_await fSensorList
-						(
-							_Params
-							, _pCommandLine
-							, fParseSensorFilter(_Params)
-							, fParseFlags(_Params)
-							, _Params["TableType"].f_String()
-						)
-					;
+					co_return co_await fSensorList(_Params, _pCommandLine, fParseSensorFilter(_Params), fParseFlags(_Params), _Params["TableType"].f_String());
 				}
 				, _CommandFlags
 			)
@@ -312,15 +300,7 @@ namespace NMib::NConcurrency
 					Filter.m_SensorFilter = fParseSensorFilter(_Params);
 					Filter.m_Flags = fParseSensorReadingFlags(_Params);
 
-					co_return co_await fSensorStatus
-						(
-							_Params
-							, _pCommandLine
-							, Filter
-							, fParseFlags(_Params)
-							, _Params["TableType"].f_String()
-						)
-					;
+					co_return co_await fSensorStatus(_Params, _pCommandLine, Filter, fParseFlags(_Params), _Params["TableType"].f_String());
 				}
 				, _CommandFlags
 			)
@@ -401,16 +381,7 @@ namespace NMib::NConcurrency
 					if (auto pValue = _Params.f_GetMember("MaxTimestamp"))
 						Filter.m_MaxTimestamp = pValue->f_Date().f_ToUTC();
 
-					co_return co_await fSensorReadingsList
-						(
-							_Params
-							, _pCommandLine
-							, Filter
-							, _Params["MaxEntries"].f_Integer()
-							, fParseFlags(_Params)
-							, _Params["TableType"].f_String()
-						)
-					;
+					co_return co_await fSensorReadingsList(_Params, _pCommandLine, Filter, _Params["MaxEntries"].f_Integer(), fParseFlags(_Params), _Params["TableType"].f_String());
 				}
 				, _CommandFlags
 			)
@@ -468,13 +439,14 @@ namespace NMib::NConcurrency
 		return Return;
 	}
 
-	TCFuture<uint32> CDistributedAppActor::f_CommandLine_SensorListOutput
+	auto CDistributedAppActor::f_CommandLine_SensorListOutput
 		(
 			TCSharedPointer<CCommandLineControl> _pCommandLine
 			, TCAsyncGenerator<TCVector<CDistributedAppSensorReporter::CSensorInfo>> _Sensors
 			, ESensorOutputFlag _Flags
 			, CStr _TableType
 		)
+		-> TCFuture<uint32>
 	{
 		CTableRenderHelper TableRenderer = _pCommandLine->f_TableRenderer();
 		auto AnsiEncoding = _pCommandLine->f_AnsiEncoding();
@@ -633,29 +605,23 @@ namespace NMib::NConcurrency
 		co_return 0;
 	}
 
-	TCFuture<uint32> CDistributedAppActor::f_CommandLine_SensorList
+	auto CDistributedAppActor::f_CommandLine_SensorList
 		(
 			TCSharedPointer<CCommandLineControl> _pCommandLine
 			, CDistributedAppSensorReader_SensorFilter _Filter
 			, ESensorOutputFlag _Flags
 			, CStr _TableType
 		)
+		-> TCFuture<uint32>
 	{
 		auto LocalStore = co_await fp_OpenSensorStoreLocal();
 
 		auto SensorsGenerator = co_await LocalStore(&CDistributedAppSensorStoreLocal::f_GetSensors, CDistributedAppSensorReader::CGetSensors{.m_Filters = {_Filter}});
 
-		co_return co_await f_CommandLine_SensorListOutput
-			(
-				_pCommandLine
-				, fg_Move(SensorsGenerator)
-				, _Flags
-				, _TableType
-			)
-		;
+		co_return co_await f_CommandLine_SensorListOutput(_pCommandLine, fg_Move(SensorsGenerator), _Flags, _TableType);
 	}
 
-	TCFuture<uint32> CDistributedAppActor::f_CommandLine_SensorReadingsOutput
+	auto CDistributedAppActor::f_CommandLine_SensorReadingsOutput
 		(
 			TCSharedPointer<CCommandLineControl> _pCommandLine
 			, TCAsyncGenerator<NContainer::TCVector<CDistributedAppSensorReader_SensorKeyAndReading>> _SensorReadings
@@ -665,6 +631,7 @@ namespace NMib::NConcurrency
 			, CStr _TableType
 			, CDistributedAppSensorReader_SensorReadingFilter _Filter
 		)
+		-> TCFuture<uint32>
 	{
 		TCPromiseFuturePair<void> Cancelled;
 		auto CancellationSubscription = _pCommandLine->f_RegisterForCancellation
@@ -685,16 +652,7 @@ namespace NMib::NConcurrency
 
 		auto [Result, bCancelled] = co_await fg_AnyDone
 			(
-				fp_CommandLine_SensorReadingsOutput
-				(
-					_pCommandLine
-					, fg_Move(_SensorReadings)
-					, fg_Move(_Sensors)
-					, _MaxEntries
-					, _Flags
-					, _TableType
-					, _Filter
-				)
+				fp_CommandLine_SensorReadingsOutput(_pCommandLine, fg_Move(_SensorReadings), fg_Move(_Sensors), _MaxEntries, _Flags, _TableType, _Filter)
 				, fg_Move(Cancelled.m_Future)
 			)
 		;
@@ -705,7 +663,7 @@ namespace NMib::NConcurrency
 			co_return DMibErrorInstance("Cancelled");
 	}
 
-	TCFuture<uint32> CDistributedAppActor::fp_CommandLine_SensorReadingsOutput
+	auto CDistributedAppActor::fp_CommandLine_SensorReadingsOutput
 		(
 			TCSharedPointer<CCommandLineControl> _pCommandLine
 			, TCAsyncGenerator<NContainer::TCVector<CDistributedAppSensorReader_SensorKeyAndReading>> _SensorReadings
@@ -715,6 +673,7 @@ namespace NMib::NConcurrency
 			, CStr _TableType
 			, CDistributedAppSensorReader_SensorReadingFilter _Filter
 		)
+		-> TCFuture<uint32>
 	{
 		CTableRenderHelper TableRenderer = _pCommandLine->f_TableRenderer();
 		auto AnsiEncoding = _pCommandLine->f_AnsiEncoding();
@@ -963,13 +922,14 @@ namespace NMib::NConcurrency
 			co_return 0;
 	}
 
-	TCFuture<uint32> CDistributedAppActor::f_CommandLine_SensorStatus
+	auto CDistributedAppActor::f_CommandLine_SensorStatus
 		(
 			TCSharedPointer<CCommandLineControl> _pCommandLine
 			, CDistributedAppSensorReader_SensorStatusFilter _Filter
 			, ESensorOutputFlag _Flags
 			, CStr _TableType
 		)
+		-> TCFuture<uint32>
 	{
 		auto LocalStore = co_await fp_OpenSensorStoreLocal();
 		auto ReadingsGenerator = co_await LocalStore(&CDistributedAppSensorStoreLocal::f_GetSensorStatus, CDistributedAppSensorReader::CGetSensorStatus{.m_Filters = {_Filter}});
@@ -978,20 +938,10 @@ namespace NMib::NConcurrency
 		CDistributedAppSensorReader_SensorReadingFilter Filter;
 		Filter.m_Flags = CDistributedAppSensorReader_SensorReadingFilter::ESensorReadingsFlag_None;
 
-		co_return co_await f_CommandLine_SensorReadingsOutput
-			(
-				_pCommandLine
-				, fg_Move(ReadingsGenerator)
-				, fg_Move(SensorsGenerator)
-				, 0
-				, _Flags | ESensorOutputFlag_Status
-				, _TableType
-				, Filter
-			)
-		;
+		co_return co_await f_CommandLine_SensorReadingsOutput(_pCommandLine, fg_Move(ReadingsGenerator), fg_Move(SensorsGenerator), 0, _Flags | ESensorOutputFlag_Status, _TableType, Filter);
 	}
 
-	TCFuture<uint32> CDistributedAppActor::f_CommandLine_SensorReadingsList
+	auto CDistributedAppActor::f_CommandLine_SensorReadingsList
 		(
 			TCSharedPointer<CCommandLineControl> _pCommandLine
 			, CDistributedAppSensorReader_SensorReadingFilter _Filter
@@ -999,22 +949,13 @@ namespace NMib::NConcurrency
 			, ESensorOutputFlag _Flags
 			, CStr _TableType
 		)
+		-> TCFuture<uint32>
 	{
 		auto LocalStore = co_await fp_OpenSensorStoreLocal();
 		auto ReadingsGenerator = co_await LocalStore(&CDistributedAppSensorStoreLocal::f_GetSensorReadings, CDistributedAppSensorReader::CGetSensorReadings{.m_Filters = {_Filter}});
 		auto SensorsGenerator = co_await LocalStore(&CDistributedAppSensorStoreLocal::f_GetSensors, CDistributedAppSensorReader::CGetSensors{.m_Filters = {_Filter.m_SensorFilter}});
 
-		co_await f_CommandLine_SensorReadingsOutput
-			(
-				_pCommandLine
-				, fg_Move(ReadingsGenerator)
-				, fg_Move(SensorsGenerator)
-				, _MaxEntries
-				, _Flags
-				, _TableType
-				, _Filter
-			)
-		;
+		co_await f_CommandLine_SensorReadingsOutput(_pCommandLine, fg_Move(ReadingsGenerator), fg_Move(SensorsGenerator), _MaxEntries, _Flags, _TableType, _Filter);
 
 		co_return 0;
 	}

@@ -8,11 +8,7 @@
 namespace NMib::NConcurrency
 {
 	template <typename ...tfp_CDistributedActors, typename tf_CActor>
-	NStr::CStr CDistributedActorTestHelperCombined::f_Publish
-		(
-			TCDistributedActor<tf_CActor> const &_Actor
-			, NStr::CStr const &_Namespace
-		)
+	NStr::CStr CDistributedActorTestHelperCombined::f_Publish(TCDistributedActor<tf_CActor> const &_Actor, NStr::CStr const &_Namespace)
 	{
 		if (!mp_pServer)
 			DMibError("Server not there");

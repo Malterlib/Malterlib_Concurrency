@@ -12,7 +12,7 @@ namespace NMib::NConcurrency
 	{
 		enum : uint32
 		{
-			EProtocolVersion_Min = 0x101
+			EProtocolVersion_Min       = 0x101
 			, EProtocolVersion_Current = 0x101
 		};
 
@@ -111,13 +111,7 @@ namespace NMib::NConcurrency
 			NStr::CStr m_ID;
 		};
 
-		virtual TCFuture<NContainer::TCVector<CResponse>> f_RequestAuthentication
-			(
-				CRequest _Request
-				, CChallenge _Challenge
-				, NStr::CStr _MultipleRequestID
-			) = 0
-		;
+		virtual TCFuture<NContainer::TCVector<CResponse>> f_RequestAuthentication(CRequest _Request, CChallenge _Challenge, NStr::CStr _MultipleRequestID) = 0;
 		virtual TCFuture<CMultipleRequestData> f_GetMultipleRequestSubscription(uint32 _nHosts) = 0;
 	};
 }

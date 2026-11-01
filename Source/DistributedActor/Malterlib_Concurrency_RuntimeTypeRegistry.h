@@ -72,12 +72,12 @@ namespace NMib::NConcurrency
 
 		struct CSortMemberFunction_Hash
 		{
-			inline_always_debug uint32 operator ()(CRuntimeTypeRegistryEntry_MemberFunction const &_Entry);
+			inline_always_debug uint32 operator () (CRuntimeTypeRegistryEntry_MemberFunction const &_Entry);
 		};
 
 		struct CSortException_Hash
 		{
-			inline_always_debug uint32 operator ()(CRuntimeTypeRegistryEntry_Exception const &_Entry);
+			inline_always_debug uint32 operator () (CRuntimeTypeRegistryEntry_Exception const &_Entry);
 		};
 
 		NIntrusive::TCAVLTree<&CRuntimeTypeRegistryEntry_MemberFunction::m_HashLink, CSortMemberFunction_Hash> m_EntryByHash_MemberFunction;

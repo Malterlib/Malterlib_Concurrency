@@ -19,12 +19,13 @@ namespace NMib::NConcurrency
 
 		TCFuture<void> f_DestroyRemote();
 
-		TCFuture<void> f_StartWithDatabase
+		auto f_StartWithDatabase
 			(
 				TCActor<NDatabase::CDatabaseActor> _Database
 				, NStr::CStr _Prefix
 				, TCActorFunctor<TCFuture<NDatabase::CDatabaseActor::CTransactionWrite> (NDatabase::CDatabaseActor::CTransactionWrite _WriteTransaction)> _fCleanup
 			)
+			-> TCFuture<void>
 		;
 		TCFuture<void> f_StartWithDatabasePath(NStr::CStr _DatabasePath, uint64 _RetentionDays);
 
@@ -33,11 +34,7 @@ namespace NMib::NConcurrency
 
 		TCAsyncGenerator<NContainer::TCVector<CDistributedAppLogReporter::CLogInfo>> f_GetLogs(CDistributedAppLogReader::CGetLogs _Params);
 		auto f_GetLogEntries(CDistributedAppLogReader::CGetLogEntries _Params) -> TCAsyncGenerator<NContainer::TCVector<CDistributedAppLogReader_LogKeyAndEntry>>;
-		auto f_SubscribeLogs
-			(
-				NContainer::TCVector<CDistributedAppLogReader_LogFilter> _Filters
-				, TCActorFunctor<TCFuture<void> (CDistributedAppLogReader::CLogChange _Change)> _fOnChange
-			)
+		auto f_SubscribeLogs(NContainer::TCVector<CDistributedAppLogReader_LogFilter> _Filters, TCActorFunctor<TCFuture<void> (CDistributedAppLogReader::CLogChange _Change)> _fOnChange)
 			-> TCFuture<CActorSubscription>
 		;
 		auto f_SubscribeLogEntries(CDistributedAppLogReader::CSubscribeLogEntries _Params) -> TCFuture<CActorSubscription>;

@@ -14,7 +14,7 @@ namespace NMib::NConcurrency
 	{
 		enum ELogFlag
 		{
-			ELogFlag_None = 0
+			ELogFlag_None            = 0
 			, ELogFlag_IgnoreRemoved = DMibBit(0)
 		};
 
@@ -23,7 +23,7 @@ namespace NMib::NConcurrency
 
 		NStorage::TCOptional<NStr::CStr> m_HostID;
 		NStorage::TCOptional<CDistributedAppLogReporter::CLogScope> m_Scope;
-		NStorage::TCOptional<NStr::CStr> m_Identifier; // Supports wildcards
+		NStorage::TCOptional<NStr::CStr> m_Identifier;      // Supports wildcards
 		NStorage::TCOptional<NStr::CStr> m_IdentifierScope; // Supports wildcards
 		ELogFlag m_Flags = ELogFlag_None;
 	};
@@ -47,7 +47,7 @@ namespace NMib::NConcurrency
 	{
 		enum ELogEntriesFlag
 		{
-			ELogEntriesFlag_None = 0
+			ELogEntriesFlag_None                = 0
 			, ELogEntriesFlag_ReportNewestFirst = DMibBit(0)
 		};
 
@@ -75,7 +75,7 @@ namespace NMib::NConcurrency
 		CDistributedAppLogReader_LogFilter m_LogFilter;
 		CDistributedAppLogReader_LogDataFilter m_LogDataFilter;
 
-		NStorage::TCOptional<uint64> m_MinSequence; ///< If specified historic entries will also be reported, but will not be applied to not yet generated entries
+		NStorage::TCOptional<uint64> m_MinSequence;        ///< If specified historic entries will also be reported, but will not be applied to not yet generated entries
 		NStorage::TCOptional<NTime::CTime> m_MinTimestamp; ///< If specified historic entries will also be reported, but will not be applied to not yet generated entries
 	};
 
@@ -99,7 +99,7 @@ namespace NMib::NConcurrency
 
 		enum : uint32
 		{
-			EProtocolVersion_Min = CDistributedAppLogReporter::EProtocolVersion_Min
+			EProtocolVersion_Min       = CDistributedAppLogReporter::EProtocolVersion_Min
 			, EProtocolVersion_Current = CDistributedAppLogReporter::EProtocolVersion_Current
 		};
 
@@ -111,7 +111,7 @@ namespace NMib::NConcurrency
 
 		enum ELogEntriesFlag : uint32
 		{
-			ELogEntriesFlag_None = 0
+			ELogEntriesFlag_None                      = 0
 			, ELogEntriesFlag_IncludeLastSeenSentinel = DMibBit(0)
 		};
 

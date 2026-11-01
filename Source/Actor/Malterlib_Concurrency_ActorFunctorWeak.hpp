@@ -33,7 +33,17 @@ namespace NMib::NConcurrency
 
 		// Destroy functor on correct actor
 		if (!Actor->f_IsCurrentActorAndProcessing())
-			fg_Dispatch(Actor, [pFunctor = fg_Move(mp_pFunctor)] {}).f_DiscardResult();
+		{
+			fg_Dispatch
+				(
+					Actor
+					, [pFunctor = fg_Move(mp_pFunctor)]
+					{
+					}
+				)
+				.f_DiscardResult()
+			;
+		}
 	}
 
 	template <typename t_CFunction, bool t_bCoalesced>
@@ -53,8 +63,8 @@ namespace NMib::NConcurrency
 	template <typename t_CFunction, bool t_bCoalesced>
 		requires (!NPrivate::TCAddRValueReferencesToFunctor<t_CFunction>::mc_bAnyReference)
 	template <typename ...tfp_CParams>
-	auto TCActorFunctorWeak<t_CFunction, t_bCoalesced>::f_CallDirect(tfp_CParams &&...p_Params) const -> TCFuture<CStripedReturn>
-		requires(NPrivate::cIsActorFunctorCallableWith<t_CFunction, tfp_CParams...>)
+	auto TCActorFunctorWeak<t_CFunction, t_bCoalesced>::f_CallDirect(tfp_CParams && ...p_Params) const -> TCFuture<CStripedReturn>
+		requires (NPrivate::cIsActorFunctorCallableWith<t_CFunction, tfp_CParams...>)
 	{
 		auto Actor = mp_Actor.f_Lock();
 
@@ -106,8 +116,8 @@ namespace NMib::NConcurrency
 	template <typename t_CFunction, bool t_bCoalesced>
 		requires (!NPrivate::TCAddRValueReferencesToFunctor<t_CFunction>::mc_bAnyReference)
 	template <typename ...tfp_CParams>
-	void TCActorFunctorWeak<t_CFunction, t_bCoalesced>::f_CallDiscard(tfp_CParams &&...p_Params) const
-		requires(NPrivate::cIsActorFunctorCallableWith<t_CFunction, tfp_CParams...>)
+	void TCActorFunctorWeak<t_CFunction, t_bCoalesced>::f_CallDiscard(tfp_CParams && ...p_Params) const
+		requires (NPrivate::cIsActorFunctorCallableWith<t_CFunction, tfp_CParams...>)
 	{
 		auto Actor = mp_Actor.f_Lock();
 
@@ -154,8 +164,8 @@ namespace NMib::NConcurrency
 	template <typename t_CFunction, bool t_bCoalesced>
 		requires (!NPrivate::TCAddRValueReferencesToFunctor<t_CFunction>::mc_bAnyReference)
 	template <typename ...tfp_CParams>
-	auto TCActorFunctorWeak<t_CFunction, t_bCoalesced>::operator ()(tfp_CParams &&...p_Params) const -> TCFuture<CStripedReturn>
-		requires(NPrivate::cIsActorFunctorCallableWith<t_CFunction, tfp_CParams...>)
+	auto TCActorFunctorWeak<t_CFunction, t_bCoalesced>::operator () (tfp_CParams && ...p_Params) const -> TCFuture<CStripedReturn>
+		requires (NPrivate::cIsActorFunctorCallableWith<t_CFunction, tfp_CParams...>)
 	{
 		auto Actor = mp_Actor.f_Lock();
 
@@ -192,8 +202,8 @@ namespace NMib::NConcurrency
 	template <typename t_CFunction, bool t_bCoalesced>
 		requires (!NPrivate::TCAddRValueReferencesToFunctor<t_CFunction>::mc_bAnyReference)
 	template <typename tf_FDispatcher, typename ...tfp_CParams>
-	auto TCActorFunctorWeak<t_CFunction, t_bCoalesced>::f_CallWrapped(tf_FDispatcher &&_fDispatcher, tfp_CParams &&...p_Params) const -> TCFuture<CStripedReturn>
-		requires(NPrivate::cIsActorFunctorCallableWith<t_CFunction, tfp_CParams...>)
+	auto TCActorFunctorWeak<t_CFunction, t_bCoalesced>::f_CallWrapped(tf_FDispatcher &&_fDispatcher, tfp_CParams && ...p_Params) const -> TCFuture<CStripedReturn>
+		requires (NPrivate::cIsActorFunctorCallableWith<t_CFunction, tfp_CParams...>)
 	{
 		auto Actor = mp_Actor.f_Lock();
 
@@ -219,7 +229,7 @@ namespace NMib::NConcurrency
 								(
 									[&] mark_no_coroutine_debug ()
 									{
-										return [&]<typename ...tfp_CParams3> mark_no_coroutine_debug (tfp_CParams3 &&...p_Params) mutable -> TCFuture<CStripedReturn>
+										return [&]<typename ...tfp_CParams3> mark_no_coroutine_debug (tfp_CParams3 && ...p_Params) mutable -> TCFuture<CStripedReturn>
 											{
 												return (*pFunctor)(fg_Move(p_Params)...);
 											}
@@ -336,7 +346,17 @@ namespace NMib::NConcurrency
 			if (Actor->f_IsCurrentActorAndProcessing())
 				mp_pFunctor.f_Clear();
 			else
-				fg_Dispatch(Actor, [pFunctor = fg_Move(mp_pFunctor)] {}).f_DiscardResult();
+			{
+				fg_Dispatch
+					(
+						Actor
+						, [pFunctor = fg_Move(mp_pFunctor)]
+						{
+						}
+					)
+					.f_DiscardResult()
+				;
+			}
 		}
 
 		mp_Actor.f_Clear();

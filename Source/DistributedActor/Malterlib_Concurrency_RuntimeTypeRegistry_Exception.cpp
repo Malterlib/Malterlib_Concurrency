@@ -13,12 +13,7 @@
 
 namespace NMib::NConcurrency::NPrivate
 {
-	void fg_StreamAsyncResultException
-		(
-			NStream::TCBinaryStreamStorage<NStream::CBinaryStreamDefault> &_Stream
-			, NException::CExceptionBase const &_Exception
-			, uint32 _ActorProtocolVersion
-		)
+	void fg_StreamAsyncResultException(NStream::TCBinaryStreamStorage<NStream::CBinaryStreamDefault> &_Stream, NException::CExceptionBase const &_Exception, uint32 _ActorProtocolVersion)
 	{
 		_Stream << uint8(1); // Exception
 
@@ -54,12 +49,7 @@ namespace NMib::NConcurrency::NPrivate
 		pEntry->f_Feed(_Stream, _Exception);
 	}
 
-	void fg_StreamAsyncResultException
-		(
-			NStream::TCBinaryStreamStorage<NStream::CBinaryStreamDefault> &_Stream
-			, NConcurrency::CAsyncResult const &_Result
-			, uint32 _ActorProtocolVersion
-		)
+	void fg_StreamAsyncResultException(NStream::TCBinaryStreamStorage<NStream::CBinaryStreamDefault> &_Stream, NConcurrency::CAsyncResult const &_Result, uint32 _ActorProtocolVersion)
 	{
 		bool bHandled = NException::fg_VisitException<NException::CExceptionBase>
 			(
@@ -127,16 +117,16 @@ namespace NMib::NConcurrency::NPrivate
 	{
 		NException::CDisableExceptionTraceScope DisableTrace;
 		if
+		(
+			!NException::fg_VisitException<NException::CExceptionBase>
 			(
-				!NException::fg_VisitException<NException::CExceptionBase>
-				(
-					_pException
-					, [&](NException::CExceptionBase const &_Exception)
-					{
-						fg_FeedException(_Stream, _Exception, _bVersioned);
-					}
-				)
+				_pException
+				, [&](NException::CExceptionBase const &_Exception)
+				{
+					fg_FeedException(_Stream, _Exception, _bVersioned);
+				}
 			)
+		)
 		{
 			// Unknow exception cannot be streamed
 			DMibPDebugBreak;
@@ -160,15 +150,8 @@ namespace NMib::NConcurrency::NPrivate
 				if (_Stream.f_GetPosition() <= EndPosition)
 				{
 					_Stream.f_SetPosition(EndPosition);
-					return DMibErrorInstance
-						(
-							NStr::fg_Format
-								(
-									"{} (received as unregistered exception type {nh})"
-									, NException::fg_ExceptionString(pException)
-									, _TypeHash
-								)
-						).f_ExceptionPointer()
+					return DMibErrorInstance(NStr::fg_Format("{} (received as unregistered exception type {nh})", NException::fg_ExceptionString(pException), _TypeHash))
+						.f_ExceptionPointer()
 					;
 				}
 			}

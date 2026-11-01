@@ -77,11 +77,7 @@ namespace NMib::NConcurrency
 			DMibLog(Error, "{}: {}", m_Description, NException::fg_ExceptionString(_pException));
 	}
 
-	FExceptionTransformer fg_ExceptionTransformer
-		(
-			FExceptionTransformer &&_fPreviousTransformer
-			, CLogErrorResultFunctor &&_LogError
-		)
+	FExceptionTransformer fg_ExceptionTransformer(FExceptionTransformer &&_fPreviousTransformer, CLogErrorResultFunctor &&_LogError)
 	{
 		if (!_fPreviousTransformer)
 		{
@@ -108,11 +104,7 @@ namespace NMib::NConcurrency
 		}
 	}
 
-	FExceptionTransformer fg_ExceptionTransformer
-		(
-			FExceptionTransformer &&_fPreviousTransformer
-			, CLogErrorResultFunctorWithUserError &&_LogError
-		)
+	FExceptionTransformer fg_ExceptionTransformer(FExceptionTransformer &&_fPreviousTransformer, CLogErrorResultFunctorWithUserError &&_LogError)
 	{
 		if (!_fPreviousTransformer)
 		{

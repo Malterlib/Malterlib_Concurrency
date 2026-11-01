@@ -31,12 +31,13 @@ namespace NMib::NConcurrency
 	{
 	}
 
-	TCFuture<NStr::CStr> CDistributedAppInProcessActor::f_Launch
+	auto CDistributedAppInProcessActor::f_Launch
 		(
 			NStr::CStr _HomeDirectory
 			, NFunction::TCFunction<TCActor<CDistributedAppActor> ()> _fDistributedAppFactory
 			, NContainer::TCVector<NStr::CStr> _Params
 		)
+		-> TCFuture<NStr::CStr>
 	{
 		{
 			auto &ThreadLocal = fg_DistributedAppThreadLocal();
@@ -127,7 +128,7 @@ namespace NMib::NConcurrency
 		if (mp_DistributedApp)
 		{
 			co_await mp_DistributedApp(&CDistributedAppActor::f_StopApp).f_Wrap() > LogError.f_Warning("Failed to stop distributed app");
-			co_await fg_Move(mp_DistributedApp).f_Destroy().f_Wrap()  > LogError.f_Warning("Failed to destroy distributed app");;
+			co_await fg_Move(mp_DistributedApp).f_Destroy().f_Wrap() > LogError.f_Warning("Failed to destroy distributed app");
 		}
 
 		co_return {};
@@ -175,15 +176,7 @@ namespace NMib::NConcurrency
 
 		if (!Ticket)
 		{
-			DMibLogWithCategory
-				(
-					Malterlib/Concurrency
-					, Error
-					, "Failed to generate ticket for '{}': {}"
-					, mp_Description
-					, Ticket.f_GetExceptionStr()
-				)
-			;
+			DMibLogWithCategory(Malterlib/Concurrency, Error, "Failed to generate ticket for '{}': {}", mp_Description, Ticket.f_GetExceptionStr());
 			co_return Ticket.f_GetException();
 		}
 
@@ -203,13 +196,14 @@ namespace NMib::NConcurrency
 		co_return co_await mp_DistributedApp(&CDistributedAppActor::f_Test_Command, fg_Move(_Command), fg_Move(fg_RemoveQualifiers(_Params)));
 	}
 
-	TCFuture<uint32> CDistributedAppInProcessActor::f_RunCommandLine
+	auto CDistributedAppInProcessActor::f_RunCommandLine
 		(
 			CCallingHostInfo _CallingHost
 			, NStr::CStr _Command
 			, NEncoding::CEJsonSorted _Params
 			, NStorage::TCSharedPointer<CCommandLineControl> _pCommandLine
 		)
+		-> TCFuture<uint32>
 	{
 		if (!mp_DistributedApp)
 			co_return DMibErrorInstance("No distributed app");

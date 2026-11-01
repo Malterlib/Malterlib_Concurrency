@@ -103,13 +103,7 @@ namespace NMib::NConcurrency
 		Settings.m_ReconnectDelay = 1_ms;
 		Settings.m_FriendlyName = "TestHelperServer";
 
-		mp_pServer = fg_Construct
-			(
-				mp_ServerCryptography.m_HostID
-				, fg_ConstructActor<CActorDistributionManager>(Settings)
-				, mp_pRunLoop
-			)
-		;
+		mp_pServer = fg_Construct(mp_ServerCryptography.m_HostID, fg_ConstructActor<CActorDistributionManager>(Settings), mp_pRunLoop);
 	}
 
 	void CDistributedActorTestHelperCombined::f_Init(bool _bReconnect)
@@ -166,13 +160,7 @@ namespace NMib::NConcurrency
 			Settings.m_ReconnectDelay = 1_ms;
 			Settings.m_FriendlyName = "TestHelperClient";
 
-			mp_pClient = fg_Construct
-				(
-					mp_ClientCryptography.m_HostID
-					, fg_ConstructActor<CActorDistributionManager>(Settings)
-					, mp_pRunLoop
-				)
-			;
+			mp_pClient = fg_Construct(mp_ClientCryptography.m_HostID, fg_ConstructActor<CActorDistributionManager>(Settings), mp_pRunLoop);
 		}
 		if (mp_ClientCryptography.m_RemoteClientCertificates.f_IsEmpty())
 		{
@@ -198,13 +186,7 @@ namespace NMib::NConcurrency
 			Settings.m_ReconnectDelay = 1_ms;
 			Settings.m_FriendlyName = "TestHelperAnonClient";
 
-			mp_pClient = fg_Construct
-				(
-					mp_ClientCryptography.m_HostID
-					, fg_ConstructActor<CActorDistributionManager>(Settings)
-					, mp_pRunLoop
-				)
-			;
+			mp_pClient = fg_Construct(mp_ClientCryptography.m_HostID, fg_ConstructActor<CActorDistributionManager>(Settings), mp_pRunLoop);
 		}
 
 		TCActor<CActorDistributionManager> const &ClientManager = mp_pClient->f_GetManager();
@@ -312,14 +294,7 @@ namespace NMib::NConcurrency
 				&CActorDistributionManager::f_SubscribeActors
 				, _Namespace
 				, mp_ProcessingActor
-				,
-				[
-					this
-					, pRemoteLock = mp_pRemoteLock
-					, pDeletedHelper = mp_pDeleted
-					, pSubscription = &Subscription
-					, pDeleted = Subscription.m_pDeleted
-				]
+				, [this, pRemoteLock = mp_pRemoteLock, pDeletedHelper = mp_pDeleted, pSubscription = &Subscription, pDeleted = Subscription.m_pDeleted]
 				(CAbstractDistributedActor _NewActor) -> TCFuture<void>
 				{
 					DMibLock(*pRemoteLock);
@@ -333,14 +308,7 @@ namespace NMib::NConcurrency
 
 					co_return {};
 				}
-				,
-				[
-					this
-					, pRemoteLock = mp_pRemoteLock
-					, pDeletedHelper = mp_pDeleted
-					, pSubscription = &Subscription
-					, pDeleted = Subscription.m_pDeleted
-				]
+				, [this, pRemoteLock = mp_pRemoteLock, pDeletedHelper = mp_pDeleted, pSubscription = &Subscription, pDeleted = Subscription.m_pDeleted]
 				(CDistributedActorIdentifier _RemovedActor) -> TCFuture<void>
 				{
 					DMibLock(*pRemoteLock);
@@ -349,7 +317,7 @@ namespace NMib::NConcurrency
 					if (pDeleted->f_Load())
 						co_return {};
 					umint nActors = pSubscription->m_RemoteActors.f_GetLen();
-					for (umint iActor = 0; iActor < nActors; )
+					for (umint iActor = 0; iActor < nActors;)
 					{
 						auto &RemoteActor = pSubscription->m_RemoteActors[iActor];
 						if (RemoteActor.f_GetIdentifier() == _RemovedActor)
@@ -364,7 +332,8 @@ namespace NMib::NConcurrency
 
 					co_return {};
 				}
-			).f_CallSync(mp_pRunLoop, 60.0)
+			)
+			.f_CallSync(mp_pRunLoop, 60.0)
 		;
 
 		fp64 WaitTime = 60.0;

@@ -16,13 +16,7 @@ namespace NMib::NConcurrency
 	struct CDistributedActorTestHelper
 	{
 		CDistributedActorTestHelper(NStr::CStr const &_HostID, TCActor<CActorDistributionManager> const &_Manager, NStorage::TCSharedPointer<CRunLoop> const &_pRunLoop);
-		CDistributedActorTestHelper
-			(
-				TCActor<CDistributedActorTrustManager> const &_TrustManager
-				, NStorage::TCSharedPointer<CRunLoop> const &_pRunLoop
-				, bool _bAllowUnconnected = false
-			)
-		;
+		CDistributedActorTestHelper(TCActor<CDistributedActorTrustManager> const &_TrustManager, NStorage::TCSharedPointer<CRunLoop> const &_pRunLoop, bool _bAllowUnconnected = false);
 		~CDistributedActorTestHelper();
 
 		template <typename ...tfp_CDistributedActors, typename tf_CActor>
@@ -49,12 +43,14 @@ namespace NMib::NConcurrency
 			TCDistributedActor<CActor> m_Actor;
 			CDistributedActorPublication m_Publication;
 		};
+
 		struct CSubscription
 		{
 			~CSubscription()
 			{
 				m_pDeleted->f_Exchange(true);
 			}
+
 			NStorage::TCSharedPointer<NAtomic::TCAtomic<bool>> m_pDeleted = fg_Construct(false);
 			CActorSubscription m_Subscription;
 			NContainer::TCVector<CAbstractDistributedActor> m_RemoteActors;

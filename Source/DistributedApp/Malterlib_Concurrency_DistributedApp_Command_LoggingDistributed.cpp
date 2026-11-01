@@ -72,9 +72,9 @@ namespace NMib::NConcurrency
 					, uint32 _Verbosity
 					, CStr _TableType
 				)
-			> &&_fLogList
-			,
-			TCActorFunctor
+			>
+			&&_fLogList
+			, TCActorFunctor
 			<
 				TCFuture<uint32>
 				(
@@ -86,7 +86,8 @@ namespace NMib::NConcurrency
 					, uint32 _Verbosity
 					, CStr _TableType
 				)
-			> && _fLogEntriesList
+			>
+			&&_fLogEntriesList
 			, EDistributedAppCommandFlag _CommandFlags
 		)
 	{
@@ -410,7 +411,7 @@ namespace NMib::NConcurrency
 		return Return;
 	}
 
-	TCFuture<uint32> CDistributedAppActor::f_CommandLine_LogListOutput
+	auto CDistributedAppActor::f_CommandLine_LogListOutput
 		(
 			TCSharedPointer<CCommandLineControl> _pCommandLine
 			, TCAsyncGenerator<TCVector<CDistributedAppLogReporter::CLogInfo>> _Logs
@@ -418,6 +419,7 @@ namespace NMib::NConcurrency
 			, uint32 _Verbosity
 			, CStr _TableType
 		)
+		-> TCFuture<uint32>
 	{
 		CTableRenderHelper TableRenderer = _pCommandLine->f_TableRenderer();
 		auto AnsiEncoding = _pCommandLine->f_AnsiEncoding();
@@ -520,7 +522,7 @@ namespace NMib::NConcurrency
 		co_return 0;
 	}
 
-	TCFuture<uint32> CDistributedAppActor::f_CommandLine_LogList
+	auto CDistributedAppActor::f_CommandLine_LogList
 		(
 			TCSharedPointer<CCommandLineControl> _pCommandLine
 			, CDistributedAppLogReader_LogFilter _Filter
@@ -528,23 +530,16 @@ namespace NMib::NConcurrency
 			, uint32 _Verbosity
 			, CStr _TableType
 		)
+		-> TCFuture<uint32>
 	{
 		auto LocalStore = co_await fp_OpenLogStoreLocal();
 
 		auto LogsGenerator = co_await LocalStore(&CDistributedAppLogStoreLocal::f_GetLogs, CDistributedAppLogReader::CGetLogs{.m_Filters = {_Filter}});
 
-		co_return co_await f_CommandLine_LogListOutput
-			(
-				_pCommandLine
-				, fg_Move(LogsGenerator)
-				, _Flags
-				, _Verbosity
-				, _TableType
-			)
-		;
+		co_return co_await f_CommandLine_LogListOutput(_pCommandLine, fg_Move(LogsGenerator), _Flags, _Verbosity, _TableType);
 	}
 
-	TCFuture<uint32> CDistributedAppActor::f_CommandLine_LogEntriesOutput
+	auto CDistributedAppActor::f_CommandLine_LogEntriesOutput
 		(
 			TCSharedPointer<CCommandLineControl> _pCommandLine
 			, TCAsyncGenerator<NContainer::TCVector<CDistributedAppLogReader_LogKeyAndEntry>> _LogEntries
@@ -555,6 +550,7 @@ namespace NMib::NConcurrency
 			, CStr _TableType
 			, CDistributedAppLogReader_LogEntryFilter _Filter
 		)
+		-> TCFuture<uint32>
 	{
 		TCPromiseFuturePair<void> Cancelled;
 		auto CancellationSubscription = _pCommandLine->f_RegisterForCancellation
@@ -575,17 +571,7 @@ namespace NMib::NConcurrency
 
 		auto [Result, bCancelled] = co_await fg_AnyDone
 			(
-				fp_CommandLine_LogEntriesOutput
-				(
-					_pCommandLine
-					, fg_Move(_LogEntries)
-					, fg_Move(_Logs)
-					, _MaxEntries
-					, _Flags
-					, _Verbosity
-					, _TableType
-					, _Filter
-				)
+				fp_CommandLine_LogEntriesOutput(_pCommandLine, fg_Move(_LogEntries), fg_Move(_Logs), _MaxEntries, _Flags, _Verbosity, _TableType, _Filter)
 				, fg_Move(Cancelled.m_Future)
 			)
 		;
@@ -596,7 +582,7 @@ namespace NMib::NConcurrency
 			co_return DMibErrorInstance("Cancelled");
 	}
 
-	TCFuture<uint32> CDistributedAppActor::fp_CommandLine_LogEntriesOutput
+	auto CDistributedAppActor::fp_CommandLine_LogEntriesOutput
 		(
 			TCSharedPointer<CCommandLineControl> _pCommandLine
 			, TCAsyncGenerator<NContainer::TCVector<CDistributedAppLogReader_LogKeyAndEntry>> _LogEntries
@@ -607,6 +593,7 @@ namespace NMib::NConcurrency
 			, CStr _TableType
 			, CDistributedAppLogReader_LogEntryFilter _Filter
 		)
+		-> TCFuture<uint32>
 	{
 		CTableRenderHelper TableRenderer = _pCommandLine->f_TableRenderer();
 		auto AnsiEncoding = _pCommandLine->f_AnsiEncoding();
@@ -743,9 +730,7 @@ namespace NMib::NConcurrency
 					{
 						switch (Data.m_Severity)
 						{
-						case CDistributedAppLogReporter::ELogSeverity_Critical:
-							SeverityColor = CriticalColor;
-							break;
+						case CDistributedAppLogReporter::ELogSeverity_Critical: SeverityColor = CriticalColor; break;
 						case CDistributedAppLogReporter::ELogSeverity_Error:
 							if (Data.m_Operations.f_Contains(gc_Str<"StdErr">.m_Str) >= 0)
 							{
@@ -755,9 +740,7 @@ namespace NMib::NConcurrency
 							else
 								SeverityColor = AnsiEncoding.f_StatusError();
 							break;
-						case CDistributedAppLogReporter::ELogSeverity_Warning:
-							SeverityColor = AnsiEncoding.f_StatusWarning();
-							break;
+						case CDistributedAppLogReporter::ELogSeverity_Warning: SeverityColor = AnsiEncoding.f_StatusWarning(); break;
 						case CDistributedAppLogReporter::ELogSeverity_Info:
 							if (Data.m_Operations.f_Contains(gc_Str<"StdOut">.m_Str) >= 0)
 							{
@@ -776,7 +759,6 @@ namespace NMib::NConcurrency
 							break;
 						}
 					}
-
 
 					if (SeverityColor)
 						Severity = ("{}{}{}"_f << SeverityColor << Severity << AnsiEncoding.f_Default()).f_GetStr();
@@ -880,7 +862,7 @@ namespace NMib::NConcurrency
 		co_return 0;
 	}
 
-	TCFuture<uint32> CDistributedAppActor::f_CommandLine_LogEntriesList
+	auto CDistributedAppActor::f_CommandLine_LogEntriesList
 		(
 			TCSharedPointer<CCommandLineControl> _pCommandLine
 			, CDistributedAppLogReader_LogEntryFilter _Filter
@@ -889,23 +871,13 @@ namespace NMib::NConcurrency
 			, uint32 _Verbosity
 			, CStr _TableType
 		)
+		-> TCFuture<uint32>
 	{
 		auto LocalStore = co_await fp_OpenLogStoreLocal();
 		auto EntriesGenerator = co_await LocalStore(&CDistributedAppLogStoreLocal::f_GetLogEntries, CDistributedAppLogReader::CGetLogEntries{.m_Filters = {_Filter}});
 		auto LogsGenerator = co_await LocalStore(&CDistributedAppLogStoreLocal::f_GetLogs, CDistributedAppLogReader::CGetLogs{.m_Filters = {_Filter.m_LogFilter}});
 
-		co_await f_CommandLine_LogEntriesOutput
-			(
-				_pCommandLine
-				, fg_Move(EntriesGenerator)
-				, fg_Move(LogsGenerator)
-				, _MaxEntries
-				, _Flags
-				, _Verbosity
-				, _TableType
-				, _Filter
-			)
-		;
+		co_await f_CommandLine_LogEntriesOutput(_pCommandLine, fg_Move(EntriesGenerator), fg_Move(LogsGenerator), _MaxEntries, _Flags, _Verbosity, _TableType, _Filter);
 
 		co_return 0;
 	}

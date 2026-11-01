@@ -22,7 +22,6 @@ namespace NMib::NConcurrency
 			m_Promise.f_SetException(DMibErrorInstance("Aborted"));
 	}
 
-
 	TCFuture<void> CDistributedApp_LaunchInfoData::f_Destroy()
 	{
 		if (m_InProcess)
@@ -41,13 +40,14 @@ namespace NMib::NConcurrency
 		return m_InProcess(&CDistributedAppInProcessActor::f_Test_Command, fg_Move(_Command), fg_Move(_Params));
 	}
 
-	TCFuture<uint32> CDistributedApp_LaunchInfoData::f_RunCommandLine
+	auto CDistributedApp_LaunchInfoData::f_RunCommandLine
 		(
 			CCallingHostInfo &&_CallingHost
 			, NStr::CStr &&_Command
 			, NEncoding::CEJsonSorted &&_Params
 			, NStorage::TCSharedPointer<CCommandLineControl> &&_pCommandLine
 		)
+		-> TCFuture<uint32>
 	{
 		if (!m_InProcess)
 			return DMibErrorInstance("No in process actor");
@@ -78,7 +78,6 @@ namespace NMib::NConcurrency
 		return fg_Move(Promise.m_Future);
 	}
 
-
 	CDistributedApp_LaunchInfo::CDistributedApp_LaunchInfo(CDistributedApp_LaunchInfoData const &_LaunchInfo, CActorSubscription &&_Subscription)
 		: CDistributedApp_LaunchInfoData{_LaunchInfo}
 		, m_Subscription(fg_Move(_Subscription))
@@ -89,12 +88,13 @@ namespace NMib::NConcurrency
 	CDistributedApp_LaunchInfoData::CDistributedApp_LaunchInfoData() = default;
 	CDistributedApp_LaunchInfoData::~CDistributedApp_LaunchInfoData() = default;
 
-	TCFuture<TCActorSubscriptionWithID<>> CDistributedApp_LaunchHelper::CDistributedAppInterfaceServerImplementation::f_RegisterDistributedApp
+	auto CDistributedApp_LaunchHelper::CDistributedAppInterfaceServerImplementation::f_RegisterDistributedApp
 		(
 			TCDistributedActorInterfaceWithID<CDistributedAppInterfaceClient> _ClientInterface
 			, TCDistributedActorInterfaceWithID<CDistributedActorTrustManagerInterface> _TrustInterface
 			, CRegisterInfo _RegisterInfo
 		)
+		-> TCFuture<TCActorSubscriptionWithID<>>
 	{
 		if (!_ClientInterface)
 			co_return DMibErrorInstance("Invalid client interface");
@@ -120,8 +120,7 @@ namespace NMib::NConcurrency
 			if (_TrustInterface)
 				LaunchInfo.m_pTrustInterface = fg_Construct(fg_Move(_TrustInterface));
 
-			LaunchInfo.m_pClientInterface->f_CallActor(&CDistributedAppInterfaceClient::f_GetAppStartResult)()
-				> [LaunchID, pThis](TCAsyncResult<void> &&_LaunchResult)
+			LaunchInfo.m_pClientInterface->f_CallActor(&CDistributedAppInterfaceClient::f_GetAppStartResult)() > [LaunchID, pThis](TCAsyncResult<void> &&_LaunchResult)
 				{
 					auto *pLaunch = pThis->m_Launches.f_FindEqual(LaunchID);
 					if (!pLaunch)
@@ -148,19 +147,28 @@ namespace NMib::NConcurrency
 				}
 			;
 
-			co_return g_ActorSubscription / []{};
+			co_return g_ActorSubscription / []
+				{
+				}
+			;
 		}
 		auto &PendingLaunch = pThis->m_PendingLaunches[HostID];
 		PendingLaunch.m_pClientInterface = fg_Construct(fg_Move(_ClientInterface));
 		if (_TrustInterface)
 			PendingLaunch.m_pTrustInterface = fg_Construct(fg_Move(_TrustInterface));
 
-		co_return g_ActorSubscription / []{};
+		co_return g_ActorSubscription / []
+			{
+			}
+		;
 	}
 
 	TCFuture<TCActorSubscriptionWithID<>> CDistributedApp_LaunchHelper::CDistributedAppInterfaceServerImplementation::f_RegisterConfigFiles(CConfigFiles _ConfigFiles)
 	{
-		co_return g_ActorSubscription / []{};
+		co_return g_ActorSubscription / []
+			{
+			}
+		;
 	}
 
 	TCFuture<TCDistributedActorInterfaceWithID<CDistributedAppSensorReporter>> CDistributedApp_LaunchHelper::CDistributedAppInterfaceServerImplementation::f_GetSensorReporter()
@@ -178,8 +186,7 @@ namespace NMib::NConcurrency
 		, m_bLogToStderr(_bLogToStderr)
 		, m_bNoColor(_bNoColor)
 	{
-		m_AppInterfaceServer.f_Publish<CDistributedAppInterfaceServer>(m_Dependencies.m_DistributionManager, this)
-			> [](TCAsyncResult<void> &&_Result)
+		m_AppInterfaceServer.f_Publish<CDistributedAppInterfaceServer>(m_Dependencies.m_DistributionManager, this) > [](TCAsyncResult<void> &&_Result)
 			{
 				if (!_Result)
 					DMibLog(Info, "Failed to publish app interface server: {}", _Result.f_GetExceptionStr());
@@ -253,13 +260,14 @@ namespace NMib::NConcurrency
 		;
 	}
 
-	TCFuture<CDistributedApp_LaunchInfo> CDistributedApp_LaunchHelper::f_LaunchInProcess
+	auto CDistributedApp_LaunchHelper::f_LaunchInProcess
 		(
 			NStr::CStr _Description
 			, NStr::CStr _HomeDirectory
 			, NFunction::TCFunction<TCActor<CDistributedAppActor> ()> _fDistributedAppFactory
 			, NContainer::TCVector<NStr::CStr> _Params
 		)
+		-> TCFuture<CDistributedApp_LaunchInfo>
 	{
 		NStr::CStr LaunchID = NCryptography::fg_RandomID(m_Launches);
 		auto &LaunchInfo = m_Launches[LaunchID];
@@ -270,8 +278,7 @@ namespace NMib::NConcurrency
 			(
 				m_Dependencies.m_Address
 				, m_Dependencies.m_TrustManager
-				, g_ActorFunctor
-				/ [this, LaunchID](NStr::CStr _HostID, CCallingHostInfo _HostInfo, NContainer::CByteVector _CertificateRequest) -> TCFuture<void>
+				, g_ActorFunctor / [this, LaunchID](NStr::CStr _HostID, CCallingHostInfo _HostInfo, NContainer::CByteVector _CertificateRequest) -> TCFuture<void>
 				{
 					auto *pLaunch = m_Launches.f_FindEqual(LaunchID);
 					DMibCheck(pLaunch);
@@ -283,8 +290,8 @@ namespace NMib::NConcurrency
 			)
 		;
 
-		LaunchInfo.m_InProcess(&CDistributedAppInProcessActor::f_Launch, _HomeDirectory, fg_Move(_fDistributedAppFactory), fg_Move(_Params))
-			> [this, LaunchID](TCAsyncResult<NStr::CStr> &&_HostID)
+		LaunchInfo.m_InProcess(&CDistributedAppInProcessActor::f_Launch, _HomeDirectory, fg_Move(_fDistributedAppFactory), fg_Move(_Params)) > [this, LaunchID]
+			(TCAsyncResult<NStr::CStr> &&_HostID)
 			{
 				auto *pLaunch = m_Launches.f_FindEqual(LaunchID);
 				if (!pLaunch)
@@ -322,19 +329,12 @@ namespace NMib::NConcurrency
 		co_return co_await Promise.f_MoveFuture();
 	}
 
-	auto CDistributedApp_LaunchHelper::f_Launch(NStr::CStr _Description, NStr::CStr _Executable)
-		-> TCFuture<CDistributedApp_LaunchInfo>
+	auto CDistributedApp_LaunchHelper::f_Launch(NStr::CStr _Description, NStr::CStr _Executable) -> TCFuture<CDistributedApp_LaunchInfo>
 	{
 		return f_LaunchWithParams(_Description, _Executable, {}, {});
 	}
 
-	auto CDistributedApp_LaunchHelper::f_LaunchWithParams
-		(
-			NStr::CStr _Description
-			, NStr::CStr _Executable
-			, NContainer::TCVector<NStr::CStr> _ExtraParams
-			, CSystemEnvironment _Environment
-		)
+	auto CDistributedApp_LaunchHelper::f_LaunchWithParams(NStr::CStr _Description, NStr::CStr _Executable, NContainer::TCVector<NStr::CStr> _ExtraParams, CSystemEnvironment _Environment)
 		-> TCFuture<CDistributedApp_LaunchInfo>
 	{
 		NContainer::TCVector<NStr::CStr> Params;
@@ -376,12 +376,8 @@ namespace NMib::NConcurrency
 		return f_LaunchWithLaunch(_Description, fg_Move(Launch), nullptr);
 	}
 
-	TCFuture<CDistributedApp_LaunchInfo> CDistributedApp_LaunchHelper::f_LaunchWithLaunch
-		(
-			NStr::CStr _Description
-			, NProcess::CProcessLaunchActor::CLaunch _Launch
-			, TCActor<CActor> _NotificationActor
-		)
+	auto CDistributedApp_LaunchHelper::f_LaunchWithLaunch(NStr::CStr _Description, NProcess::CProcessLaunchActor::CLaunch _Launch, TCActor<CActor> _NotificationActor)
+		-> TCFuture<CDistributedApp_LaunchInfo>
 	{
 		NStr::CStr LaunchID = NCryptography::fg_RandomID(m_Launches);
 		auto &LaunchInfo = m_Launches[LaunchID];
@@ -392,8 +388,7 @@ namespace NMib::NConcurrency
 			(
 				m_Dependencies.m_Address
 				, m_Dependencies.m_TrustManager
-				, g_ActorFunctor
-				/ [this, LaunchID](NStr::CStr _HostID, CCallingHostInfo _HostInfo, NContainer::CByteVector _CertificateRequest) -> TCFuture<void>
+				, g_ActorFunctor / [this, LaunchID](NStr::CStr _HostID, CCallingHostInfo _HostInfo, NContainer::CByteVector _CertificateRequest) -> TCFuture<void>
 				{
 					auto *pLaunch = m_Launches.f_FindEqual(LaunchID);
 					DMibCheck(pLaunch);
@@ -429,8 +424,7 @@ namespace NMib::NConcurrency
 							Promise.f_SetException(DMibErrorInstance(NStr::fg_Format("Launch exited unexpectedly: {}", _State.f_Get<NProcess::EProcessLaunchState_Exited>())));
 						break;
 					}
-				case NProcess::EProcessLaunchState_Launched:
-					break;
+				case NProcess::EProcessLaunchState_Launched: break;
 				}
 
 				if (fOriginalOnStateChange)

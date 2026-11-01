@@ -82,13 +82,14 @@ namespace NMib::NConcurrency
 		return _Namespace.f_StartsWith("Anonymous/");
 	}
 
-	TCFuture<CDistributedActorPublication> CActorDistributionManager::fp_PublishActor
+	auto CActorDistributionManager::fp_PublishActor
 		(
 			TCDistributedActor<CActor> _Actor
 			, NStr::CStr _Namespace
 			, NPrivate::CDistributedActorInterfaceInfo _ClassesToPublish
 			, fp32 _WaitForPublicationsTimeout
 		)
+		-> TCFuture<CDistributedActorPublication>
 	{
 		if (!CActorDistributionManager::fs_IsValidNamespaceName(_Namespace))
 			co_return DMibErrorInstance("Invalid namespace name");
@@ -538,14 +539,7 @@ namespace NMib::NConcurrency
 		if (!DistributionManager)
 			return {};
 
-		return fg_ConstructRemoteDistributedActor<CActor>
-			(
-				DistributionManager
-				, mp_ActorID
-				, mp_pHost
-				, Version
-			)
-		;
+		return fg_ConstructRemoteDistributedActor<CActor>(DistributionManager, mp_ActorID, mp_pHost, Version);
 	}
 
 	NContainer::TCVector<uint32> const &CAbstractDistributedActor::f_GetTypeHashes() const
@@ -553,12 +547,7 @@ namespace NMib::NConcurrency
 		return mp_InheritanceHierarchy;
 	}
 
-	void CActorDistributionManagerInternal::fp_NotifyNewActor
-		(
-			NStorage::TCSharedPointerSupportWeak<CHost> const &_pHost
-			, CRemoteActor &_RemoteActor
-			, TCFutureVector<void> *_pResults
-		)
+	void CActorDistributionManagerInternal::fp_NotifyNewActor(NStorage::TCSharedPointerSupportWeak<CHost> const &_pHost, CRemoteActor &_RemoteActor, TCFutureVector<void> *_pResults)
 	{
 		CAbstractDistributedActor AbstractActor
 			{
@@ -962,13 +951,14 @@ namespace NMib::NConcurrency
 		;
 	}
 
-	TCFuture<CActorSubscription> CActorDistributionManager::f_SubscribeActors
+	auto CActorDistributionManager::f_SubscribeActors
 		(
 			NStr::CStr _Namespace
 			, TCActor<CActor> _Actor
 			, NFunction::TCFunctionMovable<TCFuture<void> (CAbstractDistributedActor &&_NewActor)> _fOnNewActor
 			, NFunction::TCFunctionMovable<TCFuture<void> (CDistributedActorIdentifier &&_RemovedActor)> _fOnRemovedActor
 		)
+		-> TCFuture<CActorSubscription>
 	{
 		auto &Internal = *mp_pInternal;
 		NStorage::TCSharedPointer<NFunction::TCFunctionMovable<TCFuture<void> (CAbstractDistributedActor &&_NewActor)>> pOnNewActor = fg_Construct(fg_Move(_fOnNewActor));
@@ -988,11 +978,7 @@ namespace NMib::NConcurrency
 		TCFutureVector<void> ReportResults;
 		auto fReportExistingActor = [&](CAbstractDistributedActor &&_RemoteActor)
 			{
-				_Actor.f_Bind<&CActor::f_DispatchWithReturnShared<TCFuture<void>, CAbstractDistributedActor>, EVirtualCall::mc_NotVirtual>
-					(
-						fg_TempCopy(pOnNewActor)
-						, fg_Move(_RemoteActor)
-					)
+				_Actor.f_Bind<&CActor::f_DispatchWithReturnShared<TCFuture<void>, CAbstractDistributedActor>, EVirtualCall::mc_NotVirtual>(fg_TempCopy(pOnNewActor), fg_Move(_RemoteActor))
 					> ReportResults
 				;
 			}
@@ -1041,7 +1027,15 @@ namespace NMib::NConcurrency
 
 			if (auto *pRemoteNamespace = Internal.m_RemoteNamespaces.f_FindEqual(_Namespace))
 			{
-				DMibLogWithCategory(Mib/Concurrency/Distribution, SubscriptionLogVerbosity, "   <{}> Low level subscribe report: {}", SubscriptionID, pRemoteNamespace->m_RemoteActors.f_GetLen());
+				DMibLogWithCategory
+					(
+						Mib/Concurrency/Distribution
+						, SubscriptionLogVerbosity
+						, "   <{}> Low level subscribe report: {}"
+						, SubscriptionID
+						, pRemoteNamespace->m_RemoteActors.f_GetLen()
+					)
+				;
 				fReportExistingNamespace(*pRemoteNamespace);
 			}
 		}

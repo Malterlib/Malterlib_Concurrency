@@ -47,7 +47,7 @@ namespace NMib::NConcurrency
 		*this << ActorID;
 	}
 
-	TCDistributedActor<> CDistributedActorReadStream::f_ConsumeInterface
+	auto CDistributedActorReadStream::f_ConsumeInterface
 		(
 			uint32 _TypeHash
 			, CDistributedActorProtocolVersions const &_SupportedVersions
@@ -56,6 +56,7 @@ namespace NMib::NConcurrency
 			, CActorSubscription &o_Subscription
 			, uint32 &o_SubscriptionID
 		)
+		-> TCDistributedActor<>
 	{
 		auto &State = f_GetState();
 		uint32 SequenceID;

@@ -16,15 +16,13 @@ namespace NMib::NConcurrency
 	using namespace NException;
 
 	template <typename t_CCommandLineSpecification>
- 	typename t_CCommandLineSpecification::CCommand CCommandLineSpecificationDistributedAppCustomization::TCSection<t_CCommandLineSpecification>::CSection::f_RegisterCommand
+	auto CCommandLineSpecificationDistributedAppCustomization::TCSection<t_CCommandLineSpecification>::CSection::f_RegisterCommand
 		(
 			NEncoding::CEJsonOrdered &&_CommandDescription
-			, NFunction::TCFunctionMovable
-			<
-				TCFuture<uint32> (NEncoding::CEJsonSorted &&_Params, NStorage::TCSharedPointer<CCommandLineControl> &&_pCommandLine)
-			> &&_fRunCommand
+			, NFunction::TCFunctionMovable<TCFuture<uint32> (NEncoding::CEJsonSorted &&_Params, NStorage::TCSharedPointer<CCommandLineControl> &&_pCommandLine)> &&_fRunCommand
 			, EDistributedAppCommandFlag _Flags
 		)
+		-> typename t_CCommandLineSpecification::CCommand
 	{
 		typename t_CCommandLineSpecification::CInternal::CSection *pSection = fg_AutoStaticCast(this->mp_pSection);
 		auto &Section = *pSection;
@@ -36,12 +34,13 @@ namespace NMib::NConcurrency
 	}
 
 	template <typename t_CCommandLineSpecification>
-	typename t_CCommandLineSpecification::CCommand CCommandLineSpecificationDistributedAppCustomization::TCSection<t_CCommandLineSpecification>::CSection::f_RegisterDirectCommand
+	auto CCommandLineSpecificationDistributedAppCustomization::TCSection<t_CCommandLineSpecification>::CSection::f_RegisterDirectCommand
 		(
 			NEncoding::CEJsonOrdered &&_CommandDescription
 			, NFunction::TCFunctionMovable<uint32 (NEncoding::CEJsonSorted &&_Parameters, CCommandLineClient &_CommandLineClient)> &&_fRunCommand
 			, EDistributedAppCommandFlag _Flags
 		)
+		-> typename t_CCommandLineSpecification::CCommand
 	{
 		typename t_CCommandLineSpecification::CInternal::CSection *pSection = fg_AutoStaticCast(this->mp_pSection);
 		auto &Section = *pSection;
@@ -52,23 +51,18 @@ namespace NMib::NConcurrency
 		return typename t_CCommandLineSpecification::CCommand(this->mp_pInternal, pCommand);
 	}
 
-	template auto
-	CCommandLineSpecificationDistributedAppCustomization::TCSection<TCCommandLineSpecification<CCommandLineSpecificationDistributedAppCustomization>>::CSection::
-	f_RegisterCommand
+	template auto CCommandLineSpecificationDistributedAppCustomization::TCSection<TCCommandLineSpecification<CCommandLineSpecificationDistributedAppCustomization>>::CSection
+		::f_RegisterCommand
 		(
 			NEncoding::CEJsonOrdered &&_CommandDescription
-			, NFunction::TCFunctionMovable
-			<
-				TCFuture<uint32> (NEncoding::CEJsonSorted &&_Params, NStorage::TCSharedPointer<CCommandLineControl> &&_pCommandLine)
-			> &&_fRunCommand
+			, NFunction::TCFunctionMovable<TCFuture<uint32> (NEncoding::CEJsonSorted &&_Params, NStorage::TCSharedPointer<CCommandLineControl> &&_pCommandLine)> &&_fRunCommand
 			, EDistributedAppCommandFlag _Flags
 		)
 		-> TCCommandLineSpecification<CCommandLineSpecificationDistributedAppCustomization>::CCommand
 	;
 
-	template auto
-	CCommandLineSpecificationDistributedAppCustomization::TCSection<TCCommandLineSpecification<CCommandLineSpecificationDistributedAppCustomization>>::CSection::
-	f_RegisterDirectCommand
+	template auto CCommandLineSpecificationDistributedAppCustomization::TCSection<TCCommandLineSpecification<CCommandLineSpecificationDistributedAppCustomization>>::CSection
+		::f_RegisterDirectCommand
 		(
 			NEncoding::CEJsonOrdered &&_CommandDescription
 			, NFunction::TCFunctionMovable<uint32 (NEncoding::CEJsonSorted &&_Parameters, CCommandLineClient &_CommandLineClient)> &&_fRunCommand
@@ -85,22 +79,12 @@ namespace NMib::NCommandLine
 
 namespace NMib::NConcurrency
 {
-	TCFuture<void> CDistributedAppActor::fp_PreRunCommandLine
-		(
-			 CStr _Command
-			 , CEJsonSorted const _Params
-			 , TCSharedPointer<CCommandLineControl> _pCommandLine
-		)
+	TCFuture<void> CDistributedAppActor::fp_PreRunCommandLine(CStr _Command, CEJsonSorted const _Params, TCSharedPointer<CCommandLineControl> _pCommandLine)
 	{
 		co_return {};
 	}
 
-	TCFuture<uint32> CDistributedAppActor::f_RunCommandLine
-		(
-			CStr _Command
-			, CEJsonSorted const _Params
-			, TCSharedPointer<CCommandLineControl> _pCommandLine
-		)
+	TCFuture<uint32> CDistributedAppActor::f_RunCommandLine(CStr _Command, CEJsonSorted const _Params, TCSharedPointer<CCommandLineControl> _pCommandLine)
 	{
 		auto &Internal = *mp_pInternal;
 
@@ -179,11 +163,7 @@ namespace NMib::NConcurrency
 		}
 	}
 
-	TCFuture<uint32> CDistributedAppActor::fp_RunCommandLineAndLogError
-		(
-			CStr _Description
-			, NFunction::TCFunctionMovable<TCFuture<uint32> ()> _fCommand
-		)
+	TCFuture<uint32> CDistributedAppActor::fp_RunCommandLineAndLogError(CStr _Description, NFunction::TCFunctionMovable<TCFuture<uint32> ()> _fCommand)
 	{
 		auto Result = co_await fg_Dispatch(fg_Move(_fCommand)).f_Wrap();
 

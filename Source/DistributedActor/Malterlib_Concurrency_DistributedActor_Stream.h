@@ -14,30 +14,30 @@ namespace NMib::NConcurrency
 	{
 		EDistributedActorProtocolVersion_Min = 0x102
 
-		, EDistributedActorProtocolVersion_InitialPublishFinishedSupported = 0x103
-		, EDistributedActorProtocolVersion_ClaimedSubscriptionsSupported = 0x104
-		, EDistributedActorProtocolVersion_SubscriptionDestroyedSupported = 0x105
-		, EDistributedActorProtocolVersion_GeneralExceptionsSupported = 0x106
+		, EDistributedActorProtocolVersion_InitialPublishFinishedSupported      = 0x103
+		, EDistributedActorProtocolVersion_ClaimedSubscriptionsSupported        = 0x104
+		, EDistributedActorProtocolVersion_SubscriptionDestroyedSupported       = 0x105
+		, EDistributedActorProtocolVersion_GeneralExceptionsSupported           = 0x106
 		, EDistributedActorProtocolVersion_LostConnectionNotificationsSupported = 0x107
-		, EDistributedActorProtocolVersion_WaitForRemotePublishProcessing = 0x108
-		, EDistributedActorProtocolVersion_PipelinedAsyncGenerators = 0x109
-		, EDistributedActorProtocolVersion_MultipleAuthenticationHandlers = 0x10A
-		, EDistributedActorProtocolVersion_PrioritySupport = 0x10B
-		, EDistributedActorProtocolVersion_FrameSizes = 0x10C
-		, EDistributedActorProtocolVersion_ExceptionStreamVersions = 0x10D
+		, EDistributedActorProtocolVersion_WaitForRemotePublishProcessing       = 0x108
+		, EDistributedActorProtocolVersion_PipelinedAsyncGenerators             = 0x109
+		, EDistributedActorProtocolVersion_MultipleAuthenticationHandlers       = 0x10A
+		, EDistributedActorProtocolVersion_PrioritySupport                      = 0x10B
+		, EDistributedActorProtocolVersion_FrameSizes                           = 0x10C
+		, EDistributedActorProtocolVersion_ExceptionStreamVersions              = 0x10D
 
 		, EDistributedActorProtocolVersion_Current = 0x10D
 	};
 
-	static constexpr const uint32 gc_SubscriptionNotRequired = TCLimitsInt<uint32>::mc_Max - uint32(65536);
+	static constexpr uint32 const gc_SubscriptionNotRequired = TCLimitsInt<uint32>::mc_Max - uint32(65536);
 
 	template <uint32 t_SubscriptionID = 0>
 	struct TCActorSubscriptionWithID : public CActorSubscription
 	{
 		TCActorSubscriptionWithID(TCActorSubscriptionWithID &&) = default;
-		TCActorSubscriptionWithID & operator = (TCActorSubscriptionWithID &&) = default;
+		TCActorSubscriptionWithID &operator = (TCActorSubscriptionWithID &&) = default;
 		TCActorSubscriptionWithID(TCActorSubscriptionWithID const &) = delete;
-		TCActorSubscriptionWithID & operator = (TCActorSubscriptionWithID const &) = delete;
+		TCActorSubscriptionWithID &operator = (TCActorSubscriptionWithID const &) = delete;
 
 		TCActorSubscriptionWithID(CNullPtr);
 		TCActorSubscriptionWithID(uint32 _SubscriptionID = t_SubscriptionID);
@@ -61,9 +61,9 @@ namespace NMib::NConcurrency
 	{
 		TCActorFunctorWithID() = default;
 		TCActorFunctorWithID(TCActorFunctorWithID &&) = default;
-		TCActorFunctorWithID & operator = (TCActorFunctorWithID &&) = default;
+		TCActorFunctorWithID &operator = (TCActorFunctorWithID &&) = default;
 		TCActorFunctorWithID(TCActorFunctorWithID const &) = delete;
-		TCActorFunctorWithID & operator = (TCActorFunctorWithID const &) = delete;
+		TCActorFunctorWithID &operator = (TCActorFunctorWithID const &) = delete;
 
 		TCActorFunctorWithID(CNullPtr);
 		TCActorFunctorWithID(TCActorFunctor<t_CFunction> &&_ActorFunctor);
@@ -88,9 +88,9 @@ namespace NMib::NConcurrency
 	{
 		TCAsyncGeneratorWithID() = default;
 		TCAsyncGeneratorWithID(TCAsyncGeneratorWithID &&) = default;
-		TCAsyncGeneratorWithID & operator = (TCAsyncGeneratorWithID &&) = default;
+		TCAsyncGeneratorWithID &operator = (TCAsyncGeneratorWithID &&) = default;
 		TCAsyncGeneratorWithID(TCAsyncGeneratorWithID const &) = delete;
-		TCAsyncGeneratorWithID & operator = (TCAsyncGeneratorWithID const &) = delete;
+		TCAsyncGeneratorWithID &operator = (TCAsyncGeneratorWithID const &) = delete;
 
 		TCAsyncGeneratorWithID(CNullPtr);
 		TCAsyncGeneratorWithID(TCAsyncGenerator<t_CReturnType> &&_ActorFunctor, uint32 _SubscriptionID = t_SubscriptionID);
@@ -116,18 +116,12 @@ namespace NMib::NConcurrency
 	{
 		TCDistributedActorInterfaceWithID() = default;
 		TCDistributedActorInterfaceWithID(TCDistributedActorInterfaceWithID &&) = default;
-		TCDistributedActorInterfaceWithID & operator = (TCDistributedActorInterfaceWithID &&) = default;
+		TCDistributedActorInterfaceWithID &operator = (TCDistributedActorInterfaceWithID &&) = default;
 		TCDistributedActorInterfaceWithID(TCDistributedActorInterfaceWithID const &) = delete;
-		TCDistributedActorInterfaceWithID & operator = (TCDistributedActorInterfaceWithID const &) = delete;
+		TCDistributedActorInterfaceWithID &operator = (TCDistributedActorInterfaceWithID const &) = delete;
 
 		TCDistributedActorInterfaceWithID(CNullPtr);
-		TCDistributedActorInterfaceWithID
-			(
-				TCDistributedActorInterfaceShare<t_CInterface> &&_Share
-				, CActorSubscription &&_Subscription = nullptr
-				, uint32 _SubscriptionID = t_SubscriptionID
-			)
-		;
+		TCDistributedActorInterfaceWithID(TCDistributedActorInterfaceShare<t_CInterface> &&_Share, CActorSubscription &&_Subscription = nullptr, uint32 _SubscriptionID = t_SubscriptionID);
 
 		uint32 f_GetID() const;
 		void f_SetID(uint32 _SubcriptionID);
@@ -149,13 +143,17 @@ namespace NMib::NConcurrency
 		DMibIfNotSupportMemberNameFromMemberPointer(, uint32 tf_NameHash)
 		, EVirtualCall tf_VirtualCall
 		, typename tf_CActor
-		, typename... tfp_CParams
+		, typename ...tfp_CParams
 	>
-	auto fg_CallActor(TCDistributedActorInterface<tf_CActor> &&_Actor, tfp_CParams && ...p_Params)
-		-> NPrivate::TCFutureReturn<decltype(tf_pMemberFunction)>
+	auto fg_CallActor(TCDistributedActorInterface<tf_CActor> &&_Actor, tfp_CParams && ...p_Params) -> NPrivate::TCFutureReturn<decltype(tf_pMemberFunction)>
 		requires cActorCallableWithFunctor<tf_pMemberFunction, tf_CActor, tfp_CParams...>
 	{
-		return fg_CallActor<tf_pMemberFunction DMibIfNotSupportMemberNameFromMemberPointer(, tf_NameHash), tf_VirtualCall>(fg_Move(_Actor.f_GetActor()), fg_Forward<tfp_CParams>(p_Params)...);
+		return fg_CallActor<tf_pMemberFunction DMibIfNotSupportMemberNameFromMemberPointer(, tf_NameHash), tf_VirtualCall>
+			(
+				fg_Move(_Actor.f_GetActor())
+				, fg_Forward<tfp_CParams>(p_Params)...
+			)
+		;
 	}
 
 	template
@@ -165,13 +163,17 @@ namespace NMib::NConcurrency
 		, EVirtualCall tf_VirtualCall
 		, typename tf_CInterface
 		, uint32 tf_SubscriptionID
-		, typename... tfp_CParams
+		, typename ...tfp_CParams
 	>
-	auto fg_CallActor(TCDistributedActorInterfaceWithID<tf_CInterface, tf_SubscriptionID> &&_Actor, tfp_CParams && ...p_Params)
-		-> NPrivate::TCFutureReturn<decltype(tf_pMemberFunction)>
+	auto fg_CallActor(TCDistributedActorInterfaceWithID<tf_CInterface, tf_SubscriptionID> &&_Actor, tfp_CParams && ...p_Params) -> NPrivate::TCFutureReturn<decltype(tf_pMemberFunction)>
 		requires cActorCallableWithFunctor<tf_pMemberFunction, tf_CInterface, tfp_CParams...>
 	{
-		return fg_CallActor<tf_pMemberFunction DMibIfNotSupportMemberNameFromMemberPointer(, tf_NameHash), tf_VirtualCall>(fg_Move(_Actor.f_GetActor()), fg_Forward<tfp_CParams>(p_Params)...);
+		return fg_CallActor<tf_pMemberFunction DMibIfNotSupportMemberNameFromMemberPointer(, tf_NameHash), tf_VirtualCall>
+			(
+				fg_Move(_Actor.f_GetActor())
+				, fg_Forward<tfp_CParams>(p_Params)...
+			)
+		;
 	}
 
 #define DMibDistributedStreamDeclare(d_Class) DMibStreamDeclare(d_Class, NConcurrency::CDistributedActorWriteStream, Feed); \
@@ -182,7 +184,7 @@ namespace NMib::NConcurrency
 }
 
 #ifndef DMibPNoShortCuts
-	using namespace NMib::NConcurrency;
+using namespace NMib::NConcurrency;
 #endif
 
 #include "Malterlib_Concurrency_DistributedActor_Stream_Private.h"

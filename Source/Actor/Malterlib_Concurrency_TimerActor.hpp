@@ -44,12 +44,14 @@ namespace NMib::NConcurrency
 	}
 
 	template <typename t_CReturn, typename t_CActor, typename t_FFunctionPointer, CBindActorOptions t_BindOptions, bool t_bByValue, typename ...tp_CParams>
-	TCFuture<t_CReturn> TCBoundActorCall<TCFuture<t_CReturn>, t_CActor, t_FFunctionPointer, t_BindOptions, t_bByValue, tp_CParams...>::f_Timeout
+	auto TCBoundActorCall<TCFuture<t_CReturn>, t_CActor, t_FFunctionPointer, t_BindOptions, t_bByValue, tp_CParams...>::f_Timeout
 		(
 			fp64 _Timeout
 			, NStr::CStr const &_TimeoutMessage
 			, bool _bFireAtExit
-		) &&
+		)
+		&&
+		-> TCFuture<t_CReturn>
 	{
 		TCPromiseFuturePair<t_CReturn> Promise;
 		NStorage::TCSharedPointer<NAtomic::CAtomicFlag> pReplied = fg_Construct();

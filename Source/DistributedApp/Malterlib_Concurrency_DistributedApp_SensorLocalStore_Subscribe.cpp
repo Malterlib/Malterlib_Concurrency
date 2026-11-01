@@ -353,11 +353,7 @@ namespace NMib::NConcurrency
 		}
 	}
 
-	void CDistributedAppSensorStoreLocal::CInternal::f_Subscription_SensorInfoChanged
-		(
-			CSensor const &_Sensor
-			, CKnownHostValue const *_pKnownHostValue
-		)
+	void CDistributedAppSensorStoreLocal::CInternal::f_Subscription_SensorInfoChanged(CSensor const &_Sensor, CKnownHostValue const *_pKnownHostValue)
 	{
 		if (m_SensorSubscriptions.f_IsEmpty())
 			return;

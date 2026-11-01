@@ -210,14 +210,7 @@ namespace NMib::NConcurrency
 				if (!fGetNext.f_IsEmpty())
 					pFunction = fg_Construct<NPrivate::TCStreamingFunctionAsyncGenerator<t_CReturnType>>(fg_Move(fGetNext.f_GetFunctor()), this->mp_pData->m_bIsCoroutine);
 
-				_Stream.f_FeedActorFunctor
-					(
-						fg_Move(fGetNext.f_GetActor())
-						, fg_Move(pFunction)
-						, pContext->f_GetAutomaticNotRequiredSubscriptionID()
-						, fg_Move(fGetNext.f_GetSubscription())
-					)
-				;
+				_Stream.f_FeedActorFunctor(fg_Move(fGetNext.f_GetActor()), fg_Move(pFunction), pContext->f_GetAutomaticNotRequiredSubscriptionID(), fg_Move(fGetNext.f_GetSubscription()));
 			}
 		}
 	}
@@ -299,18 +292,10 @@ namespace NMib::NConcurrency
 				if (!fGetNext.f_IsEmpty())
 					pFunction = fg_Construct<NPrivate::TCStreamingFunctionAsyncGenerator<t_CReturnType>>(fg_Move(fGetNext.f_GetFunctor()), this->mp_pData->m_bIsCoroutine);
 
-				_Stream.f_FeedActorFunctor
-					(
-						fg_Move(fGetNext.f_GetActor())
-						, fg_Move(pFunction)
-						, mp_SubscriptionID
-						, fg_Move(fGetNext.f_GetSubscription())
-					)
-				;
+				_Stream.f_FeedActorFunctor(fg_Move(fGetNext.f_GetActor()), fg_Move(pFunction), mp_SubscriptionID, fg_Move(fGetNext.f_GetSubscription()));
 			}
 		}
 	}
 }
-
 
 #include "Malterlib_Concurrency_DistributedActor_Stream_Call.hpp"

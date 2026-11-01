@@ -34,8 +34,7 @@ namespace NMib::NConcurrency
 		NContainer::TCMap<NStr::CStr, NEncoding::CEJsonSorted> m_PublicData;
 		NContainer::TCMap<NStr::CStr, NEncoding::CEJsonSorted> m_PrivateData;
 	};
-
 }
 #ifndef DMibPNoShortCuts
-	using namespace NMib::NConcurrency;
+using namespace NMib::NConcurrency;
 #endif

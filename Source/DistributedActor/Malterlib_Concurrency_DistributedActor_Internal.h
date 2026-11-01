@@ -127,12 +127,7 @@ namespace NMib::NConcurrency::NActorDistributionManagerInternal
 #endif
 
 	bool fg_IsAuthenticatedUnixScheme(NStr::CStr const &_Scheme);
-	auto fg_VerifyOptionsFromKeySetting
-		(
-			NCryptography::CPublicKeySetting const &_KeySetting
-			, bool _bHasLocalCertificate
-			, NContainer::CByteVector const &_AuthorityCertificate
-		)
+	auto fg_VerifyOptionsFromKeySetting(NCryptography::CPublicKeySetting const &_KeySetting, bool _bHasLocalCertificate, NContainer::CByteVector const &_AuthorityCertificate)
 		-> NCryptography::CCertificateVerifyOptions
 	;
 
@@ -155,7 +150,7 @@ namespace NMib::NConcurrency::NActorDistributionManagerInternal
 		// Sort by (priority, packetID) packed into uint64 for efficient lookup during resend
 		struct CSortPriorityPacketID
 		{
-			inline_always_debug uint64 operator ()(CPacket const &_Entry)
+			inline_always_debug uint64 operator () (CPacket const &_Entry)
 			{
 				return fg_MakePriorityPacketKey(_Entry.m_Priority, _Entry.m_PacketID);
 			}
@@ -254,7 +249,7 @@ namespace NMib::NConcurrency::NActorDistributionManagerInternal
 	{
 		DMibListLinkDS_List(CPacket, m_Link) m_IncomingPackets;
 		DMibListLinkDS_List(CPacket, m_Link) m_OutgoingPackets;
-		uint64 m_IncomingNextPacketID = 1; // Receiver: next expected packet ID
+		uint64 m_IncomingNextPacketID = 1;    // Receiver: next expected packet ID
 		uint64 m_OutgoingCurrentPacketID = 0; // Sender: last assigned packet ID
 	};
 
@@ -367,7 +362,7 @@ namespace NMib::NConcurrency::NActorDistributionManagerInternal
 
 		struct CSortActorID
 		{
-			inline_always_debug auto &operator ()(CPublishedActor const &_Entry)
+			inline_always_debug auto &operator () (CPublishedActor const &_Entry)
 			{
 				return _Entry.f_GetActorID();
 			}
@@ -432,10 +427,7 @@ namespace NMib::NConcurrency::NActorDistributionManagerInternal
 		}
 
 		TCWeakActor<> m_Actor;
-		NFunction::TCFunctionMutable
-			<
-				TCFuture<void> (NStorage::TCSharedPointer<NWeb::CWebSocketNewServerConnection> const &_pNewServerConnection, NStr::CStr const &_RealHostID)
-			>
+		NFunction::TCFunctionMutable<TCFuture<void> (NStorage::TCSharedPointer<NWeb::CWebSocketNewServerConnection> const &_pNewServerConnection, NStr::CStr const &_RealHostID)>
 			m_fNewWebsocketConnection
 		;
 	};
@@ -552,12 +544,7 @@ namespace NMib::NConcurrency
 		NStr::CStr fp_TranslateHostname(NStr::CStr const &_Hostname) const;
 		NWeb::NHTTP::CURL fp_TranslateURL(NWeb::NHTTP::CURL const &_URL) const;
 
-		NException::CExceptionPointer fp_DecodeClientConnectionSettings
-			(
-				CActorDistributionConnectionSettings const &_Settings
-				, CDecodedClientConnectionSetting &o_DecodedSettings
-			)
-		;
+		NException::CExceptionPointer fp_DecodeClientConnectionSettings(CActorDistributionConnectionSettings const &_Settings, CDecodedClientConnectionSetting &o_DecodedSettings);
 
 		void fp_ResetHostState(CHost &_Host, CConnection *_pSaveConnection, bool _bSaveInactive, NStr::CStr const &_Error);
 		void fp_DestroyHost(CHost &_Host, CConnection *_pSaveConnection, NStr::CStr const &_Reason);
@@ -567,36 +554,26 @@ namespace NMib::NConcurrency
 		uint64 fp_QueuePacket(NStorage::TCSharedPointerSupportWeak<CHost> const &_pHost, NStream::CBinaryStorage &&_Data);
 		void fp_SendPacketQueue(NStorage::TCSharedPointerSupportWeak<CHost> const &_pHost);
 		void fp_ScheduleSendPacketQueue(NStorage::TCSharedPointerSupportWeak<CHost> const &_pHost);
-		bool fp_QueueIncomingPacket
+		auto fp_QueueIncomingPacket
 			(
 				CConnection *_pConnection
 				, NStorage::TCSharedPointer<NStream::CBinaryStorage const> const &_pMessage
 				, NStream::TCBinaryStreamStoragePtr<> &_Stream
 				, uint8 _Priority
 			)
+			-> bool
 		;
 		void fp_ProcessPacketQueue(CConnection *_pConnection, CPriorityQueues &_PrioroityQueues, uint8 _Priority);
 		void fp_RemoveAcknowledgedPackets(CHost &_Host, uint8 _Priority, uint64 _LastInOrderPacketID);
 		void fp_SendPacket(CConnection *_pConnection, NStorage::TCSharedPointer<NStream::CBinaryStorage const> &&_pMessage, uint8 _Priority);
 		void fp_SendPackets(CConnection *_pConnection, NContainer::TCVector<NStorage::TCSharedPointer<NStream::CBinaryStorage const>> &&_Messages, uint8 _Priority);
-		void fp_OnInvalidConnection
-			(
-				CConnection *_pConnection
-				, NException::CExceptionPointer &&_pException
-			)
-		;
+		void fp_OnInvalidConnection(CConnection *_pConnection, NException::CExceptionPointer &&_pException);
 
 		bool fp_HandleProtocolIncoming(CConnection *_pConnection, NStorage::TCSharedPointer<NStream::CBinaryStorage const> const &_pMessage);
 		void fp_Identify(CConnection *_pConnection);
 		NStr::CStr const &fp_GetFriendlyName();
 		NContainer::TCSet<NStr::CStr> const &fp_GetAllowedNamespacesForHost(NStorage::TCSharedPointerSupportWeak<CHost> const &_pHost, bool &o_bAllowAll);
-		void fp_NotifyNewActor
-			(
-				NStorage::TCSharedPointerSupportWeak<CHost> const &_pHost
-				, CRemoteActor &_RemoteActor
-				, TCFutureVector<void> *_pResults
-			)
-		;
+		void fp_NotifyNewActor(NStorage::TCSharedPointerSupportWeak<CHost> const &_pHost, CRemoteActor &_RemoteActor, TCFutureVector<void> *_pResults);
 		void fp_NotifyRemovedActor(CRemoteActor const &_RemoteActor, TCFutureVector<void> *_pResults);
 
 		void fp_ReplyToRemoteCallWithException
@@ -623,14 +600,8 @@ namespace NMib::NConcurrency
 				, NPrivate::CDistributedActorStreamContext const &_Context
 			)
 		;
-		void fp_RegisterImplicitSubscriptions
-			(
-				CHost &_Host
-				, NPrivate::CDistributedActorStreamContextState &_State
-				, CResultSubscriptionData const *_pSubscriptionData
-			)
-		;
-		bool fp_ApplyRemoteCall
+		void fp_RegisterImplicitSubscriptions(CHost &_Host, NPrivate::CDistributedActorStreamContextState &_State, CResultSubscriptionData const *_pSubscriptionData);
+		auto fp_ApplyRemoteCall
 			(
 				CConnection *_pConnection
 				, NStorage::TCSharedPointer<NStream::CBinaryStorage const> const &_pPacketData
@@ -638,14 +609,16 @@ namespace NMib::NConcurrency
 				, bool _bHasAuthHandlerID
 				, uint8 _Priority
 			)
+			-> bool
 		;
-		bool fp_ApplyRemoteCallResult
+		auto fp_ApplyRemoteCallResult
 			(
 				CConnection *_pConnection
 				, NStorage::TCSharedPointer<NStream::CBinaryStorage const> const &_pPacketData
 				, NStream::TCBinaryStreamStoragePtr<> &_Stream
 				, uint8 _Priority
 			)
+			-> bool
 		;
 		bool fp_HandlePublishPacket(CConnection *_pConnection, NStream::TCBinaryStreamStoragePtr<> &_Stream);
 		bool fp_HandlePublishFinishedPacket(CConnection *_pConnection, NStream::TCBinaryStreamStoragePtr<> &_Stream);

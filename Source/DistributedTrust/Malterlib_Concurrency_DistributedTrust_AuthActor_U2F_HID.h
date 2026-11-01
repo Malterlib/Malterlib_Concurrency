@@ -11,20 +11,19 @@
 extern "C"
 {
 	struct hid_device_;
-	using hid_device = struct hid_device_; /**< opaque hidapi structure */
+	using hid_device = struct hid_device_; ///< opaque hidapi structure
 }
 
 namespace NMib::NConcurrency
 {
 	DMibImpErrorClassDefine(CExceptionHidapiUSB, NException::CException);
-#	define DMibErrorHID(d_Description) DMibImpError(NMib::NConcurrency::CExceptionHidapiUSB, d_Description)
-#	define DMibErrorInstanceHID(d_Description) DMibImpExceptionInstance(NMib::NConcurrency::CExceptionHidapiUSB, d_Description)
+#define DMibErrorHID(d_Description) DMibImpError(NMib::NConcurrency::CExceptionHidapiUSB, d_Description)
+#define DMibErrorInstanceHID(d_Description) DMibImpExceptionInstance(NMib::NConcurrency::CExceptionHidapiUSB, d_Description)
 
-
-#	ifndef DMibPNoShortCuts
-#		define DErrorHID DMibErrorHID
-#		define DErrorInstanceHID DMibErrorInstanceHID
-#	endif
+#ifndef DMibPNoShortCuts
+#	define DErrorHID DMibErrorHID
+#	define DErrorInstanceHID DMibErrorInstanceHID
+#endif
 
 	struct CHumanInterfaceDeviceActor : public CActor
 	{
@@ -46,7 +45,6 @@ namespace NMib::NConcurrency
 		TCFuture<NStr::CStr> f_GetIndexedString(aint _StringIndex) const;
 
 	private:
-
 		NStr::CStr fp_Error(NStr::CStr const &_Description) const;
 		hid_device *m_pDevice = nullptr;
 	};
@@ -57,7 +55,7 @@ namespace NMib::NConcurrency
 
 		enum
 		{
-			EReportSize = 64	// Default size of raw HID report
+			EReportSize = 64 // Default size of raw HID report
 		};
 
 		struct CDeviceInfo

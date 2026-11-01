@@ -13,8 +13,8 @@ namespace NMib::NConcurrency
 
 	enum class ELocalSocketFlag : uint32
 	{
-		mc_None = 0
-		, mc_EnclaveSpecific = DMibBit(0)
+		mc_None                = 0
+		, mc_EnclaveSpecific   = DMibBit(0)
 		, mc_AuthenticatedUnix = DMibBit(1) // Uses a distinct .wsa.socket path so both transports can listen concurrently.
 	};
 
@@ -55,6 +55,7 @@ namespace NMib::NConcurrency
 		CDistributedAppActor_Settings &&f_HostTimeoutOnShutdown(fp64 _HostTimeoutOnShutdown) &&;
 		CDistributedAppActor_Settings &&f_KillHostsTimeoutOnShutdown(fp64 _HostTimeoutOnShutdown) &&;
 		CDistributedAppActor_Settings &&f_MaxShutdownTime(fp64 _MaxShutdownTime) &&;
+
 	private:
 		NStr::CStr fp_GetLocalSocketPath(NStr::CStr const &_Prefix, ELocalSocketFlag _Flags, NStr::CStr const &_Enclave) const;
 	};

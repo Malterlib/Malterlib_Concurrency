@@ -28,7 +28,7 @@ namespace NMib::NConcurrency::NSensorStore
 	};
 
 	template <typename tf_CKey>
-	bool fg_FilterSensorKey
+	auto fg_FilterSensorKey
 		(
 			tf_CKey const &_Key
 			, CDistributedAppSensorReader_SensorFilter const &_Filter
@@ -36,9 +36,10 @@ namespace NMib::NConcurrency::NSensorStore
 			, CDistributedAppSensorReporter::CSensorInfo const *_pSensorInfo
 			, NSensorStoreLocalDatabase::CKnownHostValue const *_pKnownHost
 		)
+		-> bool
 	;
 	template <typename tf_CKey>
-	bool fg_FilterSensorKey
+	auto fg_FilterSensorKey
 		(
 			tf_CKey const &_Key
 			, NContainer::TCVector<CDistributedAppSensorReader_SensorFilter> const &_Filters
@@ -46,13 +47,14 @@ namespace NMib::NConcurrency::NSensorStore
 			, CDistributedAppSensorReporter::CSensorInfo const *_pSensorInfo
 			, NSensorStoreLocalDatabase::CKnownHostValue const *_pKnownHost
 		)
+		-> bool
 	;
 
 	template <typename tf_CReading>
 	bool fg_FilterSensorValueStatusIsProblem(tf_CReading const &_Reading);
 
 	template <typename tf_CSensor, typename tf_CReading>
-	bool fg_FilterSensorValueStatus
+	auto fg_FilterSensorValueStatus
 		(
 			tf_CSensor const &_Sensor
 			, tf_CReading const &_Reading
@@ -60,25 +62,21 @@ namespace NMib::NConcurrency::NSensorStore
 			, CDistributedAppSensorReader_SensorReadingFilter::ESensorReadingsFlag _Flags
 			, NTime::CTime const &_Now
 		)
+		-> bool
 	;
 
-	bool fg_FilterSensorReadingValue
+	auto fg_FilterSensorReadingValue
 		(
 			NSensorStoreLocalDatabase::CSensorReadingValue const &_Reading
 			, CDistributedAppSensorReader_SensorReadingFilter::ESensorReadingsFlag _Flags
 			, NSensorStoreLocalDatabase::CSensorReadingKey const &_ReadingKey
 			, CFilterSensorKeyContext &_Context
 		)
+		-> bool
 	;
 
 	template <typename tf_CSensor, typename tf_CReading>
-	bool fg_FilterSensorReadingValueWithSensor
-		(
-			tf_CSensor const &_Sensor
-			, tf_CReading const &_Reading
-			, CDistributedAppSensorReader_SensorReadingFilter::ESensorReadingsFlag _Flags
-		)
-	;
+	bool fg_FilterSensorReadingValueWithSensor(tf_CSensor const &_Sensor, tf_CReading const &_Reading, CDistributedAppSensorReader_SensorReadingFilter::ESensorReadingsFlag _Flags);
 }
 
 #include "Malterlib_Concurrency_DistributedApp_SensorLocalStore_Filter.hpp"

@@ -25,12 +25,13 @@ namespace NMib::NConcurrency
 
 		TCFuture<void> f_DestroyRemote();
 
-		TCFuture<void> f_StartWithDatabase
+		auto f_StartWithDatabase
 			(
 				TCActor<NDatabase::CDatabaseActor> _Database
 				, NStr::CStr _Prefix
 				, TCActorFunctor<TCFuture<NDatabase::CDatabaseActor::CTransactionWrite> (NDatabase::CDatabaseActor::CTransactionWrite _WriteTransaction)> _fCleanup
 			)
+			-> TCFuture<void>
 		;
 		TCFuture<void> f_StartWithDatabasePath(NStr::CStr _DatabasePath, uint64 _RetentionDays);
 
@@ -39,9 +40,7 @@ namespace NMib::NConcurrency
 
 		TCAsyncGenerator<NContainer::TCVector<CDistributedAppSensorReporter::CSensorInfo>> f_GetSensors(CDistributedAppSensorReader::CGetSensors _Params);
 		auto f_GetSensorReadings(CDistributedAppSensorReader::CGetSensorReadings _Params) -> TCAsyncGenerator<NContainer::TCVector<CDistributedAppSensorReader_SensorKeyAndReading>>;
-		auto f_GetSensorStatus(CDistributedAppSensorReader::CGetSensorStatus _Params)
-			-> TCAsyncGenerator<NContainer::TCVector<CDistributedAppSensorReader_SensorKeyAndReading>>
-		;
+		auto f_GetSensorStatus(CDistributedAppSensorReader::CGetSensorStatus _Params) -> TCAsyncGenerator<NContainer::TCVector<CDistributedAppSensorReader_SensorKeyAndReading>>;
 		auto f_SubscribeSensors
 			(
 				NContainer::TCVector<CDistributedAppSensorReader_SensorFilter> _Filters

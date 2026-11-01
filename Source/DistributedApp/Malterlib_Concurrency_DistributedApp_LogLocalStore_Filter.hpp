@@ -4,7 +4,7 @@
 namespace NMib::NConcurrency::NLogStore
 {
 	template <typename tf_CKey>
-	bool fg_FilterLogKey
+	auto fg_FilterLogKey
 		(
 			tf_CKey const &_Key
 			, CDistributedAppLogReader_LogFilter const &_Filter
@@ -12,6 +12,7 @@ namespace NMib::NConcurrency::NLogStore
 			, CDistributedAppLogReporter::CLogInfo const *_pLogInfo
 			, NLogStoreLocalDatabase::CKnownHostValue const *_pKnownHostValue
 		)
+		-> bool
 	{
 		if (_Filter.m_HostID && _Key.m_HostID != *_Filter.m_HostID)
 			return false;
@@ -45,10 +46,10 @@ namespace NMib::NConcurrency::NLogStore
 			return false;
 
 		if
-			(
-				_Filter.m_IdentifierScope
-				&& NStr::fg_StrMatchWildcard(_Key.m_IdentifierScope.f_GetStr(), _Filter.m_IdentifierScope->f_GetStr()) != EMatchWildcardResult_WholeStringMatchedAndPatternExhausted
-			)
+		(
+			_Filter.m_IdentifierScope
+			&& NStr::fg_StrMatchWildcard(_Key.m_IdentifierScope.f_GetStr(), _Filter.m_IdentifierScope->f_GetStr()) != EMatchWildcardResult_WholeStringMatchedAndPatternExhausted
+		)
 		{
 			return false;
 		}
@@ -82,7 +83,7 @@ namespace NMib::NConcurrency::NLogStore
 	}
 
 	template <typename tf_CKey>
-	bool fg_FilterLogKey
+	auto fg_FilterLogKey
 		(
 			tf_CKey const &_Key
 			, TCVector<CDistributedAppLogReader_LogFilter> const &_Filters
@@ -90,6 +91,7 @@ namespace NMib::NConcurrency::NLogStore
 			, CDistributedAppLogReporter::CLogInfo const *_pLogInfo
 			, NLogStoreLocalDatabase::CKnownHostValue const *_pKnownHostValue
 		)
+		-> bool
 	{
 		bool bPassFilter = _Filters.f_IsEmpty();
 

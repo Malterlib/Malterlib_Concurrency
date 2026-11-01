@@ -14,7 +14,7 @@ namespace NMib::NConcurrency
 	{
 		enum ESensorFlag
 		{
-			ESensorFlag_None = 0
+			ESensorFlag_None            = 0
 			, ESensorFlag_IgnoreRemoved = DMibBit(0)
 		};
 
@@ -23,7 +23,7 @@ namespace NMib::NConcurrency
 
 		NStorage::TCOptional<NStr::CStr> m_HostID;
 		NStorage::TCOptional<CDistributedAppSensorReporter::CSensorScope> m_Scope;
-		NStorage::TCOptional<NStr::CStr> m_Identifier; // Supports wildcards
+		NStorage::TCOptional<NStr::CStr> m_Identifier;      // Supports wildcards
 		NStorage::TCOptional<NStr::CStr> m_IdentifierScope; // Supports wildcards
 		ESensorFlag m_Flags = ESensorFlag_None;
 	};
@@ -32,10 +32,10 @@ namespace NMib::NConcurrency
 	{
 		enum ESensorReadingsFlag
 		{
-			ESensorReadingsFlag_None = 0
+			ESensorReadingsFlag_None                = 0
 			, ESensorReadingsFlag_ReportNewestFirst = DMibBit(0) ///< Not supported for subscriptions
-			, ESensorReadingsFlag_OnlyProblems = DMibBit(1)
-			, ESensorReadingsFlag_IgnoreSnoozed = DMibBit(2) ///< Only valid for querying status. Ignored for readings.
+			, ESensorReadingsFlag_OnlyProblems      = DMibBit(1)
+			, ESensorReadingsFlag_IgnoreSnoozed     = DMibBit(2) ///< Only valid for querying status. Ignored for readings.
 		};
 
 		template <typename tf_CStream>
@@ -60,7 +60,7 @@ namespace NMib::NConcurrency
 
 		CDistributedAppSensorReader_SensorFilter m_SensorFilter;
 
-		NStorage::TCOptional<uint64> m_MinSequence; ///< If specified historic readings will also be reported, but will not be applied to not yet generated readings
+		NStorage::TCOptional<uint64> m_MinSequence;        ///< If specified historic readings will also be reported, but will not be applied to not yet generated readings
 		NStorage::TCOptional<NTime::CTime> m_MinTimestamp; ///< If specified historic readings will also be reported, but will not be applied to not yet generated readings
 
 		CDistributedAppSensorReader_SensorReadingFilter::ESensorReadingsFlag m_Flags = CDistributedAppSensorReader_SensorReadingFilter::ESensorReadingsFlag_None;
@@ -94,7 +94,7 @@ namespace NMib::NConcurrency
 
 		enum : uint32
 		{
-			EProtocolVersion_Min = CDistributedAppSensorReporter::EProtocolVersion_Min
+			EProtocolVersion_Min       = CDistributedAppSensorReporter::EProtocolVersion_Min
 			, EProtocolVersion_Current = CDistributedAppSensorReporter::EProtocolVersion_Current
 		};
 
@@ -145,11 +145,7 @@ namespace NMib::NConcurrency
 		virtual auto f_GetSensors(CGetSensors _Params) -> TCFuture<TCAsyncGenerator<NContainer::TCVector<CDistributedAppSensorReporter::CSensorInfo>>> = 0;
 		virtual auto f_GetSensorReadings(CGetSensorReadings _Params) -> TCFuture<TCAsyncGenerator<NContainer::TCVector<CDistributedAppSensorReader_SensorKeyAndReading>>> = 0;
 		virtual auto f_GetSensorStatus(CGetSensorStatus _Params) -> TCFuture<TCAsyncGenerator<NContainer::TCVector<CDistributedAppSensorReader_SensorKeyAndReading>>> = 0;
-		virtual auto f_SubscribeSensors
-			(
-				NContainer::TCVector<CDistributedAppSensorReader_SensorFilter> _Filters
-				, TCActorFunctorWithID<TCFuture<void> (CSensorChange _Change)> _fOnChange
-			)
+		virtual auto f_SubscribeSensors(NContainer::TCVector<CDistributedAppSensorReader_SensorFilter> _Filters, TCActorFunctorWithID<TCFuture<void> (CSensorChange _Change)> _fOnChange)
 			-> TCFuture<TCActorSubscriptionWithID<>> = 0
 		;
 		virtual auto f_SubscribeSensorReadings

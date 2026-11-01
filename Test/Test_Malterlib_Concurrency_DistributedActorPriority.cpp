@@ -24,9 +24,9 @@ using namespace NMib::NTest;
 using namespace NMib::NNetwork;
 
 #if DMibConfig_Concurrency_DebugSubscriptions
-	static fp64 g_Timeout = 60.0 * gc_TimeoutMultiplier * 10.0;
+static fp64 g_Timeout = 60.0 * gc_TimeoutMultiplier * 10.0;
 #else
-	static fp64 g_Timeout = 60.0 * gc_TimeoutMultiplier;
+static fp64 g_Timeout = 60.0 * gc_TimeoutMultiplier;
 #endif
 
 namespace NDistributedActorPriorityTests
@@ -83,11 +83,7 @@ namespace NDistributedActorPriorityTests
 
 		TCFuture<TCVector<CStr>> f_RunWithOwnCallingHost(TCActor<CPriorityYieldActor> _YieldActor)
 		{
-			CCallingHostInfoScope Own
-				(
-					CCallingHostInfo({}, {}, "Unique host", CHostInfo("Real host", "Friendly name"), "Execution", 0, "User ID", "User name", nullptr, 128)
-				)
-			;
+			CCallingHostInfoScope Own(CCallingHostInfo({}, {}, "Unique host", CHostInfo("Real host", "Friendly name"), "Execution", 0, "User ID", "User name", nullptr, 128));
 
 			TCVector<CStr> Observed;
 			for (umint i = 0; i < 2; ++i)
@@ -114,7 +110,7 @@ namespace NDistributedActorPriorityTests
 		{
 			enum : uint32
 			{
-				EProtocolVersion_Min = 0x10B // Priority support version
+				EProtocolVersion_Min       = 0x10B // Priority support version
 				, EProtocolVersion_Current = 0x10B
 			};
 

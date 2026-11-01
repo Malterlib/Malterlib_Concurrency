@@ -8,12 +8,12 @@
 
 namespace NMib::NConcurrency
 {
-	uint32 CSubSystem_Concurrency_RuntimeTypeRegistry::CSortMemberFunction_Hash::operator ()(CRuntimeTypeRegistryEntry_MemberFunction const &_Entry)
+	uint32 CSubSystem_Concurrency_RuntimeTypeRegistry::CSortMemberFunction_Hash::operator () (CRuntimeTypeRegistryEntry_MemberFunction const &_Entry)
 	{
 		return _Entry.m_Hash;
 	}
 
-	uint32 CSubSystem_Concurrency_RuntimeTypeRegistry::CSortException_Hash::operator ()(CRuntimeTypeRegistryEntry_Exception const &_Entry)
+	uint32 CSubSystem_Concurrency_RuntimeTypeRegistry::CSortException_Hash::operator () (CRuntimeTypeRegistryEntry_Exception const &_Entry)
 	{
 		return _Entry.m_Hash;
 	}

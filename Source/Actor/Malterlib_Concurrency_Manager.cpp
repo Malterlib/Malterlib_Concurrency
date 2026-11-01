@@ -2063,7 +2063,8 @@ namespace NMib::NConcurrency
 			CSchedulerStats Stats = f_GetSchedulerStats(static_cast<EPriority>(Priority));
 			DSchedulerStatsTrace
 				(
-					"Scheduler stats {}: Signals {} Sleeps {} LocalEnqueues {} AtomicEnqueues {} CurrentThread {} Fixed {} ForcedNonLocal {} LastQueue {} RoundRobin {} Handoffs {} IdleClaims {} RunProcess {} Drained {} LongDrains {} GCCalls {} GCCollects {}\n"
+					"Scheduler stats {}: Signals {} Sleeps {} LocalEnqueues {} AtomicEnqueues {} CurrentThread {} Fixed {} ForcedNonLocal {} LastQueue {} RoundRobin {} Handoffs {}"
+					" IdleClaims {} RunProcess {} Drained {} LongDrains {} GCCalls {} GCCollects {}\n"
 					, c_pPriorityNames[Priority]
 					, Stats.m_nSignals
 					, Stats.m_nSleeps

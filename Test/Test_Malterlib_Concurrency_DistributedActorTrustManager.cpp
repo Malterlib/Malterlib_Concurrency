@@ -2818,7 +2818,7 @@ namespace NTestTrustManager
 					DMibExpectException
 						(
 							TestState.m_ServerTrustManager(&CDistributedActorTrustManager::f_SetUserInfo, ID2, UnsetUserName, CKeys{"Key"}, CMetadata{})
-							.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
+							.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
 							, DMibErrorInstance("Key 'Key' does not exist")
 						)
 					;

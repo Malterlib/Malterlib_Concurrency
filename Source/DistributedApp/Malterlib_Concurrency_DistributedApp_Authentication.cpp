@@ -628,9 +628,22 @@ namespace NMib::NConcurrency
 		if (!UserID) // No use setting up authentication without a user
 			co_return CAuthenticationSetupResult{};
 
-		auto *pHandlerState = mp_AuthenticationHandlers.f_FindEqual(HandlerID);
+		CAuthenticationHandlerState *pHandlerState = mp_AuthenticationHandlers.f_FindEqual(HandlerID);
 		if (!pHandlerState)
 			co_return CAuthenticationSetupResult{};
+
+		// The handler can be removed while this waits.
+		auto OnResume = co_await fg_OnResume
+			(
+				[&]() -> NException::CExceptionPointer
+				{
+					pHandlerState = mp_AuthenticationHandlers.f_FindEqual(HandlerID);
+					if (!pHandlerState)
+						return DMibErrorInstance("Authentication handler was removed");
+					return {};
+				}
+			)
+		;
 
 		pHandlerState->m_AuthenticationRemotes = co_await mp_State.m_TrustManager->f_SubscribeTrustedActors<ICDistributedActorAuthentication>();
 

@@ -321,3 +321,4 @@ namespace NMib::NConcurrency
 }
 
 #include "Malterlib_Concurrency_DistributedApp_SensorReporter.hpp"
+#include "Malterlib_Concurrency_DistributedApp_SensorReporter_Instantiated.hpp"

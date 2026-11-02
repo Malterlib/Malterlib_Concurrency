@@ -581,14 +581,17 @@ namespace NMib::NConcurrency
 
 				auto ToDestroy = fg_Move(pCallback->m_fCallback);
 
-				pTimer->m_Callbacks.f_Remove(*pCallback);
-
-				if (pTimer->m_Callbacks.f_IsEmpty())
+				// Removing the last callback also removes its timer. Destroying a callback runs the destructors of its members, which
+				// can run anything, so the timer isn't used afterwards.
+				if (pTimer->m_Callbacks.f_HasSingleEntry())
 				{
+					// NOLINTNEXTLINE(malterlib-coroutine-actor-reference): f_HasSingleEntry above only reads the list
 					if (pTimer->m_TreeLink.f_IsInTree())
 						Internal.m_TimerQueue.f_Remove(pTimer);
 					Internal.m_RegisteredTimers.f_Remove(pTimer);
 				}
+				else
+					pTimer->m_Callbacks.f_Remove(*pCallback);
 
 				co_await fg_Move(ToDestroy).f_Destroy();
 

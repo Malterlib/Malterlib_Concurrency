@@ -2092,22 +2092,25 @@ namespace NTestTrustManager
 				}
 				{
 					DMibTestPath("Notifications");
-					NAtomic::TCAtomic<umint> nActors{0};
+					TCSharedPointer<NAtomic::TCAtomic<umint>> pnActors = fg_Construct(umint(0));
 					CStr Published = ServerHelper.f_Publish<CTestActor>(ServerHelper.f_GetManager()->f_ConstructActor<CTestActor>(), "com.malterlib/Test");
 					CStr Subscription0 = ClientHelper.f_Subscribe("com.malterlib/Test");
-					auto TrustedSubscription0 = ClientTrustManager
+					TCSharedPointer<TCTrustedActorSubscription<CTestActor>> pTrustedSubscription0 = fg_Construct
 						(
-							&CDistributedActorTrustManager::f_SubscribeTrustedActors<CTestActor>
-							, "com.malterlib/Test"
-							, RunLoopHelper.m_HelperActor
-							, 0
-							, TCLimitsInt<uint32>::mc_Max
+							ClientTrustManager
+							(
+								&CDistributedActorTrustManager::f_SubscribeTrustedActors<CTestActor>
+								, "com.malterlib/Test"
+								, RunLoopHelper.m_HelperActor
+								, 0
+								, TCLimitsInt<uint32>::mc_Max
+							)
+							.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
 						)
-						.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
 					;
 					{
 						DMibTestPath("After subscribe");
-						DMibExpect(TrustedSubscription0.m_Actors.f_GetLen(), ==, 0);
+						DMibExpect(pTrustedSubscription0->m_Actors.f_GetLen(), ==, 0);
 					}
 					TCSharedPointer<bool> pExited = fg_Construct(false);
 					auto Cleanup = g_OnScopeExit / [&]
@@ -2117,11 +2120,11 @@ namespace NTestTrustManager
 					;
 					fg_Dispatch
 						(
-							[&, pExited]() -> TCFuture<void>
+							[pTrustedSubscription0, pnActors, pExited]() -> TCFuture<void>
 							{
 								auto OnResume = co_await fg_OnResume
 									(
-										[&]() -> NException::CExceptionPointer
+										[pExited]() -> NException::CExceptionPointer
 										{
 											if (*pExited)
 												return DMibErrorInstance("Aborted");
@@ -2130,17 +2133,17 @@ namespace NTestTrustManager
 									)
 								;
 
-								co_await TrustedSubscription0.f_OnActor
+								co_await pTrustedSubscription0->f_OnActor
 									(
-										g_ActorFunctor / [&](TCDistributedActor<CTestActor> _Actor, CTrustedActorInfo _ActorInfo) -> TCFuture<void>
+										g_ActorFunctor / [pnActors](TCDistributedActor<CTestActor> _Actor, CTrustedActorInfo _ActorInfo) -> TCFuture<void>
 										{
-											++nActors;
+											++*pnActors;
 
 											co_return {};
 										}
-										, g_ActorFunctor / [&](TCWeakDistributedActor<CActor> _Actor, CTrustedActorInfo _ActorInfo) -> TCFuture<void>
+										, g_ActorFunctor / [pnActors](TCWeakDistributedActor<CActor> _Actor, CTrustedActorInfo _ActorInfo) -> TCFuture<void>
 										{
-											--nActors;
+											--*pnActors;
 
 											co_return {};
 										}
@@ -2168,8 +2171,8 @@ namespace NTestTrustManager
 
 					{
 						DMibTestPath("After allow");
-						DMibExpect(TrustedSubscription0.m_Actors.f_GetLen(), ==, 1);
-						DMibExpect(nActors.f_Load(), ==, 1);
+						DMibExpect(pTrustedSubscription0->m_Actors.f_GetLen(), ==, 1);
+						DMibExpect(pnActors->f_Load(), ==, 1);
 					}
 
 					ClientTrustManager(&CDistributedActorTrustManager::f_DisallowHostsForNamespace, "com.malterlib/Test", ServerHosts, c_WaitForSubscriptions)
@@ -2187,10 +2190,10 @@ namespace NTestTrustManager
 
 					{
 						DMibTestPath("After disallow");
-						DMibExpect(TrustedSubscription0.m_Actors.f_GetLen(), ==, 0);
-						DMibExpect(nActors.f_Load(), ==, 0);
+						DMibExpect(pTrustedSubscription0->m_Actors.f_GetLen(), ==, 0);
+						DMibExpect(pnActors->f_Load(), ==, 0);
 					}
-					TrustedSubscription0.f_Destroy().f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
+					pTrustedSubscription0->f_Destroy().f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
 				}
 
 				ClientTrustManager->f_BlockDestroy(RunLoopHelper.m_pRunLoop->f_ActorDestroyLoop());
@@ -2365,12 +2368,12 @@ namespace NTestTrustManager
 						.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
 					;
 
-					NAtomic::TCAtomic<umint> nPermissions{0};
+					TCSharedPointer<NAtomic::TCAtomic<umint>> pnPermissions = fg_Construct(umint(0));
 					TrustedSubscription.f_OnPermissionsAdded
 						(
-							g_ActorFunctorWeak / [&](CPermissionIdentifiers, TCMap<CStr, CPermissionRequirements> _PermissionsAdded) -> TCFuture<void>
+							g_ActorFunctorWeak / [pnPermissions](CPermissionIdentifiers _Identity, TCMap<CStr, CPermissionRequirements> _PermissionsAdded) -> TCFuture<void>
 							{
-								nPermissions.f_FetchAdd(_PermissionsAdded.f_GetLen());
+								pnPermissions->f_FetchAdd(_PermissionsAdded.f_GetLen());
 
 								co_return {};
 							}
@@ -2378,9 +2381,9 @@ namespace NTestTrustManager
 					;
 					TrustedSubscription.f_OnPermissionsRemoved
 						(
-							g_ActorFunctorWeak / [&](CPermissionIdentifiers, TCSet<CStr> _Permissions) -> TCFuture<void>
+							g_ActorFunctorWeak / [pnPermissions](CPermissionIdentifiers _Identity, TCSet<CStr> _Permissions) -> TCFuture<void>
 							{
-								nPermissions.f_FetchSub(_Permissions.f_GetLen());
+								pnPermissions->f_FetchSub(_Permissions.f_GetLen());
 
 								co_return {};
 							}
@@ -2402,7 +2405,7 @@ namespace NTestTrustManager
 								.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
 							)
 						;
-						DMibExpect(nPermissions.f_Load(), ==, 2);
+						DMibExpect(pnPermissions->f_Load(), ==, 2);
 					}
 					TestState.f_RemovePermissions("com.malterlib/Test");
 					TestState.f_RemovePermissions("com.malterlib/Test");
@@ -2411,7 +2414,7 @@ namespace NTestTrustManager
 						DMibTestPath("After remove double permission");
 						auto &Permissions = TrustedSubscription.f_GetPermissions();
 						DMibAssert(Permissions, ==, TestState.m_ExpectedPermissionsEmpty);
-						DMibExpect(nPermissions.f_Load(), ==, 0);
+						DMibExpect(pnPermissions->f_Load(), ==, 0);
 					}
 				}
 				{

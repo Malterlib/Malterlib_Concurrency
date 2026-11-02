@@ -214,7 +214,7 @@ namespace NMib::NConcurrency
 				DMibTestCategory("LateSubscriptionRelease")
 				{
 					CActorSubscription Subscription;
-					NAtomic::TCAtomic<bool> bFired = false;
+					auto pFired = TCSharedPointer<NAtomic::TCAtomic<bool>>(fg_Construct(false));
 					{
 						EExecutionPriority Priorities[EPriority_Max] = {EExecutionPriority_Normal, EExecutionPriority_Normal, EExecutionPriority_Normal};
 						CConcurrencyManager Manager(Priorities);
@@ -223,9 +223,9 @@ namespace NMib::NConcurrency
 								fp64(1000000.0)
 								, NTime::CSystem_Time::fs_GetTimerValue()
 								, Manager.f_GetDirectCallActor()
-								, [&bFired]() -> TCFuture<void>
+								, [pFired]() -> TCFuture<void>
 								{
-									bFired.f_Store(true);
+									pFired->f_Store(true);
 									co_return {};
 								}
 							)
@@ -235,12 +235,12 @@ namespace NMib::NConcurrency
 					}
 
 					Subscription.f_Clear();
-					DMibExpectFalse(bFired.f_Load());
+					DMibExpectFalse(pFired->f_Load());
 				};
 
 				DMibTestCategory("ConcurrentActorShutdown")
 				{
-					NAtomic::TCAtomic<bool> bCleaned = false;
+					auto pCleaned = TCSharedPointer<NAtomic::TCAtomic<bool>>(fg_Construct(false));
 					TCPromise<void> Started;
 					EExecutionPriority Priorities[EPriority_Max] = {EExecutionPriority_Normal, EExecutionPriority_Normal, EExecutionPriority_Normal};
 					CConcurrencyManager Manager(Priorities);
@@ -248,13 +248,13 @@ namespace NMib::NConcurrency
 					fg_Dispatch
 						(
 							Manager.f_GetConcurrentActor()
-							, [Started, pCleaned = &bCleaned]() -> TCFuture<void>
+							, [Started, pCleaned]() -> TCFuture<void>
 							{
 								auto Cleanup = co_await fg_AsyncDestroy
 									(
 										[pCleaned]() -> TCFuture<void>
 										{
-											auto *pResult = pCleaned;
+											auto pResult = pCleaned;
 											co_await fg_Timeout(0.01).f_Dispatch();
 											pResult->f_Store(true);
 											co_return {};
@@ -269,13 +269,13 @@ namespace NMib::NConcurrency
 					;
 					Started.f_Future().f_CallSync();
 					Manager.f_BlockOnDestroy();
-					DMibExpectTrue(bCleaned.f_Load());
+					DMibExpectTrue(pCleaned->f_Load());
 				};
 
 				DMibTestCategory("BlockingActorShutdown")
 				{
 					EExecutionPriority Priorities[EPriority_Max] = {EExecutionPriority_Normal, EExecutionPriority_Normal, EExecutionPriority_Normal};
-					NAtomic::TCAtomic<bool> bFired = false;
+					auto pFired = TCSharedPointer<NAtomic::TCAtomic<bool>>(fg_Construct(false));
 					CConcurrencyManager Manager(Priorities);
 					Manager.f_GetConcurrentActor();
 					auto Checkout = Manager.f_GetBlockingActor();
@@ -286,9 +286,9 @@ namespace NMib::NConcurrency
 							fp64(0.1)
 							, NTime::CSystem_Time::fs_GetTimerValue()
 							, Manager.f_GetDirectCallActor()
-							, [Checkout = fg_Move(Checkout), &bFired]() mutable -> TCFuture<void>
+							, [Checkout = fg_Move(Checkout), pFired]() mutable -> TCFuture<void>
 							{
-								bFired.f_Store(true);
+								pFired->f_Store(true);
 								Checkout.f_Clear();
 								co_return {};
 							}
@@ -298,7 +298,7 @@ namespace NMib::NConcurrency
 					;
 
 					Manager.f_BlockOnDestroy();
-					DMibExpectTrue(bFired.f_Load());
+					DMibExpectTrue(pFired->f_Load());
 				};
 
 				DMibTestCategory("PlacementAndProgress") -> TCFuture<void>

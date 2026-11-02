@@ -1465,15 +1465,20 @@ namespace
 
 				CMutual Lock;
 				CActorSubscription CallbackReference;
-				CEventAutoReset FinishedEvent;
-				NAtomic::TCAtomic<uint32> CallbackValue;
+				struct CState
+				{
+					CEventAutoReset m_FinishedEvent;
+					NAtomic::TCAtomic<uint32> m_CallbackValue;
+				};
+
+				NStorage::TCSharedPointer<CState> pState = fg_Construct();
 				TestActor
 					(
 						&CCallbackActor::f_RegisterCallback
-						, g_ActorFunctor(fg_ConcurrentActor()) / [&](int32 _Value) -> TCFuture<void>
+						, g_ActorFunctor(fg_ConcurrentActor()) / [pState](int32 _Value) -> TCFuture<void>
 						{
-							CallbackValue = _Value;
-							FinishedEvent.f_Signal();
+							pState->m_CallbackValue = _Value;
+							pState->m_FinishedEvent.f_Signal();
 
 							co_return {};
 						}
@@ -1482,21 +1487,21 @@ namespace
 					{
 						DMibLock(Lock);
 						CallbackReference = fg_Move(*_Result);
-						FinishedEvent.f_Signal();
+						pState->m_FinishedEvent.f_Signal();
 					}
 				;
-				FinishedEvent.f_Wait();
+				pState->m_FinishedEvent.f_Wait();
 
 				DMibExpect(CallbackReference, !=, nullptr);
 
 				TestActor.f_Bind<&CCallbackActor::f_CallCallback>(32).f_DiscardResult();
 
-				FinishedEvent.f_Wait();
+				pState->m_FinishedEvent.f_Wait();
 				{
 					DMibLock(Lock);
 				}
 
-				DMibExpect(CallbackValue.f_Load(), ==, 32);
+				DMibExpect(pState->m_CallbackValue.f_Load(), ==, 32);
 			};
 		}
 

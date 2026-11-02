@@ -408,17 +408,22 @@ namespace NTestActor2
 					CActorSubscription OneshotAbortableTimer;
 					CActorSubscription ExactTimer;
 					CActorSubscription NormalTimer;
-					NAtomic::TCAtomic<umint> nExpectedHandlers(1);
-					NAtomic::TCAtomic<bool> bHandledTimer0;
-					NAtomic::TCAtomic<bool> bHandledTimer1;
-					NAtomic::TCAtomic<bool> bHandledTimer2;
-					NMib::NThread::CEvent HandlersFinished;
-					HandlersFinished.f_ResetSignaled();
+					struct CState
+					{
+						NAtomic::TCAtomic<umint> m_nExpectedHandlers{1};
+						NAtomic::TCAtomic<bool> m_bHandledTimer0;
+						NAtomic::TCAtomic<bool> m_bHandledTimer1;
+						NAtomic::TCAtomic<bool> m_bHandledTimer2;
+						NMib::NThread::CEvent m_HandlersFinished;
+					};
+
+					NStorage::TCSharedPointer<CState> pState = fg_Construct();
+					pState->m_HandlersFinished.f_ResetSignaled();
 					TCFutureVector<int> VectorResults;
 
 					for (int i = 0; i < 128 * 1024; ++i)
 					{
-						++nExpectedHandlers;
+						++pState->m_nExpectedHandlers;
 						pLockActor.f_Bind<&TCLockActor<int, NThread::CMutual>::f_Lock>()
 							> pLocalActor / [&](NMib::NConcurrency::TCAsyncResult<TCLockActor<int, NThread::CMutual>::CLockReference> &&_Result)
 							{
@@ -434,22 +439,22 @@ namespace NTestActor2
 									TestLockValue.f_Exchange(0);
 								}
 
-								if (--nExpectedHandlers == 0)
-									HandlersFinished.f_SetSignaled();
+								if (--pState->m_nExpectedHandlers == 0)
+									pState->m_HandlersFinished.f_SetSignaled();
 							}
 						;
 					}
 
-					++nExpectedHandlers;
+					++pState->m_nExpectedHandlers;
 					TimerActor.f_Bind<&CTimerActor::f_OneshotTimer>
 						(
 							0.2
 							, NTime::CSystem_Time::fs_GetTimerValue()
 							, pLocalActor
-							, [&]() -> TCFuture<void>
+							, [pState]() -> TCFuture<void>
 							{
-								if (--nExpectedHandlers == 0)
-									HandlersFinished.f_SetSignaled();
+								if (--pState->m_nExpectedHandlers == 0)
+									pState->m_HandlersFinished.f_SetSignaled();
 
 								co_return {};
 							}
@@ -459,17 +464,17 @@ namespace NTestActor2
 					;
 
 					{
-						++nExpectedHandlers;
+						++pState->m_nExpectedHandlers;
 						TimerActor
 							(
 								&CTimerActor::f_OneshotTimerAbortable
 								, 1000000.0
 								, NTime::CSystem_Time::fs_GetTimerValue()
 								, pLocalActor
-								, [&]() -> TCFuture<void>
+								, [pState]() -> TCFuture<void>
 								{
-									if (--nExpectedHandlers == 0)
-										HandlersFinished.f_SetSignaled();
+									if (--pState->m_nExpectedHandlers == 0)
+										pState->m_HandlersFinished.f_SetSignaled();
 
 									co_return {};
 								}
@@ -479,24 +484,24 @@ namespace NTestActor2
 								DMibLock(TimersLock);
 								if (OneshotAbortableTimer.f_IsEmpty())
 									OneshotAbortableTimer = fg_Move(*_Result);
-								if (--nExpectedHandlers == 0)
-									HandlersFinished.f_SetSignaled();
+								if (--pState->m_nExpectedHandlers == 0)
+									pState->m_HandlersFinished.f_SetSignaled();
 							}
 						;
 
-						nExpectedHandlers += 2;
+						pState->m_nExpectedHandlers += 2;
 						TimerActor
 							(
 								&CTimerActor::f_OneshotTimerAbortable
 								, 0.1
 								, NTime::CSystem_Time::fs_GetTimerValue()
 								, pLocalActor
-								, [&]() -> TCFuture<void>
+								, [pState]() -> TCFuture<void>
 								{
-									if (!bHandledTimer0.f_Exchange(true))
+									if (!pState->m_bHandledTimer0.f_Exchange(true))
 									{
-										if (--nExpectedHandlers == 0)
-											HandlersFinished.f_SetSignaled();
+										if (--pState->m_nExpectedHandlers == 0)
+											pState->m_HandlersFinished.f_SetSignaled();
 									}
 
 									co_return {};
@@ -506,19 +511,19 @@ namespace NTestActor2
 							{
 								DMibLock(TimersLock);
 								OneshotAbortableTimer = fg_Move(*_Result);
-								if (--nExpectedHandlers == 0)
-									HandlersFinished.f_SetSignaled();
+								if (--pState->m_nExpectedHandlers == 0)
+									pState->m_HandlersFinished.f_SetSignaled();
 							}
 						;
 
-						++nExpectedHandlers;
+						++pState->m_nExpectedHandlers;
 						TimerActor
 							(
 								&CTimerActor::f_RegisterTimer
 								, 1000000.0
 								, NTime::CSystem_Time::fs_GetTimerValue()
 								, pLocalActor
-								, [&]() -> TCFuture<void>
+								, []() -> TCFuture<void>
 								{
 									DMibNeverGetHere;
 
@@ -530,24 +535,24 @@ namespace NTestActor2
 								DMibLock(TimersLock);
 								if (!NormalTimer.f_IsEmpty())
 									NormalTimer = fg_Move(*_Result);
-								if (--nExpectedHandlers == 0)
-									HandlersFinished.f_SetSignaled();
+								if (--pState->m_nExpectedHandlers == 0)
+									pState->m_HandlersFinished.f_SetSignaled();
 							}
 						;
 
-						nExpectedHandlers += 2;
+						pState->m_nExpectedHandlers += 2;
 						TimerActor
 							(
 								&CTimerActor::f_RegisterTimer
 								, 0.5
 								, NTime::CSystem_Time::fs_GetTimerValue()
 								, pLocalActor
-								, [&]() -> TCFuture<void>
+								, [pState]() -> TCFuture<void>
 								{
-									if (!bHandledTimer1.f_Exchange(true))
+									if (!pState->m_bHandledTimer1.f_Exchange(true))
 									{
-										if (--nExpectedHandlers == 0)
-											HandlersFinished.f_SetSignaled();
+										if (--pState->m_nExpectedHandlers == 0)
+											pState->m_HandlersFinished.f_SetSignaled();
 									}
 
 									co_return {};
@@ -557,24 +562,24 @@ namespace NTestActor2
 							{
 								DMibLock(TimersLock);
 								NormalTimer = fg_Move(*_Result);
-								if (--nExpectedHandlers == 0)
-									HandlersFinished.f_SetSignaled();
+								if (--pState->m_nExpectedHandlers == 0)
+									pState->m_HandlersFinished.f_SetSignaled();
 							}
 						;
 
-						nExpectedHandlers += 2;
+						pState->m_nExpectedHandlers += 2;
 						TimerActor
 							(
 								&CTimerActor::f_RegisterTimer
 								, 0.5
 								, NTime::CSystem_Time::fs_GetTimerValue()
 								, pLocalActor
-								, [&]() -> TCFuture<void>
+								, [pState]() -> TCFuture<void>
 								{
-									if (!bHandledTimer2.f_Exchange(true))
+									if (!pState->m_bHandledTimer2.f_Exchange(true))
 									{
-										if (--nExpectedHandlers == 0)
-											HandlersFinished.f_SetSignaled();
+										if (--pState->m_nExpectedHandlers == 0)
+											pState->m_HandlersFinished.f_SetSignaled();
 									}
 
 									co_return {};
@@ -584,65 +589,65 @@ namespace NTestActor2
 							{
 								DMibLock(TimersLock);
 								ExactTimer = fg_Move(*_Result);
-								if (--nExpectedHandlers == 0)
-									HandlersFinished.f_SetSignaled();
+								if (--pState->m_nExpectedHandlers == 0)
+									pState->m_HandlersFinished.f_SetSignaled();
 							}
 						;
 					}
 
-					++nExpectedHandlers;
+					++pState->m_nExpectedHandlers;
 					pLockActor(&TCLockActor<int, NThread::CMutual>::f_Lock)
 						> pLocalActor / [&](NMib::NConcurrency::TCAsyncResult<TCLockActor<int, NThread::CMutual>::CLockReference> &&_Result)
 						{
 							auto &Lock = *_Result;
 							++(*Lock);
-							if (--nExpectedHandlers == 0)
-								HandlersFinished.f_SetSignaled();
+							if (--pState->m_nExpectedHandlers == 0)
+								pState->m_HandlersFinished.f_SetSignaled();
 						}
 					;
-					++nExpectedHandlers;
+					++pState->m_nExpectedHandlers;
 					pActor(&CTestActor::f_TestValue) > pLocalActor / [&, pActor](NMib::NConcurrency::TCAsyncResult<void> &&_Result)
 						{
 							DMibCheck(_Result);
-							if (--nExpectedHandlers == 0)
-								HandlersFinished.f_SetSignaled();
+							if (--pState->m_nExpectedHandlers == 0)
+								pState->m_HandlersFinished.f_SetSignaled();
 						}
 					;
-					++nExpectedHandlers;
+					++pState->m_nExpectedHandlers;
 					pActor(&CTestActor::f_TestPromise) > pLocalActor / [&, pActor](NMib::NConcurrency::TCAsyncResult<void> &&_Result)
 						{
 							_Result.f_Get();
-							if (--nExpectedHandlers == 0)
-								HandlersFinished.f_SetSignaled();
+							if (--pState->m_nExpectedHandlers == 0)
+								pState->m_HandlersFinished.f_SetSignaled();
 						}
 					;
-					++nExpectedHandlers;
+					++pState->m_nExpectedHandlers;
 					pActor(&CTestActor::f_TestPromiseRet) > pLocalActor / [&, pActor](NMib::NConcurrency::TCAsyncResult<int> &&_Result)
 						{
 							DMibCheck(_Result);
-							if (--nExpectedHandlers == 0)
-								HandlersFinished.f_SetSignaled();
+							if (--pState->m_nExpectedHandlers == 0)
+								pState->m_HandlersFinished.f_SetSignaled();
 						}
 					;
-					++nExpectedHandlers;
+					++pState->m_nExpectedHandlers;
 					pActor(&CTestActor::f_TestValue1, 1) > pActor / [&, pActor](NMib::NConcurrency::TCAsyncResult<int> &&_Result)
 						{
 							DMibCheck(_Result);
-							if (--nExpectedHandlers == 0)
-								HandlersFinished.f_SetSignaled();
+							if (--pState->m_nExpectedHandlers == 0)
+								pState->m_HandlersFinished.f_SetSignaled();
 						}
 					;
-					++nExpectedHandlers;
+					++pState->m_nExpectedHandlers;
 					pActor(&CTestActor::f_TestValue1, 1) + pActor(&CTestActor::f_TestValue2, 1, 2)
 						> pActor / [&, pActor](NMib::NConcurrency::TCAsyncResult<int> &&_Result0, NMib::NConcurrency::TCAsyncResult<int> &&_Result1)
 						{
 							DMibCheck(_Result0);
 							DMibCheck(_Result1);
-							if (--nExpectedHandlers == 0)
-								HandlersFinished.f_SetSignaled();
+							if (--pState->m_nExpectedHandlers == 0)
+								pState->m_HandlersFinished.f_SetSignaled();
 						}
 					;
-					++nExpectedHandlers;
+					++pState->m_nExpectedHandlers;
 					pActor(&CTestActor::f_TestValue1, 1) + pActor(&CTestActor::f_TestValue2, 1, 2) + pActor(&CTestActor::f_TestValue3, 1, 2, 3)
 						> pActor / [&, pActor]
 						(NMib::NConcurrency::TCAsyncResult<int> &&_Result0, NMib::NConcurrency::TCAsyncResult<int> &&_Result1, NMib::NConcurrency::TCAsyncResult<int> &&_Result2)
@@ -650,11 +655,11 @@ namespace NTestActor2
 							DMibCheck(_Result0);
 							DMibCheck(_Result1);
 							DMibCheck(_Result2);
-							if (--nExpectedHandlers == 0)
-								HandlersFinished.f_SetSignaled();
+							if (--pState->m_nExpectedHandlers == 0)
+								pState->m_HandlersFinished.f_SetSignaled();
 						}
 					;
-					++nExpectedHandlers;
+					++pState->m_nExpectedHandlers;
 					pActor(&CTestActor::f_TestValue1, 1)
 						+ pActor(&CTestActor::f_TestValue2, 1, 2)
 						+ pActor(&CTestActor::f_TestValue3, 1, 2, 3)
@@ -671,11 +676,11 @@ namespace NTestActor2
 							DMibCheck(_Result1);
 							DMibCheck(_Result2);
 							DMibCheck(_Result3);
-							if (--nExpectedHandlers == 0)
-								HandlersFinished.f_SetSignaled();
+							if (--pState->m_nExpectedHandlers == 0)
+								pState->m_HandlersFinished.f_SetSignaled();
 						}
 					;
-					++nExpectedHandlers;
+					++pState->m_nExpectedHandlers;
 					pActor(&CTestActor::f_TestValue1, 1)
 						+ pActor(&CTestActor::f_TestValue2, 1, 2)
 						+ pActor(&CTestActor::f_TestValue3, 1, 2, 3)
@@ -695,11 +700,11 @@ namespace NTestActor2
 							DMibCheck(_Result2);
 							DMibCheck(_Result3);
 							DMibCheck(_Result4);
-							if (--nExpectedHandlers == 0)
-								HandlersFinished.f_SetSignaled();
+							if (--pState->m_nExpectedHandlers == 0)
+								pState->m_HandlersFinished.f_SetSignaled();
 						}
 					;
-					++nExpectedHandlers;
+					++pState->m_nExpectedHandlers;
 					pActor(&CTestActor::f_TestValue1, 1)
 						+ pActor(&CTestActor::f_TestValue2, 1, 2)
 						+ pActor(&CTestActor::f_TestValue3, 1, 2, 3)
@@ -722,11 +727,11 @@ namespace NTestActor2
 							DMibCheck(_Result3);
 							DMibCheck(_Result4);
 							DMibCheck(_Result5);
-							if (--nExpectedHandlers == 0)
-								HandlersFinished.f_SetSignaled();
+							if (--pState->m_nExpectedHandlers == 0)
+								pState->m_HandlersFinished.f_SetSignaled();
 						}
 					;
-					++nExpectedHandlers;
+					++pState->m_nExpectedHandlers;
 					pActor(&CTestActor::f_TestValue1, 1)
 						+ pActor(&CTestActor::f_TestValue2, 1, 2)
 						+ pActor(&CTestActor::f_TestValue3, 1, 2, 3)
@@ -752,11 +757,11 @@ namespace NTestActor2
 							DMibCheck(_Result4);
 							DMibCheck(_Result5);
 							DMibCheck(_Result6);
-							if (--nExpectedHandlers == 0)
-								HandlersFinished.f_SetSignaled();
+							if (--pState->m_nExpectedHandlers == 0)
+								pState->m_HandlersFinished.f_SetSignaled();
 						}
 					;
-					++nExpectedHandlers;
+					++pState->m_nExpectedHandlers;
 					pActor(&CTestActor::f_TestValue1, 1)
 						+ pActor(&CTestActor::f_TestValue2, 1, 2)
 						+ pActor(&CTestActor::f_TestValue3, 1, 2, 3)
@@ -785,80 +790,80 @@ namespace NTestActor2
 							DMibCheck(_Result5);
 							DMibCheck(_Result6);
 							DMibCheck(_Result7);
-							if (--nExpectedHandlers == 0)
-								HandlersFinished.f_SetSignaled();
+							if (--pState->m_nExpectedHandlers == 0)
+								pState->m_HandlersFinished.f_SetSignaled();
 						}
 					;
 
-					++nExpectedHandlers;
+					++pState->m_nExpectedHandlers;
 					pActor(&CTestActor::f_TestValue2, 1, 1) > pActor / [&, pActor](NMib::NConcurrency::TCAsyncResult<int> &&_Result)
 						{
 							DMibCheck(_Result);
-							if (--nExpectedHandlers == 0)
-								HandlersFinished.f_SetSignaled();
+							if (--pState->m_nExpectedHandlers == 0)
+								pState->m_HandlersFinished.f_SetSignaled();
 						}
 					;
-					++nExpectedHandlers;
+					++pState->m_nExpectedHandlers;
 					pActor(&CTestActor::f_TestValue3, 1, 1, 1) > pActor / [&, pActor](NMib::NConcurrency::TCAsyncResult<int> &&_Result)
 						{
 							DMibCheck(_Result);
-							if (--nExpectedHandlers == 0)
-								HandlersFinished.f_SetSignaled();
+							if (--pState->m_nExpectedHandlers == 0)
+								pState->m_HandlersFinished.f_SetSignaled();
 						}
 					;
-					++nExpectedHandlers;
+					++pState->m_nExpectedHandlers;
 					pActor(&CTestActor::f_TestValue4, 1, 1, 1, 1) > pActor / [&, pActor](NMib::NConcurrency::TCAsyncResult<int> &&_Result)
 						{
 							DMibCheck(_Result);
-							if (--nExpectedHandlers == 0)
-								HandlersFinished.f_SetSignaled();
+							if (--pState->m_nExpectedHandlers == 0)
+								pState->m_HandlersFinished.f_SetSignaled();
 						}
 					;
-					++nExpectedHandlers;
+					++pState->m_nExpectedHandlers;
 					pActor(&CTestActor::f_TestValue5, 1, 1, 1, 1, 1) > pActor / [&, pActor](NMib::NConcurrency::TCAsyncResult<int> &&_Result)
 						{
 							DMibCheck(_Result);
-							if (--nExpectedHandlers == 0)
-								HandlersFinished.f_SetSignaled();
+							if (--pState->m_nExpectedHandlers == 0)
+								pState->m_HandlersFinished.f_SetSignaled();
 						}
 					;
-					++nExpectedHandlers;
+					++pState->m_nExpectedHandlers;
 					pActor(&CTestActor::f_TestValue6, 1, 1, 1, 1, 1, 1) > pActor / [&, pActor](NMib::NConcurrency::TCAsyncResult<int> &&_Result)
 						{
 							DMibCheck(_Result);
-							if (--nExpectedHandlers == 0)
-								HandlersFinished.f_SetSignaled();
+							if (--pState->m_nExpectedHandlers == 0)
+								pState->m_HandlersFinished.f_SetSignaled();
 						}
 					;
-					++nExpectedHandlers;
+					++pState->m_nExpectedHandlers;
 					pActor(&CTestActor::f_TestValue7, 1, 1, 1, 1, 1, 1, 1) > pActor / [&, pActor](NMib::NConcurrency::TCAsyncResult<int> &&_Result)
 						{
 							DMibCheck(_Result);
-							if (--nExpectedHandlers == 0)
-								HandlersFinished.f_SetSignaled();
+							if (--pState->m_nExpectedHandlers == 0)
+								pState->m_HandlersFinished.f_SetSignaled();
 						}
 					;
-					++nExpectedHandlers;
+					++pState->m_nExpectedHandlers;
 					pActor(&CTestActor::f_TestValue8, 1, 1, 1, 1, 1, 1, 1, 1) > pActor / [&, pActor](NMib::NConcurrency::TCAsyncResult<int> &&_Result)
 						{
 							DMibCheck(_Result);
-							if (--nExpectedHandlers == 0)
-								HandlersFinished.f_SetSignaled();
+							if (--pState->m_nExpectedHandlers == 0)
+								pState->m_HandlersFinished.f_SetSignaled();
 						}
 					;
 
 					for (int i = 0; i < 512; ++i)
 						pActor(&CTestActor::f_TestValue8, 1, 1, 1, 1, 1, 1, 1, 1) > VectorResults;
 
-					++nExpectedHandlers;
+					++pState->m_nExpectedHandlers;
 
 					fg_AllDoneWrapped(VectorResults) > pActor / [&, pActor](NMib::NConcurrency::TCAsyncResult<NMib::NContainer::TCVector<NMib::NConcurrency::TCAsyncResult<int>>> &&_Result)
 						{
 							[[maybe_unused]] umint Results = 0;
 							for (auto Iter = (*_Result).f_GetIterator(); Iter; ++Iter)
 								Results += **Iter;
-							if (--nExpectedHandlers == 0)
-								HandlersFinished.f_SetSignaled();
+							if (--pState->m_nExpectedHandlers == 0)
+								pState->m_HandlersFinished.f_SetSignaled();
 						}
 					;
 
@@ -900,13 +905,13 @@ namespace NTestActor2
 						// Because fg_Thread_SetPriority can throw.
 					}
 
-					if (--nExpectedHandlers == 0)
-						HandlersFinished.f_SetSignaled();
+					if (--pState->m_nExpectedHandlers == 0)
+						pState->m_HandlersFinished.f_SetSignaled();
 
-					bool bTimedOutWatingForTimerHandlers = HandlersFinished.f_WaitTimeout(g_Timeout * 3.0);
+					bool bTimedOutWatingForTimerHandlers = pState->m_HandlersFinished.f_WaitTimeout(g_Timeout * 3.0);
 					DMibTest(!DMibExpr(bTimedOutWatingForTimerHandlers));
 
-					// The repeating timers reference the locals above and keep firing until their subscriptions are destroyed
+					// The repeating timers keep firing until their subscriptions are destroyed
 					NContainer::TCVector<CActorSubscription> TimerSubscriptions;
 					{
 						DMibLock(TimersLock);

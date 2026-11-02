@@ -1983,12 +1983,17 @@ class CDistributedActor_Tests : public NMib::NTest::CTest
 		ConnectionSettings.m_bRetryConnectOnFirstFailure = false;
 		ConnectionSettings.m_bRetryConnectOnFailure = false;
 
-		NThread::CMutual RemoteLock;
-		NThread::CEventAutoReset RemoteEvent;
-		TCDistributedActor<CDistributedActorBase> RemoteActor;
+		struct CState
+		{
+			NThread::CMutual m_Lock;
+			NThread::CEventAutoReset m_RemoteEvent;
+			TCDistributedActor<CDistributedActorBase> m_RemoteActor;
+			umint m_nRemoteEvents = 0;
+			bool m_bRemoved = false;
+		};
+
+		TCSharedPointer<CState> pState = fg_Construct();
 		CActorSubscription RemoteActorsSubscription;
-		umint RemoteEvents = 0;
-		bool bRemoved = false;
 
 		auto &ConcurrentActor = fg_ConcurrentActor();
 
@@ -1997,35 +2002,35 @@ class CDistributedActor_Tests : public NMib::NTest::CTest
 				&CActorDistributionManager::f_SubscribeActors
 				, "Test"
 				, ConcurrentActor
-				, [&](CAbstractDistributedActor _NewActor) -> TCFuture<void>
+				, [pState](CAbstractDistributedActor _NewActor) -> TCFuture<void>
 				{
-					DMibLock(RemoteLock);
-					RemoteActor = _NewActor.f_GetActor<CDistributedActorBase>();
-					RemoteEvent.f_Signal();
-					++RemoteEvents;
+					DMibLock(pState->m_Lock);
+					pState->m_RemoteActor = _NewActor.f_GetActor<CDistributedActorBase>();
+					pState->m_RemoteEvent.f_Signal();
+					++pState->m_nRemoteEvents;
 
 					co_return {};
 				}
-				, [&](CDistributedActorIdentifier _RemovedActor) -> TCFuture<void>
+				, [pState](CDistributedActorIdentifier _RemovedActor) -> TCFuture<void>
 				{
-					DMibLock(RemoteLock);
-					if (_RemovedActor == RemoteActor)
+					DMibLock(pState->m_Lock);
+					if (_RemovedActor == pState->m_RemoteActor)
 					{
-						RemoteActor.f_Clear();
-						bRemoved = true;
+						pState->m_RemoteActor.f_Clear();
+						pState->m_bRemoved = true;
 					}
-					RemoteEvent.f_Signal();
-					++RemoteEvents;
+					pState->m_RemoteEvent.f_Signal();
+					++pState->m_nRemoteEvents;
 
 					co_return {};
 				}
 			)
 			> ConcurrentActor / [&](TCAsyncResult<CActorSubscription> &&_Result)
 			{
-				DMibLock(RemoteLock);
+				DMibLock(pState->m_Lock);
 				RemoteActorsSubscription = fg_Move(*_Result);
-				RemoteEvent.f_Signal();
-				++RemoteEvents;
+				pState->m_RemoteEvent.f_Signal();
+				++pState->m_nRemoteEvents;
 			}
 		;
 
@@ -2042,27 +2047,27 @@ class CDistributedActor_Tests : public NMib::NTest::CTest
 		while (!bTimedOutWatingForActor)
 		{
 			{
-				DMibLock(RemoteLock);
-				if (RemoteEvents >= 2)
+				DMibLock(pState->m_Lock);
+				if (pState->m_nRemoteEvents >= 2)
 					break;
 			}
-			bTimedOutWatingForActor = RemoteEvent.f_WaitTimeout(60.0);
+			bTimedOutWatingForActor = pState->m_RemoteEvent.f_WaitTimeout(60.0);
 		}
 
 		{
-			DMibLock(RemoteLock);
+			DMibLock(pState->m_Lock);
 
 			DMibAssertFalse(bTimedOutWatingForActor);
-			DMibAssert(RemoteEvents, ==, 2);
-			DMibAssertTrue(RemoteActor);
+			DMibAssert(pState->m_nRemoteEvents, ==, 2);
+			DMibAssertTrue(pState->m_RemoteActor);
 			DMibAssertTrue(RemoteActorsSubscription);
 		}
 
-		RemoteActor.f_CallActor(&CDistributedActorBase::f_AddIntVirtual)(5).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
-		uint32 Result = RemoteActor.f_CallActor(&CDistributedActorBase::f_GetResultVirtual)().f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
+		pState->m_RemoteActor.f_CallActor(&CDistributedActorBase::f_AddIntVirtual)(5).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
+		uint32 Result = pState->m_RemoteActor.f_CallActor(&CDistributedActorBase::f_GetResultVirtual)().f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
 		DMibExpect(Result, ==, 5);
 
-		CStr RemoteCallingHostID = (RemoteActor.f_CallActor(&CDistributedActorBase::f_GetCallingHostID)()).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
+		CStr RemoteCallingHostID = (pState->m_RemoteActor.f_CallActor(&CDistributedActorBase::f_GetCallingHostID)()).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
 		DMibExpect(RemoteCallingHostID, ==, ClientHostID);
 
 		ActorPublication.f_Destroy().f_CallSync();
@@ -2071,15 +2076,15 @@ class CDistributedActor_Tests : public NMib::NTest::CTest
 		while (!bTimedOutWatingForUnPublish)
 		{
 			{
-				DMibLock(RemoteLock);
-				if (RemoteEvents >= 3)
+				DMibLock(pState->m_Lock);
+				if (pState->m_nRemoteEvents >= 3)
 					break;
 			}
-			bTimedOutWatingForUnPublish = RemoteEvent.f_WaitTimeout(60.0);
+			bTimedOutWatingForUnPublish = pState->m_RemoteEvent.f_WaitTimeout(60.0);
 		}
 
 		DMibAssertFalse(bTimedOutWatingForUnPublish);
-		DMibExpectTrue(bRemoved);
+		DMibExpectTrue(pState->m_bRemoved);
 
 		ClientConnectionReference.f_Disconnect().f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
 		DMibExpectExceptionType(ClientConnectionReference.f_Disconnect().f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout), NException::CException);

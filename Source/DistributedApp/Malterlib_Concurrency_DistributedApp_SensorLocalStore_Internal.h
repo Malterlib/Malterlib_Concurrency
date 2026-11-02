@@ -118,7 +118,7 @@ namespace NMib::NConcurrency
 		;
 		TCFuture<void> f_CleanupSensorReporter(CDistributedAppSensorReporter::CSensorInfoKey _SensorInfoKey);
 
-		auto f_GetReportReadingsFunctor(CDistributedAppSensorReporter::CSensorInfoKey _SensorInfoKey, NSensorStoreLocalDatabase::CSensorReadingKey _DatabaseKey)
+		auto f_GetReportReadingsFunctor(CDistributedAppSensorReporter::CSensorInfoKey const &_SensorInfoKey, NSensorStoreLocalDatabase::CSensorReadingKey const &_DatabaseKey)
 			-> TCActorFunctorWithID<TCFuture<void> (NContainer::TCVector<CDistributedAppSensorReporter::CSensorReading> _Readings)>
 		;
 

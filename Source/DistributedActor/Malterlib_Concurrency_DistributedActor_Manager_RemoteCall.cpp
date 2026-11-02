@@ -397,7 +397,7 @@ namespace NMib::NConcurrency
 		fp_QueuePacket(_pHost, fg_Move(SendPacket));
 	}
 
-	CActorSubscription CActorDistributionManager::fp_OnRemoteDisconnect(TCActorFunctorWeak<TCFuture<void> ()> _fOnDisconnect, NStr::CStr _UniqueHostID, NStr::CStr _LastExecutionID)
+	CActorSubscription CActorDistributionManager::fp_OnRemoteDisconnect(TCActorFunctorWeak<TCFuture<void> ()> &&_fOnDisconnect, NStr::CStr &&_UniqueHostID, NStr::CStr &&_LastExecutionID)
 	{
 		auto &Internal = *mp_pInternal;
 

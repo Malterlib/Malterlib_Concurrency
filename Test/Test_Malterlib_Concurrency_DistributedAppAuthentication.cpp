@@ -534,7 +534,7 @@ namespace NTestAuthentication
 
 	struct CClientActor : public CDistributedAppActor
 	{
-		CClientActor(CStr _DefaultUserID)
+		CClientActor(CStr const &_DefaultUserID)
 			: CDistributedAppActor
 			(
 				CDistributedAppActor_Settings("DistributedAppAuthenticationTestsClient")
@@ -838,7 +838,7 @@ namespace NTestAuthentication
 		CStr m_DefaultUserID;
 	};
 
-	NFunction::TCFunction<TCActor<CDistributedAppActor> ()> fg_ConstructApp_ClientFactory(CStr _DefaultUserID)
+	NFunction::TCFunction<TCActor<CDistributedAppActor> ()> fg_ConstructApp_ClientFactory(CStr const &_DefaultUserID)
 	{
 		return [_DefaultUserID]
 			{
@@ -987,7 +987,7 @@ namespace NTestAuthentication
 
 	struct CCallCount : public CActor
 	{
-		void f_AddCall(CStr _Name)
+		void f_AddCall(CStr &&_Name)
 		{
 			++m_CallCounts[_Name];
 		}
@@ -1538,7 +1538,7 @@ public:
 		// Add a permissions to Server that requires authentication
 		auto fAddHostUserPermission = [HostID = ClientHostID, UserID = DefaultUserID, pRunLoop = RunLoopHelper.m_pRunLoop]
 			(
-				NStorage::TCSharedPointer<NConcurrency::TCDistributedActorInterfaceWithID<CDistributedActorTrustManagerInterface>> _pServerTrust
+				NStorage::TCSharedPointer<NConcurrency::TCDistributedActorInterfaceWithID<CDistributedActorTrustManagerInterface>> const &_pServerTrust
 				, CStr const &_Permission
 				, CPermissionRequirements const &_Methods
 			)
@@ -1854,7 +1854,7 @@ public:
 			DCheckCallCounts(CCallCounts({{"Succeed1", 1}}), "Many7");
 		};
 
-		auto fMQ1 = [](CStr _Tag, CQueries &&_Query) -> TCMap<CStr, TCVector<CPermissionQuery>>
+		auto fMQ1 = [](CStr const &_Tag, CQueries &&_Query) -> TCMap<CStr, TCVector<CPermissionQuery>>
 			{
 				TCMap<CStr, TCVector<CPermissionQuery>> Result;
 				Result[_Tag] = fg_Move(_Query);
@@ -1869,7 +1869,7 @@ public:
 		// 		return Result;
 		// 	}
 		// ;
-		auto fMQ3 = [](CStr _Tag1, CQueries &&_Query1, CStr _Tag2, CQueries &&_Query2, CStr _Tag3, CQueries &&_Query3) -> TCMap<CStr, TCVector<CPermissionQuery>>
+		auto fMQ3 = [](CStr const &_Tag1, CQueries &&_Query1, CStr const &_Tag2, CQueries &&_Query2, CStr const &_Tag3, CQueries &&_Query3) -> TCMap<CStr, TCVector<CPermissionQuery>>
 			{
 				TCMap<CStr, TCVector<CPermissionQuery>> Result;
 				Result[_Tag1] = fg_Move(_Query1);
@@ -2456,7 +2456,7 @@ public:
 		// Add a permissions to Server that requires authentication
 		auto fAddHostUserPermission = [HostID = ClientHostID, UserID = DefaultUserID, pRunLoop = RunLoopHelper.m_pRunLoop]
 			(
-				NStorage::TCSharedPointer<NConcurrency::TCDistributedActorInterfaceWithID<CDistributedActorTrustManagerInterface>> _pServerTrust
+				NStorage::TCSharedPointer<NConcurrency::TCDistributedActorInterfaceWithID<CDistributedActorTrustManagerInterface>> const &_pServerTrust
 				, CStr const &_Permission
 				, CPermissionRequirements const &_Methods
 			)

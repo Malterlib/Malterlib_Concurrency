@@ -13,7 +13,8 @@ namespace NMib::NConcurrency
 	ICDistributedActorTrustManagerAuthenticationActor::ICDistributedActorTrustManagerAuthenticationActor() = default;
 	ICDistributedActorTrustManagerAuthenticationActor::~ICDistributedActorTrustManagerAuthenticationActor() = default;
 
-	TCMap<NStr::CStr, CAuthenticationActorInfo> ICDistributedActorTrustManagerAuthenticationActor::fs_GetRegisteredAuthenticationFactors(TCActor<CDistributedActorTrustManager> _TrustManager)
+	auto ICDistributedActorTrustManagerAuthenticationActor::fs_GetRegisteredAuthenticationFactors(TCActor<CDistributedActorTrustManager> const &_TrustManager)
+		-> TCMap<NStr::CStr, CAuthenticationActorInfo>
 	{
 		NMib::CRunTimeObjectInfo * const pAuthenticationFactors = fg_GetRuntimeTypeInfo("NMib::NConcurrency::ICDistributedActorTrustManagerAuthenticationActorFactory");
 		TCMap<NStr::CStr, CAuthenticationActorInfo> Result;

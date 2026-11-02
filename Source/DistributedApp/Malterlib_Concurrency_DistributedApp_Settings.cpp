@@ -162,7 +162,7 @@ namespace NMib::NConcurrency
 		return fg_Move(*this);
 	}
 
-	CDistributedAppActor_Settings &&CDistributedAppActor_Settings::f_KeySetting(NCryptography::CPublicKeySetting _KeySetting) &&
+	CDistributedAppActor_Settings &&CDistributedAppActor_Settings::f_KeySetting(NCryptography::CPublicKeySetting const &_KeySetting) &&
 	{
 		m_KeySetting = _KeySetting;
 		return fg_Move(*this);

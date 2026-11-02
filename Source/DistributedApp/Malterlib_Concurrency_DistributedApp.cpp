@@ -292,7 +292,7 @@ namespace NMib::NConcurrency
 #endif
 	}
 
-	CCallingHostInfoScope CDistributedAppActor::fp_PopulateCurrentHostInfoIfMissing(CStr _Description)
+	CCallingHostInfoScope CDistributedAppActor::fp_PopulateCurrentHostInfoIfMissing(CStr const &_Description)
 	{
 		auto CurrentCallingHostInfo = fg_GetCallingHostInfo();
 		CStr FriendlyName;

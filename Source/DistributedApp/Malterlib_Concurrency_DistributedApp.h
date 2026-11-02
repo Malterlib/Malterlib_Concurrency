@@ -506,7 +506,7 @@ namespace NMib::NConcurrency
 
 		DMibActorPhaseGuard(Destroy, StopApp) CFutureCoroutineContextOnResumeScopeAwaiter fp_CheckStoppedOrDestroyedOnResume() const;
 
-		CCallingHostInfoScope fp_PopulateCurrentHostInfoIfMissing(NStr::CStr _Description);
+		CCallingHostInfoScope fp_PopulateCurrentHostInfoIfMissing(NStr::CStr const &_Description);
 
 		auto fp_RegisterForAppInterfaceServerChanges
 			(

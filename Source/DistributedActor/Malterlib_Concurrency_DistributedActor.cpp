@@ -445,7 +445,7 @@ namespace NMib::NConcurrency
 	{
 	}
 
-	void CActorDistributionCryptographySettings::f_GenerateNewCert(NContainer::TCVector<NStr::CStr> const &_HostNames, NCryptography::CPublicKeySetting _KeySetting)
+	void CActorDistributionCryptographySettings::f_GenerateNewCert(NContainer::TCVector<NStr::CStr> const &_HostNames, NCryptography::CPublicKeySetting const &_KeySetting)
 	{
 		NPrivate::fg_DistributedActorSubSystem(); // Register extension if needed
 

@@ -202,7 +202,7 @@ namespace NMib::NConcurrency
 
 		CActorDistributionCryptographySettings(NStr::CStr const &_HostID);
 		~CActorDistributionCryptographySettings();
-		void f_GenerateNewCert(NContainer::TCVector<NStr::CStr> const &_HostNames, NCryptography::CPublicKeySetting _KeySetting = fs_DefaultKeySetting());
+		void f_GenerateNewCert(NContainer::TCVector<NStr::CStr> const &_HostNames, NCryptography::CPublicKeySetting const &_KeySetting = fs_DefaultKeySetting());
 		NContainer::CByteVector f_GenerateRequest() const;
 		NContainer::CByteVector f_SignRequest(NContainer::CByteVector const &_Request);
 		void f_AddRemoteServer(NWeb::NHTTP::CURL const &_URL, NContainer::CByteVector const &_ServerCert, NContainer::CByteVector const &_ClientCert);
@@ -864,7 +864,7 @@ namespace NMib::NConcurrency
 		;
 		TCFuture<void> fp_DestroyRemoteSubscription(NStorage::TCSharedPointerSupportWeak<NPrivate::ICHost> _pHost, NStr::CStr _SubscriptionID, NStr::CStr _LastExecutionID);
 		void fp_CleanupRemoteContext(NFunction::TCFunction<void (CActorDistributionManagerInternal &_Internal)> const &_fCleanup);
-		void fp_FlushSendPacketQueue(NStorage::TCSharedPointerSupportWeak<NPrivate::ICHost> _pHost);
+		void fp_FlushSendPacketQueue(NStorage::TCSharedPointerSupportWeak<NPrivate::ICHost> &&_pHost);
 		TCFuture<void> fp_RemoveListen(NStr::CStr _ListenID);
 		TCFuture<NContainer::TCVector<NWeb::NHTTP::CURL>> fp_GetListenAddresses(NStr::CStr _ListenID);
 #if DMibConfig_Tests_Enable
@@ -878,7 +878,7 @@ namespace NMib::NConcurrency
 		TCFuture<void> fp_RepublishActorPublication(NStr::CStr _NamespaceID, NStr::CStr _ActorID, NStr::CStr _HostID, fp32 _WaitForPublicationsTimeout);
 		TCFuture<CDistributedActorConnectionStatus> fp_GetConnectionStatus(NStr::CStr _ConnectionID);
 		TCFuture<void> fp_Reconnect(NStr::CStr _ConnectionID);
-		CActorSubscription fp_OnRemoteDisconnect(TCActorFunctorWeak<TCFuture<void> ()> _fOnDisconnect, NStr::CStr _UniqueHostID, NStr::CStr _LastExecutionID);
+		CActorSubscription fp_OnRemoteDisconnect(TCActorFunctorWeak<TCFuture<void> ()> &&_fOnDisconnect, NStr::CStr &&_UniqueHostID, NStr::CStr &&_LastExecutionID);
 
 		friend auto NPrivate::fg_PublishActor
 			(

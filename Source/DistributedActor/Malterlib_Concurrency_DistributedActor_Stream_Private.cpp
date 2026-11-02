@@ -36,7 +36,7 @@ namespace NMib::NConcurrency
 	}
 
 	// Retains the packet storage while reading [_Offset, _Offset + _nBytes).
-	void CDistributedActorReadStream::f_OpenRead(NStorage::TCSharedPointer<NStream::CBinaryStorage const> _pStorage, umint _Offset, umint _nBytes)
+	void CDistributedActorReadStream::f_OpenRead(NStorage::TCSharedPointer<NStream::CBinaryStorage const> &&_pStorage, umint _Offset, umint _nBytes)
 	{
 		m_BackingStorage.f_Clear();
 		m_pBackingStorage = fg_Move(_pStorage);

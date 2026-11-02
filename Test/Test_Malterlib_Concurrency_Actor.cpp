@@ -669,7 +669,7 @@ namespace
 
 				struct CCreateRefOnDestroy : public CActor
 				{
-					CCreateRefOnDestroy(TCPromise<void> _DestroyStarted, TCPromise<TCActor<CActor>> _NewRefPromise)
+					CCreateRefOnDestroy(TCPromise<void> const &_DestroyStarted, TCPromise<TCActor<CActor>> const &_NewRefPromise)
 						: m_DestroyStarted(_DestroyStarted)
 						, m_NewRefPromise(_NewRefPromise)
 					{
@@ -923,7 +923,7 @@ namespace
 
 					DMibExpectExceptionType(WeakTestActor(&CBaseActor::f_GetSpecificValue, 2).f_CallSync(g_Timeout), NException::CException);
 				}
-				auto fDispatchBoilerplate = [](auto _fToDispatch)
+				auto fDispatchBoilerplate = [](auto const &_fToDispatch)
 					{
 						return fg_ConcurrentDispatch(_fToDispatch).f_CallSync();
 					}
@@ -969,14 +969,14 @@ namespace
 					;
 					DMibExpectException(fCallWithError(), DMibErrorInstance("Error"));
 
-					auto fCallWithErrorString = [&](auto _Error)
+					auto fCallWithErrorString = [&](auto const &_Error)
 						{
 							fDispatchBoilerplate
 								(
-									[TestActor, _Error]() -> TCFuture<uint32>
+									[TestActor, Error = _Error]() -> TCFuture<uint32>
 									{
 										TCPromise<uint32> Promise;
-										TestActor(&CExceptionActor::f_GetError) > Promise % _Error / [Promise](uint32 _Result)
+										TestActor(&CExceptionActor::f_GetError) > Promise % Error / [Promise](uint32 _Result)
 											{
 												Promise.f_SetResult(_Result);
 											}
@@ -1043,14 +1043,14 @@ namespace
 					;
 					DMibExpectException(fCallWithError(), DMibErrorInstance("Error"));
 
-					auto fCallWithErrorString = [&](auto _Error)
+					auto fCallWithErrorString = [&](auto const &_Error)
 						{
 							fDispatchBoilerplate
 								(
-									[TestActor, _Error]() -> TCFuture<uint32>
+									[TestActor, Error = _Error]() -> TCFuture<uint32>
 									{
 										TCPromise<void> Promise;
-										TestActor(&CExceptionActor::f_GetErrorVoid) > Promise % _Error / [Promise]()
+										TestActor(&CExceptionActor::f_GetErrorVoid) > Promise % Error / [Promise]()
 											{
 												Promise.f_SetResult();
 											}
@@ -1116,14 +1116,14 @@ namespace
 					;
 					DMibExpectException(fCallWithError(), DMibErrorInstance("Error"));
 
-					auto fCallWithErrorString = [&](auto _Error)
+					auto fCallWithErrorString = [&](auto const &_Error)
 						{
 							fDispatchBoilerplate
 								(
-									[TestActor, _Error]() -> TCFuture<uint32>
+									[TestActor, Error = _Error]() -> TCFuture<uint32>
 									{
 										TCPromise<uint32> Promise;
-										TestActor(&CExceptionActor::f_GetNoError) + TestActor(&CExceptionActor::f_GetError) > Promise % _Error / [Promise](uint32 _Result0, uint32 _Result1)
+										TestActor(&CExceptionActor::f_GetNoError) + TestActor(&CExceptionActor::f_GetError) > Promise % Error / [Promise](uint32 _Result0, uint32 _Result1)
 											{
 												Promise.f_SetResult(_Result0);
 											}
@@ -1147,15 +1147,15 @@ namespace
 						)
 					;
 
-					auto fCallWithErrorStringBind = [&](auto _Error)
+					auto fCallWithErrorStringBind = [&](auto const &_Error)
 						{
 							fDispatchBoilerplate
 								(
-									[TestActor, _Error]() -> TCFuture<uint32>
+									[TestActor, Error = _Error]() -> TCFuture<uint32>
 									{
 										TCPromise<uint32> Promise;
 										TestActor.f_Bind<&CExceptionActor::f_GetNoError>() + TestActor.f_Bind<&CExceptionActor::f_GetError>()
-											> Promise % _Error / [Promise](uint32 _Result0, uint32 _Result1)
+											> Promise % Error / [Promise](uint32 _Result0, uint32 _Result1)
 											{
 												Promise.f_SetResult(_Result0);
 											}
@@ -1222,14 +1222,14 @@ namespace
 					;
 					DMibExpectException(fCallWithError(), DMibErrorInstance("Error"));
 
-					auto fCallWithErrorString = [&](auto _Error)
+					auto fCallWithErrorString = [&](auto const &_Error)
 						{
 							fDispatchBoilerplate
 								(
-									[TestActor, _Error]() -> TCFuture<uint32>
+									[TestActor, Error = _Error]() -> TCFuture<uint32>
 									{
 										TCPromise<void> Promise;
-										TestActor(&CExceptionActor::f_GetNoErrorVoid) + TestActor(&CExceptionActor::f_GetErrorVoid) > Promise % _Error / [Promise]()
+										TestActor(&CExceptionActor::f_GetNoErrorVoid) + TestActor(&CExceptionActor::f_GetErrorVoid) > Promise % Error / [Promise]()
 											{
 												Promise.f_SetResult();
 											}
@@ -1287,14 +1287,14 @@ namespace
 					;
 					DMibExpectException(fCallWithError(), DMibErrorInstance("Error"));
 
-					auto fCallWithErrorString = [&](auto _Error)
+					auto fCallWithErrorString = [&](auto const &_Error)
 						{
 							fDispatchBoilerplate
 								(
-									[TestActor, _Error]() -> TCFuture<uint32>
+									[TestActor, Error = _Error]() -> TCFuture<uint32>
 									{
 										TCPromise<uint32> Promise;
-										TestActor(&CExceptionActor::f_GetError) > Promise % _Error;
+										TestActor(&CExceptionActor::f_GetError) > Promise % Error;
 										co_return co_await Promise.f_MoveFuture();
 									}
 								)
@@ -1349,14 +1349,14 @@ namespace
 					;
 					DMibExpectException(fCallWithError(), DMibErrorInstance("Error"));
 
-					auto fCallWithErrorString = [&](auto _Error)
+					auto fCallWithErrorString = [&](auto const &_Error)
 						{
 							fDispatchBoilerplate
 								(
-									[TestActor, _Error]() -> TCFuture<uint32>
+									[TestActor, Error = _Error]() -> TCFuture<uint32>
 									{
 										TCPromise<void> Promise;
-										TestActor(&CExceptionActor::f_GetErrorVoid) > Promise % _Error;
+										TestActor(&CExceptionActor::f_GetErrorVoid) > Promise % Error;
 										co_await Promise.f_MoveFuture();
 
 										co_return {};

@@ -3416,14 +3416,14 @@ namespace NTestTrustManager
 					// As above we can pose multiple queries in one call and each query can have multiple forms of the permission. As in the  (CommandAll or Command/ThisCommand) and
 					// (ReadAll or Read/ThisData) example, but in this case it is possible to combine several such query vectors in one call. Each query is tagged,
 					// so the caller can tell which query that failed.
-					auto fMQ1 = [](CStr _Tag, VQ &&_Query) -> TCMap<CStr, TCVector<CPermissionQuery>>
+					auto fMQ1 = [](CStr const &_Tag, VQ &&_Query) -> TCMap<CStr, TCVector<CPermissionQuery>>
 						{
 							TCMap<CStr, TCVector<CPermissionQuery>> Result;
 							Result[_Tag] = fg_Move(_Query);
 							return Result;
 						}
 					;
-					auto fMQ2 = [](CStr _Tag1, VQ &&_Query1, CStr _Tag2, VQ &&_Query2) -> TCMap<CStr, TCVector<CPermissionQuery>>
+					auto fMQ2 = [](CStr const &_Tag1, VQ &&_Query1, CStr const &_Tag2, VQ &&_Query2) -> TCMap<CStr, TCVector<CPermissionQuery>>
 						{
 							TCMap<CStr, TCVector<CPermissionQuery>> Result;
 							Result[_Tag1] = fg_Move(_Query1);
@@ -3431,7 +3431,7 @@ namespace NTestTrustManager
 							return Result;
 						}
 					;
-					auto fMQ3 = [](CStr _Tag1, VQ &&_Query1, CStr _Tag2, VQ &&_Query2, CStr _Tag3, VQ &&_Query3) -> TCMap<CStr, TCVector<CPermissionQuery>>
+					auto fMQ3 = [](CStr const &_Tag1, VQ &&_Query1, CStr const &_Tag2, VQ &&_Query2, CStr const &_Tag3, VQ &&_Query3) -> TCMap<CStr, TCVector<CPermissionQuery>>
 						{
 							TCMap<CStr, TCVector<CPermissionQuery>> Result;
 							Result[_Tag1] = fg_Move(_Query1);

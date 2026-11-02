@@ -385,7 +385,7 @@ namespace NMib::NConcurrency
 		co_return {};
 	}
 
-	auto CDistributedAppSensorStoreLocal::CInternal::f_GetReportReadingsFunctor(CDistributedAppSensorReporter::CSensorInfoKey _SensorInfoKey, CSensorReadingKey _DatabaseKey)
+	auto CDistributedAppSensorStoreLocal::CInternal::f_GetReportReadingsFunctor(CDistributedAppSensorReporter::CSensorInfoKey const &_SensorInfoKey, CSensorReadingKey const &_DatabaseKey)
 		-> TCActorFunctorWithID<TCFuture<void> (NContainer::TCVector<CDistributedAppSensorReporter::CSensorReading> _Readings)>
 	{
 		return g_ActorFunctor

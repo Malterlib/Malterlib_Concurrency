@@ -92,7 +92,7 @@ namespace NMib::NConcurrency
 
 			auto [iSensorReading, ReadTransactionMove] = co_await fg_Move(ReadTransaction).f_BlockingDispatch
 				(
-					[DatabaseKey, LastSeenUniqueSequence = Reporter.m_LastSeenUniqueSequence](CDatabaseActor::CTransactionRead _ReadTransaction)
+					[DatabaseKey, LastSeenUniqueSequence = Reporter.m_LastSeenUniqueSequence](CDatabaseActor::CTransactionRead &&_ReadTransaction)
 					{
 						auto iSensorReading = _ReadTransaction.m_Transaction.f_ReadCursor((CSensorKey const &)DatabaseKey);
 						iSensorReading.f_FindLowerBound(DatabaseKey);

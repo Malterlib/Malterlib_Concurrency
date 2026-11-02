@@ -50,7 +50,7 @@ namespace NMib::NConcurrency
 		};
 
 		void fp_NewValidatedWebsocketConnection(TCSharedPointer<CWebSocketNewServerConnection> const &_pNewServerConnection, CStr const &_HostID);
-		CEJsonSorted fp_MethodError(CStr _Error, CStr _Reason, CStr _Details = "");
+		CEJsonSorted fp_MethodError(CStr const &_Error, CStr const &_Reason, CStr const &_Details = "");
 		void fp_StartupFailed(CException const &_Exception);
 
 		CDistributedTrustDDPBridge *m_pThis;
@@ -172,7 +172,7 @@ namespace NMib::NConcurrency
 		co_return fg_Move(Subscription);
 	}
 
-	CEJsonSorted CDistributedTrustDDPBridge::CInternal::fp_MethodError(CStr _Error, CStr _Reason, CStr _Details)
+	CEJsonSorted CDistributedTrustDDPBridge::CInternal::fp_MethodError(CStr const &_Error, CStr const &_Reason, CStr const &_Details)
 	{
 		CEJsonSorted Ret;
 		Ret["error"] = _Error;

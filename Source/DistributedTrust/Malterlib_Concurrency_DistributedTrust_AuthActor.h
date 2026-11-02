@@ -54,7 +54,7 @@ namespace NMib::NConcurrency
 			-> TCFuture<CVerifyAuthenticationReturn> = 0
 		;
 
-		static NContainer::TCMap<NStr::CStr, CAuthenticationActorInfo> fs_GetRegisteredAuthenticationFactors(TCActor<CDistributedActorTrustManager> _TrustManager);
+		static NContainer::TCMap<NStr::CStr, CAuthenticationActorInfo> fs_GetRegisteredAuthenticationFactors(TCActor<CDistributedActorTrustManager> const &_TrustManager);
 	};
 
 	struct ICDistributedActorTrustManagerAuthenticationActorFactory

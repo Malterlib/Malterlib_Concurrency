@@ -123,7 +123,7 @@ namespace NMib::NConcurrency
 		;
 		TCFuture<void> f_CleanupLogReporter(CDistributedAppLogReporter::CLogInfoKey _LogInfoKey);
 
-		auto f_GetReportEntriesFunctor(CDistributedAppLogReporter::CLogInfoKey _LogInfoKey, NLogStoreLocalDatabase::CLogEntryKey _DatabaseKey)
+		auto f_GetReportEntriesFunctor(CDistributedAppLogReporter::CLogInfoKey const &_LogInfoKey, NLogStoreLocalDatabase::CLogEntryKey const &_DatabaseKey)
 			-> TCActorFunctorWithID<TCFuture<CDistributedAppLogReporter::CReportEntriesResult> (NContainer::TCVector<CDistributedAppLogReporter::CLogEntry> _Entries)>
 		;
 

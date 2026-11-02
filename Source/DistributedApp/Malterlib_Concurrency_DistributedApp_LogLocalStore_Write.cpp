@@ -428,7 +428,7 @@ namespace NMib::NConcurrency
 		}
 	}
 
-	auto CDistributedAppLogStoreLocal::CInternal::f_GetReportEntriesFunctor(CDistributedAppLogReporter::CLogInfoKey _LogInfoKey, CLogEntryKey _DatabaseKey)
+	auto CDistributedAppLogStoreLocal::CInternal::f_GetReportEntriesFunctor(CDistributedAppLogReporter::CLogInfoKey const &_LogInfoKey, CLogEntryKey const &_DatabaseKey)
 		-> TCActorFunctorWithID<TCFuture<CDistributedAppLogReporter::CReportEntriesResult> (NContainer::TCVector<CDistributedAppLogReporter::CLogEntry> _Entries)>
 	{
 		return g_ActorFunctor

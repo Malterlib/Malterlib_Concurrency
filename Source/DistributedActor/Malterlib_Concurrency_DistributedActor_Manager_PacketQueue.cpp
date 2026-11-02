@@ -199,7 +199,7 @@ namespace NMib::NConcurrency
 		;
 	}
 
-	void CActorDistributionManager::fp_FlushSendPacketQueue(NStorage::TCSharedPointerSupportWeak<NPrivate::ICHost> _pHost)
+	void CActorDistributionManager::fp_FlushSendPacketQueue(NStorage::TCSharedPointerSupportWeak<NPrivate::ICHost> &&_pHost)
 	{
 		auto &Host = *(static_cast<NActorDistributionManagerInternal::CHost *>(_pHost.f_Get()));
 		Host.m_bSendPacketQueueScheduled = false;

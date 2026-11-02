@@ -120,7 +120,7 @@ namespace NMib::NConcurrency
 		using NStream::TCBinaryStreamStoragePtr<>::f_OpenRead;
 
 		void f_OpenRead(NContainer::CSharedByteVector const &_View);
-		void f_OpenRead(NStorage::TCSharedPointer<NStream::CBinaryStorage const> _pStorage, umint _Offset, umint _nBytes);
+		void f_OpenRead(NStorage::TCSharedPointer<NStream::CBinaryStorage const> &&_pStorage, umint _Offset, umint _nBytes);
 
 		void f_Consume(CActorSubscription &_Subscription, uint32 _SubscriptionSequenceID = TCLimitsInt<uint32>::mc_Max);
 		template <uint32 tf_SubscriptionID>

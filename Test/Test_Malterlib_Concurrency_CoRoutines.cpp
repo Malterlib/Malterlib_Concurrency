@@ -890,7 +890,7 @@ namespace NMib::NConcurrency::NTest
 				{
 					return _Value * 2;
 				}
-				> [this](TCAsyncResult<uint32> _Value) mutable
+				> [this](TCAsyncResult<uint32> &&_Value) mutable
 				{
 					self / [=, this, Value = fg_Move(_Value), TestDestruction = CTestDestruction{}]() mutable -> TCFuture<void>
 						{
@@ -1026,7 +1026,7 @@ namespace NMib::NConcurrency::NTest
 				{
 					co_return _Value * 2;
 				}
-				> [this](TCAsyncResult<uint32> _Value) mutable
+				> [this](TCAsyncResult<uint32> &&_Value) mutable
 				{
 					self / [TestDestruction = CTestDestruction{}]() -> TCFuture<void>
 						{

@@ -239,10 +239,12 @@ namespace NMib::NConcurrency
 					co_return {};
 				}
 				DMibLog(Info, "Launch subscription goes out of scope: {} {}", _LaunchID, pLaunch->m_HostID);
-				auto Result = co_await pLaunch->f_Destroy().f_Wrap();
 
+				// Register the destroy before it starts, so fp_Destroy waits for it instead of destroying the launch again.
 				auto Pending = m_PendingDestroys[_LaunchID];
 				auto HostID = pLaunch->m_HostID;
+
+				auto Result = co_await pLaunch->f_Destroy().f_Wrap();
 
 				if (!Result)
 					DMibLog(Info, "Launch subscription destroy failed: {} {}", _LaunchID, Result.f_GetExceptionStr());

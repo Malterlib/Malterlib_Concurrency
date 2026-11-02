@@ -11,7 +11,7 @@
 
 namespace NMib::NConcurrency
 {
-	struct CDistributedDaemon
+	struct CDistributedDaemon : public CAllowUnsafeThis
 	{
 		CDistributedDaemon
 			(

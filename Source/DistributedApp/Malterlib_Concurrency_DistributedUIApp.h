@@ -9,7 +9,7 @@
 
 namespace NMib::NConcurrency
 {
-	struct CDistributedUIApp
+	struct CDistributedUIApp : public CAllowUnsafeThis
 	{
 		CDistributedUIApp(NFunction::TCFunction<TCActor<CDistributedAppActor> ()> const &_fActorFactory);
 		~CDistributedUIApp();

@@ -103,7 +103,9 @@ namespace NMib::NConcurrency
 				co_return Auditor.f_AccessDenied("(Run command line)", Permissions);
 		}
 
-		auto &SpecInternal = Internal.m_pCommandLineSpec->f_AccessInternal();
+		// A local reference to the specification keeps it while this waits.
+		auto pCommandLineSpec = Internal.m_pCommandLineSpec;
+		auto &SpecInternal = pCommandLineSpec->f_AccessInternal();
 		auto *pCommand = SpecInternal.m_CommandByName.f_FindEqual(_Command);
 
 		if (!pCommand)

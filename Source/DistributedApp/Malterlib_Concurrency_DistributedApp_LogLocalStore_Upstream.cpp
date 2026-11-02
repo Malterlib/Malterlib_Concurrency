@@ -414,8 +414,6 @@ namespace NMib::NConcurrency
 
 							auto ReportEntriesResult = co_await pReporter->m_Reporter.m_fReportEntries(*pEntries);
 
-							(void)_DoneSubscription;
-
 							co_return ReportEntriesResult.m_ReportDepth;
 						}
 					)

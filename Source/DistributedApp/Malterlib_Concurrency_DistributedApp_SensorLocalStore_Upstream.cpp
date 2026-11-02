@@ -366,8 +366,6 @@ namespace NMib::NConcurrency
 
 							co_await pReporter->m_Reporter.m_fReportReadings(*pReadings);
 
-							(void)_DoneSubscription;
-
 							co_return {};
 						}
 					)

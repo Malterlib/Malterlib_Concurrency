@@ -874,6 +874,28 @@ namespace NMib::NConcurrency::NPrivate
 		;
 	};
 
+	// Whether the coroutine is a member function of an actor. An actor call moves the arguments into the coroutine once, so a
+	// reference parameter would refer to the moved-from argument. Other coroutines may take references: the
+	// malterlib-coroutine-reference-parameter clang-tidy check verifies that they are only used before the first suspension,
+	// unless the function runs to completion (DMibRunsToCompletion).
+	template <typename tfp_CThis, bool t_bIsComplete = NTraits::cIsComplete<tfp_CThis>>
+	struct TCCoroutineContextIsActorMember
+	{
+		static constexpr bool mc_bValue = false;
+	};
+
+	template <bool t_bIsComplete>
+	struct TCCoroutineContextIsActorMember<void, t_bIsComplete>
+	{
+		static constexpr bool mc_bValue = false;
+	};
+
+	template <typename tfp_CThis>
+	struct TCCoroutineContextIsActorMember<tfp_CThis, true>
+	{
+		static constexpr bool mc_bValue = NTraits::cIsReference<tfp_CThis> && NTraits::cIsBaseOf<NTraits::TCRemoveReference<tfp_CThis>, CActor>;
+	};
+
 	template <typename ...tp_CParams>
 	struct TCCoroutineContextFlagsFromParams
 	{
@@ -885,7 +907,11 @@ namespace NMib::NConcurrency::NPrivate
 	{
 		static constexpr NMib::NConcurrency::ECoroutineFlag mc_Value = NMib::NConcurrency::ECoroutineFlag
 			(
-				((... || NMib::NTraits::cIsReference<tp_CParams>) ? NMib::NConcurrency::ECoroutineFlag_UnsafeReferenceParameters : NMib::NConcurrency::ECoroutineFlag_None)
+				(
+					((... || NMib::NTraits::cIsReference<tp_CParams>) && TCCoroutineContextIsActorMember<tp_CFirstParam>::mc_bValue)
+					? NMib::NConcurrency::ECoroutineFlag_UnsafeReferenceParameters
+					: NMib::NConcurrency::ECoroutineFlag_None
+				)
 				| TCCoroutineContextFlagsFromParams_This<tp_CFirstParam>::mc_Value
 			)
 		;
@@ -896,7 +922,7 @@ namespace std
 {
 #ifdef _LIBCPP_HAS_EXTENDED_COROUTINE_TRAITS
 	template <typename t_CReturnType, typename ...tp_CParams>
-		// Reference parameters in co-routines are not safe. If you want to take responsibility, make the param a pointer instead or use TCUnsafeFuture
+		// Reference parameters of member functions of actors are not safe, because actor calls move the arguments into the coroutine. Take the param by value, or use TCUnsafeFuture
 		requires
 		(
 			!(NMib::NConcurrency::NPrivate::TCCoroutineContextFlagsFromParams<tp_CParams...>::mc_Value & NMib::NConcurrency::ECoroutineFlag_UnsafeReferenceParameters)
@@ -917,7 +943,7 @@ namespace std
 	};
 
 	template <typename t_CReturnType, NMib::NConcurrency::ECoroutineFlag t_Flags, typename ...tp_CParams>
-		// Reference parameters in co-routines are not safe. If you want to take responsibility, make the param a pointer instead or use TCUnsafeFuture
+		// Reference parameters of member functions of actors are not safe, because actor calls move the arguments into the coroutine. Take the param by value, or use TCUnsafeFuture
 		requires
 		(
 			!((NMib::NConcurrency::NPrivate::TCCoroutineContextFlagsFromParams<tp_CParams...>::mc_Value | t_Flags) & NMib::NConcurrency::ECoroutineFlag_UnsafeReferenceParameters)
@@ -939,7 +965,7 @@ namespace std
 #endif
 
 	template <typename t_CReturnType, typename ...tp_CParams>
-		// Reference parameters in co-routines are not safe. If you want to take responsibility, make the param a pointer instead or use TCUnsafeFuture
+		// Reference parameters of member functions of actors are not safe, because actor calls move the arguments into the coroutine. Take the param by value, or use TCUnsafeFuture
 		requires
 		(
 			!(NMib::NConcurrency::NPrivate::TCCoroutineContextFlagsFromParams<tp_CParams...>::mc_Value & NMib::NConcurrency::ECoroutineFlag_UnsafeReferenceParameters)
@@ -960,7 +986,7 @@ namespace std
 	};
 
 	template <typename t_CReturnType, NMib::NConcurrency::ECoroutineFlag t_Flags, typename ...tp_CParams>
-		// Reference parameters in co-routines are not safe. If you want to take responsibility, make the param a pointer instead or use TCUnsafeFuture
+		// Reference parameters of member functions of actors are not safe, because actor calls move the arguments into the coroutine. Take the param by value, or use TCUnsafeFuture
 		requires
 		(
 			!((NMib::NConcurrency::NPrivate::TCCoroutineContextFlagsFromParams<tp_CParams...>::mc_Value | t_Flags) & NMib::NConcurrency::ECoroutineFlag_UnsafeReferenceParameters)

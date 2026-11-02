@@ -148,7 +148,7 @@ namespace std
 {
 #ifdef _LIBCPP_HAS_EXTENDED_COROUTINE_TRAITS
 	template <typename t_CReturnType, typename ...tp_CParams>
-		// Reference parameters in co-routines are not safe. If you want to take responsibility, make the param a pointer instead or use TCUnsafeFuture
+		// Reference parameters of member functions of actors are not safe, because actor calls move the arguments into the coroutine. Take the param by value, or use TCUnsafeFuture
 		requires
 		(
 			!(NMib::NConcurrency::NPrivate::TCCoroutineContextFlagsFromParams<tp_CParams...>::mc_Value & NMib::NConcurrency::ECoroutineFlag_UnsafeReferenceParameters)
@@ -169,7 +169,7 @@ namespace std
 	};
 #endif
 	template <typename t_CReturnType, typename ...tp_CParams>
-		// Reference parameters in co-routines are not safe. If you want to take responsibility, make the param a pointer instead or use TCUnsafeFuture
+		// Reference parameters of member functions of actors are not safe, because actor calls move the arguments into the coroutine. Take the param by value, or use TCUnsafeFuture
 		requires
 		(
 			!(NMib::NConcurrency::NPrivate::TCCoroutineContextFlagsFromParams<tp_CParams...>::mc_Value & (NMib::NConcurrency::ECoroutineFlag_UnsafeReferenceParameters))

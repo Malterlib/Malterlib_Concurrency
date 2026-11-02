@@ -4,6 +4,7 @@
 #pragma once
 
 #include <Mib/Storage/BitStorePointer>
+#include "Malterlib_Concurrency_TidyAnnotations.h"
 
 namespace NMib::NConcurrency
 {

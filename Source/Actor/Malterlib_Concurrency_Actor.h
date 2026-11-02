@@ -63,7 +63,7 @@ namespace NMib::NConcurrency
 		CActor &operator = (CActor &&) = delete;
 		CActor &operator = (CActor const &) = delete;
 
-		bool f_IsDestroyed() const;
+		DMibActorPhaseFlag(Destroy) bool f_IsDestroyed() const;
 		TCFuture<void> f_Dispatch(NFunction::TCFunctionMovable<void ()> _fToDisptach);
 
 		template <typename tf_CReturnType, typename ...tfp_CParams>
@@ -119,14 +119,14 @@ namespace NMib::NConcurrency
 		inline_always CConcurrencyManager &f_ConcurrencyManager() const;
 
 		bool f_SuspendCoroutine(CFutureCoroutineContext &_CoroutineContext);
-		CFutureCoroutineContextOnResumeScopeAwaiter f_CheckDestroyedOnResume() const;
+		DMibActorPhaseGuard(Destroy) CFutureCoroutineContextOnResumeScopeAwaiter f_CheckDestroyedOnResume() const;
 
 	protected:
 		template <typename tf_CReturnType, typename tf_CFunction, typename ...tfp_CParams>
 		inline_always tf_CReturnType fp_DispatchWithReturnCoroutine(tf_CFunction &&_fToDisptach, tfp_CParams ...p_Params);
 
 		virtual void fp_Construct();
-		virtual TCFuture<void> fp_Destroy();
+		DMibActorPhase(Destroy) virtual TCFuture<void> fp_Destroy();
 #if DMibEnableSafeCheck > 0
 		virtual void fp_CheckDestroy();
 #endif
@@ -151,7 +151,7 @@ namespace NMib::NConcurrency
 		TCFuture<void> fp_AbortSuspendedCoroutinesWithAsyncDestroy();
 		void fp_AbortSuspendedCoroutines();
 
-		TCFuture<void> fp_DestroyInternal();
+		DMibActorPhaseEntry(Destroy) TCFuture<void> fp_DestroyInternal();
 
 	public:
 		static constexpr bool mc_bAllowInternalAccess = false;

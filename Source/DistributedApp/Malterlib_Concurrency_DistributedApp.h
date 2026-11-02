@@ -60,7 +60,7 @@ namespace NMib::NConcurrency
 		NStr::CStr m_HostID;
 		NStr::CStr m_CommandLineHostID;
 		NStr::CStr m_RootDirectory;
-		bool m_bStoppingApp = false;
+		DMibActorPhaseFlag(StopApp) bool m_bStoppingApp = false;
 
 		CDistributedAppAuditor f_Auditor(NStr::CStr const &_Category = {}, CCallingHostInfo const &_CallingHostInfo = fg_GetCallingHostInfo()) const;
 		NFunction::TCFunctionMovable<CDistributedAppAuditor (CCallingHostInfo const &_CallingHostInfo, NStr::CStr const &_Category)> f_AuditorFactory(NStr::CStr const &_Category = {}) const;
@@ -115,7 +115,7 @@ namespace NMib::NConcurrency
 		~CDistributedAppActor();
 
 		TCFuture<NStr::CStr> f_StartApp(NEncoding::CEJsonSorted const _Params, TCActor<CDistiributedAppLogActor> _LogActor, EDistributedAppType _AppType);
-		TCFuture<void> f_StopApp();
+		DMibActorPhaseEntry(StopApp) TCFuture<void> f_StopApp();
 		TCFuture<CDistributedAppLogReporter::CLogReporter> f_OpenDefaultLogReporter();
 
 		void f_SetAppType(EDistributedAppType _AppType);
@@ -369,7 +369,7 @@ namespace NMib::NConcurrency
 		};
 
 		virtual TCFuture<void> fp_StartApp(NEncoding::CEJsonSorted const _Params) = 0;
-		virtual TCFuture<void> fp_StopApp() = 0;
+		DMibActorPhase(StopApp) virtual TCFuture<void> fp_StopApp() = 0;
 
 		TCFuture<void> fp_WaitForAppStartup();
 
@@ -504,7 +504,7 @@ namespace NMib::NConcurrency
 		TCFuture<void> fp_SaveStateDatabase();
 		TCFuture<void> fp_SaveConfigDatabase();
 
-		CFutureCoroutineContextOnResumeScopeAwaiter fp_CheckStoppedOrDestroyedOnResume() const;
+		DMibActorPhaseGuard(Destroy, StopApp) CFutureCoroutineContextOnResumeScopeAwaiter fp_CheckStoppedOrDestroyedOnResume() const;
 
 		CCallingHostInfoScope fp_PopulateCurrentHostInfoIfMissing(NStr::CStr _Description);
 

@@ -7,6 +7,12 @@
 
 namespace NMib::NConcurrency
 {
+	COrdering_Partial CDistributedAppSensorReporter::CValueComparison::operator <=> (CValueComparison const &_Right) const noexcept = default;
+	bool CDistributedAppSensorReporter::CValueComparison::operator == (CValueComparison const &_Right) const noexcept = default;
+
+	COrdering_Partial CDistributedAppSensorReporter::CSensorInfo::operator <=> (CSensorInfo const &_Right) const noexcept = default;
+	bool CDistributedAppSensorReporter::CSensorInfo::operator == (CSensorInfo const &_Right) const noexcept = default;
+
 	CDistributedAppSensorReporter::CDistributedAppSensorReporter()
 	{
 		DMibPublishActorFunction(CDistributedAppSensorReporter::f_OpenSensorReporter);

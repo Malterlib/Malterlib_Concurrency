@@ -215,7 +215,8 @@ namespace NMib::NConcurrency
 			template <typename tf_CStr>
 			void f_Format(tf_CStr &o_Str) const;
 
-			auto operator <=> (CValueComparison const &_Right) const noexcept = default;
+			COrdering_Partial operator <=> (CValueComparison const &_Right) const noexcept;
+			bool operator == (CValueComparison const &_Right) const noexcept;
 
 			bool f_IsTrue(CSensorData const &_Value) const;
 
@@ -271,7 +272,8 @@ namespace NMib::NConcurrency
 			template <typename tf_CStr>
 			void f_Format(tf_CStr &o_Str) const;
 
-			auto operator <=> (CSensorInfo const &_Right) const noexcept = default;
+			COrdering_Partial operator <=> (CSensorInfo const &_Right) const noexcept;
+			bool operator == (CSensorInfo const &_Right) const noexcept;
 
 			bool f_IsValueWarning(CSensorData const &_Value) const;
 			bool f_IsValueCritical(CSensorData const &_Value) const;

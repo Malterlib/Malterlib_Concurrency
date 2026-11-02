@@ -1031,18 +1031,18 @@ namespace NTestActor2
 		{
 			DMibTestSuite("SharedRoundRobinBlockingActors") -> TCFuture<void>
 			{
-				CSharedRoundRobinBlockingActors BlockingActors(3);
-				NAtomic::TCAtomic<umint> nRuns{0};
+				NStorage::TCSharedPointer<CSharedRoundRobinBlockingActors> pBlockingActors = fg_Construct(3);
+				NStorage::TCSharedPointer<NAtomic::TCAtomic<umint>> pnRuns = fg_Construct(0);
 				TCFutureVector<void> Results;
 				for (umint iRun = 0; iRun < 64; ++iRun)
 				{
-					g_Dispatch(fg_ConcurrentActor()) / [&BlockingActors, &nRuns]() -> TCFuture<void>
+					g_Dispatch(fg_ConcurrentActor()) / [pBlockingActors, pnRuns]() -> TCFuture<void>
 						{
 							co_await
 								(
-									g_Dispatch(BlockingActors.f_Next()) / [&nRuns]
+									g_Dispatch(pBlockingActors->f_Next()) / [pnRuns]
 									{
-										++nRuns;
+										++*pnRuns;
 									}
 								)
 							;
@@ -1054,9 +1054,9 @@ namespace NTestActor2
 
 				co_await fg_AllDone(Results);
 
-				DMibExpect(nRuns.f_Load(), ==, 64);
-				DMibExpect(BlockingActors.f_GetNumCheckouts(), <=, 3);
-				DMibExpect(BlockingActors.f_GetNumCheckouts(), >=, 1);
+				DMibExpect(pnRuns->f_Load(), ==, 64);
+				DMibExpect(pBlockingActors->f_GetNumCheckouts(), <=, 3);
+				DMibExpect(pBlockingActors->f_GetNumCheckouts(), >=, 1);
 
 				co_return {};
 			};

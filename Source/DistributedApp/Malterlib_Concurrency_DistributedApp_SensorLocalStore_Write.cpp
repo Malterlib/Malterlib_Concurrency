@@ -405,6 +405,19 @@ namespace NMib::NConcurrency
 				if (pSensor->m_pCanDestroy)
 					CanDestroy = pSensor->m_pCanDestroy->f_Track();
 
+				// The sensor can be removed while this waits.
+				auto OnResume = co_await fg_OnResume
+					(
+						[&]() -> CExceptionPointer
+						{
+							pSensor = m_Sensors.f_FindEqual(_SensorInfoKey);
+							if (!pSensor)
+								return DMibErrorInstance("Sensor was removed");
+							return {};
+						}
+					)
+				;
+
 				auto SequenceSubscription = co_await pSensor->m_SensorSequencer.f_Sequence();
 
 				TCVector<CDistributedAppSensorReporter::CSensorReading> NewReadings;

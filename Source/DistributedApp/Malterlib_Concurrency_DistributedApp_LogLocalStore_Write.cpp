@@ -451,6 +451,19 @@ namespace NMib::NConcurrency
 
 				DMibLogOperation(DisableDistributedLogReporter); // Prevent recursive logs
 
+				// The log can be removed while this waits.
+				auto OnResume = co_await fg_OnResume
+					(
+						[&]() -> CExceptionPointer
+						{
+							pLog = m_Logs.f_FindEqual(_LogInfoKey);
+							if (!pLog)
+								return DMibErrorInstance("Log was removed");
+							return {};
+						}
+					)
+				;
+
 				auto SequenceSubscription = co_await pLog->m_LogSequencer.f_Sequence();
 
 				auto Entries = fg_SplitEntriesByMaxSize(fg_Move(_Entries));

@@ -257,12 +257,12 @@ namespace NMib::NConcurrency
 			return {};
 		}
 
-		CCaptureExceptionScopeAwaiter await_transform(CCaptureExceptionsHelper);
-		CCaptureExceptionScopeWithTransformerAwaiter await_transform(CCaptureExceptionsHelperWithTransformer &&_Transformer);
+		CCaptureExceptionScopeAwaiter await_transform(CCaptureExceptionsHelper) noexcept;
+		CCaptureExceptionScopeWithTransformerAwaiter await_transform(CCaptureExceptionsHelperWithTransformer &&_Transformer) noexcept;
 
 		TCFutureAwaiter<void, true, CVoidTag> await_transform(CAsyncDestroyHelper);
 		TCFutureAwaiter<NContainer::TCVector<TCAsyncResult<void>>, true, CVoidTag> await_transform(CAsyncDestroyHelperNoUnWrap);
-		CFutureCoroutineContextOnResumeScopeAwaiter &&await_transform(CFutureCoroutineContextOnResumeScopeAwaiter &&_Awaiter);
+		CFutureCoroutineContextOnResumeScopeAwaiter &&await_transform(CFutureCoroutineContextOnResumeScopeAwaiter &&_Awaiter) noexcept;
 
 		void unhandled_exception();
 

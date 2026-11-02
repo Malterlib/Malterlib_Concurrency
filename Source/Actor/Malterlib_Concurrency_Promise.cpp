@@ -153,7 +153,7 @@ namespace NMib::NConcurrency
 		return CCoroutineOnResumeScope(fg_Move(mp_fOnResume));
 	}
 
-	CFutureCoroutineContextOnResumeScopeAwaiter &&CFutureCoroutineContext::await_transform(CFutureCoroutineContextOnResumeScopeAwaiter &&_Awaiter)
+	CFutureCoroutineContextOnResumeScopeAwaiter &&CFutureCoroutineContext::await_transform(CFutureCoroutineContextOnResumeScopeAwaiter &&_Awaiter) noexcept
 	{
 		_Awaiter.mp_pThis = this;
 #if DMibEnableSafeCheck > 0
@@ -188,12 +188,12 @@ namespace NMib::NConcurrency
 	{
 	}
 
-	CFutureCoroutineContext::CCaptureExceptionScopeAwaiter CFutureCoroutineContext::await_transform(CCaptureExceptionsHelper)
+	CFutureCoroutineContext::CCaptureExceptionScopeAwaiter CFutureCoroutineContext::await_transform(CCaptureExceptionsHelper) noexcept
 	{
 		return CCaptureExceptionScopeAwaiter{{}, this};
 	}
 
-	auto CFutureCoroutineContext::await_transform(CCaptureExceptionsHelperWithTransformer &&_Transformer) -> CCaptureExceptionScopeWithTransformerAwaiter
+	auto CFutureCoroutineContext::await_transform(CCaptureExceptionsHelperWithTransformer &&_Transformer) noexcept -> CCaptureExceptionScopeWithTransformerAwaiter
 	{
 		return CCaptureExceptionScopeWithTransformerAwaiter{{}, this, fg_Move(_Transformer.m_fTransformer)};
 	}

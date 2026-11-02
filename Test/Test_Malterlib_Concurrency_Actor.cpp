@@ -633,7 +633,7 @@ namespace
 				co_await fg_Dispatch
 					(
 						Actor
-						, [&Functor, pDelivered, pDeliveredAfterDirect, pDeliveredWhileArmed]() -> TCFuture<void>
+						, [Functor = fg_Move(Functor), pDelivered, pDeliveredAfterDirect, pDeliveredWhileArmed]() mutable -> TCFuture<void>
 						{
 							co_await Functor.f_CallDirect();
 							if (auto fLocked = Functor.f_Lock())

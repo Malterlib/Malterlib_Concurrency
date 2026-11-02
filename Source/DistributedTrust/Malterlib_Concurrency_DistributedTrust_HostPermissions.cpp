@@ -584,6 +584,12 @@ namespace NMib::NConcurrency
 
 	CTrustedPermissionSubscription &CTrustedPermissionSubscription::operator = (CTrustedPermissionSubscription &&_Other)
 	{
+		if (this == &_Other)
+			return *this;
+
+		// Unsubscribe the state this replaces, which would otherwise keep reporting to this object.
+		f_Clear();
+
 		mp_pState = fg_Move(_Other.mp_pState);
 		mp_Permissions = fg_Move(_Other.mp_Permissions);
 		if (mp_pState)

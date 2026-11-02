@@ -81,30 +81,30 @@ namespace NMib::NConcurrency::NPrivate
 
 	// An not so smart pointer that applies the SSL free functions
 	template <typename t_CPointer, auto t_fDeleter>
-	struct CSSLPointer
+	struct TCSSLPointer
 	{
-		CSSLPointer(t_CPointer _pSSLHandle)
+		TCSSLPointer(t_CPointer _pSSLHandle)
 			: m_pSSLHandle(_pSSLHandle)
 		{
 		}
 
-		CSSLPointer(CSSLPointer const &_Other) = delete;
-		CSSLPointer &operator = (CSSLPointer const &_Other) = delete;
+		TCSSLPointer(TCSSLPointer const &_Other) = delete;
+		TCSSLPointer &operator = (TCSSLPointer const &_Other) = delete;
 
-		CSSLPointer(CSSLPointer &&_Other)
+		TCSSLPointer(TCSSLPointer &&_Other)
 			: m_pSSLHandle(_Other.m_pSSLHandle)
 		{
 			_Other.m_pSSLHandle = nullptr;
 		}
 
-		CSSLPointer &operator = (CSSLPointer &&_Other)
+		TCSSLPointer &operator = (TCSSLPointer &&_Other)
 		{
 			m_pSSLHandle = _Other.m_pSSLHandle;
 			_Other.m_pSSLHandle = nullptr;
 			return *this;
 		}
 
-		~CSSLPointer()
+		~TCSSLPointer()
 		{
 			if (m_pSSLHandle)
 				t_fDeleter(m_pSSLHandle);
@@ -137,9 +137,9 @@ namespace NMib::NConcurrency::NPrivate
 
 	EC_KEY *fg_DecodeUserKey(CSecureByteVector const &_Data)
 	{
-		CSSLPointer<EC_GROUP *, EC_GROUP_free> pECGroup = EC_GROUP_new_by_curve_name(NID_X9_62_prime256v1);
-		CSSLPointer<EC_KEY *, EC_KEY_free> pKey = EC_KEY_new_by_curve_name(NID_X9_62_prime256v1);
-		CSSLPointer<EC_POINT *, EC_POINT_free> pPoint = EC_POINT_new(pECGroup);
+		TCSSLPointer<EC_GROUP *, EC_GROUP_free> pECGroup = EC_GROUP_new_by_curve_name(NID_X9_62_prime256v1);
+		TCSSLPointer<EC_KEY *, EC_KEY_free> pKey = EC_KEY_new_by_curve_name(NID_X9_62_prime256v1);
+		TCSSLPointer<EC_POINT *, EC_POINT_free> pPoint = EC_POINT_new(pECGroup);
 
 		EC_GROUP_set_point_conversion_form(pECGroup, POINT_CONVERSION_UNCOMPRESSED);
 
@@ -156,7 +156,7 @@ namespace NMib::NConcurrency::NPrivate
 
 	CSecureByteVector fg_DumpUserKey(EC_KEY const *_pKey)
 	{
-		CSSLPointer<EC_GROUP *, EC_GROUP_free> pECGroup = EC_GROUP_new_by_curve_name(NID_X9_62_prime256v1);
+		TCSSLPointer<EC_GROUP *, EC_GROUP_free> pECGroup = EC_GROUP_new_by_curve_name(NID_X9_62_prime256v1);
 
 		if (!pECGroup)
 			DMibError(NCryptography::NBoringSSL::fg_GetExceptionStr("Failed dump user key (EC_GROUP_new_by_curve_name)"));
@@ -176,7 +176,7 @@ namespace NMib::NConcurrency::NPrivate
 	CStr fg_DumpX509Cert(X509 *_pCert)
 	{
 		ERR_clear_error();
-		CSSLPointer<BIO *, BIO_free> pBio = BIO_new(BIO_s_mem());
+		TCSSLPointer<BIO *, BIO_free> pBio = BIO_new(BIO_s_mem());
 		if (!pBio)
 			DMibError(NCryptography::NBoringSSL::fg_GetExceptionStr("Failed dump x509 cert (BIO_new)"));
 
@@ -872,7 +872,7 @@ namespace NMib::NConcurrency::NPrivate
 			CSecureByteVector &AttestationCertData = _Response.m_AttestationCertificate;
 			CSecureByteVector &SignatureBuffer = _Response.m_Signature;
 
-			CSSLPointer<X509 *, X509_free> pCertificate{nullptr};
+			TCSSLPointer<X509 *, X509_free> pCertificate{nullptr};
 			{
 				uint8 const *pTempData = AttestationCertData.f_GetArray();
 				ERR_clear_error();
@@ -881,7 +881,7 @@ namespace NMib::NConcurrency::NPrivate
 					co_return DMibErrorInstance(NCryptography::NBoringSSL::fg_GetExceptionStr("Failed to verify registration response (d2i_X509)"));
 			}
 
-			CSSLPointer<ECDSA_SIG *, ECDSA_SIG_free> pSig{nullptr};
+			TCSSLPointer<ECDSA_SIG *, ECDSA_SIG_free> pSig{nullptr};
 			{
 				uint8 const *pTempData = SignatureBuffer.f_GetArray();
 				ERR_clear_error();
@@ -890,15 +890,15 @@ namespace NMib::NConcurrency::NPrivate
 					co_return DMibErrorInstance(NCryptography::NBoringSSL::fg_GetExceptionStr("Failed to verify registration response (d2i_ECDSA_SIG)"));
 			}
 
-			CSSLPointer<EVP_PKEY *, EVP_PKEY_free> pKey = X509_get_pubkey(pCertificate);
+			TCSSLPointer<EVP_PKEY *, EVP_PKEY_free> pKey = X509_get_pubkey(pCertificate);
 			if (!pKey)
 				co_return DMibErrorInstance(NCryptography::NBoringSSL::fg_GetExceptionStr("Failed to verify registration response (X509_get_pubkey)"));
 
-			CSSLPointer<EC_KEY *, EC_KEY_free> pECKey = EVP_PKEY_get1_EC_KEY(pKey);
+			TCSSLPointer<EC_KEY *, EC_KEY_free> pECKey = EVP_PKEY_get1_EC_KEY(pKey);
 			if (!pECKey)
 				co_return DMibErrorInstance(NCryptography::NBoringSSL::fg_GetExceptionStr("Failed to verify registration response (EVP_PKEY_get1_EC_KEY)"));
 
-			CSSLPointer<EC_GROUP *, EC_GROUP_free> pECGroup = EC_GROUP_new_by_curve_name(NID_X9_62_prime256v1);
+			TCSSLPointer<EC_GROUP *, EC_GROUP_free> pECGroup = EC_GROUP_new_by_curve_name(NID_X9_62_prime256v1);
 			EC_KEY_set_asn1_flag(pECKey, OPENSSL_EC_NAMED_CURVE);
 			EC_KEY_set_group(pECKey, pECGroup);
 
@@ -923,7 +923,7 @@ namespace NMib::NConcurrency::NPrivate
 					co_return DMibErrorInstance("Invalid signature");
 			}
 
-			CSSLPointer<EC_KEY *, EC_KEY_free> pUserPublicKey = fg_DecodeUserKey(PublicKey);
+			TCSSLPointer<EC_KEY *, EC_KEY_free> pUserPublicKey = fg_DecodeUserKey(PublicKey);
 
 			co_return CRegistrationResult
 				{
@@ -961,7 +961,7 @@ namespace NMib::NConcurrency::NPrivate
 			pData += U2F_COUNTER_LEN;
 
 			ERR_clear_error();
-			CSSLPointer<ECDSA_SIG *, ECDSA_SIG_free> pSignature = d2i_ECDSA_SIG(nullptr, (uint8 const **)&pData, _Response.m_Signature.f_GetLen() - U2F_COUNTER_LEN - 1);
+			TCSSLPointer<ECDSA_SIG *, ECDSA_SIG_free> pSignature = d2i_ECDSA_SIG(nullptr, (uint8 const **)&pData, _Response.m_Signature.f_GetLen() - U2F_COUNTER_LEN - 1);
 			if (!pSignature)
 				co_return DMibErrorInstance(NCryptography::NBoringSSL::fg_GetExceptionStr("Failed to verify authentication response (d2i_ECDSA_SIG)"));
 
@@ -975,7 +975,7 @@ namespace NMib::NConcurrency::NPrivate
 			Hash.f_AddData(ClientDigest.f_GetData(), ClientDigest.mc_Size);
 			auto Digest = Hash.f_GetDigest();
 
-			CSSLPointer<EC_KEY *, EC_KEY_free> Key = fg_DecodeUserKey(_Dependencies.m_PublicKey);
+			TCSSLPointer<EC_KEY *, EC_KEY_free> Key = fg_DecodeUserKey(_Dependencies.m_PublicKey);
 			ERR_clear_error();
 			auto Verified = ECDSA_do_verify(Digest.f_GetData(), Digest.mc_Size, pSignature, Key);
 			if (Verified != 1)

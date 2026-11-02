@@ -1500,7 +1500,7 @@ namespace
 			};
 		}
 
-		static TCFuture<uint32> DMibWorkaroundUBSanSectionErrors fs_BranchedConcurrentCoroutine(uint32 _Start, uint32 _End, TCVector<TCActor<CActor>> *_pActors)
+		static TCUnsafeFuture<uint32> DMibWorkaroundUBSanSectionErrors fs_BranchedConcurrentCoroutine(uint32 _Start, uint32 _End, TCVector<TCActor<CActor>> *_pActors)
 		{
 			if (_End - _Start == 1)
 				co_return 1;
@@ -1654,7 +1654,7 @@ namespace
 					{
 						DMibTestScopeMeasure(ActorMeasure, nIterations);
 						(
-							g_Dispatch(LaunchActor) / [&]() -> TCFuture<void>
+							g_Dispatch(LaunchActor) / [&]() -> TCUnsafeFuture<void>
 							{
 								for (umint i = 0; i < nIterations; ++i)
 								{
@@ -1696,7 +1696,7 @@ namespace
 					{
 						DMibTestScopeMeasure(ActorMeasure, nIterations);
 						(
-							g_Dispatch(LaunchActor) / [&]() -> TCFuture<void>
+							g_Dispatch(LaunchActor) / [&]() -> TCUnsafeFuture<void>
 							{
 								for (umint i = 0; i < nIterations; ++i)
 								{
@@ -1738,7 +1738,7 @@ namespace
 					{
 						DMibTestScopeMeasure(ActorMeasure, nIterations);
 						(
-							g_Dispatch(LaunchActor) / [&]() -> TCFuture<void>
+							g_Dispatch(LaunchActor) / [&]() -> TCUnsafeFuture<void>
 							{
 								for (umint i = 0; i < nIterations; ++i)
 								{
@@ -1783,7 +1783,7 @@ namespace
 						DDoSleep;
 						DMibTestScopeMeasure(ActorMeasure, nIterations);
 						(
-							g_Dispatch(LaunchActor) / [&]() -> TCFuture<void>
+							g_Dispatch(LaunchActor) / [&]() -> TCUnsafeFuture<void>
 							{
 								for (umint i = 0; i < nIterations; ++i)
 								{
@@ -1829,7 +1829,7 @@ namespace
 						DDoSleep;
 						DMibTestScopeMeasure(ActorMeasure, nIterations);
 						(
-							g_Dispatch(LaunchActor) / [&]() -> TCFuture<void>
+							g_Dispatch(LaunchActor) / [&]() -> TCUnsafeFuture<void>
 							{
 								for (umint i = 0; i < nIterations; ++i)
 								{
@@ -1875,7 +1875,7 @@ namespace
 						DDoSleep;
 						DMibTestScopeMeasure(ActorMeasure, nIterations);
 						(
-							g_Dispatch(LaunchActor) / [&]() -> TCFuture<void>
+							g_Dispatch(LaunchActor) / [&]() -> TCUnsafeFuture<void>
 							{
 								for (umint i = 0; i < nIterations; ++i)
 								{
@@ -1923,7 +1923,7 @@ namespace
 					{
 						DMibTestScopeMeasureThreads(ActorMeasure, nIterations, 2);
 						(
-							g_Dispatch(LaunchActor) / [&]() -> TCFuture<void>
+							g_Dispatch(LaunchActor) / [&]() -> TCUnsafeFuture<void>
 							{
 								for (umint i = 0; i < nIterations; ++i)
 								{
@@ -2005,7 +2005,7 @@ namespace
 					{
 						DMibTestScopeMeasure(ActorMeasure, nIterations);
 						(
-							g_Dispatch(PerfTestActor) / [&]() -> TCFuture<void>
+							g_Dispatch(PerfTestActor) / [&]() -> TCUnsafeFuture<void>
 							{
 								for (umint i = 0; i < nIterations; ++i)
 								{
@@ -2047,7 +2047,7 @@ namespace
 					{
 						DMibTestScopeMeasure(ActorMeasure, nIterations);
 						(
-							g_Dispatch(PerfTestActor) / [&]() -> TCFuture<void>
+							g_Dispatch(PerfTestActor) / [&]() -> TCUnsafeFuture<void>
 							{
 								for (umint i = 0; i < nIterations; ++i)
 								{
@@ -2569,7 +2569,7 @@ namespace
 						{
 							fg_ConcurrentDispatch
 								(
-									[&]() -> TCFuture<TCVector<umint>>
+									[&]() -> TCUnsafeFuture<TCVector<umint>>
 									{
 										auto &ConcurrentActor = fg_ConcurrencyManager().f_GetConcurrentActorForThisThread(EPriority_Normal);
 										TCFutureVector<umint> Results;
@@ -2626,7 +2626,7 @@ namespace
 						{
 							fg_ConcurrentDispatch
 								(
-									[&]() -> TCFuture<TCVector<umint>>
+									[&]() -> TCUnsafeFuture<TCVector<umint>>
 									{
 										auto &ConcurrentActor = fg_ConcurrencyManager().f_GetConcurrentActorForThisThread(EPriority_Normal);
 										TCFutureVector<umint> Results;
@@ -2702,7 +2702,7 @@ namespace
 						DMibTestScopeMeasureThreads(ActorMeasure, nIterationsFull, NSys::fg_Thread_GetPhysicalCores());
 						Result += TempActor.f_Bind<&CActor::f_DispatchWithReturn<TCFuture<uint32>>>
 							(
-								[&]() -> TCFuture<uint32>
+								[&]() -> TCUnsafeFuture<uint32>
 								{
 									co_return co_await fActor(0, nIterations);
 								}
@@ -2737,7 +2737,7 @@ namespace
 						DMibTestScopeMeasureThreads(ActorMeasure, nIterationsFull, NSys::fg_Thread_GetPhysicalCores());
 						Result +=
 							(
-								g_Dispatch((*pActors)[0]) / [&]() -> TCFuture<uint32>
+								g_Dispatch((*pActors)[0]) / [&]() -> TCUnsafeFuture<uint32>
 								{
 									co_return co_await fs_BranchedConcurrentCoroutine(0, nIterations, pActors.f_Get());
 								}
@@ -2947,7 +2947,7 @@ namespace
 						fg_Dispatch
 							(
 								ConcurrentActors[iThread]
-								, [&, iStart = iThread * nIterationsPerThread]() -> TCFuture<void>
+								, [&, iStart = iThread * nIterationsPerThread]() -> TCUnsafeFuture<void>
 								{
 									auto pArray = PerfTestActors.f_GetArray();
 									auto pEnd = pArray + iStart + nIterationsPerThread;
@@ -2980,7 +2980,7 @@ namespace
 						fg_Dispatch
 							(
 								ConcurrentActors[iThread]
-								, [&, iStart = iThread * nIterationsPerThread]() -> TCFuture<void>
+								, [&, iStart = iThread * nIterationsPerThread]() -> TCUnsafeFuture<void>
 								{
 									auto pArray = PerfTestActors.f_GetArray();
 									auto pEnd = pArray + iStart + nIterationsPerThread;
@@ -3040,7 +3040,7 @@ namespace
 					fg_Dispatch
 						(
 							ConcurrentActor
-							, [&]() -> TCFuture<void>
+							, [&]() -> TCUnsafeFuture<void>
 							{
 								umint i = 0;
 								for (auto &PerfTestActor : PerfTestActors)
@@ -3064,7 +3064,7 @@ namespace
 					fg_Dispatch
 						(
 							ConcurrentActor
-							, [&]() -> TCFuture<void>
+							, [&]() -> TCUnsafeFuture<void>
 							{
 								TCFutureVector<void> Results;
 								Results.f_SetLen(PerfTestActors.f_GetLen());

@@ -556,7 +556,7 @@ namespace NMib::NConcurrency::NTest
 						NThread::CEvent Event;
 						for (auto &Promise : Promises)
 						{
-							g_Dispatch(LaunchActor) / [&, Future = Promise.f_Future()]() mutable -> TCFuture<void>
+							g_Dispatch(LaunchActor) / [&, Future = Promise.f_Future()]() mutable -> TCUnsafeFuture<void>
 								{
 									if (!bAllScheduled.f_Load())
 										Event.f_Wait();

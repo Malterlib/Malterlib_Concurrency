@@ -67,3 +67,4 @@ using namespace NMib::NConcurrency;
 #endif
 
 #include "Malterlib_Concurrency_ActorSequencerActor.hpp"
+#include "Malterlib_Concurrency_ActorSequencerActor_Instantiated.hpp"

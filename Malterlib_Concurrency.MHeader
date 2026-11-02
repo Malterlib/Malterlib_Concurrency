@@ -148,6 +148,22 @@ Target
 	{
 		!!CompileDialect "C"
 
+		PrefixHeader `@(Builtin.BasePathAbsolute)/Malterlib/Concurrency/Source/PrefixHeader/PCH_DistributedApp.h`
+		{
+			&
+			{
+				|
+				{
+					Compile.Type "C++"
+					!GeneratorFamily "VisualStudio"
+				}
+				Compile.PrefixHeader `@(Builtin.BasePathAbsolute)/Malterlib/Core/Source/PrefixHeader/PCH.h`
+				MalterlibConcurrency_DistributedAppPrefixHeader true
+				!DocumentationEnabled true
+				!MalterlibQtSupport true
+				!Target.Type "Driver"
+			}
+		}
 		PrefixHeader `@(Builtin.BasePathAbsolute)/Malterlib/Concurrency/Source/PrefixHeader/PCH.h`
 		{
 			&
@@ -347,6 +363,9 @@ Property
 	MalterlibConcurrency_DebugFutures: bool = false // User(Debug)=true: Set to true to enable future reference debugging
 	MalterlibConcurrency_DebugUnobservedException: bool = false // User(Debug)=true: Set to true to enable unobserved exception callstack debugging
 	MalterlibConcurrency_DebugSubscriptions: bool = false // User(Debug)=true: Set to true to enable logging of actor subscriptions
+
+	// Precompile the distributed actor, distributed app, JSON and registry headers too, for targets most of whose sources use them
+	MalterlibConcurrency_DistributedAppPrefixHeader: bool = false
 
 	MalterlibConcurrency_ThreadCount: int = 0 // User(Concurrency)=0: Number of concurrency worker threads. 0 uses the number of virtual cores.
 }

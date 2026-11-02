@@ -117,6 +117,8 @@ namespace NMib::NConcurrency
 				return [_FunctionID](NTraits::TCDecay<tp_CParams> ...p_Params) -> t_CReturn
 					{
 						auto &ThreadLocal = *fg_DistributedActorSubSystem().m_ThreadLocal;
+						// The closure can be gone after the first suspension
+						NStr::CStr FunctionID = _FunctionID;
 
 						[[maybe_unused]] auto &Coroutine = co_await g_AccessCoroutine;
 
@@ -138,7 +140,7 @@ namespace NMib::NConcurrency
 						Stream << pActorDataRaw->m_ActorID;
 						Stream << uint32(0);
 						Stream << pActorDataRaw->m_ProtocolVersion;
-						Stream << _FunctionID;
+						Stream << FunctionID;
 
 						auto Version = pActorDataRaw->m_ProtocolVersion;
 

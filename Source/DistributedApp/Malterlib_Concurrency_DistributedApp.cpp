@@ -404,6 +404,9 @@ namespace NMib::NConcurrency
 			co_return {};
 		}
 
+		// A copy, since the config can change while this waits.
+		auto ListenObjects = pListen->f_Array();
+
 		auto PrimaryListen = co_await mp_State.m_TrustManager(&CDistributedActorTrustManager::f_GetPrimaryListen);
 		if (!PrimaryListen)
 		{
@@ -414,7 +417,7 @@ namespace NMib::NConcurrency
 			CDistributedActorTrustManager_Address LocalListenAlternate;
 			LocalListenAlternate.m_URL = fp_GetLocalAddressForTransport(!fp_UseAuthenticatedUnixForLocalSockets());
 
-			for (auto &Object : pListen->f_Array())
+			for (auto &Object : ListenObjects)
 			{
 				if (!Object.f_IsObject())
 					continue;

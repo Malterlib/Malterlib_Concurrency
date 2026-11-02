@@ -826,6 +826,7 @@ namespace NMib::NConcurrency
 							}
 						;
 
+						// NOLINTNEXTLINE(malterlib-actor-dispatch-this): the call runs on the actor of pActor, which is checked above
 						auto Future = m_ToCall(*pActor, typename t_CFunctor::CIndices());
 						DMibFastCheck(!PromiseThreadLocal.m_pUsePromise);
 						DMibFastCheck
@@ -846,6 +847,7 @@ namespace NMib::NConcurrency
 					}
 					else
 					{
+						// NOLINTNEXTLINE(malterlib-actor-dispatch-this): the call runs on the actor of pActor, which is checked above
 						auto Generator = m_ToCall(*pActor, typename t_CFunctor::CIndices());
 
 						m_Promise.f_SetResult(fg_Move(Generator));
@@ -868,6 +870,7 @@ namespace NMib::NConcurrency
 				{
 					if constexpr (NTraits::cIsVoid<t_CRet>)
 					{
+						// NOLINTNEXTLINE(malterlib-actor-dispatch-this): the call runs on the actor of pActor, which is checked above
 						m_ToCall(*pActor, typename t_CFunctor::CIndices());
 						if (!m_Promise.f_IsDiscarded())
 							m_Promise.f_SetResult();
@@ -878,8 +881,10 @@ namespace NMib::NConcurrency
 					else
 					{
 						if (m_Promise.f_IsDiscarded())
+							// NOLINTNEXTLINE(malterlib-actor-dispatch-this): the call runs on the actor of pActor, which is checked above
 							m_ToCall(*(pActor), typename t_CFunctor::CIndices());
 						else
+							// NOLINTNEXTLINE(malterlib-actor-dispatch-this): the call runs on the actor of pActor, which is checked above
 							m_Promise.f_SetResult(m_ToCall(*(pActor), typename t_CFunctor::CIndices()));
 
 						m_Promise.f_ClearResultSet();

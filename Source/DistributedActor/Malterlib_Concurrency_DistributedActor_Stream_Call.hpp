@@ -117,7 +117,9 @@ namespace NMib::NConcurrency
 				auto pDistributionManager = NPrivate::fg_GetInternalActor(DistributionManager);
 				DispatchActor = fg_Move(DistributionManager);
 
-				ToDispatch = [pDistributionManager, Data = Stream.f_MoveStorage(), pActorData = fg_Move(pActorData), Context, ProtocolVersion]() mutable -> TCFuture<CReturn>
+				// NOLINTNEXTLINE(malterlib-coroutine-lambda-call): ToDispatch is only given to f_DispatchWithReturn, which keeps it alive while it runs
+				ToDispatch =
+					[pDistributionManager, Data = Stream.f_MoveStorage(), pActorData = fg_Move(pActorData), Context, ProtocolVersion]() mutable -> TCFuture<CReturn>
 					{
 						auto Result = co_await pDistributionManager->f_CallRemote(fg_Move(pActorData), fg_Move(Data), Context).f_Wrap();
 

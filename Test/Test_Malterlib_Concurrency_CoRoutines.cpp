@@ -474,6 +474,9 @@ namespace NMib::NConcurrency::NTest
 			co_return Value + _Value;
 		}
 
+		// The unsafe direct calls of lambda coroutines below are fixtures for the runtime check of them, which the tests expect
+		// to fire.
+		// NOLINTBEGIN(malterlib-coroutine-lambda-call)
 		TCFuture<uint32> f_TestLambdaReferenceRecursive()
 		{
 			uint32 Value = co_await
@@ -712,6 +715,7 @@ namespace NMib::NConcurrency::NTest
 			co_return co_await Promise.f_MoveFuture();
 		}
 
+		// NOLINTEND(malterlib-coroutine-lambda-call)
 		TCFuture<uint32> f_TestLambdaReferenceNoCoroCorrected()
 		{
 			TCPromise<uint32> Promise;
@@ -2914,6 +2918,7 @@ namespace NMib::NConcurrency::NTest
 								co_await ECoroutineFlag_CaptureExceptions;
 
 								CToAsyncDestroy Variable(pTestState);
+								// NOLINTNEXTLINE(malterlib-async-destroy): deliberately not awaited, this tests the runtime check of a missing co_await
 								auto AsyncDestroy = fg_AsyncDestroy(Variable);
 
 								co_return {};
@@ -2936,6 +2941,7 @@ namespace NMib::NConcurrency::NTest
 								co_await ECoroutineFlag_CaptureExceptions;
 
 								CToAsyncDestroy Variable(pTestState);
+								// NOLINTNEXTLINE(malterlib-async-destroy): deliberately not awaited, this tests the runtime check of a missing co_await
 								auto AsyncDestroy = fg_AsyncDestroy(Variable);
 
 								co_return DMibErrorInstance("Test");

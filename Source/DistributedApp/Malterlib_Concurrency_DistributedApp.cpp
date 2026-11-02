@@ -29,6 +29,7 @@ namespace NMib::NConcurrency
 
 	namespace
 	{
+		// NOLINTNEXTLINE(malterlib-coroutine-reference-parameter): resumes on the owning actor, and f_Load checks that the database still exists
 		TCFuture<void> fg_LoadStartupDatabase(CSimpleJsonDatabase *_pDatabase, NStorage::TCSharedPointer<CBlockingActorCheckout> _pCheckout)
 		{
 			co_await _pDatabase->f_Load(*_pCheckout);

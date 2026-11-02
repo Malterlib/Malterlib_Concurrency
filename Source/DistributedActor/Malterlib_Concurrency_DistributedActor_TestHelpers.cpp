@@ -294,7 +294,15 @@ namespace NMib::NConcurrency
 				&CActorDistributionManager::f_SubscribeActors
 				, _Namespace
 				, mp_ProcessingActor
-				, [this, pRemoteLock = mp_pRemoteLock, pDeletedHelper = mp_pDeleted, pSubscription = &Subscription, pDeleted = Subscription.m_pDeleted]
+				,
+				[
+					// NOLINTNEXTLINE(malterlib-coroutine-unsafe-this): uses the helper only after checking pDeletedHelper under pRemoteLock
+					this
+					, pRemoteLock = mp_pRemoteLock
+					, pDeletedHelper = mp_pDeleted
+					, pSubscription = &Subscription
+					, pDeleted = Subscription.m_pDeleted
+				]
 				(CAbstractDistributedActor _NewActor) -> TCFuture<void>
 				{
 					DMibLock(*pRemoteLock);
@@ -308,7 +316,15 @@ namespace NMib::NConcurrency
 
 					co_return {};
 				}
-				, [this, pRemoteLock = mp_pRemoteLock, pDeletedHelper = mp_pDeleted, pSubscription = &Subscription, pDeleted = Subscription.m_pDeleted]
+				,
+				[
+					// NOLINTNEXTLINE(malterlib-coroutine-unsafe-this): uses the helper only after checking pDeletedHelper under pRemoteLock
+					this
+					, pRemoteLock = mp_pRemoteLock
+					, pDeletedHelper = mp_pDeleted
+					, pSubscription = &Subscription
+					, pDeleted = Subscription.m_pDeleted
+				]
 				(CDistributedActorIdentifier _RemovedActor) -> TCFuture<void>
 				{
 					DMibLock(*pRemoteLock);

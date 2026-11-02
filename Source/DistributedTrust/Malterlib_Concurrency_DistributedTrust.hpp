@@ -340,6 +340,7 @@ namespace NMib::NConcurrency
 	template <typename t_CActor>
 	FUnitVoidFutureFunction TCTrustedActorSubscription<t_CActor>::CState::f_AddDistributedActors(NContainer::TCMap<CDistributedActorIdentifier, TCTrustedActor<CActor>> &&_Actors)
 	{
+		// NOLINTNEXTLINE(malterlib-coroutine-lambda-call, malterlib-coroutine-unsafe-this): the callers give the returned function to fg_Dispatch or fg_DirectDispatch
 		return [this, Actors = fg_Move(_Actors), pThis = NStorage::TCSharedPointer<CState>{fg_Explicit(this)}]() mutable -> TCFuture<void>
 			{
 				if (!m_pSubscription)
@@ -447,6 +448,7 @@ namespace NMib::NConcurrency
 	template <typename t_CActor>
 	FUnitVoidFutureFunction TCTrustedActorSubscription<t_CActor>::CState::f_RemoveDistributedActors(NContainer::TCSet<CDistributedActorIdentifier> &&_Actors)
 	{
+		// NOLINTNEXTLINE(malterlib-coroutine-lambda-call, malterlib-coroutine-unsafe-this): the callers give the returned function to fg_Dispatch or fg_DirectDispatch
 		return [this, Actors = _Actors, pThis = NStorage::TCSharedPointer<CState>{fg_Explicit(this)}]() mutable -> TCFuture<void>
 			{
 				if (!m_pSubscription)

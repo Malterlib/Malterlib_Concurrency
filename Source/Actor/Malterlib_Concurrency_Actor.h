@@ -160,7 +160,7 @@ namespace NMib::NConcurrency
 		static constexpr bool mc_bIsAlwaysAlive = false;
 		static constexpr bool mc_bIsAlwaysAliveImpl = false;
 
-		NPrivate::CThisActor self;
+		NPrivate::CThisActor self; // NOLINT(malterlib-variable-naming): the name the actor call syntax uses
 
 	private:
 		DMibListLinkDS_List(CFutureCoroutineContext, m_Link) mp_SuspendedCoroutines;

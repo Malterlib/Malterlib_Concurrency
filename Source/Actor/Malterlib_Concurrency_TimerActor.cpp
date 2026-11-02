@@ -554,24 +554,34 @@ namespace NMib::NConcurrency
 
 		Internal.fp_ProcessTimers();
 
-		return g_ActorSubscription / [this, pTimer = &Timer, &Callback, pDestroyed = Callback.m_pDestroyed]() -> TCFuture<void>
+		return g_ActorSubscription / [this, pRegisteredTimer = &Timer, pRegisteredCallback = &Callback, pDestroyed = Callback.m_pDestroyed]() -> TCFuture<void>
 			{
 				if (*pDestroyed)
 					co_return {};
 
-				Callback.m_bDestroying = true;
+				// Only this subscription removes the callback, and the flags tell when the timer actor destroyed the timer and its callbacks.
+				auto *pTimer = pRegisteredTimer;
+				auto *pCallback = pRegisteredCallback;
+				auto pCallbackDestroyed = pCallback->m_pDestroyed;
+				auto pTimerDestroyed = pTimer->m_pDestroyed;
 
-				if (Callback.m_bOutstanding)
+				pCallback->m_bDestroying = true;
+
+				if (pCallback->m_bOutstanding)
 				{
-					Callback.m_DestroyPromise = {};
-					co_await Callback.m_DestroyPromise.f_Future();
+					pCallback->m_DestroyPromise = {};
+					co_await pCallback->m_DestroyPromise.f_Future();
+
+					// The timer actor destroyed the timer and its callbacks meanwhile, so there is nothing left to remove.
+					if (*pCallbackDestroyed || *pTimerDestroyed)
+						co_return {};
 				}
 
 				auto &Internal = *mp_pInternal;
 
-				auto ToDestroy = fg_Move(Callback.m_fCallback);
+				auto ToDestroy = fg_Move(pCallback->m_fCallback);
 
-				pTimer->m_Callbacks.f_Remove(Callback);
+				pTimer->m_Callbacks.f_Remove(*pCallback);
 
 				if (pTimer->m_Callbacks.f_IsEmpty())
 				{
@@ -607,21 +617,31 @@ namespace NMib::NConcurrency
 
 		Internal.fp_ProcessTimers();
 
-		return g_ActorSubscription / [this, pTimer = &Timer, &Callback, pDestroyed = Callback.m_pDestroyed]() -> TCFuture<void>
+		return g_ActorSubscription / [this, pRegisteredTimer = &Timer, pRegisteredCallback = &Callback, pDestroyed = Callback.m_pDestroyed]() -> TCFuture<void>
 			{
 				if (*pDestroyed)
 					co_return {};
 
-				Callback.m_bDestroying = true;
-				if (Callback.m_bOutstanding)
+				// Only this subscription removes the callback, and the flags tell when the timer actor destroyed the timer and its callbacks.
+				auto *pTimer = pRegisteredTimer;
+				auto *pCallback = pRegisteredCallback;
+				auto pCallbackDestroyed = pCallback->m_pDestroyed;
+				auto pTimerDestroyed = pTimer->m_pDestroyed;
+
+				pCallback->m_bDestroying = true;
+				if (pCallback->m_bOutstanding)
 				{
-					Callback.m_DestroyPromise = {};
-					co_await Callback.m_DestroyPromise.f_Future();
+					pCallback->m_DestroyPromise = {};
+					co_await pCallback->m_DestroyPromise.f_Future();
+
+					// The timer actor destroyed the timer and its callbacks meanwhile, so there is nothing left to remove.
+					if (*pCallbackDestroyed || *pTimerDestroyed)
+						co_return {};
 				}
 
 				auto &Internal = *mp_pInternal;
 
-				auto ToDestroy = fg_Move(Callback.m_fCallback);
+				auto ToDestroy = fg_Move(pCallback->m_fCallback);
 
 				if (pTimer->m_TreeLink.f_IsInTree())
 					Internal.m_TimerQueue.f_Remove(pTimer);

@@ -47,9 +47,9 @@ namespace NMib::NConcurrency
 	}
 
 	template <typename t_CType, typename t_CLock>
-	TCLockActor<t_CType, t_CLock>::CLockReference::CLockReference(TCLockActor *_pActor, aint _LockSequence)
-		: mp_pState(_pActor->mp_pState)
-		, mp_pActor(fg_ThisActor(_pActor).f_Weak())
+	TCLockActor<t_CType, t_CLock>::CLockReference::CLockReference(TCLockActor *_pThis, aint _LockSequence)
+		: mp_pState(_pThis->mp_pState)
+		, mp_pActor(fg_ThisActor(_pThis).f_Weak())
 		, mp_LockSequence(_LockSequence)
 	{
 	}

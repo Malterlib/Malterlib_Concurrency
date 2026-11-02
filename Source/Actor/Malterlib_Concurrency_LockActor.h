@@ -34,7 +34,7 @@ namespace NMib::NConcurrency
 
 		private:
 			friend struct TCLockActor;
-			CLockReference(TCLockActor *_pActor, aint _LockSequence);
+			CLockReference(TCLockActor *_pThis, aint _LockSequence);
 			CLockReference(CLockReference const &_Other);
 			CLockReference &operator = (CLockReference const &_Other);
 

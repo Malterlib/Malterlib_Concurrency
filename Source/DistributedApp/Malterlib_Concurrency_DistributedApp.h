@@ -521,16 +521,16 @@ namespace NMib::NConcurrency
 		auto fp_OpenLogReporter(CDistributedAppLogReporter::CLogInfo _LogInfo) -> TCFuture<CDistributedAppLogReporter::CLogReporter>;
 		TCFuture<TCActor<CDistributedAppLogStoreLocal>> fp_OpenLogStoreLocal();
 
-		struct CLocalAppState : public CDistributedAppState
+		struct CLocalAppState : public CDistributedAppState, public CActorInternal
 		{
-			CLocalAppState(CDistributedAppActor_Settings const &_Settings, CDistributedAppActor &_AppActor);
+			CLocalAppState(CDistributedAppActor_Settings const &_Settings, CDistributedAppActor &_This);
 
 			TCFuture<void> f_SaveStateDatabase() override;
 			TCFuture<void> f_SaveConfigDatabase() override;
 			TCFuture<CDistributedAppSensorReporter::CSensorReporter> f_OpenSensorReporter(CDistributedAppSensorReporter::CSensorInfo _SensorInfo) override;
 
 		private:
-			CDistributedAppActor &mp_AppActor;
+			CDistributedAppActor &mp_This;
 		};
 
 		CLocalAppState mp_State;

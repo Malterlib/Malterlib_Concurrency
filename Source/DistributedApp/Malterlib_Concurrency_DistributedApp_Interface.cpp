@@ -80,9 +80,9 @@ namespace NMib::NConcurrency
 		co_return {};
 	}
 
-	CDistributedAppActor::CLocalAppState::CLocalAppState(CDistributedAppActor_Settings const &_Settings, CDistributedAppActor &_AppActor)
+	CDistributedAppActor::CLocalAppState::CLocalAppState(CDistributedAppActor_Settings const &_Settings, CDistributedAppActor &_This)
 		: CDistributedAppState(_Settings)
-		, mp_AppActor(_AppActor)
+		, mp_This(_This)
 	{
 	}
 
@@ -98,16 +98,16 @@ namespace NMib::NConcurrency
 
 	TCFuture<void> CDistributedAppActor::CLocalAppState::f_SaveStateDatabase()
 	{
-		CCurrentActorScope CurrentActor(fg_ConcurrencyThreadLocal(), fg_ThisActor(&mp_AppActor));
+		CCurrentActorScope CurrentActor(fg_ConcurrencyThreadLocal(), fg_ThisActor(&mp_This));
 
-		return mp_AppActor.fp_SaveStateDatabase();
+		return mp_This.fp_SaveStateDatabase();
 	}
 
 	TCFuture<void> CDistributedAppActor::CLocalAppState::f_SaveConfigDatabase()
 	{
-		CCurrentActorScope CurrentActor(fg_ConcurrencyThreadLocal(), fg_ThisActor(&mp_AppActor));
+		CCurrentActorScope CurrentActor(fg_ConcurrencyThreadLocal(), fg_ThisActor(&mp_This));
 
-		return mp_AppActor.fp_SaveConfigDatabase();
+		return mp_This.fp_SaveConfigDatabase();
 	}
 
 	TCFuture<CDistributedAppSensorReporter::CSensorReporter> CDistributedAppState::f_OpenSensorReporter(CDistributedAppSensorReporter::CSensorInfo _SensorInfo)
@@ -117,9 +117,9 @@ namespace NMib::NConcurrency
 
 	TCFuture<CDistributedAppSensorReporter::CSensorReporter> CDistributedAppActor::CLocalAppState::f_OpenSensorReporter(CDistributedAppSensorReporter::CSensorInfo _SensorInfo)
 	{
-		CCurrentActorScope CurrentActor(fg_ConcurrencyThreadLocal(), fg_ThisActor(&mp_AppActor));
+		CCurrentActorScope CurrentActor(fg_ConcurrencyThreadLocal(), fg_ThisActor(&mp_This));
 
-		return mp_AppActor.fp_OpenSensorReporter(fg_Move(_SensorInfo));
+		return mp_This.fp_OpenSensorReporter(fg_Move(_SensorInfo));
 	}
 
 	TCFuture<void> CDistributedAppActor::fp_SaveStateDatabase()

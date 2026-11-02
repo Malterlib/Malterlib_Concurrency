@@ -10,6 +10,48 @@ namespace NMib::NConcurrency
 	using namespace NStorage;
 	using namespace NContainer;
 
+	CDistributedActorTrustManagerAuthenticationCache::CDistributedActorTrustManagerAuthenticationCache() = default;
+
+	CDistributedActorTrustManagerAuthenticationCache::CDistributedActorTrustManagerAuthenticationCache(CDistributedActorTrustManagerAuthenticationCache &&_Other)
+		: mp_AuthenticatedPermissions(fg_Move(_Other.mp_AuthenticatedPermissions))
+		, mp_PreauthenticatedPatterns(fg_Move(_Other.mp_PreauthenticatedPatterns))
+		, mp_PeriodicCleanupSubscription(fg_Move(_Other.mp_PeriodicCleanupSubscription))
+		, mp_pTimerTarget(fg_Move(_Other.mp_pTimerTarget))
+	{
+		if (mp_pTimerTarget)
+			mp_pTimerTarget->m_pCache = this;
+	}
+
+	CDistributedActorTrustManagerAuthenticationCache &CDistributedActorTrustManagerAuthenticationCache::operator = (CDistributedActorTrustManagerAuthenticationCache &&_Other)
+	{
+		if (this == &_Other)
+			return *this;
+
+		fp_StopPeriodicCleanup();
+
+		mp_AuthenticatedPermissions = fg_Move(_Other.mp_AuthenticatedPermissions);
+		mp_PreauthenticatedPatterns = fg_Move(_Other.mp_PreauthenticatedPatterns);
+		mp_PeriodicCleanupSubscription = fg_Move(_Other.mp_PeriodicCleanupSubscription);
+		mp_pTimerTarget = fg_Move(_Other.mp_pTimerTarget);
+		if (mp_pTimerTarget)
+			mp_pTimerTarget->m_pCache = this;
+
+		return *this;
+	}
+
+	CDistributedActorTrustManagerAuthenticationCache::~CDistributedActorTrustManagerAuthenticationCache()
+	{
+		fp_StopPeriodicCleanup();
+	}
+
+	void CDistributedActorTrustManagerAuthenticationCache::fp_StopPeriodicCleanup()
+	{
+		if (mp_pTimerTarget)
+			mp_pTimerTarget->m_pCache = nullptr;
+		mp_pTimerTarget.f_Clear();
+		mp_PeriodicCleanupSubscription.f_Clear();
+	}
+
 	void CDistributedActorTrustManagerAuthenticationCache::f_AddAuthenticatedPermission
 		(
 			CPermissionIdentifiers const &_Identity
@@ -227,20 +269,30 @@ namespace NMib::NConcurrency
 	{
 		if (mp_PeriodicCleanupSubscription.f_IsEmpty())
 		{
+			if (!mp_pTimerTarget)
+			{
+				mp_pTimerTarget = fg_Construct();
+				mp_pTimerTarget->m_pCache = this;
+			}
+
 			fg_RegisterTimer
 				(
 					15.0 * 60.0
-					, [this]
+					, [pTimerTarget = mp_pTimerTarget]() -> TCFuture<void>
 					{
-						return f_CleanupExpired();
+						if (pTimerTarget->m_pCache)
+							co_await pTimerTarget->m_pCache->f_CleanupExpired();
+
+						co_return {};
 					}
 				)
-				> [this](TCAsyncResult<CActorSubscription> &&_Subscription)
+				> [pTimerTarget = mp_pTimerTarget](TCAsyncResult<CActorSubscription> &&_Subscription)
 				{
 					if (!_Subscription)
 						DMibLogWithCategory(Malterlib/Concurrency/AppManager, Info, "Failed to start periodic cache cleanup {}", _Subscription.f_GetExceptionStr());
 
-					mp_PeriodicCleanupSubscription = fg_Move(*_Subscription);
+					if (pTimerTarget->m_pCache)
+						pTimerTarget->m_pCache->mp_PeriodicCleanupSubscription = fg_Move(*_Subscription);
 				}
 			;
 		}

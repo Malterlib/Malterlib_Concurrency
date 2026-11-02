@@ -212,7 +212,7 @@ namespace NMib::NConcurrency
 	{
 		return fg_AsyncDestroyByValue
 			(
-				[pToDestroy = &_ToDestroy]() -> TCFuture<void>
+				[pToDestroy = &_ToDestroy]() -> TCUnsafeFuture<void>
 				{
 					auto ToDestroy = fg_Move(*pToDestroy);
 					co_await fg_Move(ToDestroy).f_Destroy();
@@ -252,7 +252,7 @@ namespace NMib::NConcurrency
 	{
 		return fg_AsyncDestroyByValue
 			(
-				[pToDestroy = &_ToDestroy]() -> TCFuture<void>
+				[pToDestroy = &_ToDestroy]() -> TCUnsafeFuture<void>
 				{
 					auto ToDestroy = fg_Move(*pToDestroy);
 					NPrivate::fg_AsyncDestroyLogErrorHelper(co_await fg_Move(ToDestroy).f_Destroy().f_Wrap());

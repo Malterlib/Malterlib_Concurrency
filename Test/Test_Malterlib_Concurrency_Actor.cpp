@@ -2664,7 +2664,7 @@ namespace
 					PerfTest.f_Add(ActorMeasure);
 				}();
 #endif
-#if DDoTest_Message_BranchedConcurrentActor && !defined(DCompiler_Workaround_Apple_clang)
+#if DDoTest_Message_BranchedConcurrentActor
 				[&]() inline_never
 				{
 					fp_BlockOnAllThreads(true);

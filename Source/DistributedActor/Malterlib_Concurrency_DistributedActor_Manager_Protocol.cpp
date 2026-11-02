@@ -352,7 +352,7 @@ namespace NMib::NConcurrency
 
 					DMibLog
 						(
-							SubscriptionLogVerbosity
+							DSubscriptionLogVerbosity
 							, " ---- {} {} Identify AllowAll {} Allowed {vs} Host {}"
 							, Host.m_bIncoming
 							, _pConnection->f_GetConnectionID()
@@ -380,7 +380,7 @@ namespace NMib::NConcurrency
 								DMibLogWithCategory
 									(
 										Mib/Concurrency/Distribution
-										, SubscriptionLogVerbosity
+										, DSubscriptionLogVerbosity
 										, "   Cannot publish namespace '{}' to '{}{}{}': bAllowAll: {} Allowed: {vs}"
 										, Namespace
 										, Host.m_HostInfo.m_RealHostID
@@ -398,7 +398,7 @@ namespace NMib::NConcurrency
 								DMibLogWithCategory
 									(
 										Mib/Concurrency/Distribution
-										, SubscriptionLogVerbosity
+										, DSubscriptionLogVerbosity
 										, "   Cannot publish namespace '{}' to '{}{}{}': Anonymous"
 										, Namespace
 										, Host.m_HostInfo.m_RealHostID
@@ -426,7 +426,7 @@ namespace NMib::NConcurrency
 								DMibLogWithCategory
 									(
 										Mib/Concurrency/Distribution
-										, SubscriptionLogVerbosity
+										, DSubscriptionLogVerbosity
 										, "   Sending publish packet for namespace '{}' to '{}{}{}': {}"
 										, Namespace
 										, Host.m_HostInfo.m_RealHostID
@@ -444,7 +444,7 @@ namespace NMib::NConcurrency
 						DMibLogWithCategory
 							(
 								Mib/Concurrency/Distribution
-								, SubscriptionLogVerbosity
+								, DSubscriptionLogVerbosity
 								, "   Cannot send publish to '{}{}{}': Anon {}"
 								, Host.m_HostInfo.m_RealHostID
 								, Host.m_bIncoming ? " in" : ""
@@ -502,7 +502,7 @@ namespace NMib::NConcurrency
 
 							DMibLog
 								(
-									SubscriptionLogVerbosity
+									DSubscriptionLogVerbosity
 									, " ---- {} Identify publish finished: {}"
 									, pConnection->f_GetConnectionID()
 									, (_Result ? NStr::CStr("Success") : _Result.f_GetExceptionStr())
@@ -538,7 +538,7 @@ namespace NMib::NConcurrency
 					CDistributedActorCommand_InitialPublishFinishedProcessing InitialPublishFinishedProcessing;
 					Stream >> InitialPublishFinishedProcessing;
 
-					DMibLog(SubscriptionLogVerbosity, " ---- {} {} Identify publish finished processing", Host.m_bIncoming, _pConnection->f_GetConnectionID());
+					DMibLog(DSubscriptionLogVerbosity, " ---- {} {} Identify publish finished processing", Host.m_bIncoming, _pConnection->f_GetConnectionID());
 
 					if (!_pConnection->m_IdentifyPromise.f_IsSet())
 						_pConnection->m_IdentifyPromise.f_SetResult(_pConnection->m_bFirstConnection);
@@ -752,7 +752,7 @@ namespace NMib::NConcurrency
 			(void)_Exception;
 			DMibLog
 				(
-					SubscriptionLogVerbosity
+					DSubscriptionLogVerbosity
 					, " ---- {} {} Exception processing data {}"
 					, _pConnection->m_pHost ? _pConnection->m_pHost->m_bIncoming : false
 					, _pConnection->f_GetConnectionID()
@@ -815,7 +815,7 @@ namespace NMib::NConcurrency
 		DMibLogWithCategory
 			(
 				Mib/Concurrency/Distribution
-				, SubscriptionLogVerbosity
+				, DSubscriptionLogVerbosity
 				, "   Sending identify packet to '{}{}{}{}': bAllowAllNamespaces {} AllowedNamespaces {vs}"
 				, pHost->m_HostInfo.m_RealHostID
 				, _pConnection->m_bIncoming ? " connin" : " connout"

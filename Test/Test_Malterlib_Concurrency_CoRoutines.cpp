@@ -30,11 +30,11 @@ namespace NMib::NConcurrency::NTest
 	DMibImpErrorClassDefine(CCustomException2, NMib::NException::CException);
 	DMibImpErrorClassImplement(CCustomException2);
 
-#define DMibCustomException(_Description) DMibImpError(CCustomException, _Description)
-#define DMibCustomExceptionInstance(_Description) DMibImpErrorInstance(CCustomException, _Description)
+#define DMibCustomException(d_Description) DMibImpError(CCustomException, d_Description)
+#define DMibCustomExceptionInstance(d_Description) DMibImpErrorInstance(CCustomException, d_Description)
 
-#define DMibCustomException2(_Description) DMibImpError(CCustomException2, _Description)
-#define DMibCustomException2Instance(_Description) DMibImpErrorInstance(CCustomException2, _Description)
+#define DMibCustomException2(d_Description) DMibImpError(CCustomException2, d_Description)
+#define DMibCustomException2Instance(d_Description) DMibImpErrorInstance(CCustomException2, d_Description)
 
 	struct CTestDistributedApp : public CDistributedAppActor
 	{

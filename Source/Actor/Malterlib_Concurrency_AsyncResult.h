@@ -11,7 +11,7 @@ namespace NMib::NConcurrency
 	CConcurrencyThreadLocal &fg_ConcurrencyThreadLocal();
 
 	DMibImpErrorClassDefine(CExceptionActorResultWasNotSet, NMib::NException::CException);
-#define DMibErrorActorResultWasNotSet(_Description) DMibImpError(NMib::NConcurrency::CExceptionActorResultWasNotSet, _Description, false)
+#define DMibErrorActorResultWasNotSet(d_Description) DMibImpError(NMib::NConcurrency::CExceptionActorResultWasNotSet, d_Description, false)
 
 #ifndef DMibPNoShortCuts
 #	define DErrorActorResultWasNotSet DMibErrorActorResultWasNotSet

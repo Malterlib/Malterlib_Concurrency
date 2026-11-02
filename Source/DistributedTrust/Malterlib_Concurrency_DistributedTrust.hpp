@@ -32,7 +32,7 @@ namespace NMib::NConcurrency
 				DMibLogWithCategory
 					(
 						Mib/Concurrency/Distribution
-						, SubscriptionLogVerbosity
+						, DSubscriptionLogVerbosity
 						, "<{}, {}> Subscription valid in constructor (Apply deferred)"
 						, mp_pState->m_NamespaceName
 						, mp_pState->m_DebugID
@@ -45,7 +45,7 @@ namespace NMib::NConcurrency
 				DMibLogWithCategory
 					(
 						Mib/Concurrency/Distribution
-						, SubscriptionLogVerbosity
+						, DSubscriptionLogVerbosity
 						, "<{}, {}> Subscription not valid in constructor"
 						, mp_pState->m_NamespaceName
 						, mp_pState->m_DebugID
@@ -55,7 +55,7 @@ namespace NMib::NConcurrency
 			}
 		}
 		else
-			DMibLogWithCategory(Mib/Concurrency/Distribution, SubscriptionLogVerbosity, "State not valid in constructor");
+			DMibLogWithCategory(Mib/Concurrency/Distribution, DSubscriptionLogVerbosity, "State not valid in constructor");
 	}
 
 	template <typename t_CActor>
@@ -72,7 +72,7 @@ namespace NMib::NConcurrency
 				DMibLogWithCategory
 					(
 						Mib/Concurrency/Distribution
-						, SubscriptionLogVerbosity
+						, DSubscriptionLogVerbosity
 						, "<{}, {}> Subscription valid in operator = (Apply deferred)"
 						, mp_pState->m_NamespaceName
 						, mp_pState->m_DebugID
@@ -85,7 +85,7 @@ namespace NMib::NConcurrency
 				DMibLogWithCategory
 					(
 						Mib/Concurrency/Distribution
-						, SubscriptionLogVerbosity
+						, DSubscriptionLogVerbosity
 						, "<{}, {}> Subscription not valid in operator ="
 						, mp_pState->m_NamespaceName
 						, mp_pState->m_DebugID
@@ -95,7 +95,7 @@ namespace NMib::NConcurrency
 			}
 		}
 		else
-			DMibLogWithCategory(Mib/Concurrency/Distribution, SubscriptionLogVerbosity, "State not valid in operator =");
+			DMibLogWithCategory(Mib/Concurrency/Distribution, DSubscriptionLogVerbosity, "State not valid in operator =");
 		return *this;
 	}
 
@@ -287,7 +287,7 @@ namespace NMib::NConcurrency
 			}
 		}
 		else
-			DMibLogWithCategory(Mib/Concurrency/Distribution, SubscriptionLogVerbosity, "<{}, {}> f_OnActor: No m_fOnNewActor", pState->m_NamespaceName, pState->m_DebugID);
+			DMibLogWithCategory(Mib/Concurrency/Distribution, DSubscriptionLogVerbosity, "<{}, {}> f_OnActor: No m_fOnNewActor", pState->m_NamespaceName, pState->m_DebugID);
 
 		for (auto &Result : co_await fg_AllDoneWrapped(Results))
 		{
@@ -348,7 +348,7 @@ namespace NMib::NConcurrency
 					DMibLogWithCategory
 						(
 							Mib/Concurrency/Distribution
-							, SubscriptionLogVerbosity
+							, DSubscriptionLogVerbosity
 							, "<{}, {}> f_AddDistributedActors: No subscription, deferred"
 							, pThis->m_NamespaceName
 							, pThis->m_DebugID
@@ -373,7 +373,7 @@ namespace NMib::NConcurrency
 						DMibLogWithCategory
 							(
 								Mib/Concurrency/Distribution
-								, SubscriptionLogVerbosity
+								, DSubscriptionLogVerbosity
 								, "<{}, {}> f_AddDistributedActors: Was not created, ignored"
 								, pThis->m_NamespaceName
 								, pThis->m_DebugID
@@ -389,7 +389,7 @@ namespace NMib::NConcurrency
 						DMibLogWithCategory
 							(
 								Mib/Concurrency/Distribution
-								, SubscriptionLogVerbosity
+								, DSubscriptionLogVerbosity
 								, "<{}, {}> f_AddDistributedActors: No m_fOnNewActor"
 								, pThis->m_NamespaceName
 								, pThis->m_DebugID
@@ -412,7 +412,7 @@ namespace NMib::NConcurrency
 								DMibLogWithCategory
 									(
 										Mib/Concurrency/Distribution
-										, SubscriptionLogVerbosity
+										, DSubscriptionLogVerbosity
 										, "<{}, {}> f_AddDistributedActors: Report new m_fOnNewActor {}"
 										, pThis->m_NamespaceName
 										, pThis->m_DebugID
@@ -456,7 +456,7 @@ namespace NMib::NConcurrency
 					DMibLogWithCategory
 						(
 							Mib/Concurrency/Distribution
-							, SubscriptionLogVerbosity
+							, DSubscriptionLogVerbosity
 							, "<{}, {}> f_RemoveDistributedActors: No subscription, deferred"
 							, pThis->m_NamespaceName
 							, pThis->m_DebugID
@@ -499,7 +499,7 @@ namespace NMib::NConcurrency
 										DMibLogWithCategory
 											(
 												Mib/Concurrency/Distribution
-												, SubscriptionLogVerbosity
+												, DSubscriptionLogVerbosity
 												, "<{}, {}> f_RemoveDistributedActors: Report new m_fOnRemovedActor {}"
 												, pThis->m_NamespaceName
 												, pThis->m_DebugID
@@ -513,7 +513,7 @@ namespace NMib::NConcurrency
 										DMibLogWithCategory
 											(
 												Mib/Concurrency/Distribution
-												, SubscriptionLogVerbosity
+												, DSubscriptionLogVerbosity
 												, "<{}, {}> f_RemoveDistributedActors: Report new m_fOnRemovedActor does not exist: {}"
 												, pThis->m_NamespaceName
 												, pThis->m_DebugID
@@ -533,7 +533,7 @@ namespace NMib::NConcurrency
 						DMibLogWithCategory
 							(
 								Mib/Concurrency/Distribution
-								, SubscriptionLogVerbosity
+								, DSubscriptionLogVerbosity
 								, "<{}, {}> f_RemoveDistributedActors: No actor, ignored"
 								, pThis->m_NamespaceName
 								, pThis->m_DebugID

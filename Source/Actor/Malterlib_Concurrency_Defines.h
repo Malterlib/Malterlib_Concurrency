@@ -584,7 +584,9 @@ namespace NMib::NConcurrency
 		requires cActorCallableWithFunctor<tf_pMemberFunction, tf_CActor, tfp_CParams...>
 	;
 
+	// NOLINTNEXTLINE(malterlib-macro-naming): called like the member function it stands for
 #define f_CallActor(d_PointerToMemberFunction, ...) f_InternalCallActor<DMibPointerToMemberFunctionForHash(d_PointerToMemberFunction)>
+	// NOLINTNEXTLINE(malterlib-macro-naming): called like the member function it stands for
 #define f_CallActorNotVirtual(d_PointerToMemberFunction, ...) f_InternalCallActor<DMibPointerToMemberFunctionForHash(d_PointerToMemberFunction), EVirtualCall::mc_NotVirtual>
 
 	template <typename tf_CActor>

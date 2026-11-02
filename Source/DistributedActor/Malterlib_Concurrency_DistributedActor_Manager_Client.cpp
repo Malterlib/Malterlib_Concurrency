@@ -473,7 +473,7 @@ namespace NMib::NConcurrency
 						{
 							DMibLog
 								(
-									SubscriptionLogVerbosity
+									DSubscriptionLogVerbosity
 									, " ---- {} Invalid connection sequence. {} != {}"
 									, pConnection->f_GetConnectionID()
 									, Sequence
@@ -485,7 +485,7 @@ namespace NMib::NConcurrency
 
 						if (!pConnection->m_pHost)
 						{
-							DMibLog(SubscriptionLogVerbosity, " ---- {} No host", pConnection->f_GetConnectionID());
+							DMibLog(DSubscriptionLogVerbosity, " ---- {} No host", pConnection->f_GetConnectionID());
 							co_return {};
 						}
 
@@ -575,7 +575,7 @@ namespace NMib::NConcurrency
 									if (*_Result)
 										DMibLogWithCategory(Mib/Concurrency/Actors, Info, "{}", ToLog);
 									else
-										DMibLogWithCategory(Mib/Concurrency/Actors, SubscriptionLogVerbosity, "{} Identify false", ToLog);
+										DMibLogWithCategory(Mib/Concurrency/Actors, DSubscriptionLogVerbosity, "{} Identify false", ToLog);
 
 									if (_pPromise)
 									{

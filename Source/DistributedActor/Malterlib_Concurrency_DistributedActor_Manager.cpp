@@ -142,7 +142,7 @@ namespace NMib::NConcurrency
 					DMibLogWithCategory
 						(
 							Mib/Concurrency/Actors
-							, SubscriptionLogVerbosity
+							, DSubscriptionLogVerbosity
 							, "<{}> Closed '{}' {{{}}: {} - {}"
 							, _Desc
 							, _ServerURL

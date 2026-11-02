@@ -295,7 +295,7 @@ namespace NMib::NConcurrency
 		DMibLogWithCategory
 			(
 				Mib/Concurrency/Distribution
-				, SubscriptionLogVerbosity
+				, DSubscriptionLogVerbosity
 				, "<{}, {}> Subscribe Trusted: {} {}"
 				, NamespaceName
 				, _pState->m_DebugID
@@ -315,7 +315,7 @@ namespace NMib::NConcurrency
 
 				if (!pNamespace)
 				{
-					DMibLogWithCategory(Mib/Concurrency/Distribution, SubscriptionLogVerbosity, "<{}, {}> Unsubscribe Trusted: No Namespace", _pState->m_NamespaceName, _pState->m_DebugID);
+					DMibLogWithCategory(Mib/Concurrency/Distribution, DSubscriptionLogVerbosity, "<{}, {}> Unsubscribe Trusted: No Namespace", _pState->m_NamespaceName, _pState->m_DebugID);
 					co_return {};
 				}
 
@@ -324,7 +324,7 @@ namespace NMib::NConcurrency
 				DMibLogWithCategory
 					(
 						Mib/Concurrency/Distribution
-						, SubscriptionLogVerbosity
+						, DSubscriptionLogVerbosity
 						, "<{}, {}> Unsubscribe Trusted: {}"
 						, _pState->m_NamespaceName
 						, _pState->m_DebugID
@@ -363,7 +363,7 @@ namespace NMib::NConcurrency
 			DMibLogWithCategory
 				(
 					Mib/Concurrency/Distribution
-					, SubscriptionLogVerbosity
+					, DSubscriptionLogVerbosity
 					, "<{}, {}> Subscribe Trusted: Initial (Already subscribed) {}"
 					, NamespaceName
 					, _pState->m_DebugID
@@ -383,7 +383,7 @@ namespace NMib::NConcurrency
 		{
 			TCPromiseFuturePair<CTrustedActorSubscription> Promise;
 
-			DMibLogWithCategory(Mib/Concurrency/Distribution, SubscriptionLogVerbosity, "<{}, {}> Subscribe Trusted: Subscribing", NamespaceName, _pState->m_DebugID);
+			DMibLogWithCategory(Mib/Concurrency/Distribution, DSubscriptionLogVerbosity, "<{}, {}> Subscribe Trusted: Subscribing", NamespaceName, _pState->m_DebugID);
 			Namespace.m_OnSubscribe.f_Insert
 				(
 					[_pState, NamespaceName, Promise = fg_Move(Promise.m_Promise), Subscription = fg_Move(Subscription)]
@@ -394,7 +394,7 @@ namespace NMib::NConcurrency
 							DMibLogWithCategory
 								(
 									Mib/Concurrency/Distribution
-									, SubscriptionLogVerbosity
+									, DSubscriptionLogVerbosity
 									, "<{}, {}> Subscribe Trusted: OnSubscribe failed {}"
 									, NamespaceName
 									, _pState->m_DebugID
@@ -413,7 +413,7 @@ namespace NMib::NConcurrency
 						DMibLogWithCategory
 							(
 								Mib/Concurrency/Distribution
-								, SubscriptionLogVerbosity
+								, DSubscriptionLogVerbosity
 								, "<{}, {}> Subscribe Trusted: Initial (OnSubscribe) {}"
 								, NamespaceName
 								, _pState->m_DebugID
@@ -454,7 +454,7 @@ namespace NMib::NConcurrency
 						auto pNamespace = Internal.m_Namespaces.f_FindEqual(NamespaceName);
 						if (!pNamespace)
 						{
-							DMibLogWithCategory(Mib/Concurrency/Distribution, SubscriptionLogVerbosity, "<{}> Report new actor Trusted: Namespace does not exist", NamespaceName);
+							DMibLogWithCategory(Mib/Concurrency/Distribution, DSubscriptionLogVerbosity, "<{}> Report new actor Trusted: Namespace does not exist", NamespaceName);
 							co_return {};
 						}
 						auto &Namespace = *pNamespace;
@@ -464,7 +464,7 @@ namespace NMib::NConcurrency
 							DMibLogWithCategory
 								(
 									Mib/Concurrency/Distribution
-									, SubscriptionLogVerbosity
+									, DSubscriptionLogVerbosity
 									, "<{}> Report new actor Trusted: Invalid subscription sequence {} != {}"
 									, NamespaceName
 									, Namespace.m_SubscriptionSequence
@@ -477,7 +477,7 @@ namespace NMib::NConcurrency
 
 						if (!Namespace.m_Subscription && !Namespace.m_bSubscribing)
 						{
-							DMibLogWithCategory(Mib/Concurrency/Distribution, SubscriptionLogVerbosity, "<{}> Report new actor Trusted: No subscription", NamespaceName);
+							DMibLogWithCategory(Mib/Concurrency/Distribution, DSubscriptionLogVerbosity, "<{}> Report new actor Trusted: No subscription", NamespaceName);
 							co_return {};
 						}
 
@@ -560,7 +560,7 @@ namespace NMib::NConcurrency
 								DMibLogWithCategory
 									(
 										Mib/Concurrency/Distribution
-										, SubscriptionLogVerbosity
+										, DSubscriptionLogVerbosity
 										, "<{}, {}> Report new actor Trusted: Allowed {}"
 										, pSubscription->m_DebugID
 										, NamespaceName
@@ -587,7 +587,7 @@ namespace NMib::NConcurrency
 								DMibLogWithCategory
 									(
 										Mib/Concurrency/Distribution
-										, SubscriptionLogVerbosity
+										, DSubscriptionLogVerbosity
 										, "<{}> Report new actor Trusted: Error: {}"
 										, NamespaceName
 										, Result.f_GetExceptionStr()
@@ -613,21 +613,21 @@ namespace NMib::NConcurrency
 						auto pNamespace = Internal.m_Namespaces.f_FindEqual(NamespaceName);
 						if (!pNamespace)
 						{
-							DMibLogWithCategory(Mib/Concurrency/Distribution, SubscriptionLogVerbosity, "<{}> Report removed actor Trusted: Namespace does not exist", NamespaceName);
+							DMibLogWithCategory(Mib/Concurrency/Distribution, DSubscriptionLogVerbosity, "<{}> Report removed actor Trusted: Namespace does not exist", NamespaceName);
 							co_return {};
 						}
 						auto &Namespace = *pNamespace;
 
 						if (!Namespace.m_Subscription && !Namespace.m_bSubscribing)
 						{
-							DMibLogWithCategory(Mib/Concurrency/Distribution, SubscriptionLogVerbosity, "<{}> Report removed actor Trusted: No subscription", NamespaceName);
+							DMibLogWithCategory(Mib/Concurrency/Distribution, DSubscriptionLogVerbosity, "<{}> Report removed actor Trusted: No subscription", NamespaceName);
 							co_return {};
 						}
 
 						DMibLogWithCategory
 							(
 								Mib/Concurrency/Distribution
-								, SubscriptionLogVerbosity
+								, DSubscriptionLogVerbosity
 								, "<{}> Report removed actor Trusted: Subscription sequence {} {} Actor {}"
 								, NamespaceName
 								, Namespace.m_SubscriptionSequence
@@ -673,7 +673,7 @@ namespace NMib::NConcurrency
 								DMibLogWithCategory
 									(
 										Mib/Concurrency/Distribution
-										, SubscriptionLogVerbosity
+										, DSubscriptionLogVerbosity
 										, "<{}, {}> Report removed actor Trusted: Allowed {}"
 										, pSubscription->m_DebugID
 										, NamespaceName
@@ -698,7 +698,7 @@ namespace NMib::NConcurrency
 								DMibLogWithCategory
 									(
 										Mib/Concurrency/Distribution
-										, SubscriptionLogVerbosity
+										, DSubscriptionLogVerbosity
 										, "<{}> Report removed actor Trusted: Error: {}"
 										, NamespaceName
 										, Result.f_GetExceptionStr()
@@ -730,7 +730,7 @@ namespace NMib::NConcurrency
 				auto pNamespace = Internal.m_Namespaces.f_FindEqual(NamespaceName);
 				if (!pNamespace)
 				{
-					DMibLogWithCategory(Mib/Concurrency/Distribution, SubscriptionLogVerbosity, "<{}> Subscribe Trusted: Dispatch OnSubscribe: No namespace", NamespaceName);
+					DMibLogWithCategory(Mib/Concurrency/Distribution, DSubscriptionLogVerbosity, "<{}> Subscribe Trusted: Dispatch OnSubscribe: No namespace", NamespaceName);
 					return;
 				}
 
@@ -754,7 +754,7 @@ namespace NMib::NConcurrency
 		DMibLogWithCategory
 			(
 				Mib/Concurrency/Distribution
-				, SubscriptionLogVerbosity
+				, DSubscriptionLogVerbosity
 				, "<{}, {}> Subscribe Trusted: Initial (Main work) {}"
 				, NamespaceName
 				, _pState->m_DebugID

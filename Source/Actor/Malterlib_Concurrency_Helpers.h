@@ -8,21 +8,21 @@
 namespace NMib::NConcurrency
 {
 	DMibImpErrorClassDefine(CExceptionActorDeleted, NMib::NException::CException);
-#define DMibErrorActorDeleted(_Description) DMibImpError(NMib::NConcurrency::CExceptionActorDeleted, _Description)
+#define DMibErrorActorDeleted(d_Description) DMibImpError(NMib::NConcurrency::CExceptionActorDeleted, d_Description)
 
 #ifndef DMibPNoShortCuts
 #	define DErrorActorDeleted DMibErrorActorDeleted
 #endif
 
 	DMibImpErrorClassDefine(CExceptionActorAlreadyDestroyed, NMib::NException::CException);
-#define DMibErrorActorAlreadyDestroyed(_Description) DMibImpError(NMib::NConcurrency::CExceptionActorAlreadyDestroyed, _Description)
+#define DMibErrorActorAlreadyDestroyed(d_Description) DMibImpError(NMib::NConcurrency::CExceptionActorAlreadyDestroyed, d_Description)
 
 #ifndef DMibPNoShortCuts
 #	define DErrorActorAlreadyDestroyed DMibErrorActorAlreadyDestroyed
 #endif
 
 	DMibImpErrorClassDefine(CExceptionActorIsBeingDestroyed, NMib::NException::CException);
-#define DMibErrorActorIsBeingDestroyed(_Description) DMibImpError(NMib::NConcurrency::CExceptionActorIsBeingDestroyed, _Description)
+#define DMibErrorActorIsBeingDestroyed(d_Description) DMibImpError(NMib::NConcurrency::CExceptionActorIsBeingDestroyed, d_Description)
 
 #ifndef DMibPNoShortCuts
 #	define DErrorActorIsBeingDestroyed DMibErrorActorIsBeingDestroyed

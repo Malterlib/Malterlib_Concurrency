@@ -132,7 +132,7 @@ namespace NMib::NConcurrency
 				DMibLogWithCategory
 					(
 						Mib/Concurrency/Distribution
-						, SubscriptionLogVerbosity
+						, DSubscriptionLogVerbosity
 						, "   Cannot publish new actor {} for namespace '{}' to '{}{}{}': Anon {}"
 						, Publish.m_ActorID
 						, _Namespace
@@ -150,7 +150,7 @@ namespace NMib::NConcurrency
 				DMibLogWithCategory
 					(
 						Mib/Concurrency/Distribution
-						, SubscriptionLogVerbosity
+						, DSubscriptionLogVerbosity
 						, "   Cannot publish new actor {} for namespace '{}' to '{}{}{}': bAllowAll: {} Allowed: {vs}"
 						, Publish.m_ActorID
 						, _Namespace
@@ -169,7 +169,7 @@ namespace NMib::NConcurrency
 				DMibLogWithCategory
 					(
 						Mib/Concurrency/Distribution
-						, SubscriptionLogVerbosity
+						, DSubscriptionLogVerbosity
 						, "   Cannot publish new actor {} for namespace '{}' to '{}{}{}': Anonymous"
 						, Publish.m_ActorID
 						, _Namespace
@@ -250,7 +250,7 @@ namespace NMib::NConcurrency
 				DMibLogWithCategory
 					(
 						Mib/Concurrency/Distribution
-						, SubscriptionLogVerbosity
+						, DSubscriptionLogVerbosity
 						, "   Cannot re-publish actor {} for namespace '{}' to '{}{}{}': Anon {}"
 						, _ActorID
 						, _NamespaceID
@@ -268,7 +268,7 @@ namespace NMib::NConcurrency
 				DMibLogWithCategory
 					(
 						Mib/Concurrency/Distribution
-						, SubscriptionLogVerbosity
+						, DSubscriptionLogVerbosity
 						, "   Cannot re-publish actor {} for namespace '{}' to '{}{}{}': bAllowAll: {} Allowed: {vs}"
 						, _ActorID
 						, _NamespaceID
@@ -287,7 +287,7 @@ namespace NMib::NConcurrency
 				DMibLogWithCategory
 					(
 						Mib/Concurrency/Distribution
-						, SubscriptionLogVerbosity
+						, DSubscriptionLogVerbosity
 						, "   Cannot re-publish actor {} for namespace '{}' to '{}{}{}': Anonymous"
 						, _ActorID
 						, _NamespaceID
@@ -408,7 +408,7 @@ namespace NMib::NConcurrency
 				DMibLogWithCategory
 					(
 						Mib/Concurrency/Distribution
-						, SubscriptionLogVerbosity
+						, DSubscriptionLogVerbosity
 						, "   Cannot un-publish actor {} for namespace '{}' to '{}{}{}': Anon {}"
 						, _ActorID
 						, _Namespace
@@ -426,7 +426,7 @@ namespace NMib::NConcurrency
 				DMibLogWithCategory
 					(
 						Mib/Concurrency/Distribution
-						, SubscriptionLogVerbosity
+						, DSubscriptionLogVerbosity
 						, "   Cannot un-publish actor {} for namespace '{}' to '{}{}{}': bAllowAll: {} Allowed: {vs}"
 						, _ActorID
 						, _Namespace
@@ -445,7 +445,7 @@ namespace NMib::NConcurrency
 				DMibLogWithCategory
 					(
 						Mib/Concurrency/Distribution
-						, SubscriptionLogVerbosity
+						, DSubscriptionLogVerbosity
 						, "   Cannot un-publish actor {} for namespace '{}' to '{}{}{}': Anonymous"
 						, _ActorID
 						, _Namespace
@@ -570,7 +570,7 @@ namespace NMib::NConcurrency
 						DMibLogWithCategory
 							(
 								Mib/Concurrency/Distribution
-								, SubscriptionLogVerbosity
+								, DSubscriptionLogVerbosity
 								, "<{}, {}> Low level report new actor: {}"
 								, _RemoteActor.m_Namespace
 								, Instance.f_GetID()
@@ -594,7 +594,7 @@ namespace NMib::NConcurrency
 						DMibLogWithCategory
 							(
 								Mib/Concurrency/Distribution
-								, SubscriptionLogVerbosity
+								, DSubscriptionLogVerbosity
 								, "<{}, {}> Low level report new actor: {}"
 								, _RemoteActor.m_Namespace
 								, Instance.f_GetID()
@@ -635,7 +635,7 @@ namespace NMib::NConcurrency
 						DMibLogWithCategory
 							(
 								Mib/Concurrency/Distribution
-								, SubscriptionLogVerbosity
+								, DSubscriptionLogVerbosity
 								, "<{}, {}> Low level report removed actor: {}"
 								, _RemoteActor.m_Namespace
 								, Instance.f_GetID()
@@ -659,7 +659,7 @@ namespace NMib::NConcurrency
 						DMibLogWithCategory
 							(
 								Mib/Concurrency/Distribution
-								, SubscriptionLogVerbosity
+								, DSubscriptionLogVerbosity
 								, "<{}, {}> Low level report removed actor: {}"
 								, _RemoteActor.m_Namespace
 								, Instance.f_GetID()
@@ -746,7 +746,7 @@ namespace NMib::NConcurrency
 			DMibLogWithCategory
 				(
 					Mib/Concurrency/Distribution
-					, SubscriptionLogVerbosity
+					, DSubscriptionLogVerbosity
 					, "   Low level publish packet: Skipped: CanReceive {} Deleted {}"
 					, pHost->f_CanReceivePublish()
 					, pHost->m_bDeleted.f_Load(NAtomic::gc_MemoryOrder_Relaxed)
@@ -793,7 +793,7 @@ namespace NMib::NConcurrency
 			DMibLogWithCategory
 				(
 					Mib/Concurrency/Distribution
-					, SubscriptionLogVerbosity
+					, DSubscriptionLogVerbosity
 					, "   Low level publish packet: Not allowed: bAllowAllNamespaces {} AllowedNamespaces {vs} Namespace {}"
 					, bAllowAllNamespaces
 					, AllowedNamespaces
@@ -805,7 +805,7 @@ namespace NMib::NConcurrency
 			return true;
 		}
 
-		DMibLogWithCategory(Mib/Concurrency/Distribution, SubscriptionLogVerbosity, "   Low level publish packet: Allowed: {}", Publish.m_Namespace);
+		DMibLogWithCategory(Mib/Concurrency/Distribution, DSubscriptionLogVerbosity, "   Low level publish packet: Allowed: {}", Publish.m_Namespace);
 
 		auto Mapped = Host.m_RemoteActors(Publish.m_ActorID);
 
@@ -855,7 +855,7 @@ namespace NMib::NConcurrency
 			DMibLogWithCategory
 				(
 					Mib/Concurrency/Distribution
-					, SubscriptionLogVerbosity
+					, DSubscriptionLogVerbosity
 					, "   Low level unpublish packet: Skipped: CanReceive {} Deleted {}"
 					, pHost->f_CanReceivePublish()
 					, pHost->m_bDeleted.f_Load(NAtomic::gc_MemoryOrder_Relaxed)
@@ -1011,7 +1011,7 @@ namespace NMib::NConcurrency
 			DMibLogWithCategory
 				(
 					Mib/Concurrency/Distribution
-					, SubscriptionLogVerbosity
+					, DSubscriptionLogVerbosity
 					, "<{}> Low level subscribe full: {} = {}"
 					, SubscriptionID
 					, _Namespace
@@ -1023,14 +1023,14 @@ namespace NMib::NConcurrency
 		}
 		else
 		{
-			DMibLogWithCategory(Mib/Concurrency/Distribution, SubscriptionLogVerbosity, "<{}> Low level subscribe: {}", SubscriptionID, _Namespace);
+			DMibLogWithCategory(Mib/Concurrency/Distribution, DSubscriptionLogVerbosity, "<{}> Low level subscribe: {}", SubscriptionID, _Namespace);
 
 			if (auto *pRemoteNamespace = Internal.m_RemoteNamespaces.f_FindEqual(_Namespace))
 			{
 				DMibLogWithCategory
 					(
 						Mib/Concurrency/Distribution
-						, SubscriptionLogVerbosity
+						, DSubscriptionLogVerbosity
 						, "   <{}> Low level subscribe report: {}"
 						, SubscriptionID
 						, pRemoteNamespace->m_RemoteActors.f_GetLen()
@@ -1044,7 +1044,7 @@ namespace NMib::NConcurrency
 
 		co_return g_ActorSubscription / [this, _Namespace, SubscriptionID]
 			{
-				DMibLogWithCategory(Mib/Concurrency/Distribution, SubscriptionLogVerbosity, "<{}> Low level unsubscribe: {}", SubscriptionID, _Namespace);
+				DMibLogWithCategory(Mib/Concurrency/Distribution, DSubscriptionLogVerbosity, "<{}> Low level unsubscribe: {}", SubscriptionID, _Namespace);
 
 				auto &Internal = *mp_pInternal;
 

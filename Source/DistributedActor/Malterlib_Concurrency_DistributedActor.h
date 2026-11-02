@@ -19,10 +19,10 @@
 #include <Mib/Cryptography/Strength>
 
 #if DMibConfig_Concurrency_DebugSubscriptions
-#	define SubscriptionLogVerbosity Debug
+#	define DSubscriptionLogVerbosity Debug
 #	define DMibConcurrency_SubscriptionLogVerbosity DMibLogSeverity_Debug
 #else
-#	define SubscriptionLogVerbosity DebugVerbose1
+#	define DSubscriptionLogVerbosity DebugVerbose1
 #	define DMibConcurrency_SubscriptionLogVerbosity DMibLogSeverity_DebugVerbose1
 #endif
 

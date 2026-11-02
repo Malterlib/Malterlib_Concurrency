@@ -43,31 +43,31 @@ extern "C"
 #endif
 };
 
-#define CID_BROADCAST           0xffffffff			// Broadcast channel id
-#define TYPE_INIT               0x80				// Initial frame identifier
-#define U2FHID_PING         	(TYPE_INIT | 0x01)	// Echo data through local processor only
-#define U2FHID_MSG          	(TYPE_INIT | 0x03)	// Send U2F message frame
-#define U2FHID_INIT         	(TYPE_INIT | 0x06)	// Channel initialization
-#define U2FHID_ERROR        	(TYPE_INIT | 0x3f)	// Error response
-#define MAXDATASIZE 			16384
-#define FIDO_USAGE_PAGE         0xf1d0				// FIDO alliance HID usage page
-#define FIDO_USAGE_U2FHID       0x01				// U2FHID usage for top-level collection
-#define U2F_REGISTER            0x01				// Registration command
-#define U2F_AUTHENTICATE        0x02				// Authenticate/sign command
+#define DCidBroadcast           0xffffffff			// Broadcast channel id
+#define DTypeInit               0x80				// Initial frame identifier
+#define DU2fHidPing         	(DTypeInit | 0x01)	// Echo data through local processor only
+#define DU2fHidMsg          	(DTypeInit | 0x03)	// Send U2F message frame
+#define DU2fHidInit         	(DTypeInit | 0x06)	// Channel initialization
+#define DU2fHidError        	(DTypeInit | 0x3f)	// Error response
+#define DMaxDataSize 			16384
+#define DFidoUsagePage         0xf1d0				// FIDO alliance HID usage page
+#define DFidoUsageU2fHid       0x01				// U2FHID usage for top-level collection
+#define DU2fRegister            0x01				// Registration command
+#define DU2fAuthenticate        0x02				// Authenticate/sign command
 
-#define ERR_NONE                0x00	// No error
-#define ERR_INVALID_CMD         0x01	// Invalid command
-#define ERR_INVALID_PAR         0x02	// Invalid parameter
-#define ERR_INVALID_LEN         0x03	// Invalid message length
-#define ERR_INVALID_SEQ         0x04	// Invalid message sequencing
-#define ERR_MSG_TIMEOUT         0x05	// Message has timed out
-#define ERR_CHANNEL_BUSY        0x06	// Channel busy
-#define ERR_LOCK_REQUIRED       0x0a	// Command requires channel lock
-#define ERR_INVALID_CID         0x0b	// Command not allowed on this cid
-#define ERR_OTHER               0x7f	// Other unspecified error
+#define DErrNone                0x00	// No error
+#define DErrInvalidCmd         0x01	// Invalid command
+#define DErrInvalidPar         0x02	// Invalid parameter
+#define DErrInvalidLen         0x03	// Invalid message length
+#define DErrInvalidSeq         0x04	// Invalid message sequencing
+#define DErrMsgTimeout         0x05	// Message has timed out
+#define DErrChannelBusy        0x06	// Channel busy
+#define DErrLockRequired       0x0a	// Command requires channel lock
+#define DErrInvalidCid         0x0b	// Command not allowed on this cid
+#define DErrOther               0x7f	// Other unspecified error
 
-#define U2F_PUBLIC_KEY_LEN		65
-#define U2F_COUNTER_LEN			4
+#define DU2fPublicKeyLen		65
+#define DU2fCounterLen			4
 
 namespace NMib::NConcurrency::NPrivate
 {
@@ -144,7 +144,7 @@ namespace NMib::NConcurrency::NPrivate
 		EC_GROUP_set_point_conversion_form(pECGroup, POINT_CONVERSION_UNCOMPRESSED);
 
 		ERR_clear_error();
-		if (EC_POINT_oct2point(pECGroup, pPoint, _Data.f_GetArray(), U2F_PUBLIC_KEY_LEN, nullptr) == 0)
+		if (EC_POINT_oct2point(pECGroup, pPoint, _Data.f_GetArray(), DU2fPublicKeyLen, nullptr) == 0)
 			DMibError(NCryptography::NBoringSSL::fg_GetExceptionStr("Failed decode user key (EC_POINT_oct2point)"));
 
 		ERR_clear_error();
@@ -164,10 +164,10 @@ namespace NMib::NConcurrency::NPrivate
 		CSecureByteVector Buffer;
 		EC_POINT const *pPoint = EC_KEY_get0_public_key(_pKey);
 		ERR_clear_error();
-		if (EC_POINT_point2oct(pECGroup, pPoint, POINT_CONVERSION_UNCOMPRESSED, Buffer.f_GetArray(U2F_PUBLIC_KEY_LEN), U2F_PUBLIC_KEY_LEN, nullptr) != U2F_PUBLIC_KEY_LEN)
+		if (EC_POINT_point2oct(pECGroup, pPoint, POINT_CONVERSION_UNCOMPRESSED, Buffer.f_GetArray(DU2fPublicKeyLen), DU2fPublicKeyLen, nullptr) != DU2fPublicKeyLen)
 			DMibError(NCryptography::NBoringSSL::fg_GetExceptionStr("Failed dump user key (EC_POINT_point2oct)"));
 
-		// For some reason the libraries from Yubico produces U2F_PUBLIC_KEY_LEN + 1 bytes from its dump_user_key function.
+		// For some reason the libraries from Yubico produces DU2fPublicKeyLen + 1 bytes from its dump_user_key function.
 		// The buffer also contains a zero termination, so we add one as well to get identical results.
 		Buffer.f_InsertLast((uint8)0);
 		return Buffer;
@@ -271,7 +271,7 @@ namespace NMib::NConcurrency::NPrivate
 			CSecureByteVector Nonce;
 			NCryptography::fg_GenerateRandomData(Nonce.f_GetArray(c_InitNonceSize), c_InitNonceSize);
 
-			auto RawResponse = co_await fs_SendReceive(U2FHID_INIT, Nonce, CID_BROADCAST, _Device);
+			auto RawResponse = co_await fs_SendReceive(DU2fHidInit, Nonce, DCidBroadcast, _Device);
 
 			if (RawResponse.f_GetLen() != (c_InitNonceSize + 4 + 5))
 				co_return DMibErrorInstance("Invalid U2FHID_INIT response length");
@@ -366,7 +366,7 @@ namespace NMib::NConcurrency::NPrivate
 
 					if (bFirstFrame)
 					{
-						if (Frame.m_InitialFrame.m_Command == U2FHID_ERROR)
+						if (Frame.m_InitialFrame.m_Command == DU2fHidError)
 						{
 							CStr Error = "Unknown error";
 							uint16 DataLength = Frame.m_InitialFrame.m_ByteCountHigh << 8 | Frame.m_InitialFrame.m_ByteCountLow;
@@ -374,14 +374,14 @@ namespace NMib::NConcurrency::NPrivate
 							{
 								switch (Frame.m_InitialFrame.m_Data[0])
 								{
-								case ERR_INVALID_CMD: Error = "Invalid command"; break;
-								case ERR_INVALID_PAR: Error = "Invalid parameter"; break;
-								case ERR_INVALID_LEN: Error = "Invalid message length"; break;
-								case ERR_INVALID_SEQ: Error = "Invalid message sequencing"; break;
-								case ERR_MSG_TIMEOUT: Error = "Message has timed out"; break;
-								case ERR_CHANNEL_BUSY: Error = "Channel busy"; break;
-								case ERR_LOCK_REQUIRED: Error = "Command requires channel lock"; break;
-								case ERR_INVALID_CID: Error = "Command not allowed on this cid"; break;
+								case DErrInvalidCmd: Error = "Invalid command"; break;
+								case DErrInvalidPar: Error = "Invalid parameter"; break;
+								case DErrInvalidLen: Error = "Invalid message length"; break;
+								case DErrInvalidSeq: Error = "Invalid message sequencing"; break;
+								case DErrMsgTimeout: Error = "Message has timed out"; break;
+								case DErrChannelBusy: Error = "Channel busy"; break;
+								case DErrLockRequired: Error = "Command requires channel lock"; break;
+								case DErrInvalidCid: Error = "Command not allowed on this cid"; break;
 								}
 							}
 
@@ -420,12 +420,12 @@ namespace NMib::NConcurrency::NPrivate
 			Buffer.f_Insert((uint8)0);
 			Buffer.f_Insert((uint8)0);
 
-			auto Response = co_await f_SendReceive(U2FHID_MSG, Buffer);
+			auto Response = co_await f_SendReceive(DU2fHidMsg, Buffer);
 
 			if (Response.f_GetLen() < 2)
 				co_return DMibErrorInstance("Response from U2F device too short");
 
-			if (Response.f_GetLen() > MAXDATASIZE)
+			if (Response.f_GetLen() > DMaxDataSize)
 				co_return DMibErrorInstance("Response from U2F device too long");
 
 			co_return fg_Move(Response);
@@ -584,7 +584,7 @@ namespace NMib::NConcurrency::NPrivate
 					}
 
 					auto &Usage = *UsageResult;
-					if (Usage.m_UsagePage == FIDO_USAGE_PAGE && Usage.m_Usage == FIDO_USAGE_U2FHID)
+					if (Usage.m_UsagePage == DFidoUsagePage && Usage.m_Usage == DFidoUsageU2fHid)
 					{
 						pDevices->m_HID(&CHumanInterfaceDevicesActor::f_OpenPath, DeviceInfo.m_Path) > OpenDeviceResults;
 						NewDeviceInfos.f_Insert(fg_Move(DeviceInfo));
@@ -818,7 +818,7 @@ namespace NMib::NConcurrency::NPrivate
 			}
 
 			CSecureByteVector PublicKey;
-			Stream.f_ConsumeBytes(PublicKey.f_GetArray(U2F_PUBLIC_KEY_LEN), U2F_PUBLIC_KEY_LEN);
+			Stream.f_ConsumeBytes(PublicKey.f_GetArray(DU2fPublicKeyLen), DU2fPublicKeyLen);
 
 			uint8 KeyHandleLen;
 			Stream >> KeyHandleLen;
@@ -952,16 +952,16 @@ namespace NMib::NConcurrency::NPrivate
 			signature
 			*/
 
-			if (_Response.m_Signature.f_GetLen() < 1 + U2F_COUNTER_LEN)
+			if (_Response.m_Signature.f_GetLen() < 1 + DU2fCounterLen)
 				co_return DMibErrorInstance("Length mismatch");
 
 			auto *pData = _Response.m_Signature.f_GetArray();
 			Result.m_UserPresence = *pData++;
-			NMemory::fg_MemCopy((uint8 *)&Result.m_Counter, pData, U2F_COUNTER_LEN);
-			pData += U2F_COUNTER_LEN;
+			NMemory::fg_MemCopy((uint8 *)&Result.m_Counter, pData, DU2fCounterLen);
+			pData += DU2fCounterLen;
 
 			ERR_clear_error();
-			TCSSLPointer<ECDSA_SIG *, ECDSA_SIG_free> pSignature = d2i_ECDSA_SIG(nullptr, (uint8 const **)&pData, _Response.m_Signature.f_GetLen() - U2F_COUNTER_LEN - 1);
+			TCSSLPointer<ECDSA_SIG *, ECDSA_SIG_free> pSignature = d2i_ECDSA_SIG(nullptr, (uint8 const **)&pData, _Response.m_Signature.f_GetLen() - DU2fCounterLen - 1);
 			if (!pSignature)
 				co_return DMibErrorInstance(NCryptography::NBoringSSL::fg_GetExceptionStr("Failed to verify authentication response (d2i_ECDSA_SIG)"));
 
@@ -971,7 +971,7 @@ namespace NMib::NConcurrency::NPrivate
 
 			Hash.f_AddData(AppDigest.f_GetData(), AppDigest.mc_Size);
 			Hash.f_AddData((uint8 *)&Result.m_UserPresence, 1);
-			Hash.f_AddData((uint8 *)&Result.m_Counter, U2F_COUNTER_LEN);
+			Hash.f_AddData((uint8 *)&Result.m_Counter, DU2fCounterLen);
 			Hash.f_AddData(ClientDigest.f_GetData(), ClientDigest.mc_Size);
 			auto Digest = Hash.f_GetDigest();
 
@@ -1252,7 +1252,7 @@ namespace NMib::NConcurrency
 
 					auto RegistrationData = co_await NPrivate::CU2FContext::fs_SendAPDUs
 						(
-							U2F_REGISTER
+							DU2fRegister
 							, {Data}
 							, [Prompt = _Params.m_Prompt]
 							{
@@ -1300,7 +1300,7 @@ namespace NMib::NConcurrency
 
 					auto AuthenticationData = co_await NPrivate::CU2FContext::fs_SendAPDUs
 						(
-							U2F_AUTHENTICATE
+							DU2fAuthenticate
 							, DataUnits
 							, [Prompt = _Params.m_Prompt]
 							{

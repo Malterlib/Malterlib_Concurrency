@@ -19,15 +19,18 @@ namespace NMib::NConcurrency
 		if (!Internal.m_bStarted)
 			co_return DMibErrorInstance("Local store not yet started");
 
-		auto CheckDestroy = co_await f_CheckDestroyedOnResume();
-
 		auto CaptureScope = co_await
 			(
 				g_CaptureExceptions % (fg_LogCritical("LogLocalStore", "Error reading log data from database (f_GetLogs)") % "Internal error reading from database, see log")
 			)
 		;
 
-		auto ReadTransactionWrapped = co_await Internal.m_Database(&CDatabaseActor::f_OpenTransactionRead).f_Wrap();
+		// The guard ends before the switch to the blocking actor, where checking whether the actor is destroyed would race with it
+		TCAsyncResult<CDatabaseActor::CTransactionRead> ReadTransactionWrapped;
+		{
+			auto CheckDestroy = co_await f_CheckDestroyedOnResume();
+			ReadTransactionWrapped = co_await Internal.m_Database(&CDatabaseActor::f_OpenTransactionRead).f_Wrap();
+		}
 		auto &ReadTransaction = *ReadTransactionWrapped; // To force exception to be thrown here
 
 		auto Prefix = Internal.m_Prefix;
@@ -68,9 +71,12 @@ namespace NMib::NConcurrency
 		if (!Internal.m_bStarted)
 			co_return DMibErrorInstance("Local store not yet started");
 
-		auto CheckDestroy = co_await f_CheckDestroyedOnResume();
-
-		auto ReadTransactionWrapped = co_await Internal.m_Database(&CDatabaseActor::f_OpenTransactionRead).f_Wrap();
+		// The guard ends before the switch to the blocking actor, where checking whether the actor is destroyed would race with it
+		TCAsyncResult<CDatabaseActor::CTransactionRead> ReadTransactionWrapped;
+		{
+			auto CheckDestroy = co_await f_CheckDestroyedOnResume();
+			ReadTransactionWrapped = co_await Internal.m_Database(&CDatabaseActor::f_OpenTransactionRead).f_Wrap();
+		}
 
 		auto Prefix = Internal.m_Prefix;
 		auto ThisHostID = Internal.m_ThisHostID;

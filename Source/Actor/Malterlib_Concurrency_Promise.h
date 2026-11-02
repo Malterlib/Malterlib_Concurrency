@@ -575,11 +575,13 @@ namespace NMib::NConcurrency::NPrivate
 
 		inline_always void *operator new (size_t _Size)
 		{
+			DMibFastCheck(_Size > 0);
 			return CFutureCoroutineContext::fs_New(_Size, umint(1) << NMib::fg_GetLowestBitSetNoZero(_Size), sizeof(TCPromiseData<t_CReturnType>), alignof(TCPromiseData<t_CReturnType>));
 		}
 
 		inline_always void operator delete (void *_pMemory, size_t _Size)
 		{
+			DMibFastCheck(_Size > 0);
 			return CFutureCoroutineContext::fs_Delete(_pMemory, _Size, umint(1) << NMib::fg_GetLowestBitSetNoZero(_Size));
 		}
 	};

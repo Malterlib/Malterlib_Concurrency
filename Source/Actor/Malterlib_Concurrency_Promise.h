@@ -271,7 +271,6 @@ namespace NMib::NConcurrency
 
 		void f_HandleAwaitedResult(CConcurrencyThreadLocal &_ThreadLocal, FKeepaliveSetResult *_fSetResult, NStorage::TCUniquePointer<ICOnResumeResult> &&_pResult);
 		TCFuture<void> f_AsyncDestroy(CConcurrencyThreadLocal &_ThreadLocal);
-		NContainer::TCVector<TCFuture<void>> fp_AbortAndCaptureAsyncDestructors(CConcurrencyThreadLocal &_ThreadLocal);
 		FDeliverResult f_PrepareResult(FKeepaliveSetResult *_fSetResult, TCActor<CActor> &&_Actor);
 
 		template <typename t_CAwaitable>
@@ -366,6 +365,7 @@ namespace NMib::NConcurrency
 		;
 
 		bool fp_DestroyShared(NPrivate::CPromiseDataBase *_pPromiseData);
+		NContainer::TCVector<TCFuture<void>> fp_AbortAndCaptureAsyncDestructors(CConcurrencyThreadLocal &_ThreadLocal);
 
 #if DMibEnableSafeCheck > 0
 		inline_never void fp_UpdateSafeCall(bool _bSafeCall);
@@ -1339,7 +1339,7 @@ namespace NMib::NConcurrency
 
 		auto operator % (NStr::CStr const &_ErrorString) const -> TCPromiseWithExceptionTransfomer<t_CReturnValue>;
 
-		mark_no_coroutine_debug TCFuture<t_CReturnValue> fp_AttachFutureIgnoreFutureGotten();
+		mark_no_coroutine_debug TCFuture<t_CReturnValue> f_AttachFutureIgnoreFutureGotten();
 
 #if DMibConfig_Concurrency_DebugActorCallstacks
 		void f_Debug_SetCallstacks(CAsyncCallstacks &&_Callstacks);

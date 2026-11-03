@@ -121,6 +121,8 @@ namespace NMib::NConcurrency
 		bool f_SuspendCoroutine(CFutureCoroutineContext &_CoroutineContext);
 		DMibActorPhaseGuard(Destroy) CFutureCoroutineContextOnResumeScopeAwaiter f_CheckDestroyedOnResume() const;
 
+		static DMibSuppressUndefinedSanitizer TCActorInternal<CActor> *fs_GetRealActor(NConcurrency::CActorHolder *_pActorInternal);
+
 	protected:
 		template <typename tf_CReturnType, typename tf_CFunction, typename ...tfp_CParams>
 		inline_always tf_CReturnType fp_DispatchWithReturnCoroutine(tf_CFunction &&_fToDisptach, tfp_CParams ...p_Params);
@@ -145,8 +147,6 @@ namespace NMib::NConcurrency
 
 		friend struct NConcurrency::CActorHolder;
 		friend struct NConcurrency::CActorCommon;
-
-		static DMibSuppressUndefinedSanitizer TCActorInternal<CActor> *fs_GetRealActor(NConcurrency::CActorHolder *_pActorInternal);
 
 		TCFuture<void> fp_AbortSuspendedCoroutinesWithAsyncDestroy();
 		void fp_AbortSuspendedCoroutines();

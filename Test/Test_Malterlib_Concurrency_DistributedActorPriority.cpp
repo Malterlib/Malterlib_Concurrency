@@ -156,7 +156,7 @@ namespace NDistributedActorPriorityTests
 			TCVector<CCallOrderEntry> m_CallOrder;
 		};
 
-	public:
+	private:
 		void fp_CPriorityScopeTests()
 		{
 			DMibTestSuite("CPriorityScope")
@@ -632,6 +632,7 @@ namespace NDistributedActorPriorityTests
 			};
 		}
 
+	public:
 		void f_DoTests()
 		{
 			DMibTestCategory("Distributed Actor Priority")

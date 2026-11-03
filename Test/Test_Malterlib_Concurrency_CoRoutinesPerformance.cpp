@@ -93,44 +93,44 @@ namespace NMib::NConcurrency::NTest
 		static constexpr umint mc_nLoops = 16384 * 128 * 10;
 #endif
 
-		static inline_never uint32 fs_TestRecursive(uint32 _Value)
+		static inline_never uint32 fsp_TestRecursive(uint32 _Value)
 		{
 			uint32 volatile Result = _Value * 2;
 			return Result;
 		}
 
-		static inline_never uint32 fs_TestFunction(uint32 _Value)
+		static inline_never uint32 fsp_TestFunction(uint32 _Value)
 		{
 			uint32 volatile Return = 0;
 			for (umint i = 0; i < mc_nLoops; ++i)
-				Return = Return + fs_TestRecursive(_Value);
+				Return = Return + fsp_TestRecursive(_Value);
 			return Return;
 		}
 
-		static inline_always TCFuture<uint32> fs_TestRecursiveCoro(uint32 _Value)
+		static inline_always TCFuture<uint32> fsp_TestRecursiveCoro(uint32 _Value)
 		{
 			co_return _Value * 2;
 		}
 
-		static inline_never TCFuture<uint32> fs_TestFunctionCoro(uint32 _Value)
+		static inline_never TCFuture<uint32> fsp_TestFunctionCoro(uint32 _Value)
 		{
 			uint32 Return = 0;
 			for (umint i = 0; i < mc_nLoops; ++i)
-				Return += co_await fs_TestRecursiveCoro(_Value);
+				Return += co_await fsp_TestRecursiveCoro(_Value);
 			co_return Return;
 		}
 
 #if defined(DMalterlibEnableThirdPartyComparisonTests)
-		static inline_always cppcoro::task<uint32> fs_TestRecursiveCppCoro(uint32 _Value)
+		static inline_always cppcoro::task<uint32> fsp_TestRecursiveCppCoro(uint32 _Value)
 		{
 			co_return _Value * 2;
 		}
 
-		static inline_never cppcoro::task<uint32> fs_TestFunctionCppCoro(uint32 _Value)
+		static inline_never cppcoro::task<uint32> fsp_TestFunctionCppCoro(uint32 _Value)
 		{
 			uint32 Return = 0;
 			for (umint i = 0; i < mc_nLoops; ++i)
-				Return += co_await fs_TestRecursiveCppCoro(_Value);
+				Return += co_await fsp_TestRecursiveCppCoro(_Value);
 			co_return Return;
 		}
 #endif
@@ -480,7 +480,7 @@ namespace NMib::NConcurrency::NTest
 						uint32 Multiplier = 2;
 						[&Multiplier, &ReturnNormal]() inline_never
 						{
-							ReturnNormal = fs_TestFunction(Multiplier);
+							ReturnNormal = fsp_TestFunction(Multiplier);
 						}
 						();
 						NormalTime.f_Stop(mc_nLoops);
@@ -497,7 +497,7 @@ namespace NMib::NConcurrency::NTest
 						uint32 Multiplier = 2;
 						[&Multiplier, &ReturnCoro]() inline_never
 						{
-							ReturnCoro = fs_TestFunctionCoro(Multiplier).f_CallSync();
+							ReturnCoro = fsp_TestFunctionCoro(Multiplier).f_CallSync();
 						}
 						();
 						CoroutineTime.f_Stop(mc_nLoops);
@@ -516,7 +516,7 @@ namespace NMib::NConcurrency::NTest
 						uint32 Multiplier = 2;
 						[&Multiplier, &ReturnCppCoro]() inline_never
 						{
-							ReturnCppCoro = cppcoro::sync_wait(fs_TestFunctionCppCoro(Multiplier));
+							ReturnCppCoro = cppcoro::sync_wait(fsp_TestFunctionCppCoro(Multiplier));
 						}
 						();
 						CppCoroTime.f_Stop(mc_nLoops);

@@ -364,6 +364,12 @@ namespace NMib::NConcurrency
 		TCFuturePackAwaiter(NStorage::TCTuple<tp_CFutures...> &&_Futures, t_FExceptionTransform &&_fExceptionTransform);
 		~TCFuturePackAwaiter();
 
+		bool await_ready() const noexcept;
+		template <typename tf_CCoroutineContext>
+		bool await_suspend(TCCoroutineHandle<tf_CCoroutineContext> &&_Handle);
+		auto await_resume() noexcept(!t_bUnwrap);
+
+	private:
 		template <typename tf_CResultFunctor, umint ...tfp_Indices>
 		void fp_ActorCall(tf_CResultFunctor &&_ResultFunctor, TCActor<> &&_ResultActor, NMeta::TCIndices<tfp_Indices...>);
 
@@ -376,12 +382,6 @@ namespace NMib::NConcurrency
 		template <umint ...tfp_Indices>
 		void fp_TransformExceptions(CWrappedType &o_Results, NMeta::TCIndices<tfp_Indices...>);
 
-		bool await_ready() const noexcept;
-		template <typename tf_CCoroutineContext>
-		bool await_suspend(TCCoroutineHandle<tf_CCoroutineContext> &&_Handle);
-		auto await_resume() noexcept(!t_bUnwrap);
-
-	private:
 		CWrappedType mp_Results;
 		NStorage::TCTuple<tp_CFutures...> mp_Futures;
 		NAtomic::TCAtomic<umint> mp_ResultAvailable;

@@ -90,6 +90,9 @@ namespace NMib::NConcurrency::NPrivate
 	{
 		TCRuntimeTypeRegistryEntry_MemberFunction();
 
+		NConcurrency::TCFuture<NStream::CBinaryStorage> f_Call(NStream::TCBinaryStreamStoragePtr<NStream::CBinaryStreamDefault> &_Stream, void *_pObject) override;
+
+	private:
 		template <umint ...tfp_Indices, typename ...tfp_CParams>
 		auto fp_Call(t_CStreamParams &_ParamsStream, void *_pObject, NMeta::TCIndices<tfp_Indices...> const &, NMeta::TCTypeList<tfp_CParams...> const &)
 			-> NConcurrency::TCFuture<NStream::CBinaryStorage>
@@ -101,8 +104,6 @@ namespace NMib::NConcurrency::NPrivate
 			-> NConcurrency::TCUnsafeFuture<NStream::CBinaryStorage>
 			requires (!TCIsAsyncGenerator<t_CReturn>::mc_Value)
 		;
-
-		NConcurrency::TCFuture<NStream::CBinaryStorage> f_Call(NStream::TCBinaryStreamStoragePtr<NStream::CBinaryStreamDefault> &_Stream, void *_pObject) override;
 	};
 
 	template <auto t_pMemberFunction, uint32 t_NameHash, typename t_CStreamContext, typename t_CStreamParams, typename t_CStreamResult>
@@ -110,12 +111,14 @@ namespace NMib::NConcurrency::NPrivate
 		: public CRuntimeTypeRegistryEntry_MemberFunction
 	{
 		TCRuntimeTypeRegistryEntry_MemberFunction();
+
+		NConcurrency::TCFuture<NStream::CBinaryStorage> f_Call(NStream::TCBinaryStreamStoragePtr<NStream::CBinaryStreamDefault> &_Stream, void *_pObject) override;
+
+	private:
 		template <umint ...tfp_Indices, typename ...tfp_CParams>
 		auto fp_Call(t_CStreamParams &_ParamsStream, void *_pObject, NMeta::TCIndices<tfp_Indices...> const &, NMeta::TCTypeList<tfp_CParams...> const &)
 			-> NConcurrency::TCUnsafeFuture<NStream::CBinaryStorage>
 		;
-
-		NConcurrency::TCFuture<NStream::CBinaryStorage> f_Call(NStream::TCBinaryStreamStoragePtr<NStream::CBinaryStreamDefault> &_Stream, void *_pObject) override;
 	};
 
 	template <auto t_pMemberFunction, uint32 t_NameHash, typename t_CStreamContext, typename t_CStreamParams, typename t_CStreamResult, typename t_CResult>
@@ -124,12 +127,13 @@ namespace NMib::NConcurrency::NPrivate
 	{
 		TCRuntimeTypeRegistryEntry_MemberFunction();
 
+		NConcurrency::TCFuture<NStream::CBinaryStorage> f_Call(NStream::TCBinaryStreamStoragePtr<NStream::CBinaryStreamDefault> &_Stream, void *_pObject) override;
+
+	private:
 		template <umint ...tfp_Indices, typename ...tfp_CParams>
 		auto fp_Call(t_CStreamParams &_ParamsStream, void *_pObject, NMeta::TCIndices<tfp_Indices...> const &, NMeta::TCTypeList<tfp_CParams...> const &)
 			-> NConcurrency::TCFuture<NStream::CBinaryStorage>
 		;
-
-		NConcurrency::TCFuture<NStream::CBinaryStorage> f_Call(NStream::TCBinaryStreamStoragePtr<NStream::CBinaryStreamDefault> &_Stream, void *_pObject) override;
 	};
 
 	template

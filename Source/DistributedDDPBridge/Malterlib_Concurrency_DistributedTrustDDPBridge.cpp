@@ -49,9 +49,8 @@ namespace NMib::NConcurrency
 			CStr m_AddressDesc;
 		};
 
-		void fp_NewValidatedWebsocketConnection(TCSharedPointer<CWebSocketNewServerConnection> const &_pNewServerConnection, CStr const &_HostID);
-		CEJsonSorted fp_MethodError(CStr const &_Error, CStr const &_Reason, CStr const &_Details = "");
-		void fp_StartupFailed(CException const &_Exception);
+		void f_NewValidatedWebsocketConnection(TCSharedPointer<CWebSocketNewServerConnection> const &_pNewServerConnection, CStr const &_HostID);
+		void f_StartupFailed(CException const &_Exception);
 
 		CDistributedTrustDDPBridge *m_pThis;
 		TCActor<CActorDistributionManager> m_DistributionManager;
@@ -66,6 +65,9 @@ namespace NMib::NConcurrency
 		TCVector<TCPromise<void>> m_OnStartup;
 
 		TCMap<umint, CConnection> m_Connections;
+
+	private:
+		CEJsonSorted fp_MethodError(CStr const &_Error, CStr const &_Reason, CStr const &_Details = "");
 	};
 
 	CDistributedTrustDDPBridge::CDistributedTrustDDPBridge(TCActor<CDistributedActorTrustManager> const &_TrustManager)
@@ -77,7 +79,7 @@ namespace NMib::NConcurrency
 	{
 	}
 
-	void CDistributedTrustDDPBridge::CInternal::fp_StartupFailed(CException const &_Exception)
+	void CDistributedTrustDDPBridge::CInternal::f_StartupFailed(CException const &_Exception)
 	{
 		m_pStartupFailedException = fg_Construct(_Exception);
 		for (auto &OnStartup : m_OnStartup)
@@ -104,7 +106,7 @@ namespace NMib::NConcurrency
 				{
 					CStr Error = fg_Format("Failed to get distribution manager: {}", _DistributionManager.f_GetExceptionStr());
 					DMibLogWithCategory(Mib/Concurrency/DistributedActorDDPBridge, Error, "{}", Error);
-					Internal.fp_StartupFailed(DMibErrorInstance(Error));
+					Internal.f_StartupFailed(DMibErrorInstance(Error));
 					return;
 				}
 				Internal.m_DistributionManager = fg_Move(*_DistributionManager);
@@ -116,7 +118,7 @@ namespace NMib::NConcurrency
 						, [this](NStorage::TCSharedPointer<NWeb::CWebSocketNewServerConnection> _pServerConnection, NStr::CStr _HostID) -> TCFuture<void>
 						{
 							auto &Internal = *mp_pInternal;
-							Internal.fp_NewValidatedWebsocketConnection(_pServerConnection, _HostID);
+							Internal.f_NewValidatedWebsocketConnection(_pServerConnection, _HostID);
 							co_return {};
 						}
 					)
@@ -127,7 +129,7 @@ namespace NMib::NConcurrency
 						{
 							CStr Error = fg_Format("Failed to register websocket handler: {}", _Result.f_GetExceptionStr());
 							DMibLogWithCategory(Mib/Concurrency/DistributedActorDDPBridge, Error, "{}", Error);
-							Internal.fp_StartupFailed(DMibErrorInstance(Error));
+							Internal.f_StartupFailed(DMibErrorInstance(Error));
 							return;
 						}
 						Internal.m_WebsocketHandlerSubscription = fg_Move(*_Result);
@@ -183,7 +185,7 @@ namespace NMib::NConcurrency
 		return Ret;
 	}
 
-	void CDistributedTrustDDPBridge::CInternal::fp_NewValidatedWebsocketConnection(TCSharedPointer<CWebSocketNewServerConnection> const &_pNewServerConnection, CStr const &_HostID)
+	void CDistributedTrustDDPBridge::CInternal::f_NewValidatedWebsocketConnection(TCSharedPointer<CWebSocketNewServerConnection> const &_pNewServerConnection, CStr const &_HostID)
 	{
 		umint ConnectionID = ++m_LastConnectionID;
 		auto &NewConnection = m_Connections[ConnectionID];

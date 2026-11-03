@@ -519,7 +519,7 @@ namespace NMib::NConcurrency
 				auto &ConcurrencyThreadLocal = fg_ConcurrencyThreadLocal();
 
 				TCPromise<CReturn> Promise{fg_Forward<tf_CPromiseParam>(_PromiseParam), NPrivate::CPromiseDataBaseRefCount::mc_FutureBit, ConcurrencyThreadLocal};
-				auto Future = Promise.fp_AttachFutureIgnoreFutureGotten();
+				auto Future = Promise.f_AttachFutureIgnoreFutureGotten();
 
 				if constexpr (tf_bDirectCall)
 				{

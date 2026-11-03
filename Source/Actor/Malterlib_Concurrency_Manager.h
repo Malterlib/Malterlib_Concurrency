@@ -272,6 +272,8 @@ namespace NMib::NConcurrency
 			CQueue(CQueue &&_Other);
 			CQueue();
 			void f_Signal(CConcurrencyManager *_pThis);
+
+		private:
 			void fp_CreateThread(CConcurrencyManager *_pThis);
 		};
 

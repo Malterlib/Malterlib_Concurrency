@@ -1598,7 +1598,7 @@ namespace NMib::NConcurrency::NTest
 			co_return {};
 		}
 
-		void f_TestGeneral()
+		void fp_TestGeneral()
 		{
 			DMibTestSuite("General")
 			{
@@ -1693,7 +1693,7 @@ namespace NMib::NConcurrency::NTest
 			};
 		}
 
-		void f_TestAuditor()
+		void fp_TestAuditor()
 		{
 			DMibTestSuite("Auditor")
 			{
@@ -1715,7 +1715,7 @@ namespace NMib::NConcurrency::NTest
 			};
 		}
 
-		void f_TestDestroy()
+		void fp_TestDestroy()
 		{
 			DMibTestSuite("Destroy")
 			{
@@ -1937,7 +1937,7 @@ namespace NMib::NConcurrency::NTest
 			}
 		};
 
-		void f_TestAsyncDestroy()
+		void fp_TestAsyncDestroy()
 		{
 			DMibTestSuite("Async Destroy")
 			{
@@ -2957,7 +2957,7 @@ namespace NMib::NConcurrency::NTest
 			};
 		}
 
-		void f_TestOnResume()
+		void fp_TestOnResume()
 		{
 			DMibTestSuite("OnResume")
 			{
@@ -3066,7 +3066,7 @@ namespace NMib::NConcurrency::NTest
 			};
 		}
 
-		void f_TestCapture()
+		void fp_TestCapture()
 		{
 			DMibTestSuite("Capture")
 			{
@@ -3141,7 +3141,7 @@ namespace NMib::NConcurrency::NTest
 			};
 		}
 
-		void f_TestParamDetection()
+		void fp_TestParamDetection()
 		{
 			DMibTestSuite("ParamDetection") -> TCFuture<void>
 			{
@@ -3164,13 +3164,13 @@ namespace NMib::NConcurrency::NTest
 				}
 			;
 #endif
-			f_TestGeneral();
-			f_TestAuditor();
-			f_TestDestroy();
-			f_TestAsyncDestroy();
-			f_TestOnResume();
-			f_TestCapture();
-			f_TestParamDetection();
+			fp_TestGeneral();
+			fp_TestAuditor();
+			fp_TestDestroy();
+			fp_TestAsyncDestroy();
+			fp_TestOnResume();
+			fp_TestCapture();
+			fp_TestParamDetection();
 		}
 	};
 

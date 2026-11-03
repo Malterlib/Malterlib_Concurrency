@@ -266,7 +266,7 @@ namespace NMib::NConcurrency
 
 		TCPromiseFuturePair<NStream::CBinaryStorage> Promise;
 
-		auto PacketID = Internal.fp_QueuePacket(pHost, fg_Move(_CallData));
+		auto PacketID = Internal.f_QueuePacket(pHost, fg_Move(_CallData));
 		auto OutstandingCallKey = fg_MakeOutstandingCallKey(Priority, PacketID);
 		auto &OutstandingCall = pHost->m_OutstandingCalls[OutstandingCallKey];
 		OutstandingCall.m_Promise = fg_Move(Promise.m_Promise);
@@ -394,7 +394,7 @@ namespace NMib::NConcurrency
 			fp_RegisterImplicitSubscriptions(Host, *_Context.m_pState, nullptr);
 		}
 
-		fp_QueuePacket(_pHost, fg_Move(SendPacket));
+		f_QueuePacket(_pHost, fg_Move(SendPacket));
 	}
 
 	CActorSubscription CActorDistributionManager::fp_OnRemoteDisconnect(TCActorFunctorWeak<TCFuture<void> ()> &&_fOnDisconnect, NStr::CStr &&_UniqueHostID, NStr::CStr &&_LastExecutionID)
@@ -533,7 +533,7 @@ namespace NMib::NConcurrency
 
 				if (auto pPublishedActor = m_PublishedActors.f_FindEqual(RemoteCall.m_ActorID))
 				{
-					if (Host.m_HostInfo.m_bAnonymous && !fp_NamespaceAllowedForAnonymous(pPublishedActor->m_pNamespace->f_GetNamespace()))
+					if (Host.m_HostInfo.m_bAnonymous && !f_NamespaceAllowedForAnonymous(pPublishedActor->m_pNamespace->f_GetNamespace()))
 					{
 						fp_ReplyToRemoteCallWithException(pHost, RemoteCall.m_PacketID, DMibErrorInstance("Access denied"), Context);
 						return true;
@@ -791,7 +791,7 @@ namespace NMib::NConcurrency
 
 			NStream::TCBinaryStreamStorage<> Stream;
 			Stream << Result;
-			Internal.fp_QueuePacket(fg_Explicit(&Host), Stream.f_MoveStorage());
+			Internal.f_QueuePacket(fg_Explicit(&Host), Stream.f_MoveStorage());
 
 			if (HostActorProtocolVersion < EDistributedActorProtocolVersion_SubscriptionDestroyedSupported)
 				co_return {};
@@ -861,7 +861,7 @@ namespace NMib::NConcurrency
 
 						NStream::TCBinaryStreamStorage<> Stream;
 						Result.f_Feed(Stream, ActorProtocolVersion);
-						fp_QueuePacket(pHost, Stream.f_MoveStorage());
+						f_QueuePacket(pHost, Stream.f_MoveStorage());
 					}
 				;
 			}
@@ -873,7 +873,7 @@ namespace NMib::NConcurrency
 
 				NStream::TCBinaryStreamStorage<> Stream;
 				Result.f_Feed(Stream, ActorProtocolVersion);
-				fp_QueuePacket(pHost, Stream.f_MoveStorage());
+				f_QueuePacket(pHost, Stream.f_MoveStorage());
 			}
 		}
 

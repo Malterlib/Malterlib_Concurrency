@@ -101,8 +101,6 @@ namespace NMib::NConcurrency
 		CDistributedApp_LaunchHelper(CDistributedApp_LaunchHelperDependencies const &_Dependencies, bool _bLogToStderr, bool _bNoColor = false);
 		~CDistributedApp_LaunchHelper();
 
-		CActorSubscription fp_GetLaunchSubscription(NStr::CStr const &_LaunchID);
-
 		TCFuture<void> fp_Destroy() override;
 		TCFuture<CDistributedApp_LaunchInfo> f_Launch(NStr::CStr _Description, NStr::CStr _Executable);
 		TCFuture<CDistributedApp_LaunchInfo> f_LaunchWithLaunch(NStr::CStr _Description, NProcess::CProcessLaunchActor::CLaunch _Launch, TCActor<CActor> _NotificationActor);
@@ -128,5 +126,8 @@ namespace NMib::NConcurrency
 		TCDistributedActorInstance<CDistributedAppInterfaceServerImplementation> m_AppInterfaceServer;
 		bool m_bLogToStderr = false;
 		bool m_bNoColor = false;
+
+	private:
+		CActorSubscription fp_GetLaunchSubscription(NStr::CStr const &_LaunchID);
 	};
 }

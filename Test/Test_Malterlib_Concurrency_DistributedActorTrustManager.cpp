@@ -348,7 +348,7 @@ namespace NTestTrustManager
 			CStr m_RootDir;
 		};
 
-		static CStr fg_GetSocketUrl(CStr const &_SocketName, CStr const &_RootDir)
+		static CStr fs_GetSocketUrl(CStr const &_SocketName, CStr const &_RootDir)
 		{
 			CStr Path = NNetwork::fg_GetSafeUnixSocketPath(NFile::CFile::fs_GetProgramDirectory() / ("Sockets/TrustManagerPermissions/{}/{}.sock"_f << _RootDir << _SocketName));
 			fg_TestAddCleanupPath(Path);
@@ -358,7 +358,7 @@ namespace NTestTrustManager
 		struct CPermissionTestState
 		{
 			CPermissionTestState(CState &_State, NStr::CStr const &_SocketName)
-				: m_SocketUrl(fg_GetSocketUrl(_SocketName, _State.m_RootDir))
+				: m_SocketUrl(fs_GetSocketUrl(_SocketName, _State.m_RootDir))
 				, m_ServerTrustManager{f_CreateServerTrustManager(_State)}
 				, m_ClientTrustManager{f_CreateClientTrustManager(_State)}
 				, m_ServerHelper{f_InitServerTrustManager(), _State.m_pRunLoop}
@@ -418,22 +418,22 @@ namespace NTestTrustManager
 			}
 
 			template <typename tf_CKey, typename tf_CValue, typename ...tf_CParams>
-			void fg_CreateMapHelper(TCMap<tf_CKey, tf_CValue> &_Return)
+			void f_CreateMapHelper(TCMap<tf_CKey, tf_CValue> &_Return)
 			{
 			}
 
 			template <typename tf_CKey, typename tf_CValue, typename ...tf_CParams>
-			void fg_CreateMapHelper(TCMap<tf_CKey, tf_CValue> &_Return, tf_CKey &&_First, tf_CParams && ...p_Params)
+			void f_CreateMapHelper(TCMap<tf_CKey, tf_CValue> &_Return, tf_CKey &&_First, tf_CParams && ...p_Params)
 			{
 				_Return[fg_Forward<tf_CKey>(_First)];
-				fg_CreateMapHelper<tf_CKey, tf_CValue>(_Return, fg_Forward<tf_CParams>(p_Params)...);
+				f_CreateMapHelper<tf_CKey, tf_CValue>(_Return, fg_Forward<tf_CParams>(p_Params)...);
 			}
 
 			template <typename tf_CKey, typename tf_CValue, typename ...tf_CParams>
-			TCMap<NTraits::TCRemoveReferenceAndQualifiers<tf_CKey>, NTraits::TCRemoveReferenceAndQualifiers<tf_CValue>> fg_CreateMap(tf_CKey &&_First, tf_CParams && ...p_Params)
+			TCMap<NTraits::TCRemoveReferenceAndQualifiers<tf_CKey>, NTraits::TCRemoveReferenceAndQualifiers<tf_CValue>> f_CreateMap(tf_CKey &&_First, tf_CParams && ...p_Params)
 			{
 				TCMap<NTraits::TCRemoveReferenceAndQualifiers<tf_CKey>, NTraits::TCRemoveReferenceAndQualifiers<tf_CValue>> Return;
-				fg_CreateMapHelper<NTraits::TCRemoveReferenceAndQualifiers<tf_CKey>, NTraits::TCRemoveReferenceAndQualifiers<tf_CValue>>
+				f_CreateMapHelper<NTraits::TCRemoveReferenceAndQualifiers<tf_CKey>, NTraits::TCRemoveReferenceAndQualifiers<tf_CValue>>
 					(
 						Return
 						, fg_Forward<tf_CKey>(_First)
@@ -444,10 +444,10 @@ namespace NTestTrustManager
 			}
 
 			template <typename tf_CKey, typename tf_CValue, typename ...tf_CParams>
-			TCMap<tf_CKey, tf_CValue> fg_CreateMap(tf_CParams && ...p_Params)
+			TCMap<tf_CKey, tf_CValue> f_CreateMap(tf_CParams && ...p_Params)
 			{
 				TCMap<tf_CKey, tf_CValue> Return;
-				fg_CreateMapHelper<tf_CKey, tf_CValue>(Return, fg_Forward<tf_CParams>(p_Params)...);
+				f_CreateMapHelper<tf_CKey, tf_CValue>(Return, fg_Forward<tf_CParams>(p_Params)...);
 				return Return;
 			}
 
@@ -465,7 +465,7 @@ namespace NTestTrustManager
 					(
 						&CDistributedActorTrustManager::f_AddPermissions
 						, CPermissionIdentifiers{m_ServerHostID, ""}
-						, fg_CreateMap<CStr, CPermissionRequirements>(p_Permissions...)
+						, f_CreateMap<CStr, CPermissionRequirements>(p_Permissions...)
 						, EDistributedActorTrustManagerOrderingFlag_WaitForSubscriptions
 					)
 					.f_CallSync(m_pRunLoop, g_Timeout)
@@ -559,46 +559,7 @@ namespace NTestTrustManager
 			NContainer::TCMap<NStr::CStr, NContainer::TCMap<CPermissionIdentifiers, CDistributedActorTrustManagerInterface::CPermissionInfo>> m_ExpectedEnumPermissionsNoHostInfo;
 		};
 
-		void fp_DoTests
-			(
-				TCActor<CDistributedActorTrustManager> const &_ServerTrustManager
-				, TCActor<CDistributedActorTrustManager> const &_ClientTrustManager
-				, TCSharedPointer<CDefaultRunLoop> const &_pRunLoop
-			)
-		{
-			CDistributedActorTestHelper ServerHelper{_ServerTrustManager, _pRunLoop};
-			CDistributedActorTestHelper ClientHelper{_ClientTrustManager, _pRunLoop};
-
-			ServerHelper.f_Publish<CTestActor>(ServerHelper.f_GetManager()->f_ConstructActor<CTestActor>(), "com.malterlib/Test");
-			CStr Subscription = ClientHelper.f_Subscribe("com.malterlib/Test");
-
-			TCDistributedActor<CTestActor> Actor = ClientHelper.f_GetRemoteActor<CTestActor>(Subscription);
-
-			Actor.f_CallActor(&CTestActor::f_TestVoid)().f_CallSync(_pRunLoop, g_Timeout);
-
-			uint32 Result = Actor.f_CallActor(&CTestActor::f_Test)().f_CallSync(_pRunLoop, g_Timeout);
-			DMibExpect(Result, ==, 5);
-
-			// Interleave priority calls with normal calls
-			{
-				CPriorityScope HighPriority(CPriorityScope::mc_PriorityHigh);
-				uint8 Priority = Actor.f_CallActor(&CTestActor::f_TestPriority)().f_CallSync(_pRunLoop, g_Timeout);
-				DMibExpect(Priority, ==, 64);
-			}
-
-			{
-				CPriorityScope LowPriority(CPriorityScope::mc_PriorityLow);
-				uint8 Priority = Actor.f_CallActor(&CTestActor::f_TestPriority)().f_CallSync(_pRunLoop, g_Timeout);
-				DMibExpect(Priority, ==, 192);
-			}
-
-			// Default priority call
-			{
-				uint8 Priority = Actor.f_CallActor(&CTestActor::f_TestPriority)().f_CallSync(_pRunLoop, g_Timeout);
-				DMibExpect(Priority, ==, 128);
-			}
-		}
-
+	private:
 		bool fp_WaitForCondition(TCFunction<bool ()> const &_fPredicate)
 		{
 			bool bTimedOut = false;
@@ -673,7 +634,7 @@ namespace NTestTrustManager
 					CStr ClientHostID = ClientTrustManager(&CDistributedActorTrustManager::f_GetHostID).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
 
 					CDistributedActorTrustManager_Address ServerAddress;
-					ServerAddress.m_URL = fg_GetSocketUrl("TrustBasic", _RootDir);
+					ServerAddress.m_URL = fs_GetSocketUrl("TrustBasic", _RootDir);
 					ServerTrustManager(&CDistributedActorTrustManager::f_AddListen, ServerAddress, 0).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
 					DMibExpectTrue(ServerTrustManager(&CDistributedActorTrustManager::f_HasListen, ServerAddress).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout));
 
@@ -749,7 +710,7 @@ namespace NTestTrustManager
 					TCActor<CDistributedActorTrustManager> ServerTrustManager = State.f_CreateServerTrustManager();
 
 					CDistributedActorTrustManager_Address ServerAddress;
-					ServerAddress.m_URL = fg_GetSocketUrl("TrustBasic", _RootDir);
+					ServerAddress.m_URL = fs_GetSocketUrl("TrustBasic", _RootDir);
 					DMibExpectTrue(ServerTrustManager(&CDistributedActorTrustManager::f_HasListen, ServerAddress).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout));
 
 					TCActor<CDistributedActorTrustManager> ClientTrustManager = State.f_CreateClientTrustManager();
@@ -765,11 +726,11 @@ namespace NTestTrustManager
 					TCActor<CDistributedActorTrustManager> ServerTrustManager = State.f_CreateServerTrustManager();
 
 					CDistributedActorTrustManager_Address ServerAddress;
-					ServerAddress.m_URL = fg_GetSocketUrl("TrustBasicChanged", _RootDir);
+					ServerAddress.m_URL = fs_GetSocketUrl("TrustBasicChanged", _RootDir);
 					ServerTrustManager(&CDistributedActorTrustManager::f_AddListen, ServerAddress, 0).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
 
 					CDistributedActorTrustManager_Address OldServerAddress;
-					OldServerAddress.m_URL = fg_GetSocketUrl("TrustBasic", _RootDir);
+					OldServerAddress.m_URL = fs_GetSocketUrl("TrustBasic", _RootDir);
 
 					ServerTrustManager(&CDistributedActorTrustManager::f_RemoveListen, OldServerAddress).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
 
@@ -828,7 +789,7 @@ namespace NTestTrustManager
 				TCActor<CDistributedActorTrustManager> ClientTrustManager = State.f_CreateClientTrustManager();
 
 				CDistributedActorTrustManager_Address ServerAddress;
-				ServerAddress.m_URL = fg_GetSocketUrl("TrustRemoveClient", _RootDir);
+				ServerAddress.m_URL = fs_GetSocketUrl("TrustRemoveClient", _RootDir);
 				ServerTrustManager(&CDistributedActorTrustManager::f_AddListen, ServerAddress, 0).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
 
 				auto TrustTicket = ServerTrustManager(&CDistributedActorTrustManager::f_GenerateConnectionTicket, ServerAddress, nullptr, nullptr)
@@ -871,7 +832,7 @@ namespace NTestTrustManager
 				TCActor<CDistributedActorTrustManager> ClientTrustManager = State.f_CreateClientTrustManager();
 
 				CDistributedActorTrustManager_Address ServerAddress;
-				ServerAddress.m_URL = fg_GetSocketUrl("TrustRemoveDisconnects", _RootDir);
+				ServerAddress.m_URL = fs_GetSocketUrl("TrustRemoveDisconnects", _RootDir);
 				ServerTrustManager(&CDistributedActorTrustManager::f_AddListen, ServerAddress, 0).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
 
 				{
@@ -1002,7 +963,7 @@ namespace NTestTrustManager
 				TCActor<CDistributedActorTrustManager> ClientTrustManager = State.f_CreateClientTrustManager();
 
 				CDistributedActorTrustManager_Address ServerAddress;
-				ServerAddress.m_URL = fg_GetSocketUrl("TrustBrokenConnections", _RootDir);
+				ServerAddress.m_URL = fs_GetSocketUrl("TrustBrokenConnections", _RootDir);
 				ServerTrustManager(&CDistributedActorTrustManager::f_AddListen, ServerAddress, 0).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
 
 				{
@@ -1141,7 +1102,7 @@ namespace NTestTrustManager
 					TCActor<CDistributedActorTrustManager> ClientTrustManager = State.f_CreateClientTrustManager();
 
 					CDistributedActorTrustManager_Address ServerAddress;
-					ServerAddress.m_URL = fg_GetSocketUrl("TrustHostCleanup", _RootDir);
+					ServerAddress.m_URL = fs_GetSocketUrl("TrustHostCleanup", _RootDir);
 					ServerTrustManager(&CDistributedActorTrustManager::f_AddListen, ServerAddress, 0).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
 
 					CHostInfo HostInfo;
@@ -1307,7 +1268,7 @@ namespace NTestTrustManager
 				TCActor<CDistributedActorTrustManager> ClientTrustManager = State.f_CreateClientTrustManager();
 
 				CDistributedActorTrustManager_Address ServerAddress;
-				ServerAddress.m_URL = fg_GetSocketUrl("TrustSecurity", _RootDir);
+				ServerAddress.m_URL = fs_GetSocketUrl("TrustSecurity", _RootDir);
 				ServerTrustManager(&CDistributedActorTrustManager::f_AddListen, ServerAddress, 0).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
 
 				{
@@ -1406,7 +1367,7 @@ namespace NTestTrustManager
 				TCActor<CDistributedActorTrustManager> ClientTrustManager = State.f_CreateClientTrustManager();
 
 				CDistributedActorTrustManager_Address ServerAddress;
-				ServerAddress.m_URL = fg_GetSocketUrl("TrustMultipleEnclaves", _RootDir);
+				ServerAddress.m_URL = fs_GetSocketUrl("TrustMultipleEnclaves", _RootDir);
 				ServerTrustManager(&CDistributedActorTrustManager::f_AddListen, ServerAddress, 0).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
 
 				{
@@ -1477,7 +1438,7 @@ namespace NTestTrustManager
 				CStr ServerHostID = ServerTrustManager(&CDistributedActorTrustManager::f_GetHostID).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
 
 				CDistributedActorTrustManager_Address ServerAddress;
-				ServerAddress.m_URL = fg_GetSocketUrl("TrustSubscriptions", _RootDir);
+				ServerAddress.m_URL = fs_GetSocketUrl("TrustSubscriptions", _RootDir);
 				ServerTrustManager(&CDistributedActorTrustManager::f_AddListen, ServerAddress, 0).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
 
 				{
@@ -1981,7 +1942,7 @@ namespace NTestTrustManager
 					CDistributedActorTestHelper ServerHelper2{ServerTrustManager, RunLoopHelper.m_pRunLoop};
 					{
 						CDistributedActorTrustManager_Address ServerAddress;
-						ServerAddress.m_URL = fg_GetSocketUrl("Trust2HostsNoSub", _RootDir);
+						ServerAddress.m_URL = fs_GetSocketUrl("Trust2HostsNoSub", _RootDir);
 						ServerTrustManager2(&CDistributedActorTrustManager::f_AddListen, ServerAddress, 0).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
 
 						auto TrustTicket = ServerTrustManager2(&CDistributedActorTrustManager::f_GenerateConnectionTicket, ServerAddress, nullptr, nullptr)
@@ -3793,7 +3754,7 @@ namespace NTestTrustManager
 				TCActor<CDistributedActorTrustManager> ClientTrustManager = State.f_CreateClientTrustManager();
 
 				CDistributedActorTrustManager_Address ServerAddress;
-				ServerAddress.m_URL = fg_GetSocketUrl("TrustCancelledTicket", _RootDir);
+				ServerAddress.m_URL = fs_GetSocketUrl("TrustCancelledTicket", _RootDir);
 				ServerTrustManager(&CDistributedActorTrustManager::f_AddListen, ServerAddress, 0).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
 
 				auto TrustTicket = ServerTrustManager
@@ -3920,6 +3881,7 @@ namespace NTestTrustManager
 			};
 		}
 
+	public:
 		void f_DoTests()
 		{
 			DMibTestSuite("Interface Conversion") -> TCFuture<void>
@@ -3986,6 +3948,47 @@ namespace NTestTrustManager
 					;
 				};
 			};
+		}
+
+	private:
+		void fp_DoTests
+			(
+				TCActor<CDistributedActorTrustManager> const &_ServerTrustManager
+				, TCActor<CDistributedActorTrustManager> const &_ClientTrustManager
+				, TCSharedPointer<CDefaultRunLoop> const &_pRunLoop
+			)
+		{
+			CDistributedActorTestHelper ServerHelper{_ServerTrustManager, _pRunLoop};
+			CDistributedActorTestHelper ClientHelper{_ClientTrustManager, _pRunLoop};
+
+			ServerHelper.f_Publish<CTestActor>(ServerHelper.f_GetManager()->f_ConstructActor<CTestActor>(), "com.malterlib/Test");
+			CStr Subscription = ClientHelper.f_Subscribe("com.malterlib/Test");
+
+			TCDistributedActor<CTestActor> Actor = ClientHelper.f_GetRemoteActor<CTestActor>(Subscription);
+
+			Actor.f_CallActor(&CTestActor::f_TestVoid)().f_CallSync(_pRunLoop, g_Timeout);
+
+			uint32 Result = Actor.f_CallActor(&CTestActor::f_Test)().f_CallSync(_pRunLoop, g_Timeout);
+			DMibExpect(Result, ==, 5);
+
+			// Interleave priority calls with normal calls
+			{
+				CPriorityScope HighPriority(CPriorityScope::mc_PriorityHigh);
+				uint8 Priority = Actor.f_CallActor(&CTestActor::f_TestPriority)().f_CallSync(_pRunLoop, g_Timeout);
+				DMibExpect(Priority, ==, 64);
+			}
+
+			{
+				CPriorityScope LowPriority(CPriorityScope::mc_PriorityLow);
+				uint8 Priority = Actor.f_CallActor(&CTestActor::f_TestPriority)().f_CallSync(_pRunLoop, g_Timeout);
+				DMibExpect(Priority, ==, 192);
+			}
+
+			// Default priority call
+			{
+				uint8 Priority = Actor.f_CallActor(&CTestActor::f_TestPriority)().f_CallSync(_pRunLoop, g_Timeout);
+				DMibExpect(Priority, ==, 128);
+			}
 		}
 	};
 

@@ -352,7 +352,7 @@ namespace NMib::NConcurrency
 	}
 
 	template <typename t_CReturnValue>
-	mark_no_coroutine_debug TCFuture<t_CReturnValue> TCPromise<t_CReturnValue>::fp_AttachFutureIgnoreFutureGotten()
+	mark_no_coroutine_debug TCFuture<t_CReturnValue> TCPromise<t_CReturnValue>::f_AttachFutureIgnoreFutureGotten()
 	{
 		auto pData = mp_pData.f_Get();
 		DMibFastCheck(pData);

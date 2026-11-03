@@ -118,12 +118,12 @@ namespace NMib::NConcurrency
 
 		if (bDestroyAnon)
 		{
-			fp_DestroyHost(*pHost, &_Connection, "Anonymous connection disconnected");
+			f_DestroyHost(*pHost, &_Connection, "Anonymous connection disconnected");
 			_Connection.m_pHost = nullptr;
 		}
 		else if (bDestroyNormal)
 		{
-			fp_DestroyHost(*pHost, &_Connection, "Last active connection disconnected");
+			f_DestroyHost(*pHost, &_Connection, "Last active connection disconnected");
 			_Connection.m_pHost = nullptr;
 		}
 
@@ -310,7 +310,7 @@ namespace NMib::NConcurrency
 			*MappedHost = fg_Construct(*m_pThis, CDistributedActorHostInfo{UniqueHostID, RealHostID, bAnonymous});
 			m_HostsByRealHostID[RealHostID].f_Insert(**MappedHost);
 
-			fp_CleanupMarkInactive(**MappedHost);
+			f_CleanupMarkInactive(**MappedHost);
 		}
 
 		auto &Host = **MappedHost;
@@ -710,7 +710,7 @@ namespace NMib::NConcurrency
 		co_return pListen->m_ListenAddresses;
 	}
 
-	TCFuture<CDistributedActorListenReference> CActorDistributionManagerInternal::fp_Listen(NStr::CStr _ListenID, CActorDistributionListenSettings _Settings)
+	TCFuture<CDistributedActorListenReference> CActorDistributionManagerInternal::f_Listen(NStr::CStr _ListenID, CActorDistributionListenSettings _Settings)
 	{
 		auto CheckDestory = co_await m_pThis->f_CheckDestroyedOnResume();
 
@@ -756,7 +756,7 @@ namespace NMib::NConcurrency
 						if (!m_Listens.f_FindEqual(_ListenID))
 							co_return {}; // Removed already
 
-						fp_Listen(_ListenID, _Settings).f_DiscardResult();
+						f_Listen(_ListenID, _Settings).f_DiscardResult();
 
 						co_return {};
 					}
@@ -773,7 +773,7 @@ namespace NMib::NConcurrency
 	{
 		auto &Internal = *mp_pInternal;
 
-		co_return co_await Internal.fp_Listen(NCryptography::fg_RandomID(), _Settings);
+		co_return co_await Internal.f_Listen(NCryptography::fg_RandomID(), _Settings);
 	}
 
 	TCFuture<void> CActorDistributionManager::fp_RemoveListen(NStr::CStr _ListenID)

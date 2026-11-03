@@ -245,7 +245,7 @@ namespace NMib::NConcurrency
 		bool bIsLastConnection = m_HostLink.f_IsAloneInList();
 
 		if (m_pHost && m_pHost->m_ActiveConnections.f_IsEmpty())
-			_This.fp_CleanupMarkInactive(*m_pHost);
+			_This.f_CleanupMarkInactive(*m_pHost);
 
 		if (_bResetHost)
 			m_HostLink.f_Unlink();
@@ -281,7 +281,7 @@ namespace NMib::NConcurrency
 			if (Host.m_pLastSendConnection == this)
 				Host.m_pLastSendConnection = nullptr;
 
-			_This.fp_NotifyDisconnect(Host);
+			_This.f_NotifyDisconnect(Host);
 		}
 
 		if (_bResetHost)
@@ -389,7 +389,7 @@ namespace NMib::NConcurrency
 	CActorDistributionManagerInternal::~CActorDistributionManagerInternal()
 	{
 		while (auto *pHost = m_Hosts.f_FindAny())
-			fp_DestroyHost(**pHost, nullptr, "Distribution manager was destroyed");
+			f_DestroyHost(**pHost, nullptr, "Distribution manager was destroyed");
 	}
 
 	CActorDistributionManagerInternal::COnHostInfoChanged::~COnHostInfoChanged()

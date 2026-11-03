@@ -75,12 +75,14 @@ namespace NMib::NConcurrency
 			friend struct TCFutureMap;
 
 			TCFuture<NContainer::TCMap<t_CKey, TCAsyncResult<t_CValue>>> f_GetResults();
-			void fp_TransferResults();
 
 			NContainer::TCMap<t_CKey, TCAsyncResult<t_CValue>> mp_Results;
 			TCPromise<NContainer::TCMap<t_CKey, TCAsyncResult<t_CValue>>> mp_GetResultsPromise;
 
 			align_cacheline NStorage::CIntrusiveRefCount m_RefCount;
+
+		private:
+			void fp_TransferResults();
 		};
 
 		struct CResultReceived final

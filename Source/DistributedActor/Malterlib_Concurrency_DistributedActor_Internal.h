@@ -512,13 +512,35 @@ namespace NMib::NConcurrency
 		bool m_bCleanupSetup = false;
 		bool m_bPreShutdown = false;
 
-		void fp_CleanupUpdateTimer(bool _bForceUpdate);
+		void f_CleanupUpdateTimer(bool _bForceUpdate);
+		void f_CleanupMarkInactive(CHost &_Host);
+
+		void f_NotifyDisconnect(CHost &_Host);
+
+		void f_Reconnect
+			(
+				NStorage::TCSharedPointer<CClientConnection, NStorage::CSupportWeakTag> const &_pConnection
+				, NStorage::TCSharedPointer<TCPromise<CActorDistributionManager::CConnectionResult>> const &_pPromise
+				, bool _bRetry
+				, bool _bRetryOnFirst
+				, fp64 _Timeout
+			)
+		;
+		void f_DestroyClientConnection(CClientConnection &_Connection, bool _bSaveHost, NStr::CStr const &_Error, bool _bLastActiveNormalClosure, TCPromise<void> *_pPromise);
+
+		NException::CExceptionPointer f_DecodeClientConnectionSettings(CActorDistributionConnectionSettings const &_Settings, CDecodedClientConnectionSetting &o_DecodedSettings);
+
+		void f_DestroyHost(CHost &_Host, CConnection *_pSaveConnection, NStr::CStr const &_Reason);
+		TCFuture<CDistributedActorListenReference> f_Listen(NStr::CStr _ListenID, CActorDistributionListenSettings _Settings);
+		uint64 f_QueuePacket(NStorage::TCSharedPointerSupportWeak<CHost> const &_pHost, NStream::CBinaryStorage &&_Data);
+		void f_SendPacketQueue(NStorage::TCSharedPointerSupportWeak<CHost> const &_pHost);
+
+		bool f_NamespaceAllowedForAnonymous(NStr::CStr const &_Namespace) const;
+
+	private:
 		void fp_CleanupPerform();
 		TCFuture<void> fp_PreShutdownCleanupPerform();
 		void fp_CleanupMarkActive(CHost &_Host);
-		void fp_CleanupMarkInactive(CHost &_Host);
-
-		void fp_NotifyDisconnect(CHost &_Host);
 
 		void fp_ScheduleReconnect
 			(
@@ -529,30 +551,14 @@ namespace NMib::NConcurrency
 				, bool _bResetHost = false
 			)
 		;
-		void fp_Reconnect
-			(
-				NStorage::TCSharedPointer<CClientConnection, NStorage::CSupportWeakTag> const &_pConnection
-				, NStorage::TCSharedPointer<TCPromise<CActorDistributionManager::CConnectionResult>> const &_pPromise
-				, bool _bRetry
-				, bool _bRetryOnFirst
-				, fp64 _Timeout
-			)
-		;
 		void fp_DestroyServerConnection(CServerConnection &_Connection, bool _bSaveHost, NStr::CStr const &_Error, bool _bLastActiveNormalClosure);
-		void fp_DestroyClientConnection(CClientConnection &_Connection, bool _bSaveHost, NStr::CStr const &_Error, bool _bLastActiveNormalClosure, TCPromise<void> *_pPromise);
 
 		NStr::CStr fp_TranslateHostname(NStr::CStr const &_Hostname) const;
 		NWeb::NHTTP::CURL fp_TranslateURL(NWeb::NHTTP::CURL const &_URL) const;
 
-		NException::CExceptionPointer fp_DecodeClientConnectionSettings(CActorDistributionConnectionSettings const &_Settings, CDecodedClientConnectionSetting &o_DecodedSettings);
-
 		void fp_ResetHostState(CHost &_Host, CConnection *_pSaveConnection, bool _bSaveInactive, NStr::CStr const &_Error);
-		void fp_DestroyHost(CHost &_Host, CConnection *_pSaveConnection, NStr::CStr const &_Reason);
 		TCFuture<void> fp_OnNewConnection(NStr::CStr _ListenID, NWeb::CWebSocketNewServerConnection _NewServerConnection);
 		TCFuture<CDistributedActorListenReference> fp_ListenTry(NStr::CStr _ListenID, CActorDistributionListenSettings _Settings);
-		TCFuture<CDistributedActorListenReference> fp_Listen(NStr::CStr _ListenID, CActorDistributionListenSettings _Settings);
-		uint64 fp_QueuePacket(NStorage::TCSharedPointerSupportWeak<CHost> const &_pHost, NStream::CBinaryStorage &&_Data);
-		void fp_SendPacketQueue(NStorage::TCSharedPointerSupportWeak<CHost> const &_pHost);
 		void fp_ScheduleSendPacketQueue(NStorage::TCSharedPointerSupportWeak<CHost> const &_pHost);
 		auto fp_QueueIncomingPacket
 			(
@@ -626,7 +632,6 @@ namespace NMib::NConcurrency
 		bool fp_HandleUnpublishFinishedPacket(CConnection *_pConnection, NStream::TCBinaryStreamStoragePtr<> &_Stream);
 		bool fp_HandleDestroySubscription(CConnection *_pConnection, NStream::TCBinaryStreamStoragePtr<> &_Stream);
 		bool fp_HandleSubscriptionDestroyed(CConnection *_pConnection, NStream::TCBinaryStreamStoragePtr<> &_Stream);
-		bool fp_NamespaceAllowedForAnonymous(NStr::CStr const &_Namespace) const;
 		NException::CExceptionPointer fp_RegisterActorFunctorsForCall(NPrivate::CDistributedActorStreamContextState &_State, CHost &_Host);
 		void fp_RegisterLocalSubscriptions(NPrivate::CDistributedActorStreamContextState &_State);
 		void fp_DestroyLocalSubscription(CHost &_Host, NStr::CStr const &_SubscriptionID);

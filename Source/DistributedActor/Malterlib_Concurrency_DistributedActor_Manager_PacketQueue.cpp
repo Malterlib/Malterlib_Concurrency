@@ -51,7 +51,7 @@ namespace NMib::NConcurrency
 			if (!pConnection->m_bRetryConnectOnFailure)
 			{
 				if (bLast && pHost)
-					fp_DestroyHost(*pHost, pConnection, Error);
+					f_DestroyHost(*pHost, pConnection, Error);
 				return;
 			}
 
@@ -143,7 +143,7 @@ namespace NMib::NConcurrency
 		;
 	}
 
-	uint64 CActorDistributionManagerInternal::fp_QueuePacket(NStorage::TCSharedPointerSupportWeak<CHost> const &_pHost, NStream::CBinaryStorage &&_Data)
+	uint64 CActorDistributionManagerInternal::f_QueuePacket(NStorage::TCSharedPointerSupportWeak<CHost> const &_pHost, NStream::CBinaryStorage &&_Data)
 	{
 		DMibFastCheck(_Data.f_GetTotalLength() <= m_WebsocketSettings.m_MaxMessageSize);
 		DMibFastCheck(_Data.f_GetTotalLength() >= 1 + sizeof(uint64));
@@ -207,10 +207,10 @@ namespace NMib::NConcurrency
 		if (Host.m_bDeleted.f_Load(NAtomic::gc_MemoryOrder_Relaxed))
 			return;
 
-		mp_pInternal->fp_SendPacketQueue(NStorage::TCSharedPointerSupportWeak<NActorDistributionManagerInternal::CHost>(fg_Explicit(&Host)));
+		mp_pInternal->f_SendPacketQueue(NStorage::TCSharedPointerSupportWeak<NActorDistributionManagerInternal::CHost>(fg_Explicit(&Host)));
 	}
 
-	void CActorDistributionManagerInternal::fp_SendPacketQueue(NStorage::TCSharedPointerSupportWeak<CHost> const &_pHost)
+	void CActorDistributionManagerInternal::f_SendPacketQueue(NStorage::TCSharedPointerSupportWeak<CHost> const &_pHost)
 	{
 		if (_pHost->m_ActiveConnections.f_IsEmpty())
 			return; // No connections to send over

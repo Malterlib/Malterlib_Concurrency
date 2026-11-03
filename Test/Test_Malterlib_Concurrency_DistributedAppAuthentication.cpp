@@ -580,7 +580,7 @@ namespace NTestAuthentication
 			co_return {};
 		}
 
-		TCVector<CStr> fs_GetCommandPermissions(CEJsonSorted const &_Permissions)
+		TCVector<CStr> fp_GetCommandPermissions(CEJsonSorted const &_Permissions)
 		{
 			TCVector<CStr> Return;
 			for (auto &Permission : _Permissions.f_Array())
@@ -634,7 +634,7 @@ namespace NTestAuthentication
 						if (!pTestServer)
 							co_return DMibErrorInstance(fg_Format("Error selecting server: {}", Error));
 
-						bool bSuccess = co_await pTestServer->m_Actor.f_CallActor(&CServerInterface::f_CheckPermissions1)(fs_GetCommandPermissions(_Params["Permissions"]));
+						bool bSuccess = co_await pTestServer->m_Actor.f_CallActor(&CServerInterface::f_CheckPermissions1)(fp_GetCommandPermissions(_Params["Permissions"]));
 
 						*_pCommandLine += CEJsonSorted(bSuccess).f_ToString("\t", EJsonDialectFlag_AllowUndefined);
 
@@ -719,7 +719,7 @@ namespace NTestAuthentication
 						if (!pManyTestServer)
 							co_return DMibErrorInstance(fg_Format("Error selecting server: {}", Error));
 
-						bool bSuccess = co_await pManyTestServer->m_Actor.f_CallActor(&CManyServerInterface::f_CheckPermissions1)(fs_GetCommandPermissions(_Params["Permissions"]));
+						bool bSuccess = co_await pManyTestServer->m_Actor.f_CallActor(&CManyServerInterface::f_CheckPermissions1)(fp_GetCommandPermissions(_Params["Permissions"]));
 
 						*_pCommandLine += CEJsonSorted(bSuccess).f_ToString("\t", EJsonDialectFlag_AllowUndefined);
 
@@ -742,7 +742,7 @@ namespace NTestAuthentication
 						if (!pManyTestServer)
 							co_return DMibErrorInstance(fg_Format("Error selecting server: {}", Error));
 
-						bool bSuccess = co_await pManyTestServer->m_Actor.f_CallActor(&CManyServerInterface::f_CheckPermissions2)(fs_GetCommandPermissions(_Params["Permissions"]));
+						bool bSuccess = co_await pManyTestServer->m_Actor.f_CallActor(&CManyServerInterface::f_CheckPermissions2)(fp_GetCommandPermissions(_Params["Permissions"]));
 
 						*_pCommandLine += CEJsonSorted(bSuccess).f_ToString("\t", EJsonDialectFlag_AllowUndefined);
 
@@ -765,7 +765,7 @@ namespace NTestAuthentication
 						if (!pManyTestServer)
 							co_return DMibErrorInstance(fg_Format("Error selecting server: {}", Error));
 
-						bool bSuccess = co_await pManyTestServer->m_Actor.f_CallActor(&CManyServerInterface::f_CheckPermissions3)(fs_GetCommandPermissions(_Params["Permissions"]));
+						bool bSuccess = co_await pManyTestServer->m_Actor.f_CallActor(&CManyServerInterface::f_CheckPermissions3)(fp_GetCommandPermissions(_Params["Permissions"]));
 
 						*_pCommandLine += CEJsonSorted(bSuccess).f_ToString("\t", EJsonDialectFlag_AllowUndefined);
 
@@ -788,7 +788,7 @@ namespace NTestAuthentication
 						if (!pManyTestServer)
 							co_return DMibErrorInstance(fg_Format("Error selecting server: {}", Error));
 
-						bool bSuccess = co_await pManyTestServer->m_Actor.f_CallActor(&CManyServerInterface::f_CheckPermissions4)(fs_GetCommandPermissions(_Params["Permissions"]));
+						bool bSuccess = co_await pManyTestServer->m_Actor.f_CallActor(&CManyServerInterface::f_CheckPermissions4)(fp_GetCommandPermissions(_Params["Permissions"]));
 
 						*_pCommandLine += CEJsonSorted(bSuccess).f_ToString("\t", EJsonDialectFlag_AllowUndefined);
 
@@ -811,7 +811,7 @@ namespace NTestAuthentication
 						if (!pSlowTestServer)
 							co_return DMibErrorInstance(fg_Format("Error selecting server: {}", Error));
 
-						bool bSuccess = co_await pSlowTestServer->m_Actor.f_CallActor(&CSlowServerInterface::f_CheckPermissions1)(fs_GetCommandPermissions(_Params["Permissions"]));
+						bool bSuccess = co_await pSlowTestServer->m_Actor.f_CallActor(&CSlowServerInterface::f_CheckPermissions1)(fp_GetCommandPermissions(_Params["Permissions"]));
 
 						*_pCommandLine += CEJsonSorted(bSuccess).f_ToString("\t", EJsonDialectFlag_AllowUndefined);
 
@@ -1194,6 +1194,7 @@ struct CDistributedAppAuthentication_Tests : public NMib::NTest::CTest
 		};
 	}
 
+private:
 	void fp_DoGeneralTests()
 	{
 #ifdef DPlatformFamily_Windows

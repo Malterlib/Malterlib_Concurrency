@@ -279,7 +279,7 @@ namespace
 	struct CAsyncGenerator_Tests : public NMib::NTest::CTest
 	{
 	private:
-		void f_TestGeneral()
+		void fp_TestGeneral()
 		{
 			DMibTestSuite("General")
 			{
@@ -1368,7 +1368,7 @@ namespace
 			};
 		}
 
-		void f_TestException()
+		void fp_TestException()
 		{
 			DMibTestSuite("Exception")
 			{
@@ -1395,8 +1395,8 @@ namespace
 
 		void f_DoTests()
 		{
-			f_TestGeneral();
-			f_TestException();
+			fp_TestGeneral();
+			fp_TestException();
 		}
 	};
 

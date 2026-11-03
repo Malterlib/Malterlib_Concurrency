@@ -134,14 +134,14 @@ namespace NMib::NConcurrency
 				if (_Sequence != _pConnection->m_ConnectionSequence || m_bPreShutdown)
 					co_return {};
 
-				fp_Reconnect(_pConnection, nullptr, _bRetry, _bRetry, 3600.0);
+				f_Reconnect(_pConnection, nullptr, _bRetry, _bRetry, 3600.0);
 
 				co_return {};
 			}
 		;
 	}
 
-	void CActorDistributionManagerInternal::fp_DestroyClientConnection
+	void CActorDistributionManagerInternal::f_DestroyClientConnection
 		(
 			CClientConnection &_Connection
 			, bool _bSaveHost
@@ -164,12 +164,12 @@ namespace NMib::NConcurrency
 
 		if (bDestroyAnon)
 		{
-			fp_DestroyHost(*pHost, &_Connection, "Anonymous client connection disconnected");
+			f_DestroyHost(*pHost, &_Connection, "Anonymous client connection disconnected");
 			_Connection.m_pHost = nullptr;
 		}
 		else if (bDestroyNormal)
 		{
-			fp_DestroyHost(*pHost, &_Connection, "Last active client connection disconnected");
+			f_DestroyHost(*pHost, &_Connection, "Last active client connection disconnected");
 			_Connection.m_pHost = nullptr;
 		}
 
@@ -199,7 +199,7 @@ namespace NMib::NConcurrency
 		return Return;
 	}
 
-	void CActorDistributionManagerInternal::fp_Reconnect
+	void CActorDistributionManagerInternal::f_Reconnect
 		(
 			NStorage::TCSharedPointer<CClientConnection, NStorage::CSupportWeakTag> const &_pConnection
 			, NStorage::TCSharedPointer<TCPromise<CActorDistributionManager::CConnectionResult>> const &_pPromise
@@ -224,7 +224,7 @@ namespace NMib::NConcurrency
 			NStr::CStr Error = "wsa connections require a unix socket address";
 			if (_pPromise)
 				_pPromise->f_SetException(DMibErrorInstance(Error));
-			fp_DestroyClientConnection(*_pConnection, false, Error, false, nullptr);
+			f_DestroyClientConnection(*_pConnection, false, Error, false, nullptr);
 			return;
 		}
 
@@ -397,7 +397,7 @@ namespace NMib::NConcurrency
 					pHost = fg_Construct(*m_pThis, CDistributedActorHostInfo{UniqueHostID, RealHostID, Connection.m_bAnonymous});
 					m_HostsByRealHostID[RealHostID].f_Insert(*pHost);
 
-					fp_CleanupMarkInactive(*pHost);
+					f_CleanupMarkInactive(*pHost);
 				}
 
 				auto &Host = *pHost;
@@ -448,14 +448,14 @@ namespace NMib::NConcurrency
 
 						auto &pHost = pConnection->m_pHost;
 						if (pHost && pHost->m_HostInfo.m_bAnonymous)
-							fp_DestroyClientConnection(*pConnection, false, Error, _Reason == NWeb::EWebSocketStatus_NormalClosure && bLast, nullptr);
+							f_DestroyClientConnection(*pConnection, false, Error, _Reason == NWeb::EWebSocketStatus_NormalClosure && bLast, nullptr);
 						else
 						{
 							auto pHost = pConnection->m_pHost;
 							bool bDestroyNormal = pHost && _Reason == NWeb::EWebSocketStatus_NormalClosure && bLast && (!_Message.f_StartsWith("Invalid connection:") || !_bRetry);
 							fp_ScheduleReconnect(pConnection, true, Sequence, Error, bDestroyNormal);
 							if (bDestroyNormal)
-								fp_DestroyHost(*pHost, pConnection.f_Get(), "Last active client connection disconnected");
+								f_DestroyHost(*pHost, pConnection.f_Get(), "Last active client connection disconnected");
 						}
 
 						co_return {};
@@ -597,7 +597,7 @@ namespace NMib::NConcurrency
 		;
 	}
 
-	auto CActorDistributionManagerInternal::fp_DecodeClientConnectionSettings(CActorDistributionConnectionSettings const &_Settings, CDecodedClientConnectionSetting &o_DecodedSettings)
+	auto CActorDistributionManagerInternal::f_DecodeClientConnectionSettings(CActorDistributionConnectionSettings const &_Settings, CDecodedClientConnectionSetting &o_DecodedSettings)
 		-> NException::CExceptionPointer
 	{
 		bool &bAnonymous = o_DecodedSettings.m_bAnonymous;
@@ -661,7 +661,7 @@ namespace NMib::NConcurrency
 			co_return DMibErrorInstance("Distribution manager is shutting down");
 
 		CActorDistributionManagerInternal::CDecodedClientConnectionSetting DecodedSettings;
-		if (auto pError = Internal.fp_DecodeClientConnectionSettings(_Settings, DecodedSettings))
+		if (auto pError = Internal.f_DecodeClientConnectionSettings(_Settings, DecodedSettings))
 			co_return fg_Move(pError);
 
 		if (!Internal.m_WebsocketClientConnector)
@@ -723,7 +723,7 @@ namespace NMib::NConcurrency
 		pConnection->m_ServerURL = _Settings.m_ServerURL;
 
 		TCPromiseFuturePair<CActorDistributionManager::CConnectionResult> Promise;
-		Internal.fp_Reconnect(pConnection, fg_Construct(fg_Move(Promise.m_Promise)), _Settings.m_bRetryConnectOnFailure, _Settings.m_bRetryConnectOnFirstFailure, _Timeout);
+		Internal.f_Reconnect(pConnection, fg_Construct(fg_Move(Promise.m_Promise)), _Settings.m_bRetryConnectOnFailure, _Settings.m_bRetryConnectOnFirstFailure, _Timeout);
 
 		co_return co_await fg_Move(Promise.m_Future);
 	}
@@ -779,7 +779,7 @@ namespace NMib::NConcurrency
 
 		TCPromiseFuturePair<void> Promise;
 
-		Internal.fp_DestroyClientConnection
+		Internal.f_DestroyClientConnection
 			(
 				Connection
 				, false
@@ -811,7 +811,7 @@ namespace NMib::NConcurrency
 		Connection.f_Reset(false, Internal, "Reconnect");
 		Connection.f_SetLastError("Manual reconnect");
 
-		Internal.fp_Reconnect(*pConnection, nullptr, Connection.m_bRetryConnectOnFailure, Connection.m_bRetryConnectOnFirstFailure, 3600.0);
+		Internal.f_Reconnect(*pConnection, nullptr, Connection.m_bRetryConnectOnFailure, Connection.m_bRetryConnectOnFirstFailure, 3600.0);
 
 		co_return {};
 	}
@@ -830,7 +830,7 @@ namespace NMib::NConcurrency
 		auto &Host = *Connection.m_pHost;
 
 		CActorDistributionManagerInternal::CDecodedClientConnectionSetting DecodedSettings;
-		if (auto pError = Internal.fp_DecodeClientConnectionSettings(_Settings, DecodedSettings))
+		if (auto pError = Internal.f_DecodeClientConnectionSettings(_Settings, DecodedSettings))
 			co_return fg_Move(pError);
 
 		if (DecodedSettings.m_bAnonymous != Host.m_HostInfo.m_bAnonymous)

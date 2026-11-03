@@ -138,6 +138,7 @@ namespace NTestActor2
 
 	struct CConcurrency_Tests : public NMib::NTest::CTest
 	{
+	private:
 		void fp_SyncOnAllThreads()
 		{
 			TCFutureVector<void> Results;
@@ -158,6 +159,7 @@ namespace NTestActor2
 			fg_AllDoneWrapped(Results).f_CallSync(g_Timeout);
 		}
 
+	public:
 		void f_TestAsyncResult()
 		{
 			DMibTestSuite("Async")

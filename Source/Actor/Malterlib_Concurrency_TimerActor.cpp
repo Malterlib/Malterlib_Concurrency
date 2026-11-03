@@ -84,11 +84,10 @@ namespace NMib::NConcurrency
 
 		CInternal(CTimerActor *_pThis);
 
-		void fp_CallTimerCallback(CTimeMeasure &_Timer, CTimerSubscriptionState &_Callback);
-		void fp_CallTimer(CTimeMeasure &_Timer);
-		fp64 fp_RegistrationTime(int64 _StartTicks) const;
-		void fp_ProcessTimers();
-		void fp_InsertTimerInQueue(CTimeMeasure &_Timer);
+		void f_CallTimer(CTimeMeasure &_Timer);
+		fp64 f_RegistrationTime(int64 _StartTicks) const;
+		void f_ProcessTimers();
+		void f_InsertTimerInQueue(CTimeMeasure &_Timer);
 
 		CTimerActor *m_pThis;
 		NContainer::TCMap<fp64, CTimeMeasure> m_RegisteredTimers;
@@ -102,6 +101,9 @@ namespace NMib::NConcurrency
 #if DMibEnableSafeCheck > 0
 		umint m_ProcessingThread = 0;
 #endif
+
+	private:
+		void fp_CallTimerCallback(CTimeMeasure &_Timer, CTimerSubscriptionState &_Callback);
 	};
 
 	TCActor<CTimerActor> fg_TimerActor()
@@ -174,7 +176,7 @@ namespace NMib::NConcurrency
 
 	TCFuture<void> CTimerActor::fp_ProcessTimers()
 	{
-		mp_pInternal->fp_ProcessTimers();
+		mp_pInternal->f_ProcessTimers();
 		co_return {};
 	}
 
@@ -183,7 +185,7 @@ namespace NMib::NConcurrency
 		return static_cast<CTimerActorHolder &>(*self.m_pThis.f_Get());
 	}
 
-	void CTimerActor::CInternal::fp_InsertTimerInQueue(CTimeMeasure &_Timer)
+	void CTimerActor::CInternal::f_InsertTimerInQueue(CTimeMeasure &_Timer)
 	{
 		_Timer.m_NextElapseLexicographic = fg_FloatToLexicographicInt(_Timer.m_NextElapse);
 		m_TimerQueue.f_Insert(_Timer);
@@ -236,7 +238,7 @@ namespace NMib::NConcurrency
 		;
 	}
 
-	void CTimerActor::CInternal::fp_CallTimer(CTimeMeasure &_Timer)
+	void CTimerActor::CInternal::f_CallTimer(CTimeMeasure &_Timer)
 	{
 		for (auto &Callback : _Timer.m_Callbacks)
 		{
@@ -273,12 +275,12 @@ namespace NMib::NConcurrency
 		}
 	}
 
-	fp64 CTimerActor::CInternal::fp_RegistrationTime(int64 _StartTicks) const
+	fp64 CTimerActor::CInternal::f_RegistrationTime(int64 _StartTicks) const
 	{
 		return fp64(_StartTicks - m_Stopwatch.f_GetStartTicks()) * NTime::CSystem_Time::fs_TimerFrequencyReciprocal();
 	}
 
-	void CTimerActor::CInternal::fp_ProcessTimers()
+	void CTimerActor::CInternal::f_ProcessTimers()
 	{
 #if DMibEnableSafeCheck > 0
 		m_ProcessingThread = NSys::fg_Thread_GetCurrentUID();
@@ -304,7 +306,7 @@ namespace NMib::NConcurrency
 
 			auto TimerType = Timer.m_TimerType;
 
-			fp_CallTimer(Timer);
+			f_CallTimer(Timer);
 
 			switch (TimerType)
 			{
@@ -322,7 +324,7 @@ namespace NMib::NConcurrency
 						Timer.m_NextElapse += Period;
 					Time = m_Stopwatch.f_GetTime();
 				}
-				fp_InsertTimerInQueue(Timer);
+				f_InsertTimerInQueue(Timer);
 				break;
 			}
 
@@ -351,7 +353,7 @@ namespace NMib::NConcurrency
 				Internal.m_TimerQueue.f_Remove(Timer);
 		}
 		Internal.m_OneshotTimers.f_Clear();
-		Internal.fp_ProcessTimers();
+		Internal.f_ProcessTimers();
 	}
 
 	TCFuture<void> CTimerActor::fp_Destroy()
@@ -426,7 +428,7 @@ namespace NMib::NConcurrency
 		{
 			auto TimerType = Timer.m_TimerType;
 
-			Internal.fp_CallTimer(Timer);
+			Internal.f_CallTimer(Timer);
 
 			switch (TimerType)
 			{
@@ -457,7 +459,7 @@ namespace NMib::NConcurrency
 
 			auto TimerType = Timer.m_TimerType;
 
-			Internal.fp_CallTimer(Timer);
+			Internal.f_CallTimer(Timer);
 
 			switch (TimerType)
 			{
@@ -484,19 +486,19 @@ namespace NMib::NConcurrency
 		CInternal::CTimeMeasure &Timer = Internal.m_OneshotTimers.f_Insert();
 
 		Timer.m_Period = _Period;
-		Timer.m_NextElapse = Internal.fp_RegistrationTime(_StartTicks) + _Period;
+		Timer.m_NextElapse = Internal.f_RegistrationTime(_StartTicks) + _Period;
 		Timer.m_TimerType = CInternal::ETimerType_Oneshot;
 		Timer.m_pDestroyed = fg_Construct(false);
 		Timer.m_bFireAtExit = _bFireAtExit;
 
-		Internal.fp_InsertTimerInQueue(Timer);
+		Internal.f_InsertTimerInQueue(Timer);
 
 		// This makes it self-referencing, so it will not be deleted until the callback is run. Because the callback handler saves the actor weakly it will not prevent deletion of
 		// _Actor unless it's referenced from within _fCallback
 
 		Timer.m_fOneshotCallback = g_ActorFunctorWeak(_Actor) / fg_Move(_fCallback);
 
-		Internal.fp_ProcessTimers();
+		Internal.f_ProcessTimers();
 	}
 
 	CActorSubscription CTimerActor::f_OneshotTimerAbortable(fp64 _Period, int64 _StartTicks, TCActor<CActor> const &_Actor, FUnitVoidFutureFunction &&_fCallback)
@@ -508,18 +510,18 @@ namespace NMib::NConcurrency
 		CInternal::CTimeMeasure &Timer = Internal.m_OneshotTimers.f_Insert();
 
 		Timer.m_Period = _Period;
-		Timer.m_NextElapse = Internal.fp_RegistrationTime(_StartTicks) + _Period;
+		Timer.m_NextElapse = Internal.f_RegistrationTime(_StartTicks) + _Period;
 		Timer.m_TimerType = CInternal::ETimerType_Oneshot;
 		Timer.m_pDestroyed = fg_Construct(false);
 
-		Internal.fp_InsertTimerInQueue(Timer);
+		Internal.f_InsertTimerInQueue(Timer);
 
 		CInternal::CTimeMeasure *pTimer = &Timer;
 		auto pDestroyed = Timer.m_pDestroyed;
 
 		Timer.m_fOneshotCallback = g_ActorFunctorWeak(_Actor) / fg_Move(_fCallback);
 
-		Internal.fp_ProcessTimers();
+		Internal.f_ProcessTimers();
 
 		return g_ActorSubscription / [this, pTimer, pDestroyed]() -> TCFuture<void>
 			{
@@ -550,16 +552,16 @@ namespace NMib::NConcurrency
 		if (Timer.m_Period == 0.0)
 		{
 			Timer.m_Period = _Period;
-			Timer.m_NextElapse = ((Internal.fp_RegistrationTime(_StartTicks) + _Period) / _Period).f_Floor() * _Period;
+			Timer.m_NextElapse = ((Internal.f_RegistrationTime(_StartTicks) + _Period) / _Period).f_Floor() * _Period;
 			Timer.m_TimerType = CInternal::ETimerType_Normal;
 			Timer.m_pDestroyed = fg_Construct(false);
-			Internal.fp_InsertTimerInQueue(Timer);
+			Internal.f_InsertTimerInQueue(Timer);
 		}
 
 		auto &Callback = Timer.m_Callbacks.f_Insert();
 		Callback.m_fCallback = g_ActorFunctorWeak(_Actor) / fg_Move(_fCallback);
 
-		Internal.fp_ProcessTimers();
+		Internal.f_ProcessTimers();
 
 		return g_ActorSubscription / [this, pRegisteredTimer = &Timer, pRegisteredCallback = &Callback, pDestroyed = Callback.m_pDestroyed]() -> TCFuture<void>
 			{
@@ -619,16 +621,16 @@ namespace NMib::NConcurrency
 		CInternal::CTimeMeasure &Timer = Internal.m_ExactTimers.f_Insert();
 
 		Timer.m_Period = _Period;
-		Timer.m_NextElapse = Internal.fp_RegistrationTime(_StartTicks) + _Period;
+		Timer.m_NextElapse = Internal.f_RegistrationTime(_StartTicks) + _Period;
 		Timer.m_TimerType = CInternal::ETimerType_Exact;
 		Timer.m_pDestroyed = fg_Construct(false);
 
-		Internal.fp_InsertTimerInQueue(Timer);
+		Internal.f_InsertTimerInQueue(Timer);
 
 		auto &Callback = Timer.m_Callbacks.f_Insert();
 		Callback.m_fCallback = g_ActorFunctorWeak(_Actor) / fg_Move(_fCallback);
 
-		Internal.fp_ProcessTimers();
+		Internal.f_ProcessTimers();
 
 		return g_ActorSubscription / [this, pRegisteredTimer = &Timer, pRegisteredCallback = &Callback, pDestroyed = Callback.m_pDestroyed]() -> TCFuture<void>
 			{

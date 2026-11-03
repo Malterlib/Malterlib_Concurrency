@@ -366,7 +366,7 @@ namespace NMib::NConcurrency
 					Host.m_ActiveConnections.f_Insert(*_pConnection);
 					_pConnection->m_bFirstConnection = _pConnection->m_Link.f_IsAloneInList();
 					fp_CleanupMarkActive(Host);
-					fp_SendPacketQueue(pHost);
+					f_SendPacketQueue(pHost);
 					for (auto &PriorityQueuesEntry : pHost->m_PriorityQueues.f_Entries())
 						fp_ProcessPacketQueue(_pConnection, PriorityQueuesEntry.f_Value(), PriorityQueuesEntry.f_Key());
 
@@ -393,7 +393,7 @@ namespace NMib::NConcurrency
 								continue;
 							}
 
-							if (Host.m_HostInfo.m_bAnonymous && !fp_NamespaceAllowedForAnonymous(Namespace))
+							if (Host.m_HostInfo.m_bAnonymous && !f_NamespaceAllowedForAnonymous(Namespace))
 							{
 								DMibLogWithCategory
 									(
@@ -435,7 +435,7 @@ namespace NMib::NConcurrency
 										, Publish.m_ActorID
 									)
 								;
-								fp_QueuePacket(pHost, fg_Move(Data));
+								f_QueuePacket(pHost, fg_Move(Data));
 							}
 						}
 					}
@@ -461,7 +461,7 @@ namespace NMib::NConcurrency
 						Stream << Identify;
 						NStorage::TCSharedPointer<NStream::CBinaryStorage> pPacketData = fg_Construct(Stream.f_MoveStorage());
 						// Flush queued Publish packets before this direct marker, at the same priority, so it cannot overtake them.
-						fp_SendPacketQueue(pHost);
+						f_SendPacketQueue(pHost);
 						fp_SendPacket(_pConnection, pPacketData.f_ShareAsConst(), 128);
 					}
 					else
@@ -517,7 +517,7 @@ namespace NMib::NConcurrency
 								Stream << Packet;
 								NStorage::TCSharedPointer<NStream::CBinaryStorage> pPacketData = fg_Construct(Stream.f_MoveStorage());
 								// Flush queued data before this direct marker, at the same priority, so it cannot overtake it.
-								fp_SendPacketQueue(NStorage::TCSharedPointerSupportWeak<CHost>(fg_Explicit(&Host)));
+								f_SendPacketQueue(NStorage::TCSharedPointerSupportWeak<CHost>(fg_Explicit(&Host)));
 								fp_SendPacket(pConnection.f_Get(), pPacketData.f_ShareAsConst(), 128);
 							}
 							else
@@ -835,7 +835,7 @@ namespace NMib::NConcurrency
 		fp_SendPacket(_pConnection, pPacketData.f_ShareAsConst(), 0);
 	}
 
-	void CActorDistributionManagerInternal::fp_NotifyDisconnect(CHost &_Host)
+	void CActorDistributionManagerInternal::f_NotifyDisconnect(CHost &_Host)
 	{
 		if (_Host.m_ActorProtocolVersion < EDistributedActorProtocolVersion_LostConnectionNotificationsSupported)
 			return;

@@ -16,17 +16,17 @@ namespace NMib::NConcurrency
 			return;
 
 		_Host.m_InactiveHostsLink.f_Unlink();
-		fp_CleanupUpdateTimer(false);
+		f_CleanupUpdateTimer(false);
 	}
 
-	void CActorDistributionManagerInternal::fp_CleanupMarkInactive(CHost &_Host)
+	void CActorDistributionManagerInternal::f_CleanupMarkInactive(CHost &_Host)
 	{
 		if (_Host.m_InactiveHostsLink.f_IsInList())
 			return;
 
 		_Host.m_InactiveStopwatch.f_Start();
 		m_InactiveHosts.f_Insert(_Host);
-		fp_CleanupUpdateTimer(false);
+		f_CleanupUpdateTimer(false);
 	}
 
 	TCFuture<void> CActorDistributionManagerInternal::fp_PreShutdownCleanupPerform()
@@ -40,7 +40,7 @@ namespace NMib::NConcurrency
 		auto &Internal = *mp_pInternal;
 		Internal.m_HostTimeout = _HostTimeout;
 		Internal.m_HostDaemonTimeout = _HostDaemonTimeout;
-		Internal.fp_CleanupUpdateTimer(true);
+		Internal.f_CleanupUpdateTimer(true);
 	}
 #endif
 
@@ -51,7 +51,7 @@ namespace NMib::NConcurrency
 		auto &Internal = *mp_pInternal;
 		Internal.m_HostDaemonTimeout = _HostTimeout;
 		Internal.m_HostTimeout = _HostTimeout;
-		Internal.fp_CleanupUpdateTimer(true);
+		Internal.f_CleanupUpdateTimer(true);
 
 		// The grace period protects hosts and potential connections; without either, shutdown can begin immediately.
 		if (Internal.m_Hosts.f_IsEmpty() && Internal.m_ClientConnections.f_IsEmpty() && Internal.m_Listens.f_IsEmpty())
@@ -72,7 +72,7 @@ namespace NMib::NConcurrency
 				Internal.m_bPreShutdown = true;
 
 				while (auto *pHost = Internal.m_Hosts.f_FindAny())
-					Internal.fp_DestroyHost(**pHost, nullptr, "Kill host after timeout in prepare shutdown ({} s)"_f << _KillHostsTimeout);
+					Internal.f_DestroyHost(**pHost, nullptr, "Kill host after timeout in prepare shutdown ({} s)"_f << _KillHostsTimeout);
 
 				co_return {};
 			}
@@ -80,7 +80,7 @@ namespace NMib::NConcurrency
 		;
 	}
 
-	void CActorDistributionManagerInternal::fp_CleanupUpdateTimer(bool _bForceUpdate)
+	void CActorDistributionManagerInternal::f_CleanupUpdateTimer(bool _bForceUpdate)
 	{
 		if (m_pThis->f_IsDestroyed())
 			return;
@@ -112,7 +112,7 @@ namespace NMib::NConcurrency
 						}
 					)
 				;
-				fp_CleanupUpdateTimer(false);
+				f_CleanupUpdateTimer(false);
 
 				co_return {};
 			}
@@ -134,7 +134,7 @@ namespace NMib::NConcurrency
 				CleanupTimeout = m_HostDaemonTimeout;
 
 			if (Host.m_InactiveStopwatch.f_GetTime() > CleanupTimeout)
-				fp_DestroyHost(Host, nullptr, "Host inactivity ({} s)"_f << CleanupTimeout);
+				f_DestroyHost(Host, nullptr, "Host inactivity ({} s)"_f << CleanupTimeout);
 		}
 	}
 }

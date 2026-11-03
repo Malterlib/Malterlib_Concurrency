@@ -181,6 +181,7 @@ namespace
 
 	struct CDistributedApp_Tests : public NMib::NTest::CTest
 	{
+	private:
 		void fp_RunTests(TCFunction<void (CDistributedAppCommandLineClient &_Client)> &&_fTests, CStr const &_Name, bool _bInProcessOnly = false)
 		{
 			CStr ConfigDir = NFile::CFile::fs_GetProgramDirectory() / _Name;
@@ -212,6 +213,7 @@ namespace
 			AppActor->f_BlockDestroy(RunLoopHelper.m_pRunLoop->f_ActorDestroyLoop());
 		}
 
+	public:
 		void f_DoTests()
 		{
 			DMibTestSuite("Local socket paths")

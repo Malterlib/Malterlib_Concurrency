@@ -77,7 +77,7 @@ namespace NMib::NConcurrency
 			return g_Void;
 	}
 
-	bool CActorDistributionManagerInternal::fp_NamespaceAllowedForAnonymous(NStr::CStr const &_Namespace) const
+	bool CActorDistributionManagerInternal::f_NamespaceAllowedForAnonymous(NStr::CStr const &_Namespace) const
 	{
 		return _Namespace.f_StartsWith("Anonymous/");
 	}
@@ -164,7 +164,7 @@ namespace NMib::NConcurrency
 				continue;
 			}
 
-			if (Host.m_HostInfo.m_bAnonymous && !Internal.fp_NamespaceAllowedForAnonymous(_Namespace))
+			if (Host.m_HostInfo.m_bAnonymous && !Internal.f_NamespaceAllowedForAnonymous(_Namespace))
 			{
 				DMibLogWithCategory
 					(
@@ -197,7 +197,7 @@ namespace NMib::NConcurrency
 
 			Stream << Publish;
 
-			Internal.fp_QueuePacket(pHost, Stream.f_MoveStorage());
+			Internal.f_QueuePacket(pHost, Stream.f_MoveStorage());
 		}
 
 		if (WaitResults.f_IsEmpty())
@@ -282,7 +282,7 @@ namespace NMib::NConcurrency
 				continue;
 			}
 
-			if (Host.m_HostInfo.m_bAnonymous && !Internal.fp_NamespaceAllowedForAnonymous(_NamespaceID))
+			if (Host.m_HostInfo.m_bAnonymous && !Internal.f_NamespaceAllowedForAnonymous(_NamespaceID))
 			{
 				DMibLogWithCategory
 					(
@@ -352,8 +352,8 @@ namespace NMib::NConcurrency
 				PublishData = Stream.f_MoveStorage();
 			}
 
-			Internal.fp_QueuePacket(pHost, fg_Move(UnpublishData));
-			Internal.fp_QueuePacket(pHost, fg_Move(PublishData));
+			Internal.f_QueuePacket(pHost, fg_Move(UnpublishData));
+			Internal.f_QueuePacket(pHost, fg_Move(PublishData));
 		}
 
 		if (WaitResults.f_IsEmpty())
@@ -440,7 +440,7 @@ namespace NMib::NConcurrency
 				continue;
 			}
 
-			if (Host.m_HostInfo.m_bAnonymous && !Internal.fp_NamespaceAllowedForAnonymous(_Namespace))
+			if (Host.m_HostInfo.m_bAnonymous && !Internal.f_NamespaceAllowedForAnonymous(_Namespace))
 			{
 				DMibLogWithCategory
 					(
@@ -474,7 +474,7 @@ namespace NMib::NConcurrency
 			Stream << Unpublish;
 			auto Data = Stream.f_MoveStorage();
 
-			Internal.fp_QueuePacket(pHost, fg_Move(Data));
+			Internal.f_QueuePacket(pHost, fg_Move(Data));
 		}
 
 		if (WaitResults.f_IsEmpty())
@@ -784,7 +784,7 @@ namespace NMib::NConcurrency
 				Stream << PublishFinished;
 				auto Data = Stream.f_MoveStorage();
 
-				fp_QueuePacket(pHost, fg_Move(Data));
+				f_QueuePacket(pHost, fg_Move(Data));
 			}
 		;
 
@@ -904,7 +904,7 @@ namespace NMib::NConcurrency
 				Stream << UnpublishFinished;
 				auto Data = Stream.f_MoveStorage();
 
-				fp_QueuePacket(pHost, fg_Move(Data));
+				f_QueuePacket(pHost, fg_Move(Data));
 			}
 		;
 

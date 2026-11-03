@@ -275,18 +275,6 @@ namespace NMib::NConcurrency
 			)
 			-> TCFuture<uint32>
 		;
-		auto fp_CommandLine_SensorReadingsOutput
-			(
-				NStorage::TCSharedPointer<CCommandLineControl> _pCommandLine
-				, TCAsyncGenerator<NContainer::TCVector<CDistributedAppSensorReader_SensorKeyAndReading>> _SensorReadings
-				, TCAsyncGenerator<NContainer::TCVector<CDistributedAppSensorReporter::CSensorInfo>> _Sensors
-				, uint64 _MaxEntries
-				, ESensorOutputFlag _Flags
-				, NStr::CStr _TableType
-				, CDistributedAppSensorReader_SensorReadingFilter _Filter
-			)
-			-> TCFuture<uint32>
-		;
 
 		auto f_CommandLine_LogList
 			(
@@ -575,6 +563,19 @@ namespace NMib::NConcurrency
 		NStr::CStr fp_GetLocalHostname(ELocalSocketFlag _Flags) const;
 		NContainer::TCMap<NStr::CStr, NStr::CStr> fp_GetTranslateHostnames() const;
 		void fp_MakeActive();
+
+		auto fp_CommandLine_SensorReadingsOutput
+			(
+				NStorage::TCSharedPointer<CCommandLineControl> _pCommandLine
+				, TCAsyncGenerator<NContainer::TCVector<CDistributedAppSensorReader_SensorKeyAndReading>> _SensorReadings
+				, TCAsyncGenerator<NContainer::TCVector<CDistributedAppSensorReporter::CSensorInfo>> _Sensors
+				, uint64 _MaxEntries
+				, ESensorOutputFlag _Flags
+				, NStr::CStr _TableType
+				, CDistributedAppSensorReader_SensorReadingFilter _Filter
+			)
+			-> TCFuture<uint32>
+		;
 #if DMibEnableSafeCheck > 0
 		void fp_CheckDestroy() override;
 #endif

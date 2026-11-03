@@ -152,8 +152,8 @@ namespace NMib::NConcurrency
 		co_return fg_Move(DeviceActor);
 	}
 
-	CHumanInterfaceDeviceActor::CHumanInterfaceDeviceActor(hid_device *_Device)
-		: mp_pDevice(_Device)
+	CHumanInterfaceDeviceActor::CHumanInterfaceDeviceActor(hid_device *_pDevice)
+		: mp_pDevice(_pDevice)
 	{
 	}
 

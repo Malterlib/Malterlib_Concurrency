@@ -187,8 +187,8 @@ constinit TCAtomic<umint> g_TestValueGetSubscription{0};
 
 struct CMultipleSubscriptions
 {
-	TCActorSubscriptionWithID<0> m_Subscription0;
-	TCActorSubscriptionWithID<1> m_Subscription1;
+	TCActorSubscriptionWithID<0> m_Subscription0; // NOLINT(malterlib-conceptual-prefix): a subscription handle like CActorSubscription, which the check misses because it is derived from it
+	TCActorSubscriptionWithID<1> m_Subscription1; // NOLINT(malterlib-conceptual-prefix): a subscription handle like CActorSubscription, which the check misses because it is derived from it
 
 	TCActorSubscriptionWithID<> &f_Subscription(uint32 _SequenceID)
 	{
@@ -265,7 +265,7 @@ struct CDistributedActor : public CDistributedActorNonPublished
 
 	struct CActorFunctor
 	{
-		TCActorFunctor<TCFuture<CStr> (CStr _Test)> m_ActorFunctor;
+		TCActorFunctor<TCFuture<CStr> (CStr _Test)> m_fActorFunctor;
 		bool m_bCleared = false;
 	};
 
@@ -518,12 +518,12 @@ public:
 		co_return {};
 	}
 
-	CMultipleSubscriptions f_RegisterActorFunctors(TCActorFunctorWithID<TCFuture<CStr> (CStr _Test), 0> &&_Callback0, TCActorFunctorWithID<TCFuture<CStr> (CStr _Test), 1> &&_Callback1)
+	CMultipleSubscriptions f_RegisterActorFunctors(TCActorFunctorWithID<TCFuture<CStr> (CStr _Test), 0> &&_fCallback0, TCActorFunctorWithID<TCFuture<CStr> (CStr _Test), 1> &&_fCallback1)
 	{
 		CMultipleSubscriptions Subscriptions;
 		m_ActorFunctors.f_SetLen(2);
-		m_ActorFunctors[0].m_ActorFunctor = fg_Move(_Callback0);
-		m_ActorFunctors[1].m_ActorFunctor = fg_Move(_Callback1);
+		m_ActorFunctors[0].m_fActorFunctor = fg_Move(_fCallback0);
+		m_ActorFunctors[1].m_fActorFunctor = fg_Move(_fCallback1);
 
 		Subscriptions.m_Subscription0 = g_ActorSubscription / [this]
 			{
@@ -544,7 +544,7 @@ public:
 
 		m_ActorFunctors.f_Clear();
 		umint iFunctor = 0;
-		for (auto &Callback : _Callbacks)
+		for (auto &fCallback : _Callbacks)
 		{
 			Subscriptions.m_Subscriptions.f_Insert
 				(
@@ -554,11 +554,11 @@ public:
 						{
 							m_ActorFunctors[iFunctor].m_bCleared = true;
 						}
-						, Callback.f_GetID()
+						, fCallback.f_GetID()
 					)
 				)
 			;
-			m_ActorFunctors.f_Insert().m_ActorFunctor = fg_Move(Callback);
+			m_ActorFunctors.f_Insert().m_fActorFunctor = fg_Move(fCallback);
 			++iFunctor;
 		}
 		return Subscriptions;
@@ -571,8 +571,8 @@ public:
 
 	TCFuture<void> f_ClearActorFunctor(uint32 _iCallback)
 	{
-		auto ActorFunctor = fg_Move(m_ActorFunctors[_iCallback].m_ActorFunctor);
-		co_await fg_Move(ActorFunctor).f_Destroy();
+		auto fActorFunctor = fg_Move(m_ActorFunctors[_iCallback].m_fActorFunctor);
+		co_await fg_Move(fActorFunctor).f_Destroy();
 
 		co_return {};
 	}
@@ -584,7 +584,7 @@ public:
 
 	TCFuture<CStr> f_CallActorFunctor(uint32 _iCallback, CStr _Message)
 	{
-		co_return co_await m_ActorFunctors[_iCallback].m_ActorFunctor(_Message);
+		co_return co_await m_ActorFunctors[_iCallback].m_fActorFunctor(_Message);
 	}
 
 	TCActorFunctorWithID<TCFuture<CStr> (CStr _Test)> f_GetActorFunctorWithoutSubscription()
@@ -650,29 +650,29 @@ public:
 				if (*pDeleted)
 					co_return {};
 
-				auto ToDestroy = fg_Move(pCallback->m_fCallback);
+				auto fToDestroy = fg_Move(pCallback->m_fCallback);
 
 				m_Callbacks.f_Remove(*pCallback);
 
-				co_await fg_Move(ToDestroy).f_Destroy();
+				co_await fg_Move(fToDestroy).f_Destroy();
 
 				co_return {};
 			}
 		;
 	}
 
-	CActorSubscription f_RegisterManualCallback(uint32 _iCallback, TCActor<CActor> const &_Actor, TCFunction<TCFuture<CStr> (CStr &&_Test)> &&_Callback)
+	CActorSubscription f_RegisterManualCallback(uint32 _iCallback, TCActor<CActor> const &_Actor, TCFunction<TCFuture<CStr> (CStr &&_Test)> &&_fCallback)
 	{
-		*m_Callback[_iCallback] = fg_Move(_Callback);
+		*m_Callback[_iCallback] = fg_Move(_fCallback);
 		m_Actor[_iCallback] = _Actor;
 		return fg_Construct<CActorSubscriptionReferenceDummy>();
 	}
 
-	auto f_RegisterDual(TCActor<CActor> const &_Actor, TCFunctionMovable<TCFuture<CStr> (CStr &&_Test)> &&_Callback0, TCFunctionMovable<TCFuture<CStr> (CStr &&_Test)> &&_Callback1)
+	auto f_RegisterDual(TCActor<CActor> const &_Actor, TCFunctionMovable<TCFuture<CStr> (CStr &&_Test)> &&_fCallback0, TCFunctionMovable<TCFuture<CStr> (CStr &&_Test)> &&_fCallback1)
 		-> CActorSubscription
 	{
-		*m_Callback[0] = fg_Move(_Callback0);
-		*m_Callback[1] = fg_Move(_Callback1);
+		*m_Callback[0] = fg_Move(_fCallback0);
+		*m_Callback[1] = fg_Move(_fCallback1);
 		m_Actor[0] = _Actor;
 		return fg_Construct<CActorSubscriptionReferenceDummy>();
 	}
@@ -704,20 +704,20 @@ public:
 		co_return co_await Result.f_MoveFuture();
 	}
 
-	TCFuture<CActorSubscription> f_RegisterWithError(TCActor<CActor> _Actor, TCFunctionMovable<TCFuture<CStr> (CStr &&_Test)> _Callback)
+	TCFuture<CActorSubscription> f_RegisterWithError(TCActor<CActor> _Actor, TCFunctionMovable<TCFuture<CStr> (CStr &&_Test)> _fCallback)
 	{
 		co_return DMibErrorInstance("Register failed");
 	}
 
-	void f_RegisterNoSubscription(TCActor<CActor> const &_Actor, TCFunctionMovable<TCFuture<CStr> (CStr &&_Test)> &&_Callback)
+	void f_RegisterNoSubscription(TCActor<CActor> const &_Actor, TCFunctionMovable<TCFuture<CStr> (CStr &&_Test)> &&_fCallback)
 	{
-		*m_pCallbackNoSub = fg_Move(_Callback);
+		*m_pCallbackNoSub = fg_Move(_fCallback);
 		m_ActorNoSub = _Actor;
 	}
 
-	CActorSubscription f_RegisterNoActor(TCFunctionMovable<TCFuture<CStr> (CStr &&_Test)> &&_Callback)
+	CActorSubscription f_RegisterNoActor(TCFunctionMovable<TCFuture<CStr> (CStr &&_Test)> &&_fCallback)
 	{
-		*m_pCallbackNoSub = fg_Move(_Callback);
+		*m_pCallbackNoSub = fg_Move(_fCallback);
 		return fg_Construct<CActorSubscriptionReferenceDummy>();
 	}
 
@@ -1040,7 +1040,7 @@ struct CDistributedActor_Tests : public NMib::NTest::CTest
 			CVersionedData Data;
 			Data.m_Original = 11;
 			Data.m_Added = 22;
-			auto Exception = NMib::NException::fg_MakeException(CVersionedException(nullptr, "Versioned failure", false, Data));
+			auto pException = NMib::NException::fg_MakeException(CVersionedException(nullptr, "Versioned failure", false, Data));
 
 			// Streams the exception reply, then a sentinel that shows the reader ended up after the exception
 			auto fFeedException = [&](NMib::NException::CExceptionPointer const &_pException, uint32 _ActorProtocolVersion)
@@ -1057,7 +1057,7 @@ struct CDistributedActor_Tests : public NMib::NTest::CTest
 
 			auto fFeed = [&](uint32 _ActorProtocolVersion)
 				{
-					return fFeedException(Exception, _ActorProtocolVersion);
+					return fFeedException(pException, _ActorProtocolVersion);
 				}
 			;
 
@@ -1163,14 +1163,14 @@ struct CDistributedActor_Tests : public NMib::NTest::CTest
 
 			DMibTestCategory("Wrapped")
 			{
-				auto Wrapped = NMib::NException::fg_MakeException(NMib::NException::CExceptionWrapped(nullptr, "Outer failure", false, NMib::NException::CExceptionWrappedData(Exception)));
+				auto pWrapped = NMib::NException::fg_MakeException(NMib::NException::CExceptionWrapped(nullptr, "Outer failure", false, NMib::NException::CExceptionWrappedData(pException)));
 
 				auto fWrapped = [&](uint32 _ActorProtocolVersion) -> TCOptional<CVersionedData>
 					{
 						TCOptional<CVersionedData> Nested;
 						NMib::NException::fg_VisitException<NMib::NException::CExceptionWrapped>
 							(
-								fConsumeException(fFeedException(Wrapped, _ActorProtocolVersion), _ActorProtocolVersion)
+								fConsumeException(fFeedException(pWrapped, _ActorProtocolVersion), _ActorProtocolVersion)
 								, [&](NMib::NException::CExceptionWrapped const &_Exception)
 								{
 									Nested = fVersionedData(_Exception.f_GetSpecific().m_pWrapped);
@@ -1200,8 +1200,8 @@ struct CDistributedActor_Tests : public NMib::NTest::CTest
 
 			DMibTestCategory("Vector")
 			{
-				NContainer::TCVector<NMib::NException::CExceptionPointer> Exceptions{Exception, Exception};
-				auto Vector = NMib::NException::fg_MakeException
+				NContainer::TCVector<NMib::NException::CExceptionPointer> Exceptions{pException, pException};
+				auto pVector = NMib::NException::fg_MakeException
 					(
 						NMib::NException::CExceptionExceptionVector(nullptr, "Outer failures", false, NMib::NException::CExceptionExceptionVectorData(fg_Move(Exceptions)))
 					)
@@ -1212,7 +1212,7 @@ struct CDistributedActor_Tests : public NMib::NTest::CTest
 						NContainer::TCVector<CVersionedData> Nested;
 						NMib::NException::fg_VisitException<NMib::NException::CExceptionExceptionVector>
 							(
-								fConsumeException(fFeedException(Vector, _ActorProtocolVersion), _ActorProtocolVersion)
+								fConsumeException(fFeedException(pVector, _ActorProtocolVersion), _ActorProtocolVersion)
 								, [&](NMib::NException::CExceptionExceptionVector const &_Exception)
 								{
 									for (auto &pNested : _Exception.f_GetSpecific().m_Exceptions)
@@ -1271,7 +1271,7 @@ struct CDistributedActor_Tests : public NMib::NTest::CTest
 						(
 							[&](auto &_Stream)
 							{
-								NConcurrency::NPrivate::fg_FeedException(_Stream, Exception, bVersioned);
+								NConcurrency::NPrivate::fg_FeedException(_Stream, pException, bVersioned);
 							}
 							, [&](auto &_Stream)
 							{
@@ -1293,7 +1293,7 @@ struct CDistributedActor_Tests : public NMib::NTest::CTest
 						(
 							[&](auto &_Stream)
 							{
-								_Stream << NMib::NException::CStreamableExceptionPointer(Exception);
+								_Stream << NMib::NException::CStreamableExceptionPointer(pException);
 							}
 							, [&](auto &_Stream)
 							{
@@ -1314,7 +1314,7 @@ struct CDistributedActor_Tests : public NMib::NTest::CTest
 						(
 							[&](auto &_Stream)
 							{
-								_Stream << NMib::NException::CStreamableExceptionPointer(Exception, bVersioned);
+								_Stream << NMib::NException::CStreamableExceptionPointer(pException, bVersioned);
 							}
 							, [&](auto &_Stream)
 							{
@@ -1920,18 +1920,18 @@ private:
 			}
 			{
 				DMibTestPath("WithSubscription");
-				auto ActorFunctor = fGetActorSubscription();
-				CStr ReturnValue = ActorFunctor("Test").f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout);
+				auto fActorFunctor = fGetActorSubscription();
+				CStr ReturnValue = fActorFunctor("Test").f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout);
 				DMibExpect(ReturnValue, ==, "TestWithSubscription");
 
-				ActorFunctor.f_GetSubscription().f_Clear();
+				fActorFunctor.f_GetSubscription().f_Clear();
 				bool bSubscriptionCalled = Actor.f_CallActor(&CDistributedActor::f_GetActorFunctorSubscriptionCalled)().f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout);
 				DMibExpectTrue(bSubscriptionCalled);
 
 				if (_bRemote)
-					DMibExpectException(ActorFunctor("Test").f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout), DMibErrorInstance("Subscription has been removed"));
+					DMibExpectException(fActorFunctor("Test").f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout), DMibErrorInstance("Subscription has been removed"));
 
-				ActorFunctor.f_Clear();
+				fActorFunctor.f_Clear();
 			}
 		}
 		{
@@ -1959,12 +1959,12 @@ private:
 			CCurrentActorScope CurrentActorScope(fg_ConcurrencyThreadLocal(), TestActor);
 
 			TCDistributedActor<CDistributedActor> Actor = pState->f_CreateActor();
-			auto Functor = Actor.f_CallActor(&CDistributedActor::f_TestAsyncGeneratorFunctor)().f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout);
+			auto fFunctor = Actor.f_CallActor(&CDistributedActor::f_TestAsyncGeneratorFunctor)().f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout);
 
 			for (umint iIteration = 0; iIteration < 2; ++iIteration)
 			{
 				DMibTestPath("Iteration {}"_f << iIteration);
-				auto Generator = Functor(iIteration).f_CallSync();
+				auto Generator = fFunctor(iIteration).f_CallSync();
 
 				auto iIterator = fg_Move(Generator).f_GetSimpleIterator().f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout);
 				DMibExpect(*iIterator, ==, 5);
@@ -1980,7 +1980,7 @@ private:
 				DMibExpectFalse(!!iIterator);
 				fg_Move(Generator).f_Destroy().f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout);
 			}
-			fg_Move(Functor).f_Destroy().f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout);
+			fg_Move(fFunctor).f_Destroy().f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout);
 		}
 		{
 			DMibTestPath("Return Async Generator Pipelined");
@@ -2007,12 +2007,12 @@ private:
 			CCurrentActorScope CurrentActorScope(fg_ConcurrencyThreadLocal(), TestActor);
 
 			TCDistributedActor<CDistributedActor> Actor = pState->f_CreateActor();
-			auto Functor = Actor.f_CallActor(&CDistributedActor::f_TestAsyncGeneratorFunctor)().f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout);
+			auto fFunctor = Actor.f_CallActor(&CDistributedActor::f_TestAsyncGeneratorFunctor)().f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout);
 
 			for (umint iIteration = 0; iIteration < 2; ++iIteration)
 			{
 				DMibTestPath("Iteration {}"_f << iIteration);
-				auto Generator = Functor(iIteration).f_CallSync();
+				auto Generator = fFunctor(iIteration).f_CallSync();
 
 				auto iIterator = fg_Move(Generator).f_GetPipelinedIterator().f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout);
 				DMibExpect(*iIterator, ==, 5);
@@ -2028,7 +2028,7 @@ private:
 				DMibExpectFalse(!!iIterator);
 				fg_Move(Generator).f_Destroy().f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout);
 			}
-			fg_Move(Functor).f_Destroy().f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout);
+			fg_Move(fFunctor).f_Destroy().f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout);
 		}
 		{
 			DMibTestPath("Send Async Generator");
@@ -2179,6 +2179,7 @@ private:
 				}
 			;
 
+			// NOLINTNEXTLINE(malterlib-conceptual-prefix): a subscription handle like CActorSubscription, which the check misses because it is derived from it
 			auto Subscription = Actor.f_CallActor(&CDistributedActor::f_SetInterface)(fg_Move(Interface)).f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout);
 
 			auto fCallInterface = [&]
@@ -2258,6 +2259,7 @@ private:
 				}
 			;
 
+			// NOLINTNEXTLINE(malterlib-conceptual-prefix): a subscription handle like CActorSubscription, which the check misses because it is derived from it
 			auto Subscription = Actor.f_CallActor(&CDistributedActor::f_RegisterCallback)(g_ActorFunctor(TestActor) / fCallBack).f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout);
 
 			bool bCallbacksEmpty = Actor.f_CallActor(&CDistributedActor::f_CallbacksEmpty)().f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout);
@@ -2297,10 +2299,12 @@ private:
 			TCActor<> TestActor1 = fg_ConstructActor<CActor>();
 
 			{
+				// NOLINTNEXTLINE(malterlib-conceptual-prefix): a subscription handle like CActorSubscription, which the check misses because it is derived from it
 				auto MultipleSubscription0 = Actor.f_CallActor(&CDistributedActor::f_RegisterCallbacks)
 					(g_ActorFunctor(TestActor0) / fCallback0)
 					.f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout)
 				;
+				// NOLINTNEXTLINE(malterlib-conceptual-prefix): a subscription handle like CActorSubscription, which the check misses because it is derived from it
 				auto MultipleSubscription1 = Actor.f_CallActor(&CDistributedActor::f_RegisterCallbacks)
 					(g_ActorFunctor(TestActor1) / fCallback1)
 					.f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout)

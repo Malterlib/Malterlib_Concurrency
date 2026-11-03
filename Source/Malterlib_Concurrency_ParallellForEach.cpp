@@ -83,29 +83,29 @@ namespace NMib::NConcurrency
 
 	CThreadPool::~CThreadPool()
 	{
-		for (auto &Thread : mp_Threads)
-			Thread->f_Stop(false);
+		for (auto &pThread : mp_Threads)
+			pThread->f_Stop(false);
 
-		for (auto &Thread : mp_Threads)
+		for (auto &pThread : mp_Threads)
 		{
-			while (Thread->f_GetState() != NThread::EThreadState_Stopped)
+			while (pThread->f_GetState() != NThread::EThreadState_Stopped)
 				mp_Semaphore.f_Signal();
 		}
 
 		mp_Threads.f_Clear();
 	}
 
-	void CThreadPool::f_Dispatch(NFunction::TCFunction<void ()> &&_Functor)
+	void CThreadPool::f_Dispatch(NFunction::TCFunction<void ()> &&_fFunctor)
 	{
 		// DMibConOut("Queueing\n", 0);
-		mp_DispatchQueue.f_Push(fg_Move(_Functor));
+		mp_DispatchQueue.f_Push(fg_Move(_fFunctor));
 		mp_Semaphore.f_Signal();
 	}
 
-	void CThreadPool::f_Dispatch(NFunction::TCFunction<void ()> const &_Functor)
+	void CThreadPool::f_Dispatch(NFunction::TCFunction<void ()> const &_fFunctor)
 	{
 		// DMibConOut("Queueing\n", 0);
-		mp_DispatchQueue.f_Push(_Functor);
+		mp_DispatchQueue.f_Push(_fFunctor);
 		mp_Semaphore.f_Signal();
 	}
 

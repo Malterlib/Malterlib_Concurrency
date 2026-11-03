@@ -651,7 +651,7 @@ namespace NMib::NConcurrency
 							{
 								return
 									{
-										.m_Factory = NNetwork::CSocket_AuthenticatedUnix::fs_GetFactory(pAuthenticatedUnixContext)
+										.m_fFactory = NNetwork::CSocket_AuthenticatedUnix::fs_GetFactory(pAuthenticatedUnixContext)
 										, .m_bAllowUnmaskedFrames = true
 										, .m_FragmentationSize = FragmentationSize
 										, .m_MaxFragmentSize = MaxFragmentSize
@@ -663,7 +663,7 @@ namespace NMib::NConcurrency
 							// Negotiate even over mutual TLS so peers without the extension retain masking.
 							return
 								{
-									.m_Factory = NNetwork::CSocket_SSL::fs_GetFactory(pServerContext)
+									.m_fFactory = NNetwork::CSocket_SSL::fs_GetFactory(pServerContext)
 									, .m_bAllowUnmaskedFrames = false
 									, .m_bNegotiateUnmaskedFrames = true
 									, .m_FragmentationSize = FragmentationSize

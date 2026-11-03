@@ -311,7 +311,7 @@ namespace NMib::NConcurrency
 	{
 		auto &Internal = *mp_pInternal;
 
-		if (Internal.m_pStdInCleanup)
+		if (Internal.m_StdInCleanup)
 			co_return DMibErrorInstance("A ticket is already being requested");
 
 		struct CState
@@ -328,7 +328,7 @@ namespace NMib::NConcurrency
 
 		NStorage::TCSharedPointer<CState> pState = fg_Construct();
 
-		Internal.m_pStdInCleanup = g_OnScopeExitActor / [pState]
+		Internal.m_StdInCleanup = g_OnScopeExitActor / [pState]
 			{
 				pState->f_Clear();
 			}
@@ -362,8 +362,8 @@ namespace NMib::NConcurrency
 								Promise.f_SetException(DMibErrorInstance(fg_Format("Failed to parse trust ticket: {}", _Exception)));
 							}
 							pState->f_Clear();
-							Internal.m_pStdInCleanup->f_Clear();
-							Internal.m_pStdInCleanup.f_Clear();
+							Internal.m_StdInCleanup->f_Clear();
+							Internal.m_StdInCleanup.f_Clear();
 						}
 					}
 					co_return {};

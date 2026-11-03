@@ -311,8 +311,8 @@ namespace NMib::NConcurrency
 	{
 		for (auto &ActorFuntor : _State.m_ActorFunctors)
 		{
-			for (auto &PendingSubscription : ActorFuntor.m_PendingSubscriptions)
-				o_SubscriptionData.m_ClaimedSubscriptionIDs.f_Insert(PendingSubscription->m_SubscriptionID);
+			for (auto &pPendingSubscription : ActorFuntor.m_PendingSubscriptions)
+				o_SubscriptionData.m_ClaimedSubscriptionIDs.f_Insert(pPendingSubscription->m_SubscriptionID);
 		}
 	}
 
@@ -420,11 +420,11 @@ namespace NMib::NConcurrency
 				if (*pDestroyed)
 					co_return {};
 
-				auto ToDestroy = fg_Move(pOnDisconnect->m_fOnDisconnect);
+				auto fToDestroy = fg_Move(pOnDisconnect->m_fOnDisconnect);
 
 				pHost->m_OnDisconnect.f_Remove(*pOnDisconnect);
 
-				co_await fg_Move(ToDestroy).f_Destroy();
+				co_await fg_Move(fToDestroy).f_Destroy();
 
 				co_return {};
 			}

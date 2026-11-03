@@ -83,8 +83,8 @@ namespace NMib::NConcurrency
 		{
 			TCFutureVector<void> DestroyResults;
 
-			for (auto &fAsyncDestroy : m_State.m_AsyncDestructors)
-				fg_Move(fAsyncDestroy) > DestroyResults;
+			for (auto &AsyncDestroy : m_State.m_AsyncDestructors)
+				fg_Move(AsyncDestroy) > DestroyResults;
 
 			m_State.m_AsyncDestructors.f_Clear();
 
@@ -146,8 +146,8 @@ namespace NMib::NConcurrency
 		{
 			TCFutureVector<void> DestroyResults;
 
-			for (auto &fAsyncDestroy : ConcurrencyThreadLocal.m_AsyncDestructors)
-				fg_Move(fAsyncDestroy) > DestroyResults;
+			for (auto &AsyncDestroy : ConcurrencyThreadLocal.m_AsyncDestructors)
+				fg_Move(AsyncDestroy) > DestroyResults;
 
 			ConcurrencyThreadLocal.m_AsyncDestructors.f_Clear();
 

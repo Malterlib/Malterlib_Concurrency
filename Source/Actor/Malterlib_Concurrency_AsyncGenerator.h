@@ -107,7 +107,7 @@ namespace NMib::NConcurrency
 
 	struct CIsGeneratorAborted;
 
-	extern CIsGeneratorAborted g_bShouldAbort;
+	extern CIsGeneratorAborted g_ShouldAbort;
 
 	struct CGetGeneratorPipelineLength;
 

@@ -807,7 +807,7 @@ namespace
 						{
 							for (umint iWait = 0; iWait < 300; ++iWait)
 							{
-								if (co_await g_bShouldAbort)
+								if (co_await g_ShouldAbort)
 									break;
 								co_await fg_Timeout(0.1);
 							}
@@ -835,7 +835,7 @@ namespace
 							co_yield 1;
 							for (umint iWait = 0; iWait < 300; ++iWait)
 							{
-								if (co_await g_bShouldAbort)
+								if (co_await g_ShouldAbort)
 									break;
 								co_await fg_Timeout(0.1);
 							}
@@ -866,7 +866,7 @@ namespace
 							co_yield 1;
 							for (umint iWait = 0; iWait < 300; ++iWait)
 							{
-								if (co_await g_bShouldAbort)
+								if (co_await g_ShouldAbort)
 									break;
 								co_await fg_Timeout(0.1);
 							}
@@ -904,7 +904,7 @@ namespace
 
 							for (umint iWait = 0; iWait < 300; ++iWait)
 							{
-								if (co_await g_bShouldAbort)
+								if (co_await g_ShouldAbort)
 								{
 									pAborted->f_Exchange(true);
 									AbortedPromise.f_SetResult();
@@ -954,7 +954,7 @@ namespace
 
 							for (umint iWait = 0; iWait < 300; ++iWait)
 							{
-								if (co_await g_bShouldAbort)
+								if (co_await g_ShouldAbort)
 								{
 									pAborted->f_Exchange(true);
 									AbortedPromise.f_SetResult();
@@ -1014,7 +1014,7 @@ namespace
 
 							for (umint iWait = 0; iWait < 100; ++iWait)
 							{
-								if (co_await g_bShouldAbort)
+								if (co_await g_ShouldAbort)
 									co_await fg_Timeout(0.001);
 								else
 									co_await fg_Timeout(0.1);
@@ -1074,7 +1074,7 @@ namespace
 
 							for (umint iWait = 0; iWait < 100; ++iWait)
 							{
-								if (co_await g_bShouldAbort)
+								if (co_await g_ShouldAbort)
 									co_await fg_Timeout(0.001);
 								else
 									co_await fg_Timeout(0.1);
@@ -1117,7 +1117,7 @@ namespace
 
 							while (true)
 							{
-								if (co_await g_bShouldAbort)
+								if (co_await g_ShouldAbort)
 									break;
 							}
 							co_return {};
@@ -1150,7 +1150,7 @@ namespace
 
 							while (true)
 							{
-								if (co_await g_bShouldAbort)
+								if (co_await g_ShouldAbort)
 									break;
 							}
 							co_return {};
@@ -1189,7 +1189,7 @@ namespace
 
 							while (true)
 							{
-								if (co_await g_bShouldAbort)
+								if (co_await g_ShouldAbort)
 								{
 									pAborted->f_Exchange(true);
 									AbortedPromise.f_SetResult();
@@ -1236,7 +1236,7 @@ namespace
 
 							while (true)
 							{
-								if (co_await g_bShouldAbort)
+								if (co_await g_ShouldAbort)
 								{
 									pAborted->f_Exchange(true);
 									AbortedPromise.f_SetResult();
@@ -1283,7 +1283,7 @@ namespace
 
 							while (true)
 							{
-								if (co_await g_bShouldAbort)
+								if (co_await g_ShouldAbort)
 								{
 									pAborted->f_Exchange(true);
 									AbortedPromise.f_SetResult();
@@ -1303,7 +1303,7 @@ namespace
 				pStartedEvent->f_WaitTimeout(g_Timeout);
 
 				{
-					auto Functor = [iIterator = fg_Move(iIterator)]
+					auto fFunctor = [iIterator = fg_Move(iIterator)]
 						{
 						}
 					;
@@ -1334,7 +1334,7 @@ namespace
 
 							while (true)
 							{
-								if (co_await g_bShouldAbort)
+								if (co_await g_ShouldAbort)
 								{
 									pAborted->f_Exchange(true);
 									AbortedPromise.f_SetResult();
@@ -1354,7 +1354,7 @@ namespace
 				pStartedEvent->f_WaitTimeout(g_Timeout);
 
 				{
-					auto Functor = [iIterator = fg_Move(iIterator)]
+					auto fFunctor = [iIterator = fg_Move(iIterator)]
 						{
 						}
 					;

@@ -175,14 +175,14 @@ namespace NMib::NConcurrency
 
 	template
 	<
-		auto tf_pMemberFunction
+		auto tf_fMemberFunction
 		DMibIfNotSupportMemberNameFromMemberPointer(, uint32 tf_NameHash)
 		, EVirtualCall tf_VirtualCall
 		, typename tf_CActor
 		, typename ...tfp_CParams
 	>
-	auto fg_CallActor(TCActor<TCDistributedActorWrapper<tf_CActor>> &&_Actor, tfp_CParams && ...p_Params) -> NPrivate::TCFutureReturn<decltype(tf_pMemberFunction)>
-		requires cActorCallableWithFunctor<tf_pMemberFunction, tf_CActor, tfp_CParams...>
+	auto fg_CallActor(TCActor<TCDistributedActorWrapper<tf_CActor>> &&_Actor, tfp_CParams && ...p_Params) -> NPrivate::TCFutureReturn<decltype(tf_fMemberFunction)>
+		requires cActorCallableWithFunctor<tf_fMemberFunction, tf_CActor, tfp_CParams...>
 	;
 
 	struct CActorDistributionCryptographyRemoteServer

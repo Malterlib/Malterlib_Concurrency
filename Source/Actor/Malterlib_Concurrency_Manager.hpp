@@ -129,11 +129,11 @@ namespace NMib::NConcurrency
 			}
 		;
 
-		auto pReturn = f_ConstructFromInternalActor<tf_CType>(fg_Move(pActor), fg_Move(_ConstructParams));
+		auto Return = f_ConstructFromInternalActor<tf_CType>(fg_Move(pActor), fg_Move(_ConstructParams));
 
 		Cleanup.f_Clear();
 
-		return fg_Move(pReturn);
+		return fg_Move(Return);
 	}
 
 	template <typename tf_CActor, typename ...tfp_CParams>

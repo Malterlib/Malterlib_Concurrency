@@ -429,14 +429,14 @@ namespace
 			{
 				auto fConstructActorConstructorException = []
 					{
-						TCActor<CConstructorExceptionActor> pActor;
-						pActor = fg_Construct();
+						TCActor<CConstructorExceptionActor> Actor;
+						Actor = fg_Construct();
 					}
 				;
 
 				auto fConstructActorConstructException = []
 					{
-						TCActor<CConstructExceptionActor> pActor = fg_Construct();
+						TCActor<CConstructExceptionActor> Actor = fg_Construct();
 					}
 				;
 
@@ -496,7 +496,7 @@ namespace
 				TCActor<CActor> Actor = fg_Construct();
 				NStorage::TCSharedPointer<int32> pCaptured = fg_Construct(0);
 				umint nOwnReferences = pCaptured.f_GetRefCount();
-				CActorFunctorWeakCoalesced Functor = g_ActorFunctorWeakCoalesced(Actor) / [pCaptured]() -> TCFuture<void>
+				CActorFunctorWeakCoalesced fFunctor = g_ActorFunctorWeakCoalesced(Actor) / [pCaptured]() -> TCFuture<void>
 					{
 						co_return {};
 					}
@@ -504,7 +504,7 @@ namespace
 				umint nReferencesWhileHeld = pCaptured.f_GetRefCount();
 				DMibExpect(nReferencesWhileHeld, ==, nOwnReferences + 1);
 
-				co_await fg_Move(Functor).f_Destroy();
+				co_await fg_Move(fFunctor).f_Destroy();
 				umint nReferencesAfterDestroy = pCaptured.f_GetRefCount();
 				DMibExpect(nReferencesAfterDestroy, ==, nOwnReferences);
 
@@ -519,7 +519,7 @@ namespace
 				NStorage::TCSharedPointer<NAtomic::TCAtomic<umint>> pDelivered = fg_Construct(umint(0));
 				NStorage::TCSharedPointer<NThread::CEvent> pRelease = fg_Construct();
 				TCPromise<void> BusyPromise;
-				CActorFunctorWeakCoalesced Functor = g_ActorFunctorWeakCoalesced(Actor) / [pDelivered]() -> TCFuture<void>
+				CActorFunctorWeakCoalesced fFunctor = g_ActorFunctorWeakCoalesced(Actor) / [pDelivered]() -> TCFuture<void>
 					{
 						pDelivered->f_FetchAdd(1);
 						co_return {};
@@ -538,9 +538,9 @@ namespace
 				;
 				co_await BusyPromise.f_Future();
 
-				TCFuture<void> First = Functor();
-				TCFuture<void> Second = Functor();
-				TCFuture<void> Third = Functor();
+				TCFuture<void> First = fFunctor();
+				TCFuture<void> Second = fFunctor();
+				TCFuture<void> Third = fFunctor();
 				co_await fg_Move(Second); // Covered by the first delivery, so these resolve while the actor is still busy
 				co_await fg_Move(Third);
 				pRelease->f_SetSignaled();
@@ -549,16 +549,16 @@ namespace
 				umint nDeliveredAfterBurst = pDelivered->f_Load();
 				DMibExpect(nDeliveredAfterBurst, ==, umint(1));
 
-				co_await Functor();
+				co_await fFunctor();
 				umint nDeliveredAfterReopen = pDelivered->f_Load();
 				DMibExpect(nDeliveredAfterReopen, ==, umint(2));
 
-				if (auto fLocked = Functor.f_Lock())
-					co_await (*fLocked)();
+				if (auto Locked = fFunctor.f_Lock())
+					co_await (*Locked)();
 				umint nDeliveredThroughLock = pDelivered->f_Load();
 				DMibExpect(nDeliveredThroughLock, ==, umint(3));
 
-				co_await fg_Move(Functor).f_Destroy();
+				co_await fg_Move(fFunctor).f_Destroy();
 
 				co_return {};
 			};
@@ -572,7 +572,7 @@ namespace
 				NStorage::TCSharedPointer<NAtomic::TCAtomic<umint>> pDelivered = fg_Construct(umint(0));
 				NStorage::TCSharedPointer<NAtomic::TCAtomic<umint>> pDeliveredAfterDirect = fg_Construct(umint(0));
 				NStorage::TCSharedPointer<NAtomic::TCAtomic<umint>> pDeliveredWhileArmed = fg_Construct(umint(0));
-				CActorFunctorWeakCoalesced Functor = g_ActorFunctorWeakCoalesced(Actor) / [pDelivered, pCaptured]() -> TCFuture<void>
+				CActorFunctorWeakCoalesced fFunctor = g_ActorFunctorWeakCoalesced(Actor) / [pDelivered, pCaptured]() -> TCFuture<void>
 					{
 						pDelivered->f_FetchAdd(1);
 						co_return {};
@@ -582,19 +582,19 @@ namespace
 				co_await fg_Dispatch
 					(
 						Actor
-						, [Functor = fg_Move(Functor), pDelivered, pDeliveredAfterDirect, pDeliveredWhileArmed]() mutable -> TCFuture<void>
+						, [fFunctor = fg_Move(fFunctor), pDelivered, pDeliveredAfterDirect, pDeliveredWhileArmed]() mutable -> TCFuture<void>
 						{
-							co_await Functor.f_CallDirect();
-							if (auto fLocked = Functor.f_Lock())
-								co_await fLocked->f_CallDirect();
+							co_await fFunctor.f_CallDirect();
+							if (auto Locked = fFunctor.f_Lock())
+								co_await Locked->f_CallDirect();
 							pDeliveredAfterDirect->f_Store(pDelivered->f_Load());
 
-							TCFuture<void> Queued = Functor();
-							co_await Functor.f_CallDirect();
+							TCFuture<void> Queued = fFunctor();
+							co_await fFunctor.f_CallDirect();
 							pDeliveredWhileArmed->f_Store(pDelivered->f_Load());
 							co_await fg_Move(Queued);
 
-							co_await fg_Move(Functor).f_Destroy();
+							co_await fg_Move(fFunctor).f_Destroy();
 							co_return {};
 						}
 					)
@@ -1507,16 +1507,16 @@ namespace
 					for (umint iRepetition = 0; iRepetition < gc_nRepetitions; ++iRepetition)
 					{
 						DMibTestScopeMeasure(DispatchMeasure, nIterations);
-						for (auto &Dispatch : ToDispatch)
+						for (auto &fDispatch : ToDispatch)
 						{
-							Dispatch = [&]
+							fDispatch = [&]
 								{
 									(void)ActorEmul.f_AddIntNoCoro(uint32(1));
 								}
 							;
 						}
-						for (auto &Dispatch : ToDispatch)
-							Dispatch();
+						for (auto &fDispatch : ToDispatch)
+							fDispatch();
 						fp_BlockOnAllThreads(false);
 					}
 
@@ -1550,9 +1550,9 @@ namespace
 						}
 						while (!ToDispatch.f_IsEmpty())
 						{
-							auto &First = ToDispatch.f_GetFirst();
-							First();
-							ToDispatch.f_Remove(First);
+							auto &fFirst = ToDispatch.f_GetFirst();
+							fFirst();
+							ToDispatch.f_Remove(fFirst);
 						}
 						fp_BlockOnAllThreads(false);
 					}

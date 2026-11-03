@@ -110,7 +110,7 @@ namespace NMib::NConcurrency
 			)
 		;
 
-		auto pCleanup = fg_OnScopeExitShared
+		auto Cleanup = fg_OnScopeExitShared
 			(
 				[this, pDestroyed = m_pDestroyed]
 				{
@@ -420,7 +420,7 @@ namespace NMib::NConcurrency
 		else
 			WaitForConnectionsPromise.m_Promise.f_SetResult();
 
-		fg_AllDoneWrapped(ConnectResults) > [this, pCleanup](TCAsyncResult<NContainer::TCMap<CDistributedActorTrustManager_Address, TCAsyncResult<void>>> &&_ConnectionResult)
+		fg_AllDoneWrapped(ConnectResults) > [this, Cleanup](TCAsyncResult<NContainer::TCMap<CDistributedActorTrustManager_Address, TCAsyncResult<void>>> &&_ConnectionResult)
 			{
 				if (!_ConnectionResult)
 				{
@@ -473,7 +473,7 @@ namespace NMib::NConcurrency
 			Listen.m_ListenReference = fg_Move(ListenResult.f_Value());
 		}
 
-		pCleanup->f_Clear();
+		Cleanup->f_Clear();
 
 		m_AuthenticationActors = ICDistributedActorTrustManagerAuthenticationActor::fs_GetRegisteredAuthenticationFactors(fg_ThisActor(m_pThis));
 		m_TicketInterface = m_ActorDistributionManager->f_ConstructActor<CInternal::CTicketInterface>(this, fg_ThisActor(m_pThis));

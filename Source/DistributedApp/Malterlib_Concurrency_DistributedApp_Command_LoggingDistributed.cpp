@@ -569,7 +569,7 @@ namespace NMib::NConcurrency
 			)
 		;
 
-		auto [Result, bCancelled] = co_await fg_AnyDone
+		auto [Result, CancelledResult] = co_await fg_AnyDone
 			(
 				fp_CommandLine_LogEntriesOutput(_pCommandLine, fg_Move(_LogEntries), fg_Move(_Logs), _MaxEntries, _Flags, _Verbosity, _TableType, _Filter)
 				, fg_Move(Cancelled.m_Future)

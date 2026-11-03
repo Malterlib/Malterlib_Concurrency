@@ -295,15 +295,15 @@ namespace NMib::NConcurrency
 	}
 
 	template <typename t_CActor>
-	template <typename tf_CMemberFunction, typename ...tfp_CCallParams>
-	auto TCWeakActor<t_CActor>::operator () (tf_CMemberFunction &&_pMemberFunction, tfp_CCallParams && ...p_CallParams) const &
-		-> TCBoundActorCall<NPrivate::TCFutureReturn<tf_CMemberFunction>, TCWeakActor<t_CActor> const &, tf_CMemberFunction, CBindActorOptions::fs_Default(), false, tfp_CCallParams...>
-		requires cActorCallableWith<tf_CMemberFunction, t_CActor, tfp_CCallParams...>
+	template <typename tf_FMemberFunction, typename ...tfp_CCallParams>
+	auto TCWeakActor<t_CActor>::operator () (tf_FMemberFunction &&_fMemberFunction, tfp_CCallParams && ...p_CallParams) const &
+		-> TCBoundActorCall<NPrivate::TCFutureReturn<tf_FMemberFunction>, TCWeakActor<t_CActor> const &, tf_FMemberFunction, CBindActorOptions::fs_Default(), false, tfp_CCallParams...>
+		requires cActorCallableWith<tf_FMemberFunction, t_CActor, tfp_CCallParams...>
 	{
 		DMibFastCheck(!f_IsEmpty());
-		return TCBoundActorCall<NPrivate::TCFutureReturn<tf_CMemberFunction>, TCWeakActor<t_CActor> const &, tf_CMemberFunction, CBindActorOptions::fs_Default(), false, tfp_CCallParams...>
+		return TCBoundActorCall<NPrivate::TCFutureReturn<tf_FMemberFunction>, TCWeakActor<t_CActor> const &, tf_FMemberFunction, CBindActorOptions::fs_Default(), false, tfp_CCallParams...>
 			{
-				.m_pMemberFunction = _pMemberFunction
+				.m_fMemberFunction = _fMemberFunction
 				, .m_Actor{*this}
 				, .m_Params{p_CallParams...}
 			}
@@ -311,15 +311,15 @@ namespace NMib::NConcurrency
 	}
 
 	template <typename t_CActor>
-	template <typename tf_CMemberFunction, typename ...tfp_CCallParams>
-	auto TCWeakActor<t_CActor>::operator () (tf_CMemberFunction &&_pMemberFunction, tfp_CCallParams && ...p_CallParams) &&
-		-> TCBoundActorCall<NPrivate::TCFutureReturn<tf_CMemberFunction>, TCWeakActor<t_CActor> &&, tf_CMemberFunction, CBindActorOptions::fs_Default(), false, tfp_CCallParams...>
-		requires cActorCallableWith<tf_CMemberFunction, t_CActor, tfp_CCallParams...>
+	template <typename tf_FMemberFunction, typename ...tfp_CCallParams>
+	auto TCWeakActor<t_CActor>::operator () (tf_FMemberFunction &&_fMemberFunction, tfp_CCallParams && ...p_CallParams) &&
+		-> TCBoundActorCall<NPrivate::TCFutureReturn<tf_FMemberFunction>, TCWeakActor<t_CActor> &&, tf_FMemberFunction, CBindActorOptions::fs_Default(), false, tfp_CCallParams...>
+		requires cActorCallableWith<tf_FMemberFunction, t_CActor, tfp_CCallParams...>
 	{
 		DMibFastCheck(!f_IsEmpty());
-		return TCBoundActorCall<NPrivate::TCFutureReturn<tf_CMemberFunction>, TCWeakActor<t_CActor> &&, tf_CMemberFunction, CBindActorOptions::fs_Default(), false, tfp_CCallParams...>
+		return TCBoundActorCall<NPrivate::TCFutureReturn<tf_FMemberFunction>, TCWeakActor<t_CActor> &&, tf_FMemberFunction, CBindActorOptions::fs_Default(), false, tfp_CCallParams...>
 			{
-				.m_pMemberFunction = _pMemberFunction
+				.m_fMemberFunction = _fMemberFunction
 				, .m_Actor{fg_Move(*this)}
 				, .m_Params{p_CallParams...}
 			}
@@ -327,32 +327,32 @@ namespace NMib::NConcurrency
 	}
 
 	template <typename t_CActor>
-	template <auto tf_pFunctionPointer, CBindActorOptions tf_BindOptions, typename ...tfp_CCallParams>
+	template <auto tf_fFunctionPointer, CBindActorOptions tf_BindOptions, typename ...tfp_CCallParams>
 	auto TCWeakActor<t_CActor>::f_Bind(tfp_CCallParams && ...p_CallParams) const &
 		-> TCBoundActorCall
 		<
-			NPrivate::TCFutureReturn<decltype(tf_pFunctionPointer)>
+			NPrivate::TCFutureReturn<decltype(tf_fFunctionPointer)>
 			, TCWeakActor<t_CActor> const &
-			, decltype(tf_pFunctionPointer)
-			, CBindActorOptions(tf_BindOptions.m_CallType, NPrivate::gc_VirtualCallDetection<tf_pFunctionPointer, tf_BindOptions.m_VirtualCall>)
+			, decltype(tf_fFunctionPointer)
+			, CBindActorOptions(tf_BindOptions.m_CallType, NPrivate::gc_VirtualCallDetection<tf_fFunctionPointer, tf_BindOptions.m_VirtualCall>)
 			, false
 			, tfp_CCallParams...
 		>
-		requires cActorCallableWithFunctor<tf_pFunctionPointer, t_CActor, tfp_CCallParams...>
+		requires cActorCallableWithFunctor<tf_fFunctionPointer, t_CActor, tfp_CCallParams...>
 	{
 		DMibFastCheck(!f_IsEmpty());
 
 		return TCBoundActorCall
 			<
-				NPrivate::TCFutureReturn<decltype(tf_pFunctionPointer)>
+				NPrivate::TCFutureReturn<decltype(tf_fFunctionPointer)>
 				, TCWeakActor<t_CActor> const &
-				, decltype(tf_pFunctionPointer)
-				, CBindActorOptions(tf_BindOptions.m_CallType, NPrivate::gc_VirtualCallDetection<tf_pFunctionPointer, tf_BindOptions.m_VirtualCall>)
+				, decltype(tf_fFunctionPointer)
+				, CBindActorOptions(tf_BindOptions.m_CallType, NPrivate::gc_VirtualCallDetection<tf_fFunctionPointer, tf_BindOptions.m_VirtualCall>)
 				, false
 				, tfp_CCallParams...
 			>
 			{
-				.m_pMemberFunction = tf_pFunctionPointer
+				.m_fMemberFunction = tf_fFunctionPointer
 				, .m_Actor{*this}
 				, .m_Params{p_CallParams...}
 			}
@@ -360,32 +360,32 @@ namespace NMib::NConcurrency
 	}
 
 	template <typename t_CActor>
-	template <auto tf_pFunctionPointer, CBindActorOptions tf_BindOptions, typename ...tfp_CCallParams>
+	template <auto tf_fFunctionPointer, CBindActorOptions tf_BindOptions, typename ...tfp_CCallParams>
 	auto TCWeakActor<t_CActor>::f_Bind(tfp_CCallParams && ...p_CallParams) &&
 		-> TCBoundActorCall
 		<
-			NPrivate::TCFutureReturn<decltype(tf_pFunctionPointer)>
+			NPrivate::TCFutureReturn<decltype(tf_fFunctionPointer)>
 			, TCWeakActor<t_CActor> &&
-			, decltype(tf_pFunctionPointer)
-			, CBindActorOptions(tf_BindOptions.m_CallType, NPrivate::gc_VirtualCallDetection<tf_pFunctionPointer, tf_BindOptions.m_VirtualCall>)
+			, decltype(tf_fFunctionPointer)
+			, CBindActorOptions(tf_BindOptions.m_CallType, NPrivate::gc_VirtualCallDetection<tf_fFunctionPointer, tf_BindOptions.m_VirtualCall>)
 			, false
 			, tfp_CCallParams...
 		>
-		requires cActorCallableWithFunctor<tf_pFunctionPointer, t_CActor, tfp_CCallParams...>
+		requires cActorCallableWithFunctor<tf_fFunctionPointer, t_CActor, tfp_CCallParams...>
 	{
 		DMibFastCheck(!f_IsEmpty());
 
 		return TCBoundActorCall
 			<
-				NPrivate::TCFutureReturn<decltype(tf_pFunctionPointer)>
+				NPrivate::TCFutureReturn<decltype(tf_fFunctionPointer)>
 				, TCWeakActor<t_CActor> &&
-				, decltype(tf_pFunctionPointer)
-				, CBindActorOptions(tf_BindOptions.m_CallType, NPrivate::gc_VirtualCallDetection<tf_pFunctionPointer, tf_BindOptions.m_VirtualCall>)
+				, decltype(tf_fFunctionPointer)
+				, CBindActorOptions(tf_BindOptions.m_CallType, NPrivate::gc_VirtualCallDetection<tf_fFunctionPointer, tf_BindOptions.m_VirtualCall>)
 				, false
 				, tfp_CCallParams...
 			>
 			{
-				.m_pMemberFunction = tf_pFunctionPointer
+				.m_fMemberFunction = tf_fFunctionPointer
 				, .m_Actor{fg_Move(*this)}
 				, .m_Params{p_CallParams...}
 			}
@@ -393,32 +393,32 @@ namespace NMib::NConcurrency
 	}
 
 	template <typename t_CActor>
-	template <auto tf_pFunctionPointer, CBindActorOptions tf_BindOptions, typename ...tfp_CCallParams>
+	template <auto tf_fFunctionPointer, CBindActorOptions tf_BindOptions, typename ...tfp_CCallParams>
 	auto TCWeakActor<t_CActor>::f_BindByValue(tfp_CCallParams && ...p_CallParams) const &
 		-> TCBoundActorCall
 		<
-			NPrivate::TCFutureReturn<decltype(tf_pFunctionPointer)>
+			NPrivate::TCFutureReturn<decltype(tf_fFunctionPointer)>
 			, TCWeakActor<t_CActor>
-			, decltype(tf_pFunctionPointer)
-			, CBindActorOptions(tf_BindOptions.m_CallType, NPrivate::gc_VirtualCallDetection<tf_pFunctionPointer, tf_BindOptions.m_VirtualCall>)
+			, decltype(tf_fFunctionPointer)
+			, CBindActorOptions(tf_BindOptions.m_CallType, NPrivate::gc_VirtualCallDetection<tf_fFunctionPointer, tf_BindOptions.m_VirtualCall>)
 			, true
 			, NTraits::TCDecay<tfp_CCallParams>...
 		>
-		requires cActorCallableWithFunctor<tf_pFunctionPointer, t_CActor, tfp_CCallParams...>
+		requires cActorCallableWithFunctor<tf_fFunctionPointer, t_CActor, tfp_CCallParams...>
 	{
 		DMibFastCheck(!f_IsEmpty());
 
 		return TCBoundActorCall
 			<
-				NPrivate::TCFutureReturn<decltype(tf_pFunctionPointer)>
+				NPrivate::TCFutureReturn<decltype(tf_fFunctionPointer)>
 				, TCWeakActor<t_CActor>
-				, decltype(tf_pFunctionPointer)
-				, CBindActorOptions(tf_BindOptions.m_CallType, NPrivate::gc_VirtualCallDetection<tf_pFunctionPointer, tf_BindOptions.m_VirtualCall>)
+				, decltype(tf_fFunctionPointer)
+				, CBindActorOptions(tf_BindOptions.m_CallType, NPrivate::gc_VirtualCallDetection<tf_fFunctionPointer, tf_BindOptions.m_VirtualCall>)
 				, true
 				, NTraits::TCDecay<tfp_CCallParams>...
 			>
 			{
-				.m_pMemberFunction = tf_pFunctionPointer
+				.m_fMemberFunction = tf_fFunctionPointer
 				, .m_Actor{*this}
 				, .m_Params{fg_Forward<tfp_CCallParams>(p_CallParams)...}
 			}
@@ -426,32 +426,32 @@ namespace NMib::NConcurrency
 	}
 
 	template <typename t_CActor>
-	template <auto tf_pFunctionPointer, CBindActorOptions tf_BindOptions, typename ...tfp_CCallParams>
+	template <auto tf_fFunctionPointer, CBindActorOptions tf_BindOptions, typename ...tfp_CCallParams>
 	auto TCWeakActor<t_CActor>::f_BindByValue(tfp_CCallParams && ...p_CallParams) &&
 		-> TCBoundActorCall
 		<
-			NPrivate::TCFutureReturn<decltype(tf_pFunctionPointer)>
+			NPrivate::TCFutureReturn<decltype(tf_fFunctionPointer)>
 			, TCWeakActor<t_CActor>
-			, decltype(tf_pFunctionPointer)
-			, CBindActorOptions(tf_BindOptions.m_CallType, NPrivate::gc_VirtualCallDetection<tf_pFunctionPointer, tf_BindOptions.m_VirtualCall>)
+			, decltype(tf_fFunctionPointer)
+			, CBindActorOptions(tf_BindOptions.m_CallType, NPrivate::gc_VirtualCallDetection<tf_fFunctionPointer, tf_BindOptions.m_VirtualCall>)
 			, true
 			, NTraits::TCDecay<tfp_CCallParams>...
 		>
-		requires cActorCallableWithFunctor<tf_pFunctionPointer, t_CActor, tfp_CCallParams...>
+		requires cActorCallableWithFunctor<tf_fFunctionPointer, t_CActor, tfp_CCallParams...>
 	{
 		DMibFastCheck(!f_IsEmpty());
 
 		return TCBoundActorCall
 			<
-				NPrivate::TCFutureReturn<decltype(tf_pFunctionPointer)>
+				NPrivate::TCFutureReturn<decltype(tf_fFunctionPointer)>
 				, TCWeakActor<t_CActor>
-				, decltype(tf_pFunctionPointer)
-				, CBindActorOptions(tf_BindOptions.m_CallType, NPrivate::gc_VirtualCallDetection<tf_pFunctionPointer, tf_BindOptions.m_VirtualCall>)
+				, decltype(tf_fFunctionPointer)
+				, CBindActorOptions(tf_BindOptions.m_CallType, NPrivate::gc_VirtualCallDetection<tf_fFunctionPointer, tf_BindOptions.m_VirtualCall>)
 				, true
 				, NTraits::TCDecay<tfp_CCallParams>...
 			>
 			{
-				.m_pMemberFunction = tf_pFunctionPointer
+				.m_fMemberFunction = tf_fFunctionPointer
 				, .m_Actor{fg_Move(*this)}
 				, .m_Params{fg_Forward<tfp_CCallParams>(p_CallParams)...}
 			}

@@ -1075,8 +1075,8 @@ namespace NMib::NConcurrency
 		{
 			TCFutureVector<void> Destroys;
 
-			for (auto &Subscription : Internal.m_AppInterfaceServerChangeSubscriptions)
-				fg_Move(Subscription).f_Destroy() > Destroys;
+			for (auto &fOnChangeInterfaceServer : Internal.m_AppInterfaceServerChangeSubscriptions)
+				fg_Move(fOnChangeInterfaceServer).f_Destroy() > Destroys;
 			co_await fg_AllDone(Destroys).f_Wrap() > LogError("Failed to destroy app interface server change subscriptions");
 		}
 

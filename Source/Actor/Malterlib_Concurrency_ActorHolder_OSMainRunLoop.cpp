@@ -36,10 +36,10 @@ namespace NMib::NConcurrency
 	{
 	}
 
-	void COSMainRunLoopActorHolder::fp_QueueProcessDestroy(FActorQueueDispatch &&_Functor, CConcurrencyThreadLocal &_ThreadLocal)
+	void COSMainRunLoopActorHolder::fp_QueueProcessDestroy(FActorQueueDispatch &&_fFunctor, CConcurrencyThreadLocal &_ThreadLocal)
 	{
 		TCActorHolderWeakPointer<COSMainRunLoopActorHolder> pThisReference = fg_Explicit(this); // Keep memory alive
-		if (fp_AddToQueue(fg_Move(_Functor), _ThreadLocal))
+		if (fp_AddToQueue(fg_Move(_fFunctor), _ThreadLocal))
 		{
 #if defined(DPlatformFamily_macOS)
 			auto *pThis = this;
@@ -75,9 +75,9 @@ namespace NMib::NConcurrency
 #endif
 	}
 
-	void COSMainRunLoopActorHolder::fp_QueueProcess(FActorQueueDispatch &&_Functor, CConcurrencyThreadLocal &_ThreadLocal)
+	void COSMainRunLoopActorHolder::fp_QueueProcess(FActorQueueDispatch &&_fFunctor, CConcurrencyThreadLocal &_ThreadLocal)
 	{
-		if (fp_AddToQueue(fg_Move(_Functor), _ThreadLocal))
+		if (fp_AddToQueue(fg_Move(_fFunctor), _ThreadLocal))
 		{
 #if defined(DPlatformFamily_macOS)
 			TCActorHolderSharedPointer<COSMainRunLoopActorHolder> pThis = fg_Explicit(this);

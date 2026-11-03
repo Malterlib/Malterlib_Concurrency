@@ -6,19 +6,19 @@
 namespace NMib::NConcurrency
 {
 	template <typename tf_CFunction, uint32 tf_SubscriptionID>
-	void CDistributedActorWriteStream::f_Feed(TCActorFunctorWithID<tf_CFunction, tf_SubscriptionID> &&_ActorFunctor)
+	void CDistributedActorWriteStream::f_Feed(TCActorFunctorWithID<tf_CFunction, tf_SubscriptionID> &&_fActorFunctor)
 	{
 		using CFunction = typename TCActorFunctorWithID<tf_CFunction, tf_SubscriptionID>::CFunction;
 
 		NStorage::TCSharedPointer<NPrivate::CStreamingFunction> pFunction;
-		if (!_ActorFunctor.f_IsEmpty())
-			pFunction = fg_Construct<NPrivate::TCStreamingFunction<CFunction>>(fg_Move(_ActorFunctor.f_GetFunctor()));
+		if (!_fActorFunctor.f_IsEmpty())
+			pFunction = fg_Construct<NPrivate::TCStreamingFunction<CFunction>>(fg_Move(_fActorFunctor.f_GetFunctor()));
 
-		f_FeedActorFunctor(fg_Move(_ActorFunctor.f_GetActor()), fg_Move(pFunction), _ActorFunctor.f_GetID(), fg_Move(_ActorFunctor.f_GetSubscription()));
+		f_FeedActorFunctor(fg_Move(_fActorFunctor.f_GetActor()), fg_Move(pFunction), _fActorFunctor.f_GetID(), fg_Move(_fActorFunctor.f_GetSubscription()));
 	}
 
 	template <typename tf_CFunction, uint32 tf_SubscriptionID>
-	void CDistributedActorReadStream::f_Consume(TCActorFunctorWithID<tf_CFunction, tf_SubscriptionID> &_ActorFunctor)
+	void CDistributedActorReadStream::f_Consume(TCActorFunctorWithID<tf_CFunction, tf_SubscriptionID> &_fActorFunctor)
 	{
 		uint32 SequenceID;
 		*this >> SequenceID;
@@ -40,6 +40,6 @@ namespace NMib::NConcurrency
 		*this >> FunctionID;
 
 		if (!FunctionID.f_IsEmpty())
-			_ActorFunctor = {fg_Move(Actor), NPrivate::TCStreamingFunctionHelper<FFunctionSignature>::fs_Functor(FunctionID), fg_Move(Subscription), SequenceID};
+			_fActorFunctor = {fg_Move(Actor), NPrivate::TCStreamingFunctionHelper<FFunctionSignature>::fs_Functor(FunctionID), fg_Move(Subscription), SequenceID};
 	}
 }

@@ -54,6 +54,7 @@ namespace NMib::NConcurrency
 
 		void f_Feed(CActorSubscription &&_Subscription, uint32 _SubscriptionSequenceID = TCLimitsInt<uint32>::mc_Max);
 		template <uint32 tf_SubscriptionID>
+		// NOLINTNEXTLINE(malterlib-conceptual-prefix): a subscription handle like CActorSubscription, which the check misses because it is derived from it
 		void f_Feed(TCActorSubscriptionWithID<tf_SubscriptionID> &&_Subscription);
 
 		void f_FeedActor(TCActor<> const &_Actor);
@@ -76,28 +77,28 @@ namespace NMib::NConcurrency
 		void f_Feed(TCActor<tf_CActor> &&_Actor);
 
 		template <typename ...tfp_CFunctionOptions>
-		void f_Feed(NFunction::TCFunction<tfp_CFunctionOptions...> const &_Function);
+		void f_Feed(NFunction::TCFunction<tfp_CFunctionOptions...> const &_fFunction);
 
 		template <typename tf_CSignature>
-		void f_Feed(NFunction::TCFunctionMutable<tf_CSignature> const &_Function);
+		void f_Feed(NFunction::TCFunctionMutable<tf_CSignature> const &_fFunction);
 
 		template <typename tf_CSignature>
-		void f_Feed(NFunction::TCFunctionMovable<tf_CSignature> &&_Function);
+		void f_Feed(NFunction::TCFunctionMovable<tf_CSignature> &&_fFunction);
 
 		template <typename tf_CSignature>
-		void f_Feed(NFunction::TCFunctionMutable<tf_CSignature> &&_Function);
+		void f_Feed(NFunction::TCFunctionMutable<tf_CSignature> &&_fFunction);
 
 		template <typename ...tfp_CFunctionOptions>
-		void f_Feed(NFunction::TCFunction<tfp_CFunctionOptions...> &&_Function);
+		void f_Feed(NFunction::TCFunction<tfp_CFunctionOptions...> &&_fFunction);
 
 		template <typename tf_CFunction, uint32 tf_SubscriptionID>
-		void f_Feed(TCActorFunctorWithID<tf_CFunction, tf_SubscriptionID> &&_ActorFunctor);
+		void f_Feed(TCActorFunctorWithID<tf_CFunction, tf_SubscriptionID> &&_fActorFunctor);
 
 		// A remote call must never be dropped, so a coalesced functor cannot be published
 		template <typename tf_CFunction>
-		void f_Feed(TCActorFunctor<tf_CFunction, true> &&_ActorFunctor) = delete;
+		void f_Feed(TCActorFunctor<tf_CFunction, true> &&_fActorFunctor) = delete;
 		template <typename tf_CFunction>
-		void f_Feed(TCActorFunctorWeak<tf_CFunction, true> &&_ActorFunctor) = delete;
+		void f_Feed(TCActorFunctorWeak<tf_CFunction, true> &&_fActorFunctor) = delete;
 
 		template <typename tf_CFunction, uint32 tf_SubscriptionID>
 		void f_Feed(TCDistributedActorInterfaceWithID<tf_CFunction, tf_SubscriptionID> &&_ActorInterface);
@@ -124,6 +125,7 @@ namespace NMib::NConcurrency
 
 		void f_Consume(CActorSubscription &_Subscription, uint32 _SubscriptionSequenceID = TCLimitsInt<uint32>::mc_Max);
 		template <uint32 tf_SubscriptionID>
+		// NOLINTNEXTLINE(malterlib-conceptual-prefix): a subscription handle like CActorSubscription, which the check misses because it is derived from it
 		void f_Consume(TCActorSubscriptionWithID<tf_SubscriptionID> &_Subscription);
 
 		void f_ConsumeActor(TCActor<> &_Actor, uint32 _SubscriptionSequenceID);
@@ -143,21 +145,21 @@ namespace NMib::NConcurrency
 		void f_Consume(TCActor<tf_CActor> &_Actor);
 
 		template <typename ...tfp_CFunctionOptions>
-		void f_Consume(NFunction::TCFunction<tfp_CFunctionOptions...> &_Function);
+		void f_Consume(NFunction::TCFunction<tfp_CFunctionOptions...> &_fFunction);
 
 		template <typename tf_CSignature>
-		void f_Consume(NFunction::TCFunctionMovable<tf_CSignature> &_Function);
+		void f_Consume(NFunction::TCFunctionMovable<tf_CSignature> &_fFunction);
 
 		template <typename tf_CSignature>
-		void f_Consume(NFunction::TCFunctionMutable<tf_CSignature> &_Function);
+		void f_Consume(NFunction::TCFunctionMutable<tf_CSignature> &_fFunction);
 
 		template <typename tf_CFunction, uint32 tf_SubscriptionID>
-		void f_Consume(TCActorFunctorWithID<tf_CFunction, tf_SubscriptionID> &_ActorFunctor);
+		void f_Consume(TCActorFunctorWithID<tf_CFunction, tf_SubscriptionID> &_fActorFunctor);
 
 		template <typename tf_CFunction>
-		void f_Consume(TCActorFunctor<tf_CFunction, true> &_ActorFunctor) = delete;
+		void f_Consume(TCActorFunctor<tf_CFunction, true> &_fActorFunctor) = delete;
 		template <typename tf_CFunction>
-		void f_Consume(TCActorFunctorWeak<tf_CFunction, true> &_ActorFunctor) = delete;
+		void f_Consume(TCActorFunctorWeak<tf_CFunction, true> &_fActorFunctor) = delete;
 
 		template <typename tf_CFunction, uint32 tf_SubscriptionID>
 		void f_Consume(TCDistributedActorInterfaceWithID<tf_CFunction, tf_SubscriptionID> &_ActorInterface);

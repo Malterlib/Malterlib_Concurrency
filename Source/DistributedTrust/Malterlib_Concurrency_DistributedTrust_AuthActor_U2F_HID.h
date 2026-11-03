@@ -29,7 +29,7 @@ namespace NMib::NConcurrency
 	{
 		using CActorHolder = CDelegatedActorHolder;
 
-		CHumanInterfaceDeviceActor(hid_device *_Device);
+		CHumanInterfaceDeviceActor(hid_device *_pDevice);
 		~CHumanInterfaceDeviceActor();
 
 		TCFuture<aint> f_Write(uint8 _ReportID, NContainer::CSecureByteVector _Buffer);

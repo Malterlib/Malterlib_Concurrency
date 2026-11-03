@@ -155,11 +155,11 @@ namespace NMib::NConcurrency
 		;
 	}
 
-	NFunction::TCFunctionMovable<void (FActorQueueDispatchNoAlloc &&_Dispatch)> CDefaultRunLoop::f_Dispatcher()
+	NFunction::TCFunctionMovable<void (FActorQueueDispatchNoAlloc &&_fDispatch)> CDefaultRunLoop::f_Dispatcher()
 	{
-		return [pThis = NStorage::TCSharedPointer<CDefaultRunLoop>(fg_Explicit(this))](FActorQueueDispatchNoAlloc &&_Dispatch)
+		return [pThis = NStorage::TCSharedPointer<CDefaultRunLoop>(fg_Explicit(this))](FActorQueueDispatchNoAlloc &&_fDispatch)
 			{
-				pThis->m_RunQueue.f_AddToQueue(fg_Move(_Dispatch));
+				pThis->m_RunQueue.f_AddToQueue(fg_Move(_fDispatch));
 				pThis->m_Event.f_Signal();
 			}
 		;

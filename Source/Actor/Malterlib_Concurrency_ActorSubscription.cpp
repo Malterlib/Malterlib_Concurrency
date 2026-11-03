@@ -52,15 +52,15 @@ namespace NMib::NConcurrency
 		if (!mp_DispatchActor)
 			return g_Void;
 
-		auto pDispatchActor = fg_Move(mp_DispatchActor);
-		auto pLockedActor = pDispatchActor.f_Lock();
-		if (!pLockedActor)
+		auto DispatchActor = fg_Move(mp_DispatchActor);
+		auto LockedActor = DispatchActor.f_Lock();
+		if (!LockedActor)
 		{
 			mp_fCleanup.f_Clear();
 			return DMibErrorInstance("Actor in subscription has been deleted");
 		}
 
-		return fg_Dispatch(pLockedActor, fg_Move(mp_fCleanup));
+		return fg_Dispatch(LockedActor, fg_Move(mp_fCleanup));
 	}
 
 	CActorSubscription fg_ActorSubscription(TCActor<> const &_DispatchActor, NFunction::TCFunctionMovable<void ()> &&_fCleanup)

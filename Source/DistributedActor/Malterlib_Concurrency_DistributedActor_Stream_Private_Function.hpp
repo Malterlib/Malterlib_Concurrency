@@ -8,7 +8,7 @@
 namespace NMib::NConcurrency
 {
 	template <typename ...tfp_CFunctionOptions>
-	void CDistributedActorWriteStream::f_Feed(NFunction::TCFunction<tfp_CFunctionOptions...> const &_Function)
+	void CDistributedActorWriteStream::f_Feed(NFunction::TCFunction<tfp_CFunctionOptions...> const &_fFunction)
 	{
 		static_assert(NFunction::TCFunctionInfo<NFunction::TCFunction<tfp_CFunctionOptions...>>::mc_nCalls == 1, "Only supports functions with one signature");
 		static_assert
@@ -22,11 +22,11 @@ namespace NMib::NConcurrency
 			)
 		;
 
-		f_FeedFunction(fg_Construct<NPrivate::TCStreamingFunction<NFunction::TCFunction<tfp_CFunctionOptions...>>>(_Function));
+		f_FeedFunction(fg_Construct<NPrivate::TCStreamingFunction<NFunction::TCFunction<tfp_CFunctionOptions...>>>(_fFunction));
 	}
 
 	template <typename tf_CSignature>
-	void CDistributedActorWriteStream::f_Feed(NFunction::TCFunctionMutable<tf_CSignature> const &_Function)
+	void CDistributedActorWriteStream::f_Feed(NFunction::TCFunctionMutable<tf_CSignature> const &_fFunction)
 	{
 		static_assert
 			(
@@ -39,11 +39,11 @@ namespace NMib::NConcurrency
 			)
 		;
 
-		f_FeedFunction(fg_Construct<NPrivate::TCStreamingFunction<NFunction::TCFunctionMutable<tf_CSignature>>>(_Function));
+		f_FeedFunction(fg_Construct<NPrivate::TCStreamingFunction<NFunction::TCFunctionMutable<tf_CSignature>>>(_fFunction));
 	}
 
 	template <typename ...tfp_CFunctionOptions>
-	void CDistributedActorWriteStream::f_Feed(NFunction::TCFunction<tfp_CFunctionOptions...> &&_Function)
+	void CDistributedActorWriteStream::f_Feed(NFunction::TCFunction<tfp_CFunctionOptions...> &&_fFunction)
 	{
 		static_assert(NFunction::TCFunctionInfo<NFunction::TCFunction<tfp_CFunctionOptions...>>::mc_nCalls == 1, "Only supports functions with one signature");
 		static_assert
@@ -57,11 +57,11 @@ namespace NMib::NConcurrency
 			)
 		;
 
-		f_FeedFunction(fg_Construct<NPrivate::TCStreamingFunction<NFunction::TCFunction<tfp_CFunctionOptions...>>>(fg_Move(_Function)));
+		f_FeedFunction(fg_Construct<NPrivate::TCStreamingFunction<NFunction::TCFunction<tfp_CFunctionOptions...>>>(fg_Move(_fFunction)));
 	}
 
 	template <typename tf_CSignature>
-	void CDistributedActorWriteStream::f_Feed(NFunction::TCFunctionMovable<tf_CSignature> &&_Function)
+	void CDistributedActorWriteStream::f_Feed(NFunction::TCFunctionMovable<tf_CSignature> &&_fFunction)
 	{
 		static_assert
 			(
@@ -74,11 +74,11 @@ namespace NMib::NConcurrency
 			)
 		;
 
-		f_FeedFunction(fg_Construct<NPrivate::TCStreamingFunction<NFunction::TCFunctionMovable<tf_CSignature>>>(fg_Move(_Function)));
+		f_FeedFunction(fg_Construct<NPrivate::TCStreamingFunction<NFunction::TCFunctionMovable<tf_CSignature>>>(fg_Move(_fFunction)));
 	}
 
 	template <typename tf_CSignature>
-	void CDistributedActorWriteStream::f_Feed(NFunction::TCFunctionMutable<tf_CSignature> &&_Function)
+	void CDistributedActorWriteStream::f_Feed(NFunction::TCFunctionMutable<tf_CSignature> &&_fFunction)
 	{
 		static_assert
 			(
@@ -91,7 +91,7 @@ namespace NMib::NConcurrency
 			)
 		;
 
-		f_FeedFunction(fg_Construct<NPrivate::TCStreamingFunction<NFunction::TCFunctionMutable<tf_CSignature>>>(fg_Move(_Function)));
+		f_FeedFunction(fg_Construct<NPrivate::TCStreamingFunction<NFunction::TCFunctionMutable<tf_CSignature>>>(fg_Move(_fFunction)));
 	}
 
 	namespace NPrivate
@@ -418,7 +418,7 @@ namespace NMib::NConcurrency
 	}
 
 	template <typename ...tfp_CFunctionOptions>
-	void CDistributedActorReadStream::f_Consume(NFunction::TCFunction<tfp_CFunctionOptions...> &_Function)
+	void CDistributedActorReadStream::f_Consume(NFunction::TCFunction<tfp_CFunctionOptions...> &_fFunction)
 	{
 		static_assert(NFunction::TCFunctionInfo<NFunction::TCFunction<tfp_CFunctionOptions...>>::mc_nCalls == 1, "Only supports functions with one signature");
 		static_assert
@@ -435,11 +435,11 @@ namespace NMib::NConcurrency
 
 		NStr::CStr FunctionID;
 		*this >> FunctionID;
-		_Function = NPrivate::TCStreamingFunctionHelper<FFunctionSignature>::fs_Functor(FunctionID);
+		_fFunction = NPrivate::TCStreamingFunctionHelper<FFunctionSignature>::fs_Functor(FunctionID);
 	}
 
 	template <typename tf_CSignature>
-	void CDistributedActorReadStream::f_Consume(NFunction::TCFunctionMovable<tf_CSignature> &_Function)
+	void CDistributedActorReadStream::f_Consume(NFunction::TCFunctionMovable<tf_CSignature> &_fFunction)
 	{
 		static_assert
 			(
@@ -455,11 +455,11 @@ namespace NMib::NConcurrency
 
 		NStr::CStr FunctionID;
 		*this >> FunctionID;
-		_Function = NPrivate::TCStreamingFunctionHelper<FFunctionSignature>::fs_Functor(FunctionID);
+		_fFunction = NPrivate::TCStreamingFunctionHelper<FFunctionSignature>::fs_Functor(FunctionID);
 	}
 
 	template <typename tf_CSignature>
-	void CDistributedActorReadStream::f_Consume(NFunction::TCFunctionMutable<tf_CSignature> &_Function)
+	void CDistributedActorReadStream::f_Consume(NFunction::TCFunctionMutable<tf_CSignature> &_fFunction)
 	{
 		static_assert
 			(
@@ -475,7 +475,7 @@ namespace NMib::NConcurrency
 
 		NStr::CStr FunctionID;
 		*this >> FunctionID;
-		_Function = NPrivate::TCStreamingFunctionHelper<FFunctionSignature>::fs_Functor(FunctionID);
+		_fFunction = NPrivate::TCStreamingFunctionHelper<FFunctionSignature>::fs_Functor(FunctionID);
 	}
 }
 

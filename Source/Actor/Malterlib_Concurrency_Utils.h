@@ -15,8 +15,8 @@ namespace NMib::NConcurrency
 
 		struct CCanDestroyResultFunctor
 		{
-			CCanDestroyResultFunctor(CCanDestroyResultFunctor &&_Other);
-			CCanDestroyResultFunctor(CCanDestroyResultFunctor const &_Other);
+			CCanDestroyResultFunctor(CCanDestroyResultFunctor &&_fOther);
+			CCanDestroyResultFunctor(CCanDestroyResultFunctor const &_fOther);
 			CCanDestroyResultFunctor(NStorage::TCSharedPointer<CCanDestroyTracker> &&_pThis);
 
 			void operator () (TCAsyncResult<void> &&_Result);

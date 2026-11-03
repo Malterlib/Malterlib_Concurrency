@@ -374,7 +374,7 @@ namespace NMib::NConcurrency
 			}
 
 			uint8 m_Priority;
-			NStorage::TCUniquePointer<CPriorityScope> m_Scope;
+			NStorage::TCUniquePointer<CPriorityScope> m_pScope;
 #if DMibEnableSafeCheck > 0
 			umint m_StoredThreadID;
 #endif
@@ -386,17 +386,17 @@ namespace NMib::NConcurrency
 			[pState]() noexcept
 			{
 				auto &State = *pState;
-				if (State.m_Scope)
+				if (State.m_pScope)
 				{
 					DMibFastCheck(State.m_StoredThreadID == NSys::fg_Thread_GetCurrentUID());
-					State.m_Scope.f_Clear();
+					State.m_pScope.f_Clear();
 					return;
 				}
-				DMibFastCheck(!State.m_Scope);
+				DMibFastCheck(!State.m_pScope);
 #if DMibEnableSafeCheck > 0
 				State.m_StoredThreadID = NSys::fg_Thread_GetCurrentUID();
 #endif
-				State.m_Scope = fg_Construct(State.m_Priority, false);
+				State.m_pScope = fg_Construct(State.m_Priority, false);
 			}
 		;
 	}

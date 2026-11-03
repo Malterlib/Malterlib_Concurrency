@@ -35,7 +35,7 @@ namespace NMib::NConcurrency
 		CDistributedActorPublication m_CommandLinePublication;
 		NStorage::TCSharedPointer<CDistributedAppCommandLineSpecification> m_pCommandLineSpec;
 		NStorage::TCUniquePointer<TCActorCallOnce<void>> m_pInitOnce;
-		COnScopeExitShared m_pStdInCleanup;
+		COnScopeExitShared m_StdInCleanup;
 
 		TCTrustedActorSubscription<CDistributedAppInterfaceServer> m_AppInteraceServerSubscription;
 		TCDistributedActorInstance<CDistributedAppInterfaceClientImplementation> m_AppInterfaceClientImplementation;

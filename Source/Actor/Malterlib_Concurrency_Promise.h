@@ -621,7 +621,7 @@ namespace NMib::NConcurrency::NPrivate
 		static constexpr ECoroutineFlag mc_InitialFlags = t_Flags;
 	};
 
-	void fg_ReportUnobservedException(NException::CExceptionPointer const &_Exception, NStr::CStr const &_CallStack = {});
+	void fg_ReportUnobservedException(NException::CExceptionPointer const &_pException, NStr::CStr const &_CallStack = {});
 
 	enum EConsumeFutureOnResultSetFlag : uint32
 	{

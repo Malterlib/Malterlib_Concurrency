@@ -41,7 +41,7 @@ namespace NMib::NConcurrency
 		;
 
 		template <typename tf_FOnResult>
-		void operator > (TCDirectResultFunctor<tf_FOnResult> &&_fOnResult) &&;
+		void operator > (TCDirectResultFunctor<tf_FOnResult> &&_OnResult) &&;
 
 		template <typename tf_CReturnValue>
 		inline_always void operator > (TCPromise<tf_CReturnValue> &&_Promise) &&;
@@ -79,7 +79,7 @@ namespace NMib::NConcurrency
 
 		operator TCFuture<t_CReturn> () &&;
 
-		t_FFunctionPointer m_pMemberFunction;
+		t_FFunctionPointer m_fMemberFunction;
 		t_CActor m_Actor;
 		CParamsType m_Params;
 

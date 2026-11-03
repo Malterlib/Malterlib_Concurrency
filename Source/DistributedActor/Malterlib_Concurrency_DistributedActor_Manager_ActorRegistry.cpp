@@ -939,12 +939,12 @@ namespace NMib::NConcurrency
 				if (*pDestroyed)
 					co_return {};
 
-				auto ToDestroy = fg_Move(pOnHostInfoChange->m_fOnHostInfoChanged);
+				auto fToDestroy = fg_Move(pOnHostInfoChange->m_fOnHostInfoChanged);
 
 				auto &Internal = *mp_pInternal;
 				Internal.m_OnHostInfoChanged.f_Remove(*pOnHostInfoChange);
 
-				co_await fg_Move(ToDestroy).f_Destroy();
+				co_await fg_Move(fToDestroy).f_Destroy();
 
 				co_return {};
 			}

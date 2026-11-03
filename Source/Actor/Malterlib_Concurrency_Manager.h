@@ -134,10 +134,10 @@ namespace NMib::NConcurrency
 		TCActor<CDynamicConcurrentActorLowPrio> const &f_GetDynamicConcurrentActorLowPrio();
 		TCActor<CDynamicConcurrentActorHighCPU> const &f_GetDynamicConcurrentActorHighCPU();
 
-		void f_DispatchOnCurrentThreadOrConcurrent(EPriority _Priority, FActorQueueDispatchNoAlloc &&_ToQueue);
-		void f_DispatchOnCurrentThreadOrConcurrentFirst(EPriority _Priority, FActorQueueDispatchNoAlloc &&_ToQueue);
+		void f_DispatchOnCurrentThreadOrConcurrent(EPriority _Priority, FActorQueueDispatchNoAlloc &&_fToQueue);
+		void f_DispatchOnCurrentThreadOrConcurrentFirst(EPriority _Priority, FActorQueueDispatchNoAlloc &&_fToQueue);
 
-		void f_DispatchToQueue(EPriority _Priority, umint _iQueue, FActorQueueDispatchNoAlloc &&_ToQueue);
+		void f_DispatchToQueue(EPriority _Priority, umint _iQueue, FActorQueueDispatchNoAlloc &&_fToQueue);
 
 		void f_EnableQueueIoLoop(EPriority _Priority, umint _iQueue);
 		NSys::ICIoLoop *f_GetQueueIoLoop(EPriority _Priority, umint _iQueue) const;
@@ -278,8 +278,8 @@ namespace NMib::NConcurrency
 		};
 
 		void fp_RunThread(CQueue &_Queue, NThread::CThreadObjectNonTracked *_pThread);
-		void fp_QueueJob(EPriority _Priority, umint _iFixedCore, umint _iLastCore, FActorQueueDispatchNoAlloc &&_ToQueue, CConcurrencyThreadLocal &_ThreadLocal);
-		bool fp_AddToQueue(CQueue &_Queue, FActorQueueDispatchNoAlloc &&_Functor, CConcurrencyThreadLocal &_ThreadLocal);
+		void fp_QueueJob(EPriority _Priority, umint _iFixedCore, umint _iLastCore, FActorQueueDispatchNoAlloc &&_fToQueue, CConcurrencyThreadLocal &_ThreadLocal);
+		bool fp_AddToQueue(CQueue &_Queue, FActorQueueDispatchNoAlloc &&_fFunctor, CConcurrencyThreadLocal &_ThreadLocal);
 		bool fp_AddToQueue(CQueue &_Queue, NStorage::TCUniquePointer<CConcurrentRunQueueEntry_FunctorNonVirtualNoAlloc> &&_pQueueEntry, CConcurrencyThreadLocal &_ThreadLocal);
 
 #if DMibConfig_Concurrency_LocalFirstScheduler
@@ -294,8 +294,8 @@ namespace NMib::NConcurrency
 		bool fp_CheckTimers(CQueue &_Queue);
 
 		inline_never umint fp_InitConcurrentActors();
-		void fp_DispatchOnCurrentThreadOrConcurrent(EPriority _Priority, FActorQueueDispatchNoAlloc &&_ToQueue, CConcurrencyThreadLocal &_ThreadLocal);
-		void fp_DispatchOnCurrentThreadOrConcurrentFirst(EPriority _Priority, FActorQueueDispatchNoAlloc &&_ToQueue, CConcurrencyThreadLocal &_ThreadLocal);
+		void fp_DispatchOnCurrentThreadOrConcurrent(EPriority _Priority, FActorQueueDispatchNoAlloc &&_fToQueue, CConcurrencyThreadLocal &_ThreadLocal);
+		void fp_DispatchOnCurrentThreadOrConcurrentFirst(EPriority _Priority, FActorQueueDispatchNoAlloc &&_fToQueue, CConcurrencyThreadLocal &_ThreadLocal);
 
 		static TCFuture<void> fsp_DestroySingletons(NContainer::TCVector<NStorage::TCUniquePointer<CSingleton>> _Singletons, NContainer::TCVector<umint> _CreationOrder);
 
@@ -317,8 +317,8 @@ namespace NMib::NConcurrency
 			NAtomic::TCAtomic<smint> m_nActors = 0;
 		};
 
-		NContainer::TCVector<CNumActorsPerQueue> mp_nActorsPerQueue[EPriority_Max];
-		CNumActorsPerQueue *mp_nActorsPerQueueArray[EPriority_Max];
+		NContainer::TCVector<CNumActorsPerQueue> mp_NumActorsPerQueue[EPriority_Max];
+		CNumActorsPerQueue *mp_NumActorsPerQueueArray[EPriority_Max];
 		NContainer::TCVector<CNumActorsOther> mp_nActorsOther;
 		umint mp_ActorsOtherMask;
 
@@ -329,9 +329,9 @@ namespace NMib::NConcurrency
 
 		umint mp_nThreads = 0;
 		NContainer::TCVector<CQueue> mp_Queues[EPriority_Max];
-		umint mp_nIoLoopQueues[EPriority_Max] = {}; // Queues [0, count) own loops; fixed at startup.
-		NAtomic::TCAtomic<umint> mp_iNextIoLoopBinding[EPriority_Max] = {};
-		NAtomic::TCAtomic<bool> mp_bIoLoopsEnabled[EPriority_Max] = {};
+		umint mp_NumIoLoopQueues[EPriority_Max] = {}; // Queues [0, count) own loops; fixed at startup.
+		NAtomic::TCAtomic<umint> mp_NextIoLoopBinding[EPriority_Max] = {};
+		NAtomic::TCAtomic<bool> mp_IoLoopsEnabled[EPriority_Max] = {};
 
 #if DMibConfig_Concurrency_LocalFirstScheduler
 		/// \brief One chunk of the advisory idle-queue bitmask; a set bit marks a queue whose thread
@@ -355,7 +355,7 @@ namespace NMib::NConcurrency
 		bool mp_bShutdownLogging = false;
 
 		align_cacheline NAtomic::TCAtomic<umint> mp_nConcurrentActors;
-		NThread::CLowLevelLock mp_pConcurrentActorLock;
+		NThread::CLowLevelLock mp_ConcurrentActorLock;
 
 		NContainer::TCVector<TCActor<CConcurrentActorImpl>> mp_ConcurrentActors[EPriority_Max];
 		NContainer::TCVector<TCActor<CConcurrentActor>> mp_ConcurrentActorsRef[EPriority_Max];
@@ -366,7 +366,7 @@ namespace NMib::NConcurrency
 		umint mp_nBlockingActors = 0;
 
 		NTime::CStopwatch mp_TimerStopwatch;
-		NAtomic::TCAtomic<umint> mp_iNextTimerQueue[EPriority_Max] = {};
+		NAtomic::TCAtomic<umint> mp_NextTimerQueue[EPriority_Max] = {};
 
 		NThread::CLowLevelLock mp_ThreadCreateLock;
 
@@ -413,7 +413,7 @@ namespace NMib::NConcurrency
 		CActorHolder *m_pCurrentlyDestructingActorHolder = nullptr;
 		CConcurrencyManager::CQueue *m_pThisQueue = nullptr;
 		CSystemThreadLocal &m_SystemThreadLocal;
-		umint m_iConcurrentActor[EPriority_Max];
+		umint m_ConcurrentActorIndex[EPriority_Max];
 		umint m_JobQueueIndex[EPriority_Max];
 		umint m_nActorsIndex = NMisc::fg_GetRandomUnsigned();
 		umint m_nProcessedEntries = 0;

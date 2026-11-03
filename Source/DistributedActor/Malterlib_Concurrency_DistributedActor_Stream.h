@@ -34,10 +34,12 @@ namespace NMib::NConcurrency
 	template <uint32 t_SubscriptionID = 0>
 	struct TCActorSubscriptionWithID : public CActorSubscription
 	{
+		// NOLINTBEGIN(malterlib-conceptual-prefix): a subscription handle like CActorSubscription, which the check misses because it is derived from it
 		TCActorSubscriptionWithID(TCActorSubscriptionWithID &&_Other) = default;
 		TCActorSubscriptionWithID &operator = (TCActorSubscriptionWithID &&_Other) = default;
 		TCActorSubscriptionWithID(TCActorSubscriptionWithID const &_Other) = delete;
 		TCActorSubscriptionWithID &operator = (TCActorSubscriptionWithID const &_Other) = delete;
+		// NOLINTEND(malterlib-conceptual-prefix)
 
 		TCActorSubscriptionWithID(CNullPtr _pNull);
 		TCActorSubscriptionWithID(uint32 _SubscriptionID = t_SubscriptionID);
@@ -60,13 +62,13 @@ namespace NMib::NConcurrency
 	struct TCActorFunctorWithID : public TCActorFunctor<t_CFunction>
 	{
 		TCActorFunctorWithID() = default;
-		TCActorFunctorWithID(TCActorFunctorWithID &&_Other) = default;
-		TCActorFunctorWithID &operator = (TCActorFunctorWithID &&_Other) = default;
-		TCActorFunctorWithID(TCActorFunctorWithID const &_Other) = delete;
-		TCActorFunctorWithID &operator = (TCActorFunctorWithID const &_Other) = delete;
+		TCActorFunctorWithID(TCActorFunctorWithID &&_fOther) = default;
+		TCActorFunctorWithID &operator = (TCActorFunctorWithID &&_fOther) = default;
+		TCActorFunctorWithID(TCActorFunctorWithID const &_fOther) = delete;
+		TCActorFunctorWithID &operator = (TCActorFunctorWithID const &_fOther) = delete;
 
 		TCActorFunctorWithID(CNullPtr _pNull);
-		TCActorFunctorWithID(TCActorFunctor<t_CFunction> &&_ActorFunctor);
+		TCActorFunctorWithID(TCActorFunctor<t_CFunction> &&_fActorFunctor);
 		TCActorFunctorWithID
 			(
 				TCActor<CActor> &&_Actor
@@ -139,16 +141,16 @@ namespace NMib::NConcurrency
 
 	template
 	<
-		auto tf_pMemberFunction
+		auto tf_fMemberFunction
 		DMibIfNotSupportMemberNameFromMemberPointer(, uint32 tf_NameHash)
 		, EVirtualCall tf_VirtualCall
 		, typename tf_CActor
 		, typename ...tfp_CParams
 	>
-	auto fg_CallActor(TCDistributedActorInterface<tf_CActor> &&_Actor, tfp_CParams && ...p_Params) -> NPrivate::TCFutureReturn<decltype(tf_pMemberFunction)>
-		requires cActorCallableWithFunctor<tf_pMemberFunction, tf_CActor, tfp_CParams...>
+	auto fg_CallActor(TCDistributedActorInterface<tf_CActor> &&_Actor, tfp_CParams && ...p_Params) -> NPrivate::TCFutureReturn<decltype(tf_fMemberFunction)>
+		requires cActorCallableWithFunctor<tf_fMemberFunction, tf_CActor, tfp_CParams...>
 	{
-		return fg_CallActor<tf_pMemberFunction DMibIfNotSupportMemberNameFromMemberPointer(, tf_NameHash), tf_VirtualCall>
+		return fg_CallActor<tf_fMemberFunction DMibIfNotSupportMemberNameFromMemberPointer(, tf_NameHash), tf_VirtualCall>
 			(
 				fg_Move(_Actor.f_GetActor())
 				, fg_Forward<tfp_CParams>(p_Params)...
@@ -158,17 +160,17 @@ namespace NMib::NConcurrency
 
 	template
 	<
-		auto tf_pMemberFunction
+		auto tf_fMemberFunction
 		DMibIfNotSupportMemberNameFromMemberPointer(, uint32 tf_NameHash)
 		, EVirtualCall tf_VirtualCall
 		, typename tf_CInterface
 		, uint32 tf_SubscriptionID
 		, typename ...tfp_CParams
 	>
-	auto fg_CallActor(TCDistributedActorInterfaceWithID<tf_CInterface, tf_SubscriptionID> &&_Actor, tfp_CParams && ...p_Params) -> NPrivate::TCFutureReturn<decltype(tf_pMemberFunction)>
-		requires cActorCallableWithFunctor<tf_pMemberFunction, tf_CInterface, tfp_CParams...>
+	auto fg_CallActor(TCDistributedActorInterfaceWithID<tf_CInterface, tf_SubscriptionID> &&_Actor, tfp_CParams && ...p_Params) -> NPrivate::TCFutureReturn<decltype(tf_fMemberFunction)>
+		requires cActorCallableWithFunctor<tf_fMemberFunction, tf_CInterface, tfp_CParams...>
 	{
-		return fg_CallActor<tf_pMemberFunction DMibIfNotSupportMemberNameFromMemberPointer(, tf_NameHash), tf_VirtualCall>
+		return fg_CallActor<tf_fMemberFunction DMibIfNotSupportMemberNameFromMemberPointer(, tf_NameHash), tf_VirtualCall>
 			(
 				fg_Move(_Actor.f_GetActor())
 				, fg_Forward<tfp_CParams>(p_Params)...

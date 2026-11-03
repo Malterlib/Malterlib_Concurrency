@@ -37,7 +37,7 @@ namespace NMib::NConcurrency
 #if defined(DPlatformFamily_macOS)
 	CFRunLoopRef const &COSThreadRunLoopActorHolder::f_GetRunLoop() const
 	{
-		return mp_RunLoopRef;
+		return mp_pRunLoopRef;
 	}
 #endif
 
@@ -67,24 +67,24 @@ namespace NMib::NConcurrency
 								, [](void *_pThis)
 								{
 									auto &This = *((COSThreadRunLoopActorHolder *)_pThis);
-									CFRunLoopStop(This.mp_RunLoopRef);
+									CFRunLoopStop(This.mp_pRunLoopRef);
 								}
 							}
 						;
 
 						CFRunLoopSourceRef pRunLoopSource = CFRunLoopSourceCreate(nullptr, 0, &RunLoopSourceContext);
 
-						mp_RunLoopRef = CFRunLoopGetCurrent();
-						CFRunLoopAddSource(mp_RunLoopRef, pRunLoopSource, kCFRunLoopDefaultMode);
-						mp_RunLoopSourceRef = pRunLoopSource;
+						mp_pRunLoopRef = CFRunLoopGetCurrent();
+						CFRunLoopAddSource(mp_pRunLoopRef, pRunLoopSource, kCFRunLoopDefaultMode);
+						mp_pRunLoopSourceRef = pRunLoopSource;
 
 						auto Cleanup = g_OnScopeExit / [&]
 							{
 								DMibLock(mp_RunLoopDestroyLock);
-								CFRunLoopRemoveSource(mp_RunLoopRef, pRunLoopSource, kCFRunLoopDefaultMode);
+								CFRunLoopRemoveSource(mp_pRunLoopRef, pRunLoopSource, kCFRunLoopDefaultMode);
 								CFRelease(pRunLoopSource);
-								mp_RunLoopRef = nullptr;
-								mp_RunLoopSourceRef = nullptr;
+								mp_pRunLoopRef = nullptr;
+								mp_pRunLoopSourceRef = nullptr;
 							}
 						;
 
@@ -108,18 +108,18 @@ namespace NMib::NConcurrency
 		mp_ThreadStartedEvent.f_Wait();
 	}
 
-	void COSThreadRunLoopActorHolder::fp_QueueProcessDestroy(FActorQueueDispatch &&_Functor, CConcurrencyThreadLocal &_ThreadLocal)
+	void COSThreadRunLoopActorHolder::fp_QueueProcessDestroy(FActorQueueDispatch &&_fFunctor, CConcurrencyThreadLocal &_ThreadLocal)
 	{
 		TCActorHolderWeakPointer<COSThreadRunLoopActorHolder> pThisReference = fg_Explicit(this); // Keep memory alive
 		DMibLock(mp_ThreadLock);
-		if (fp_AddToQueue(fg_Move(_Functor), _ThreadLocal))
+		if (fp_AddToQueue(fg_Move(_fFunctor), _ThreadLocal))
 		{
 #if defined(DPlatformFamily_macOS)
-			DMibFastCheck(mp_RunLoopRef);
+			DMibFastCheck(mp_pRunLoopRef);
 			auto *pThis = this;
 			CFRunLoopPerformBlock
 				(
-					mp_RunLoopRef
+					mp_pRunLoopRef
 					, kCFRunLoopDefaultMode
 					, ^()
 					{
@@ -130,7 +130,7 @@ namespace NMib::NConcurrency
 					}
 				)
 			;
-			CFRunLoopWakeUp(mp_RunLoopRef);
+			CFRunLoopWakeUp(mp_pRunLoopRef);
 #endif
 		}
 	}
@@ -138,11 +138,11 @@ namespace NMib::NConcurrency
 	void COSThreadRunLoopActorHolder::fp_QueueRunProcess(CConcurrencyThreadLocal &_ThreadLocal)
 	{
 #if defined(DPlatformFamily_macOS)
-		DMibFastCheck(mp_RunLoopRef);
+		DMibFastCheck(mp_pRunLoopRef);
 		TCActorHolderSharedPointer<COSThreadRunLoopActorHolder> pThis = fg_Explicit(this);
 		CFRunLoopPerformBlock
 			(
-				mp_RunLoopRef
+				mp_pRunLoopRef
 				, kCFRunLoopDefaultMode
 				, ^()
 				{
@@ -150,20 +150,20 @@ namespace NMib::NConcurrency
 				}
 			)
 		;
-		CFRunLoopWakeUp(mp_RunLoopRef);
+		CFRunLoopWakeUp(mp_pRunLoopRef);
 #endif
 	}
 
-	void COSThreadRunLoopActorHolder::fp_QueueProcess(FActorQueueDispatch &&_Functor, CConcurrencyThreadLocal &_ThreadLocal)
+	void COSThreadRunLoopActorHolder::fp_QueueProcess(FActorQueueDispatch &&_fFunctor, CConcurrencyThreadLocal &_ThreadLocal)
 	{
-		if (fp_AddToQueue(fg_Move(_Functor), _ThreadLocal))
+		if (fp_AddToQueue(fg_Move(_fFunctor), _ThreadLocal))
 		{
 #if defined(DPlatformFamily_macOS)
-			DMibFastCheck(mp_RunLoopRef);
+			DMibFastCheck(mp_pRunLoopRef);
 			TCActorHolderSharedPointer<COSThreadRunLoopActorHolder> pThis = fg_Explicit(this);
 			CFRunLoopPerformBlock
 				(
-					mp_RunLoopRef
+					mp_pRunLoopRef
 					, kCFRunLoopDefaultMode
 					, ^()
 					{
@@ -171,7 +171,7 @@ namespace NMib::NConcurrency
 					}
 				)
 			;
-			CFRunLoopWakeUp(mp_RunLoopRef);
+			CFRunLoopWakeUp(mp_pRunLoopRef);
 #endif
 		}
 	}
@@ -181,11 +181,11 @@ namespace NMib::NConcurrency
 		if (fp_AddToQueue(fg_Move(_Entry), _ThreadLocal))
 		{
 #if defined(DPlatformFamily_macOS)
-			DMibFastCheck(mp_RunLoopRef);
+			DMibFastCheck(mp_pRunLoopRef);
 			TCActorHolderSharedPointer<COSThreadRunLoopActorHolder> pThis = fg_Explicit(this);
 			CFRunLoopPerformBlock
 				(
-					mp_RunLoopRef
+					mp_pRunLoopRef
 					, kCFRunLoopDefaultMode
 					, ^()
 					{
@@ -193,7 +193,7 @@ namespace NMib::NConcurrency
 					}
 				)
 			;
-			CFRunLoopWakeUp(mp_RunLoopRef);
+			CFRunLoopWakeUp(mp_pRunLoopRef);
 #endif
 		}
 	}
@@ -206,10 +206,10 @@ namespace NMib::NConcurrency
 #if defined(DPlatformFamily_macOS)
 			{
 				DMibLock(mp_RunLoopDestroyLock);
-				if (mp_RunLoopRef)
+				if (mp_pRunLoopRef)
 				{
-					CFRunLoopSourceSignal(mp_RunLoopSourceRef);
-					CFRunLoopWakeUp(mp_RunLoopRef);
+					CFRunLoopSourceSignal(mp_pRunLoopSourceRef);
+					CFRunLoopWakeUp(mp_pRunLoopRef);
 				}
 			}
 #endif

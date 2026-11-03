@@ -13,29 +13,29 @@ namespace NMib::NConcurrency
 	}
 
 	template <typename tf_CResult>
-	void operator > (NContainer::TCVector<TCAsyncResult<tf_CResult>> const &_Result, CLogErrorResultFunctor const &_LogError)
+	void operator > (NContainer::TCVector<TCAsyncResult<tf_CResult>> const &_Result, CLogErrorResultFunctor const &_fLogError)
 	{
 		for (auto &Result : _Result)
 		{
 			if (!Result)
-				_LogError.f_LogException(Result.f_GetException());
+				_fLogError.f_LogException(Result.f_GetException());
 		}
 	}
 
 	template <typename tf_CKey, typename tf_CResult>
-	void operator > (NContainer::TCMap<tf_CKey, TCAsyncResult<tf_CResult>> const &_Result, CLogErrorResultFunctor const &_LogError)
+	void operator > (NContainer::TCMap<tf_CKey, TCAsyncResult<tf_CResult>> const &_Result, CLogErrorResultFunctor const &_fLogError)
 	{
 		for (auto &Result : _Result)
 		{
 			if (!Result)
-				_LogError.f_LogException(Result.f_GetException());
+				_fLogError.f_LogException(Result.f_GetException());
 		}
 	}
 
 	template <typename tf_FResultHandler>
 	auto CLogErrorResultFunctor::operator / (tf_FResultHandler &&_fResultHandler) &&
 	{
-		return [fResultHandler = fg_Forward<tf_FResultHandler>(_fResultHandler), This = *this](auto && ...p_Results) mutable
+		return [fResultHandler = fg_Forward<tf_FResultHandler>(_fResultHandler), fLogError = *this](auto && ...p_Results) mutable
 			{
 				bool bFailed = false;
 				(
@@ -43,7 +43,7 @@ namespace NMib::NConcurrency
 					{
 						if (!p_Results)
 						{
-							This.f_LogException(p_Results.f_GetException());
+							fLogError.f_LogException(p_Results.f_GetException());
 							bFailed = true;
 						}
 					}
@@ -62,7 +62,7 @@ namespace NMib::NConcurrency
 		;
 	}
 
-	FExceptionTransformer fg_ExceptionTransformer(FExceptionTransformer &&_fPreviousTransformer, CLogErrorResultFunctor &&_LogError);
+	FExceptionTransformer fg_ExceptionTransformer(FExceptionTransformer &&_fPreviousTransformer, CLogErrorResultFunctor &&_fLogError);
 
-	FExceptionTransformer fg_ExceptionTransformer(FExceptionTransformer &&_fPreviousTransformer, CLogErrorResultFunctorWithUserError &&_LogError);
+	FExceptionTransformer fg_ExceptionTransformer(FExceptionTransformer &&_fPreviousTransformer, CLogErrorResultFunctorWithUserError &&_fLogError);
 }

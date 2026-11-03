@@ -82,8 +82,8 @@ namespace NMib::NConcurrency
 	}
 
 	template <typename t_CFunction, uint32 t_SubscriptionID>
-	TCActorFunctorWithID<t_CFunction, t_SubscriptionID>::TCActorFunctorWithID(TCActorFunctor<t_CFunction> &&_ActorFunctor)
-		: TCActorFunctor<t_CFunction>(fg_Move(_ActorFunctor))
+	TCActorFunctorWithID<t_CFunction, t_SubscriptionID>::TCActorFunctorWithID(TCActorFunctor<t_CFunction> &&_fActorFunctor)
+		: TCActorFunctor<t_CFunction>(fg_Move(_fActorFunctor))
 	{
 	}
 

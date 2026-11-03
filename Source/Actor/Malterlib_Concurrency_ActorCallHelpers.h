@@ -60,14 +60,14 @@ namespace NMib::NConcurrency
 			using CIndices = NMeta::TCConsecutiveIndices<mc_nParams>;
 
 			template <typename ...tfp_CParams>
-			TCActorCallWithParams(t_FMemberFunctionPointer _pMemberPointer, tfp_CParams && ...p_Params)
-				: m_pMemberPointer(_pMemberPointer)
+			TCActorCallWithParams(t_FMemberFunctionPointer _fMemberPointer, tfp_CParams && ...p_Params)
+				: m_fMemberPointer(_fMemberPointer)
 				, m_Params(fg_Forward<tfp_CParams>(p_Params)...)
 			{
 			}
 
 			TCActorCallWithParams(TCActorCallWithParams &&_Other)
-				: m_pMemberPointer(fg_Move(_Other.m_pMemberPointer))
+				: m_fMemberPointer(fg_Move(_Other.m_fMemberPointer))
 				, m_Params(fg_Move(_Other.m_Params))
 			{
 			}
@@ -75,10 +75,10 @@ namespace NMib::NConcurrency
 			template <typename tf_CActor, umint ...tfp_Indices>
 			mark_artificial inline_always CReturnType operator () (tf_CActor &_Actor, NMeta::TCIndices<tfp_Indices...> _Indices)
 			{
-				return (_Actor.*m_pMemberPointer)(fg_Move(fg_Get<tfp_Indices>(m_Params))...);
+				return (_Actor.*m_fMemberPointer)(fg_Move(fg_Get<tfp_Indices>(m_Params))...);
 			}
 
-			t_FMemberFunctionPointer m_pMemberPointer;
+			t_FMemberFunctionPointer m_fMemberPointer;
 			typename TCActorCallWithParamsTuple<CMemberPointerTypes>::CType m_Params;
 
 		private:
@@ -440,9 +440,9 @@ namespace NMib::NConcurrency
 		void operator > (tf_CFunctor &&_Functor) &&
 			requires (!cIsActorResultCall<tf_CFunctor>)
 		{
-			auto pActor = fg_CurrentActor();
-			DMibFastCheck(pActor);
-			fg_Move(*this).fp_ActorCall(fg_Move(pActor) / fg_Forward<tf_CFunctor>(_Functor), NMeta::TCConsecutiveIndices<sizeof...(tp_CFutures)>());
+			auto Actor = fg_CurrentActor();
+			DMibFastCheck(Actor);
+			fg_Move(*this).fp_ActorCall(fg_Move(Actor) / fg_Forward<tf_CFunctor>(_Functor), NMeta::TCConsecutiveIndices<sizeof...(tp_CFutures)>());
 		}
 
 		auto f_CallSync(fp64 _Timeout = -1.0) &&
@@ -1016,7 +1016,7 @@ namespace NMib::NConcurrency
 		, typename tf_CReturn
 		, typename tf_CContainedActor
 		, typename tf_CActor
-		, typename tf_CFunctor
+		, typename tf_FFunctor
 		, typename tf_CPromiseParam
 		, typename ...tfp_CFunctionParams
 		, typename ...tfp_CParams
@@ -1024,15 +1024,15 @@ namespace NMib::NConcurrency
 	auto fg_CallActorFutureDirectCoroutine
 		(
 			tf_CActor *_pActor
-			, tf_CFunctor const &_pMemberFunctor
+			, tf_FFunctor const &_fMemberFunctor
 			, tf_CPromiseParam &&_PromiseParam
 			, NMeta::TCTypeList<tfp_CFunctionParams...> _FunctionParamTypes
 			, tfp_CParams && ...p_Params
 		)
-		-> typename NPrivate::TCCallActorGetReturnType<typename NTraits::TCMemberFunctionPointerTraits<tf_CFunctor>::CReturn, NTraits::TCDecay<tf_CPromiseParam>>::CType
+		-> typename NPrivate::TCCallActorGetReturnType<typename NTraits::TCMemberFunctionPointerTraits<tf_FFunctor>::CReturn, NTraits::TCDecay<tf_CPromiseParam>>::CType
 		requires
 		(
-			NTraits::cIsMemberFunctionPointer<tf_CFunctor>
+			NTraits::cIsMemberFunctionPointer<tf_FFunctor>
 			&& !
 			(
 				!NTraits::cIsSame<NTraits::TCDecay<tf_CPromiseParam>, CPromiseConstructDiscardResult>
@@ -1068,7 +1068,7 @@ namespace NMib::NConcurrency
 				}
 			;
 
-			auto Generator = (pActor->*_pMemberFunctor)(fg_CopyOrMove<tfp_CFunctionParams>(fg_Forward<tfp_CParams>(p_Params))...);
+			auto Generator = (pActor->*_fMemberFunctor)(fg_CopyOrMove<tfp_CFunctionParams>(fg_Forward<tfp_CParams>(p_Params))...);
 
 			static_assert(!c_bIsDirectReturn);
 
@@ -1085,7 +1085,7 @@ namespace NMib::NConcurrency
 		}
 		else if constexpr (tf_bDirectCall)
 		{
-			auto Future = (pActor->*_pMemberFunctor)(fg_CopyOrMove<tfp_CFunctionParams>(fg_Forward<tfp_CParams>(p_Params))...);
+			auto Future = (pActor->*_fMemberFunctor)(fg_CopyOrMove<tfp_CFunctionParams>(fg_Forward<tfp_CParams>(p_Params))...);
 
 			if constexpr (c_bIsDiscardResult)
 				return;
@@ -1119,7 +1119,7 @@ namespace NMib::NConcurrency
 				}
 			;
 #endif
-			auto Result = (pActor->*_pMemberFunctor)(fg_CopyOrMove<tfp_CFunctionParams>(fg_Forward<tfp_CParams>(p_Params))...);
+			auto Result = (pActor->*_fMemberFunctor)(fg_CopyOrMove<tfp_CFunctionParams>(fg_Forward<tfp_CParams>(p_Params))...);
 			DMibFastCheck(!PromiseThreadLocal.m_bSupendOnInitialSuspend); // Function calls over actor needs to be co-routines
 
 			auto &PromiseData = *Result.f_Unsafe_PromiseData();
@@ -1152,7 +1152,7 @@ namespace NMib::NConcurrency
 		, typename tf_CReturn
 		, typename tf_CContainedActor
 		, typename tf_CActor
-		, typename tf_CFunctor
+		, typename tf_FFunctor
 		, typename tf_CPromiseParam
 		, typename ...tfp_CFunctionParams
 		, typename ...tfp_CParams
@@ -1160,15 +1160,15 @@ namespace NMib::NConcurrency
 	auto fg_CallActorFutureDirectCoroutine
 		(
 			tf_CActor *_pActor
-			, tf_CFunctor const &_pMemberFunctor
+			, tf_FFunctor const &_fMemberFunctor
 			, tf_CPromiseParam &&_PromiseParam
 			, NMeta::TCTypeList<tfp_CFunctionParams...> _FunctionParamTypes
 			, tfp_CParams && ...p_Params
 		)
-		-> typename NPrivate::TCCallActorGetReturnType<typename NTraits::TCMemberFunctionPointerTraits<tf_CFunctor>::CReturn, NTraits::TCDecay<tf_CPromiseParam>>::CType
+		-> typename NPrivate::TCCallActorGetReturnType<typename NTraits::TCMemberFunctionPointerTraits<tf_FFunctor>::CReturn, NTraits::TCDecay<tf_CPromiseParam>>::CType
 		requires
 		(
-			NTraits::cIsMemberFunctionPointer<tf_CFunctor>
+			NTraits::cIsMemberFunctionPointer<tf_FFunctor>
 			&& !NTraits::cIsSame<NTraits::TCDecay<tf_CPromiseParam>, CPromiseConstructDiscardResult>
 			&& !NTraits::cIsSame<NTraits::TCDecay<tf_CPromiseParam>, CPromiseConstructNoConsume>
 			&& !NTraits::cIsSame<NTraits::TCDecay<tf_CPromiseParam>, CVoidTag>
@@ -1207,7 +1207,7 @@ namespace NMib::NConcurrency
 
 		if constexpr (tf_bDirectCall)
 		{
-			auto Future = (pActor->*_pMemberFunctor)(fg_CopyOrMove<tfp_CFunctionParams>(fg_Forward<tfp_CParams>(p_Params))...);
+			auto Future = (pActor->*_fMemberFunctor)(fg_CopyOrMove<tfp_CFunctionParams>(fg_Forward<tfp_CParams>(p_Params))...);
 
 #if DMibEnableSafeCheck > 0
 			DMibFastCheck(!PromiseThreadLocal.m_pOnResultSet);
@@ -1240,7 +1240,7 @@ namespace NMib::NConcurrency
 				}
 			;
 #endif
-			auto Result = (pActor->*_pMemberFunctor)(fg_CopyOrMove<tfp_CFunctionParams>(fg_Forward<tfp_CParams>(p_Params))...);
+			auto Result = (pActor->*_fMemberFunctor)(fg_CopyOrMove<tfp_CFunctionParams>(fg_Forward<tfp_CParams>(p_Params))...);
 
 #if DMibEnableSafeCheck > 0
 			DMibFastCheck(!PromiseThreadLocal.m_bSupendOnInitialSuspend); // Function calls over actor needs to be co-routines
@@ -1274,7 +1274,7 @@ namespace NMib::NConcurrency
 		, typename tf_CReturn
 		, typename tf_CContainedActor
 		, typename tf_CActor
-		, typename tf_CFunctor
+		, typename tf_FFunctor
 		, typename tf_CPromiseParam
 		, typename ...tfp_CFunctionParams
 		, typename ...tfp_CParams
@@ -1282,15 +1282,15 @@ namespace NMib::NConcurrency
 	auto fg_CallActorFutureDirectCoroutine
 		(
 			tf_CActor *_pActor
-			, tf_CFunctor const &_pFunctionPointer
+			, tf_FFunctor const &_fFunctionPointer
 			, tf_CPromiseParam &&_PromiseParam
 			, NMeta::TCTypeList<tfp_CFunctionParams...> _FunctionParamTypes
 			, tfp_CParams && ...p_Params
 		)
-		-> typename NPrivate::TCCallActorGetReturnType<typename NTraits::TCFunctionTraits<NTraits::TCRemovePointer<tf_CFunctor>>::CReturn, NTraits::TCDecay<tf_CPromiseParam>>::CType
+		-> typename NPrivate::TCCallActorGetReturnType<typename NTraits::TCFunctionTraits<NTraits::TCRemovePointer<tf_FFunctor>>::CReturn, NTraits::TCDecay<tf_CPromiseParam>>::CType
 		requires
 		(
-			!NTraits::cIsMemberFunctionPointer<tf_CFunctor>
+			!NTraits::cIsMemberFunctionPointer<tf_FFunctor>
 			&& !
 			(
 				!NTraits::cIsSame<NTraits::TCDecay<tf_CPromiseParam>, CPromiseConstructDiscardResult>
@@ -1324,7 +1324,7 @@ namespace NMib::NConcurrency
 				}
 			;
 
-			auto Generator = _pFunctionPointer(fg_CopyOrMove<tfp_CFunctionParams>(fg_Forward<tfp_CParams>(p_Params))...);
+			auto Generator = _fFunctionPointer(fg_CopyOrMove<tfp_CFunctionParams>(fg_Forward<tfp_CParams>(p_Params))...);
 
 			static_assert(!c_bIsDirectReturn);
 
@@ -1341,7 +1341,7 @@ namespace NMib::NConcurrency
 		}
 		else if constexpr (tf_bDirectCall)
 		{
-			auto Future = _pFunctionPointer(fg_CopyOrMove<tfp_CFunctionParams>(fg_Forward<tfp_CParams>(p_Params))...);
+			auto Future = _fFunctionPointer(fg_CopyOrMove<tfp_CFunctionParams>(fg_Forward<tfp_CParams>(p_Params))...);
 
 			if constexpr (c_bIsDiscardResult)
 				return;
@@ -1375,7 +1375,7 @@ namespace NMib::NConcurrency
 				}
 			;
 #endif
-			auto Result = _pFunctionPointer(fg_CopyOrMove<tfp_CFunctionParams>(fg_Forward<tfp_CParams>(p_Params))...);
+			auto Result = _fFunctionPointer(fg_CopyOrMove<tfp_CFunctionParams>(fg_Forward<tfp_CParams>(p_Params))...);
 			DMibFastCheck(!PromiseThreadLocal.m_bSupendOnInitialSuspend); // Function calls over actor needs to be co-routines
 
 			auto &PromiseData = *Result.f_Unsafe_PromiseData();
@@ -1408,7 +1408,7 @@ namespace NMib::NConcurrency
 		, typename tf_CReturn
 		, typename tf_CContainedActor
 		, typename tf_CActor
-		, typename tf_CFunctor
+		, typename tf_FFunctor
 		, typename tf_CPromiseParam
 		, typename ...tfp_CFunctionParams
 		, typename ...tfp_CParams
@@ -1416,15 +1416,15 @@ namespace NMib::NConcurrency
 	auto fg_CallActorFutureDirectCoroutine
 		(
 			tf_CActor *_pActor
-			, tf_CFunctor const &_pFunctionPointer
+			, tf_FFunctor const &_fFunctionPointer
 			, tf_CPromiseParam &&_PromiseParam
 			, NMeta::TCTypeList<tfp_CFunctionParams...> _FunctionParamTypes
 			, tfp_CParams && ...p_Params
 		)
-		-> typename NPrivate::TCCallActorGetReturnType<typename NTraits::TCFunctionTraits<NTraits::TCRemovePointer<tf_CFunctor>>::CReturn, NTraits::TCDecay<tf_CPromiseParam>>::CType
+		-> typename NPrivate::TCCallActorGetReturnType<typename NTraits::TCFunctionTraits<NTraits::TCRemovePointer<tf_FFunctor>>::CReturn, NTraits::TCDecay<tf_CPromiseParam>>::CType
 		requires
 		(
-			!NTraits::cIsMemberFunctionPointer<tf_CFunctor>
+			!NTraits::cIsMemberFunctionPointer<tf_FFunctor>
 			&& !NTraits::cIsSame<NTraits::TCDecay<tf_CPromiseParam>, CPromiseConstructDiscardResult>
 			&& !NTraits::cIsSame<NTraits::TCDecay<tf_CPromiseParam>, CPromiseConstructNoConsume>
 			&& !NTraits::cIsSame<NTraits::TCDecay<tf_CPromiseParam>, CVoidTag>
@@ -1461,7 +1461,7 @@ namespace NMib::NConcurrency
 #endif
 		if constexpr (tf_bDirectCall)
 		{
-			auto Future = _pFunctionPointer(fg_CopyOrMove<tfp_CFunctionParams>(fg_Forward<tfp_CParams>(p_Params))...);
+			auto Future = _fFunctionPointer(fg_CopyOrMove<tfp_CFunctionParams>(fg_Forward<tfp_CParams>(p_Params))...);
 
 #if DMibEnableSafeCheck > 0
 			DMibFastCheck(!PromiseThreadLocal.m_pOnResultSet);
@@ -1494,7 +1494,7 @@ namespace NMib::NConcurrency
 				}
 			;
 #endif
-			auto Result = _pFunctionPointer(fg_CopyOrMove<tfp_CFunctionParams>(fg_Forward<tfp_CParams>(p_Params))...);
+			auto Result = _fFunctionPointer(fg_CopyOrMove<tfp_CFunctionParams>(fg_Forward<tfp_CParams>(p_Params))...);
 
 #if DMibEnableSafeCheck > 0
 			DMibFastCheck(!PromiseThreadLocal.m_bSupendOnInitialSuspend); // Function calls over actor needs to be co-routines

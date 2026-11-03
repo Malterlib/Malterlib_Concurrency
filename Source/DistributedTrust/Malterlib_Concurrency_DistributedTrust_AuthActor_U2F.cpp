@@ -88,19 +88,19 @@ namespace NMib::NConcurrency::NPrivate
 		{
 		}
 
-		TCSSLPointer(TCSSLPointer const &_Other) = delete;
-		TCSSLPointer &operator = (TCSSLPointer const &_Other) = delete;
+		TCSSLPointer(TCSSLPointer const &_pOther) = delete;
+		TCSSLPointer &operator = (TCSSLPointer const &_pOther) = delete;
 
-		TCSSLPointer(TCSSLPointer &&_Other)
-			: m_pSSLHandle(_Other.m_pSSLHandle)
+		TCSSLPointer(TCSSLPointer &&_pOther)
+			: m_pSSLHandle(_pOther.m_pSSLHandle)
 		{
-			_Other.m_pSSLHandle = nullptr;
+			_pOther.m_pSSLHandle = nullptr;
 		}
 
-		TCSSLPointer &operator = (TCSSLPointer &&_Other)
+		TCSSLPointer &operator = (TCSSLPointer &&_pOther)
 		{
-			m_pSSLHandle = _Other.m_pSSLHandle;
-			_Other.m_pSSLHandle = nullptr;
+			m_pSSLHandle = _pOther.m_pSSLHandle;
+			_pOther.m_pSSLHandle = nullptr;
 			return *this;
 		}
 
@@ -975,9 +975,9 @@ namespace NMib::NConcurrency::NPrivate
 			Hash.f_AddData(ClientDigest.f_GetData(), ClientDigest.mc_Size);
 			auto Digest = Hash.f_GetDigest();
 
-			TCSSLPointer<EC_KEY *, EC_KEY_free> Key = fg_DecodeUserKey(_Dependencies.m_PublicKey);
+			TCSSLPointer<EC_KEY *, EC_KEY_free> pKey = fg_DecodeUserKey(_Dependencies.m_PublicKey);
 			ERR_clear_error();
-			auto Verified = ECDSA_do_verify(Digest.f_GetData(), Digest.mc_Size, pSignature, Key);
+			auto Verified = ECDSA_do_verify(Digest.f_GetData(), Digest.mc_Size, pSignature, pKey);
 			if (Verified != 1)
 			{
 				if (Verified == -1)

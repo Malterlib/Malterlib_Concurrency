@@ -22,9 +22,9 @@ namespace NMib::NConcurrency
 	protected:
 		void fp_StartQueueProcessing() override;
 		void fp_DestroyThreaded() override;
-		void fp_QueueProcessDestroy(FActorQueueDispatch &&_Functor, CConcurrencyThreadLocal &_ThreadLocal) override;
+		void fp_QueueProcessDestroy(FActorQueueDispatch &&_fFunctor, CConcurrencyThreadLocal &_ThreadLocal) override;
 		void fp_QueueRunProcess(CConcurrencyThreadLocal &_ThreadLocal) override;
-		void fp_QueueProcess(FActorQueueDispatch &&_Functor, CConcurrencyThreadLocal &_ThreadLocal) override;
+		void fp_QueueProcess(FActorQueueDispatch &&_fFunctor, CConcurrencyThreadLocal &_ThreadLocal) override;
 		void fp_QueueProcessEntry(CConcurrentRunQueueEntryHolder &&_Entry, CConcurrencyThreadLocal &_ThreadLocal) override;
 	};
 }

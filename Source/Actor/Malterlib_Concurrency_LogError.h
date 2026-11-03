@@ -11,13 +11,13 @@ namespace NMib::NConcurrency
 		template <typename tf_CResult>
 		void operator () (TCAsyncResult<tf_CResult> &&_Result) const;
 
-		friend void operator > (CAsyncResult const &_Result, CLogErrorResultFunctor const &_LogError);
+		friend void operator > (CAsyncResult const &_Result, CLogErrorResultFunctor const &_fLogError);
 
 		template <typename tf_CResult>
-		friend void operator > (NContainer::TCVector<TCAsyncResult<tf_CResult>> &&_Result, CLogErrorResultFunctor &&_LogError);
+		friend void operator > (NContainer::TCVector<TCAsyncResult<tf_CResult>> &&_Result, CLogErrorResultFunctor &&_fLogError);
 
 		template <typename tf_CKey, typename tf_CResult>
-		friend void operator > (NContainer::TCMap<tf_CKey, TCAsyncResult<tf_CResult>> &&_Result, CLogErrorResultFunctor &&_LogError);
+		friend void operator > (NContainer::TCMap<tf_CKey, TCAsyncResult<tf_CResult>> &&_Result, CLogErrorResultFunctor &&_fLogError);
 
 		template <typename tf_FResultHandler>
 		auto operator / (tf_FResultHandler &&_fResultHandler) &&;

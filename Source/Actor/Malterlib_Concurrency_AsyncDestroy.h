@@ -76,7 +76,7 @@ namespace NMib::NConcurrency
 #endif
 	};
 
-	TCAsyncDestroyAwaiter<FUnitVoidFutureFunction, FUnitVoidFutureFunction> fg_AsyncDestroy(CActorSubscription &&_pToDestroy);
+	TCAsyncDestroyAwaiter<FUnitVoidFutureFunction, FUnitVoidFutureFunction> fg_AsyncDestroy(CActorSubscription &&_ToDestroy);
 
 	using CAsyncDestroy = TCAsyncDestroy<FUnitVoidFutureFunction>;
 	using CAsyncDestroyAwaiter = TCAsyncDestroyAwaiter<FUnitVoidFutureFunction, FUnitVoidFutureFunction>;

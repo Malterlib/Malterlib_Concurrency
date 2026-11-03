@@ -650,7 +650,7 @@ namespace NMib::NConcurrency
 			)
 		;
 
-		auto [Result, bCancelled] = co_await fg_AnyDone
+		auto [Result, CancelledResult] = co_await fg_AnyDone
 			(
 				fp_CommandLine_SensorReadingsOutput(_pCommandLine, fg_Move(_SensorReadings), fg_Move(_Sensors), _MaxEntries, _Flags, _TableType, _Filter)
 				, fg_Move(Cancelled.m_Future)

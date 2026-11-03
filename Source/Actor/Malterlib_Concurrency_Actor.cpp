@@ -176,8 +176,8 @@ namespace NMib::NConcurrency
 		return m_Promise.f_Future();
 	}
 
-	CCanDestroyTracker::CCanDestroyResultFunctor::CCanDestroyResultFunctor(CCanDestroyResultFunctor &&_Other) = default;
-	CCanDestroyTracker::CCanDestroyResultFunctor::CCanDestroyResultFunctor(CCanDestroyResultFunctor const &_Other) = default;
+	CCanDestroyTracker::CCanDestroyResultFunctor::CCanDestroyResultFunctor(CCanDestroyResultFunctor &&_fOther) = default;
+	CCanDestroyTracker::CCanDestroyResultFunctor::CCanDestroyResultFunctor(CCanDestroyResultFunctor const &_fOther) = default;
 
 	CCanDestroyTracker::CCanDestroyResultFunctor::CCanDestroyResultFunctor(NStorage::TCSharedPointer<CCanDestroyTracker> &&_pThis)
 		: m_pThis(fg_Move(_pThis))
@@ -238,9 +238,9 @@ namespace NMib::NConcurrency
 	{
 		for (auto &Scope : _ThreadLocal.m_CrossActorStateScopes)
 		{
-			auto State = Scope.f_StoreState(false);
-			if (State)
-				m_RestoreStates.f_Insert(fg_Move(State));
+			auto fState = Scope.f_StoreState(false);
+			if (fState)
+				m_RestoreStates.f_Insert(fg_Move(fState));
 		}
 	}
 
@@ -285,7 +285,7 @@ namespace NMib::NConcurrency
 	constinit CCoroutineYield g_Yield;
 	constinit CAccessCoroutine g_AccessCoroutine;
 
-	constinit CIsGeneratorAborted g_bShouldAbort;
+	constinit CIsGeneratorAborted g_ShouldAbort;
 	constinit CGetGeneratorPipelineLength g_GetPipelineLength;
 
 	constinit CDiscardResult g_DiscardResult;

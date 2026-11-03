@@ -107,6 +107,7 @@ namespace NMib::NConcurrency
 			template <typename tf_CStream>
 			void f_Stream(tf_CStream &_Stream);
 
+			// NOLINTNEXTLINE(malterlib-conceptual-prefix): a subscription handle like CActorSubscription, which the check misses because it is derived from it
 			TCActorSubscriptionWithID<> m_Subscription;
 			NStr::CStr m_ID;
 		};

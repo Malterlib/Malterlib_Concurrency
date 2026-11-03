@@ -695,8 +695,8 @@ namespace NTestAuthentication
 						auto Results = co_await pTestServer->m_Actor.f_CallActor(&CServerInterface::f_CheckPermissions3)(Permissions);
 
 						CEJsonSorted Output;
-						for (auto &Result : Results)
-							Output[Results.fs_GetKey(Result)] = Result;
+						for (auto &bResult : Results)
+							Output[Results.fs_GetKey(bResult)] = bResult;
 
 						*_pCommandLine += Output.f_ToString("\t", EJsonDialectFlag_AllowUndefined);
 
@@ -1448,9 +1448,9 @@ private:
 		}
 
 		// Before running a command on the client we also need a command line control object
-		TCDistributedActor<CCommandLineControlActorTest> pCommandLineControl = Dependencies.m_DistributionManager->f_ConstructActor<CCommandLineControlActorTest>(false);
+		TCDistributedActor<CCommandLineControlActorTest> ControlActor = Dependencies.m_DistributionManager->f_ConstructActor<CCommandLineControlActorTest>(false);
 		CCommandLineControl CommandLineControl;
-		CommandLineControl.m_ControlActor = pCommandLineControl->f_ShareInterface<ICCommandLineControl>();
+		CommandLineControl.m_ControlActor = ControlActor->f_ShareInterface<ICCommandLineControl>();
 
 		auto ConsoleProperties = NSys::fg_GetConsoleProperties();
 		CommandLineControl.m_CommandLineWidth = ConsoleProperties.m_Width;
@@ -1637,12 +1637,12 @@ private:
 				Json["AuthenticationLifetime"] = _Lifetime;
 				Json["JsonOutput"] = true;
 
-				pCommandLineControl.f_CallActor(&CCommandLineControlActorTest::f_Clear)().f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout);
+				ControlActor.f_CallActor(&CCommandLineControlActorTest::f_Clear)().f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout);
 				ClientLaunch.f_RunCommandLine(fHostInfo("UserID", CommandLineHostID), "--trust-user-authenticate-pattern", fg_TempCopy(Json), fg_TempCopy(pCommandLine))
 					.f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout)
 				;
 
-				return CEJsonSorted::fs_FromString(pCommandLineControl.f_CallActor(&CCommandLineControlActorTest::f_ReturnStdOut)().f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout));
+				return CEJsonSorted::fs_FromString(ControlActor.f_CallActor(&CCommandLineControlActorTest::f_ReturnStdOut)().f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout));
 			}
 		;
 
@@ -1652,13 +1652,11 @@ private:
 
 				Json["Permissions"] = _Permissions;
 
-				pCommandLineControl.f_CallActor(&CCommandLineControlActorTest::f_Clear)().f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout);
+				ControlActor.f_CallActor(&CCommandLineControlActorTest::f_Clear)().f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout);
 				ClientLaunch.f_RunCommandLine(fHostInfo("UserID", CommandLineHostID), fg_TempCopy(_Command), fg_TempCopy(Json), fg_TempCopy(pCommandLine))
 					.f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout)
 				;
-				return CEJsonSorted::fs_FromString(pCommandLineControl.f_CallActor(&CCommandLineControlActorTest::f_ReturnStdOut)().f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout))
-					.f_Boolean()
-				;
+				return CEJsonSorted::fs_FromString(ControlActor.f_CallActor(&CCommandLineControlActorTest::f_ReturnStdOut)().f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout)).f_Boolean();
 			}
 		;
 
@@ -1670,13 +1668,11 @@ private:
 				for (auto &Query : _Permissions)
 					Queries.f_Insert(Query.f_ToJson());
 
-				pCommandLineControl.f_CallActor(&CCommandLineControlActorTest::f_Clear)().f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout);
+				ControlActor.f_CallActor(&CCommandLineControlActorTest::f_Clear)().f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout);
 				ClientLaunch.f_RunCommandLine(fHostInfo("UserID", CommandLineHostID), "--perform-call-2", fg_TempCopy(Json), fg_TempCopy(pCommandLine))
 					.f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout)
 				;
-				return CEJsonSorted::fs_FromString(pCommandLineControl.f_CallActor(&CCommandLineControlActorTest::f_ReturnStdOut)().f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout))
-					.f_Boolean()
-				;
+				return CEJsonSorted::fs_FromString(ControlActor.f_CallActor(&CCommandLineControlActorTest::f_ReturnStdOut)().f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout)).f_Boolean();
 			}
 		;
 
@@ -1693,13 +1689,13 @@ private:
 						Queries.f_Insert(Query.f_ToJson());
 				}
 
-				pCommandLineControl.f_CallActor(&CCommandLineControlActorTest::f_Clear)().f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout);
+				ControlActor.f_CallActor(&CCommandLineControlActorTest::f_Clear)().f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout);
 				ClientLaunch.f_RunCommandLine(fHostInfo("UserID", CommandLineHostID), "--perform-call-3", fg_TempCopy(Json), fg_TempCopy(pCommandLine))
 					.f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout)
 				;
 
 				TCMap<CStr, bool> Return;
-				auto Results = CEJsonSorted::fs_FromString(pCommandLineControl.f_CallActor(&CCommandLineControlActorTest::f_ReturnStdOut)().f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout));
+				auto Results = CEJsonSorted::fs_FromString(ControlActor.f_CallActor(&CCommandLineControlActorTest::f_ReturnStdOut)().f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout));
 
 				for (auto &Result : Results.f_Object())
 					Return[Result.f_Name()] = Result.f_Value().f_Boolean();
@@ -2001,8 +1997,8 @@ private:
 
 		// Test password authentication
 		{
-			pCommandLineControl.f_CallActor(&CCommandLineControlActorTest::f_ReturnString)("Password").f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout);
-			pCommandLineControl.f_CallActor(&CCommandLineControlActorTest::f_ReturnString)("Wrong").f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout);
+			ControlActor.f_CallActor(&CCommandLineControlActorTest::f_ReturnString)("Password").f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout);
+			ControlActor.f_CallActor(&CCommandLineControlActorTest::f_ReturnString)("Wrong").f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout);
 			DMibExpectException
 				(
 					TrustManager.f_CallActor(&CDistributedActorTrustManager::f_RegisterUserAuthenticationFactor)
@@ -2011,8 +2007,8 @@ private:
 					, DMibErrorInstance("Password mismatch")
 				)
 			;
-			pCommandLineControl.f_CallActor(&CCommandLineControlActorTest::f_ReturnString)("Password").f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout);
-			pCommandLineControl.f_CallActor(&CCommandLineControlActorTest::f_ReturnString)("Password").f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout);
+			ControlActor.f_CallActor(&CCommandLineControlActorTest::f_ReturnString)("Password").f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout);
+			ControlActor.f_CallActor(&CCommandLineControlActorTest::f_ReturnString)("Password").f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout);
 			TrustManager.f_CallActor(&CDistributedActorTrustManager::f_RegisterUserAuthenticationFactor)
 				(pCommandLine, DefaultUserID, "Password")
 				.f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout)
@@ -2044,17 +2040,17 @@ private:
 			;
 			{
 				DMibTestPath("Correct Password");
-				pCommandLineControl.f_CallActor(&CCommandLineControlActorTest::f_ReturnString)("Password").f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout);
+				ControlActor.f_CallActor(&CCommandLineControlActorTest::f_ReturnString)("Password").f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout);
 				DMibExpectTrue(fPerformCall1(TCVector<CStr>{"com.malterlib/Password"}));
 			}
 			{
 				DMibTestPath("Wrong Password");
-				pCommandLineControl.f_CallActor(&CCommandLineControlActorTest::f_ReturnString)("Wrong").f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout);
+				ControlActor.f_CallActor(&CCommandLineControlActorTest::f_ReturnString)("Wrong").f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout);
 				DMibExpectFalse(fPerformCall1(TCVector<CStr>{"com.malterlib/Password"}));
 			}
 			// Add another password factor - both password should work for authentication
-			pCommandLineControl.f_CallActor(&CCommandLineControlActorTest::f_ReturnString)("OtherPassword").f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout);
-			pCommandLineControl.f_CallActor(&CCommandLineControlActorTest::f_ReturnString)("OtherPassword").f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout);
+			ControlActor.f_CallActor(&CCommandLineControlActorTest::f_ReturnString)("OtherPassword").f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout);
+			ControlActor.f_CallActor(&CCommandLineControlActorTest::f_ReturnString)("OtherPassword").f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout);
 			TrustManager.f_CallActor(&CDistributedActorTrustManager::f_RegisterUserAuthenticationFactor)
 				(pCommandLine, DefaultUserID, "Password")
 				.f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout)
@@ -2080,12 +2076,12 @@ private:
 			;
 			{
 				DMibTestPath("Correct Password 1");
-				pCommandLineControl.f_CallActor(&CCommandLineControlActorTest::f_ReturnString)("Password").f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout);
+				ControlActor.f_CallActor(&CCommandLineControlActorTest::f_ReturnString)("Password").f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout);
 				DMibExpectTrue(fPerformCall1(TCVector<CStr>{"com.malterlib/Password"}));
 			}
 			{
 				DMibTestPath("Correct Password 2");
-				pCommandLineControl.f_CallActor(&CCommandLineControlActorTest::f_ReturnString)("OtherPassword").f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout);
+				ControlActor.f_CallActor(&CCommandLineControlActorTest::f_ReturnString)("OtherPassword").f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout);
 				DMibExpectTrue(fPerformCall1(TCVector<CStr>{"com.malterlib/Password"}));
 			}
 		}
@@ -2410,9 +2406,9 @@ private:
 		}
 
 		// Before running a command on the client we also need a command line control object
-		TCDistributedActor<CCommandLineControlActorTest> pCommandLineControl = Dependencies.m_DistributionManager->f_ConstructActor<CCommandLineControlActorTest>(true);
+		TCDistributedActor<CCommandLineControlActorTest> ControlActor = Dependencies.m_DistributionManager->f_ConstructActor<CCommandLineControlActorTest>(true);
 		CCommandLineControl CommandLineControl;
-		CommandLineControl.m_ControlActor = pCommandLineControl->f_ShareInterface<ICCommandLineControl>();
+		CommandLineControl.m_ControlActor = ControlActor->f_ShareInterface<ICCommandLineControl>();
 
 		auto ConsoleProperties = NSys::fg_GetConsoleProperties();
 		CommandLineControl.m_CommandLineWidth = ConsoleProperties.m_Width;
@@ -2522,13 +2518,11 @@ private:
 
 				Json["Permissions"] = _Permissions;
 
-				pCommandLineControl.f_CallActor(&CCommandLineControlActorTest::f_Clear)().f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout);
+				ControlActor.f_CallActor(&CCommandLineControlActorTest::f_Clear)().f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout);
 				ClientLaunch.f_RunCommandLine(fHostInfo("UserID", CommandLineHostID), fg_TempCopy(_Command), fg_TempCopy(Json), fg_TempCopy(pCommandLine))
 					.f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout)
 				;
-				return CEJsonSorted::fs_FromString(pCommandLineControl.f_CallActor(&CCommandLineControlActorTest::f_ReturnStdOut)().f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout))
-					.f_Boolean()
-				;
+				return CEJsonSorted::fs_FromString(ControlActor.f_CallActor(&CCommandLineControlActorTest::f_ReturnStdOut)().f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout)).f_Boolean();
 			}
 		;
 

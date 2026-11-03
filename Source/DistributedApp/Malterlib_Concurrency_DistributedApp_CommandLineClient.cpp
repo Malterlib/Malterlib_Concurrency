@@ -64,8 +64,8 @@ namespace NMib::NConcurrency
 
 			TCFuture<TCActorSubscriptionWithID<>> f_RegisterForStdInBinary(FOnBinaryInput _fOnInput, NProcess::EStdInReaderFlag _Flags) override
 			{
-				if (auto Destroyed = fp_CheckDestroyed())
-					co_return Destroyed;
+				if (auto pDestroyed = fp_CheckDestroyed())
+					co_return pDestroyed;
 
 				fp_CreateInputActor();
 
@@ -76,8 +76,8 @@ namespace NMib::NConcurrency
 
 			TCFuture<TCActorSubscriptionWithID<>> f_RegisterForCancellation(FOnCancel _fOnCancel) override
 			{
-				if (auto Destroyed = fp_CheckDestroyed())
-					co_return Destroyed;
+				if (auto pDestroyed = fp_CheckDestroyed())
+					co_return pDestroyed;
 
 				auto SubscriptionID = NCryptography::fg_RandomID(mp_CancellationSubscriptions);
 
@@ -103,8 +103,8 @@ namespace NMib::NConcurrency
 			// Requires a live stdin registration; resize delivery stops while no reader is registered.
 			TCFuture<TCActorSubscriptionWithID<>> f_RegisterForScreenChange(FOnScreenChange _fOnScreenChange) override
 			{
-				if (auto Destroyed = fp_CheckDestroyed())
-					co_return Destroyed;
+				if (auto pDestroyed = fp_CheckDestroyed())
+					co_return pDestroyed;
 
 				// Windows resize records share the input queue with keystrokes. Require its existing reader so a watcher cannot consume input.
 				if (mp_StdInRegistrations.f_IsEmpty())
@@ -121,6 +121,7 @@ namespace NMib::NConcurrency
 
 				Subscription.m_fOnScreenChange = fg_Move(_fOnScreenChange);
 
+				// NOLINTNEXTLINE(malterlib-conceptual-prefix): a subscription handle like CActorSubscription, which the check misses because it is derived from it
 				TCActorSubscriptionWithID<> Result = g_ActorSubscription / [this, SubscriptionID]() -> TCFuture<void>
 					{
 						if (auto pSubscription = mp_ScreenChangeSubscriptions.f_FindEqual(SubscriptionID))
@@ -141,8 +142,8 @@ namespace NMib::NConcurrency
 
 			TCFuture<TCActorSubscriptionWithID<>> f_RegisterForStdIn(FOnInput _fOnInput, NProcess::EStdInReaderFlag _Flags) override
 			{
-				if (auto Destroyed = fp_CheckDestroyed())
-					co_return Destroyed;
+				if (auto pDestroyed = fp_CheckDestroyed())
+					co_return pDestroyed;
 
 				fp_CreateInputActor();
 
@@ -153,8 +154,8 @@ namespace NMib::NConcurrency
 
 			TCFuture<NContainer::CIOByteVector> f_ReadBinary() override
 			{
-				if (auto Destroyed = fp_CheckDestroyed())
-					co_return Destroyed;
+				if (auto pDestroyed = fp_CheckDestroyed())
+					co_return pDestroyed;
 
 				fp_CreateInputActor();
 				co_return co_await mp_InputActor(&NProcess::CStdInActor::f_ReadBinary);
@@ -162,8 +163,8 @@ namespace NMib::NConcurrency
 
 			TCFuture<NStr::CStrIO> f_ReadLine() override
 			{
-				if (auto Destroyed = fp_CheckDestroyed())
-					co_return Destroyed;
+				if (auto pDestroyed = fp_CheckDestroyed())
+					co_return pDestroyed;
 
 				fp_CreateInputActor();
 				co_return co_await mp_InputActor(&NProcess::CStdInActor::f_ReadLine);
@@ -171,8 +172,8 @@ namespace NMib::NConcurrency
 
 			TCFuture<NStr::CStrIO> f_ReadPrompt(NProcess::CStdInReaderPromptParams _Params) override
 			{
-				if (auto Destroyed = fp_CheckDestroyed())
-					co_return Destroyed;
+				if (auto pDestroyed = fp_CheckDestroyed())
+					co_return pDestroyed;
 
 				fp_CreateInputActor();
 				co_return co_await mp_InputActor(&NProcess::CStdInActor::f_ReadPrompt, _Params);
@@ -180,8 +181,8 @@ namespace NMib::NConcurrency
 
 			TCFuture<void> f_AbortReads() override
 			{
-				if (auto Destroyed = fp_CheckDestroyed())
-					co_return Destroyed;
+				if (auto pDestroyed = fp_CheckDestroyed())
+					co_return pDestroyed;
 
 				fp_CreateInputActor();
 				co_return co_await mp_InputActor(&NProcess::CStdInActor::f_AbortReads);
@@ -213,8 +214,8 @@ namespace NMib::NConcurrency
 
 			TCFuture<void> f_Clipboard_SetText(NStr::CStrIO _Text) override
 			{
-				if (auto Destroyed = fp_CheckDestroyed())
-					co_return Destroyed;
+				if (auto pDestroyed = fp_CheckDestroyed())
+					co_return pDestroyed;
 
 				if (!NSys::fg_Clipboard_SetText(_Text))
 					co_return DMibErrorInstance("Failed to store text in the system clipboard");
@@ -224,8 +225,8 @@ namespace NMib::NConcurrency
 
 			TCFuture<NStr::CStrIO> f_Clipboard_GetText() override
 			{
-				if (auto Destroyed = fp_CheckDestroyed())
-					co_return Destroyed;
+				if (auto pDestroyed = fp_CheckDestroyed())
+					co_return pDestroyed;
 
 				NStr::CStr Text;
 
@@ -341,6 +342,7 @@ namespace NMib::NConcurrency
 				auto CancellationSubscriptions = fg_Move(mp_CancellationSubscriptions);
 				auto ScreenChangeSubscriptions = fg_Move(mp_ScreenChangeSubscriptions);
 
+				// NOLINTNEXTLINE(malterlib-conceptual-prefix): a subscription handle like CActorSubscription, which the check misses because it is derived from it
 				for (auto &Registration : StdInRegistrations)
 				{
 					if (Registration.f_GetSubscription())
@@ -366,6 +368,7 @@ namespace NMib::NConcurrency
 			}
 
 			// Retains the input subscription and releases it when the command drops this wrapper.
+			// NOLINTNEXTLINE(malterlib-conceptual-prefix): a subscription handle like CActorSubscription, which the check misses because it is derived from it
 			TCActorSubscriptionWithID<> fp_TrackStdInRegistration(TCActorSubscriptionWithID<> &&_Subscription)
 			{
 				auto RegistrationID = NCryptography::fg_RandomID(mp_StdInRegistrations);
@@ -378,12 +381,14 @@ namespace NMib::NConcurrency
 
 				mp_StdInRegistrations[RegistrationID] = fg_Move(_Subscription);
 
+				// NOLINTNEXTLINE(malterlib-conceptual-prefix): a subscription handle like CActorSubscription, which the check misses because it is derived from it
 				TCActorSubscriptionWithID<> Wrapped = g_ActorSubscription / [this, RegistrationID]() -> TCFuture<void>
 					{
 						auto *pRegistration = mp_StdInRegistrations.f_FindEqual(RegistrationID);
 						if (!pRegistration)
 							co_return {};
 
+						// NOLINTNEXTLINE(malterlib-conceptual-prefix): a subscription handle like CActorSubscription, which the check misses because it is derived from it
 						auto Registration = fg_Move(*pRegistration);
 						mp_StdInRegistrations.f_Remove(RegistrationID);
 
@@ -420,10 +425,10 @@ namespace NMib::NConcurrency
 
 				mp_ScreenChangeWatcher = NCommandLine::NPlatform::fg_Process_WaitForScreenChange
 					(
-						[pThisWeak = fg_ThisActorWeak(this)](NSys::CConsoleProperties const &_ConsoleProperties)
+						[ThisWeak = fg_ThisActorWeak(this)](NSys::CConsoleProperties const &_ConsoleProperties)
 						{
-							auto pThis = pThisWeak.f_Lock();
-							if (!pThis)
+							auto This = ThisWeak.f_Lock();
+							if (!This)
 								return;
 
 							CScreenChange ScreenChange
@@ -435,7 +440,7 @@ namespace NMib::NConcurrency
 								}
 							;
 
-							pThis(&CCommandLineControlActor::f_ScreenChange, ScreenChange) > fg_DirectCallActor() / [](TCAsyncResult<void> &&_Result)
+							This(&CCommandLineControlActor::f_ScreenChange, ScreenChange) > fg_DirectCallActor() / [](TCAsyncResult<void> &&_Result)
 								{
 									if (!_Result)
 										DMibConErrOut("Failed to notify screen change: {}\n", _Result.f_GetExceptionStr());
@@ -577,10 +582,10 @@ namespace NMib::NConcurrency
 				;
 			}
 
-			TCDistributedActor<CCommandLineControlActor> pCommandLineControl = DistributionManager->f_ConstructActor<CCommandLineControlActor>();
+			TCDistributedActor<CCommandLineControlActor> ControlActor = DistributionManager->f_ConstructActor<CCommandLineControlActor>();
 
 			CCommandLineControl CommandLineControl;
-			CommandLineControl.m_ControlActor = pCommandLineControl->f_ShareInterface<ICCommandLineControl>();
+			CommandLineControl.m_ControlActor = ControlActor->f_ShareInterface<ICCommandLineControl>();
 
 			CommandLineControl.m_CommandLineWidth = mp_CommandLineWidth;
 			CommandLineControl.m_CommandLineHeight = mp_CommandLineHeight;
@@ -620,9 +625,9 @@ namespace NMib::NConcurrency
 
 				TerminationSubscription = NProcess::NPlatform::fg_Process_WaitForTermination
 					(
-						[pState, pCommandLineControl]
+						[pState, ControlActor]
 						{
-							pCommandLineControl(&CCommandLineControlActor::f_Cancel) > fg_DirectCallActor() / [pState](TCAsyncResult<bool> &&_Result)
+							ControlActor(&CCommandLineControlActor::f_Cancel) > fg_DirectCallActor() / [pState](TCAsyncResult<bool> &&_Result)
 								{
 									if (!_Result)
 										DMibConErrOut("Failed to cancel: {}\n", _Result.f_GetExceptionStr());
@@ -685,7 +690,7 @@ namespace NMib::NConcurrency
 					Result = pState->m_Result;
 			}
 
-			fg_Move(pCommandLineControl).f_Destroy().f_CallSync(Internal.m_pRunLoop);
+			fg_Move(ControlActor).f_Destroy().f_CallSync(Internal.m_pRunLoop);
 
 			return *Result;
 		}

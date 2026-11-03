@@ -203,9 +203,9 @@ namespace NMib::NConcurrency
 
 							{
 								auto DatabaseKey = fs_GetDatabaseKey<CLogEntryKey>(Prefix, Log.m_Info);
-								auto ReadCursor = _ReadTransaction.m_Transaction.f_ReadCursor((CLogKey const &)DatabaseKey);
-								if (ReadCursor.f_Last())
-									Log.m_LastSeenUniqueSequence = fg_Max(ReadCursor.f_Key<CLogEntryKey>().m_UniqueSequence, Log.m_LastSeenUniqueSequence);
+								auto iLogEntry = _ReadTransaction.m_Transaction.f_ReadCursor((CLogKey const &)DatabaseKey);
+								if (iLogEntry.f_Last())
+									Log.m_LastSeenUniqueSequence = fg_Max(iLogEntry.f_Key<CLogEntryKey>().m_UniqueSequence, Log.m_LastSeenUniqueSequence);
 							}
 						}
 

@@ -238,7 +238,7 @@ namespace NMib::NConcurrency
 
 			if (YieldStopwatch.f_GetTime() > 0.1)
 			{
-				if (co_await g_bShouldAbort)
+				if (co_await g_ShouldAbort)
 					co_return DMibErrorInstance("Aborted");
 
 				if (Batch.f_GetLen() > 0)

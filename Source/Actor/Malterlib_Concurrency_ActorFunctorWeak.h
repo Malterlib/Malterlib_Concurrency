@@ -21,10 +21,10 @@ namespace NMib::NConcurrency
 		using CStripedReturn = typename NPrivate::TCIsFuture<CReturn>::CType;
 
 		TCActorFunctorWeak() = default;
-		TCActorFunctorWeak(TCActorFunctorWeak &&_Other) = default;
-		TCActorFunctorWeak &operator = (TCActorFunctorWeak &&_Other) = default;
-		TCActorFunctorWeak(TCActorFunctorWeak const &_Other) = delete;
-		TCActorFunctorWeak &operator = (TCActorFunctorWeak const &_Other) = delete;
+		TCActorFunctorWeak(TCActorFunctorWeak &&_fOther) = default;
+		TCActorFunctorWeak &operator = (TCActorFunctorWeak &&_fOther) = default;
+		TCActorFunctorWeak(TCActorFunctorWeak const &_fOther) = delete;
+		TCActorFunctorWeak &operator = (TCActorFunctorWeak const &_fOther) = delete;
 		~TCActorFunctorWeak();
 
 		TCActorFunctorWeak(CNullPtr _pNull);
@@ -69,17 +69,17 @@ namespace NMib::NConcurrency
 		NStorage::TCSharedPointer<CStorage> mp_pFunctor;
 	};
 
-	template <bool tf_bCoalesced = false, typename tf_CFunctor>
-	auto fg_ActorFunctorWeak(TCActor<> const &_Actor, tf_CFunctor &&_fFunctor)
+	template <bool tf_bCoalesced = false, typename tf_FFunctor>
+	auto fg_ActorFunctorWeak(TCActor<> const &_Actor, tf_FFunctor &&_fFunctor)
 	{
 		using FFunction = NPrivate::TCRemoveReferencesFromFunctor
 			<
-				typename NTraits::TCMemberFunctionPointerTraits<decltype(&NTraits::TCRemoveReferenceAndQualifiers<tf_CFunctor>::operator ())>::FFunctionType
+				typename NTraits::TCMemberFunctionPointerTraits<decltype(&NTraits::TCRemoveReferenceAndQualifiers<tf_FFunctor>::operator ())>::FFunctionType
 			>
 			::FType
 		;
 
-		return TCActorFunctorWeak<FFunction, tf_bCoalesced>{fg_TempCopy(_Actor), fg_Forward<tf_CFunctor>(_fFunctor)};
+		return TCActorFunctorWeak<FFunction, tf_bCoalesced>{fg_TempCopy(_Actor), fg_Forward<tf_FFunctor>(_fFunctor)};
 	}
 
 	template <bool t_bCoalesced>
@@ -107,8 +107,8 @@ namespace NMib::NConcurrency
 	using CActorFunctorWeakHelper = TCActorFunctorWeakHelper<false>;
 	using CActorFunctorWeakCoalesced = TCActorFunctorWeak<TCFuture<void> (), true>;
 
-	extern CActorFunctorWeakHelper const &g_ActorFunctorWeak;
-	extern TCActorFunctorWeakHelper<true> const &g_ActorFunctorWeakCoalesced;
+	extern CActorFunctorWeakHelper const &g_ActorFunctorWeak; // NOLINT(malterlib-conceptual-prefix): binds an actor and returns a builder, not a function object
+	extern TCActorFunctorWeakHelper<true> const &g_ActorFunctorWeakCoalesced; // NOLINT(malterlib-conceptual-prefix): binds an actor and returns a builder, not a function object
 }
 
 #ifndef DMibPNoShortCuts

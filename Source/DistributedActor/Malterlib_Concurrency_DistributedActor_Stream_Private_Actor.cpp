@@ -39,13 +39,13 @@ namespace NMib::NConcurrency
 		}
 
 	protected:
-		void fp_QueueProcessDestroy(FActorQueueDispatch &&_Functor, CConcurrencyThreadLocal &_ThreadLocal) override
+		void fp_QueueProcessDestroy(FActorQueueDispatch &&_fFunctor, CConcurrencyThreadLocal &_ThreadLocal) override
 		{
 			CDefaultActorHolder::fp_QueueProcessDestroy
 				(
-					[this, Functor = fg_Move(_Functor)](CConcurrencyThreadLocal &_ThreadLocal) mutable
+					[this, fFunctor = fg_Move(_fFunctor)](CConcurrencyThreadLocal &_ThreadLocal) mutable
 					{
-						// this is referenced by shared pointer in Functor
+						// this is referenced by shared pointer in fFunctor
 
 						auto &ThreadLocal = *NPrivate::fg_DistributedActorSubSystem().m_ThreadLocal;
 						auto pOldDispatchData = ThreadLocal.m_pCurrentRemoteDispatchActorData;
@@ -55,7 +55,7 @@ namespace NMib::NConcurrency
 								ThreadLocal.m_pCurrentRemoteDispatchActorData = pOldDispatchData;
 							}
 						;
-						Functor(_ThreadLocal);
+						fFunctor(_ThreadLocal);
 					}
 					, _ThreadLocal
 				)
@@ -67,11 +67,11 @@ namespace NMib::NConcurrency
 			CDefaultActorHolder::fp_QueueRunProcess(_ThreadLocal);
 		}
 
-		void fp_QueueProcess(FActorQueueDispatch &&_Functor, CConcurrencyThreadLocal &_ThreadLocal) override
+		void fp_QueueProcess(FActorQueueDispatch &&_fFunctor, CConcurrencyThreadLocal &_ThreadLocal) override
 		{
 			CDefaultActorHolder::fp_QueueProcess
 				(
-					[this, Functor = fg_Move(_Functor)](CConcurrencyThreadLocal &_ThreadLocal) mutable
+					[this, fFunctor = fg_Move(_fFunctor)](CConcurrencyThreadLocal &_ThreadLocal) mutable
 					{
 						// this is referenced by shared pointer in CDefaultActorHolder::fp_QueueProcess
 
@@ -83,7 +83,7 @@ namespace NMib::NConcurrency
 								ThreadLocal.m_pCurrentRemoteDispatchActorData = pOldDispatchData;
 							}
 						;
-						Functor(_ThreadLocal);
+						fFunctor(_ThreadLocal);
 					}
 					, _ThreadLocal
 				)

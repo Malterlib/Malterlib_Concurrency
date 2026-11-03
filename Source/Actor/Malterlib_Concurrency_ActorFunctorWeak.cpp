@@ -8,9 +8,10 @@
 
 namespace NMib::NConcurrency
 {
-	constexpr CActorFunctorWeakHelper gc_ActorFunctorWeakInit{};
-	CActorFunctorWeakHelper const &g_ActorFunctorWeak = gc_ActorFunctorWeakInit;
+	constexpr CActorFunctorWeakHelper gc_ActorFunctorWeakInit{}; // NOLINT(malterlib-conceptual-prefix): binds an actor and returns a builder, not a function object
+	CActorFunctorWeakHelper const &g_ActorFunctorWeak = gc_ActorFunctorWeakInit; // NOLINT(malterlib-conceptual-prefix): binds an actor and returns a builder, not a function object
 
-	constexpr TCActorFunctorWeakHelper<true> gc_ActorFunctorWeakCoalescedInit{};
+	constexpr TCActorFunctorWeakHelper<true> gc_ActorFunctorWeakCoalescedInit{}; // NOLINT(malterlib-conceptual-prefix): binds an actor and returns a builder, not a function object
+	// NOLINTNEXTLINE(malterlib-conceptual-prefix): binds an actor and returns a builder, not a function object
 	TCActorFunctorWeakHelper<true> const &g_ActorFunctorWeakCoalesced = gc_ActorFunctorWeakCoalescedInit;
 }

@@ -39,7 +39,7 @@ namespace NMib::NConcurrency
 			CLockReference &operator = (CLockReference const &_Other);
 
 			NStorage::TCSharedPointer<CState> mp_pState;
-			TCWeakActor<TCLockActor> mp_pActor;
+			TCWeakActor<TCLockActor> mp_Actor;
 			aint mp_LockSequence;
 		};
 

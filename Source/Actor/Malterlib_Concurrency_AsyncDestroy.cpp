@@ -17,8 +17,8 @@ namespace NMib::NConcurrency
 		{
 			TCFutureVector<void> DestroyResults;
 
-			for (auto &fAsyncDestroy : m_State.m_AsyncDestructors)
-				fg_Move(fAsyncDestroy) > DestroyResults;
+			for (auto &AsyncDestroy : m_State.m_AsyncDestructors)
+				fg_Move(AsyncDestroy) > DestroyResults;
 
 			m_State.m_AsyncDestructors.f_Clear();
 
@@ -37,8 +37,8 @@ namespace NMib::NConcurrency
 		{
 			TCFutureVector<void> DestroyResults;
 
-			for (auto &fAsyncDestroy : m_State.m_AsyncDestructors)
-				fg_Move(fAsyncDestroy) > DestroyResults;
+			for (auto &AsyncDestroy : m_State.m_AsyncDestructors)
+				fg_Move(AsyncDestroy) > DestroyResults;
 
 			m_State.m_AsyncDestructors.f_Clear();
 
@@ -54,16 +54,16 @@ namespace NMib::NConcurrency
 		return fg_Move(_fDestroy);
 	}
 
-	TCAsyncDestroyAwaiter<FUnitVoidFutureFunction, FUnitVoidFutureFunction> fg_AsyncDestroy(CActorSubscription &&_pToDestroy)
+	TCAsyncDestroyAwaiter<FUnitVoidFutureFunction, FUnitVoidFutureFunction> fg_AsyncDestroy(CActorSubscription &&_ToDestroy)
 	{
 		return fg_AsyncDestroyByValue
 			(
 				FUnitVoidFutureFunction
 				(
-					[pToDestroy = fg_Move(_pToDestroy)]() mutable -> TCFuture<void>
+					[ToDestroy = fg_Move(_ToDestroy)]() mutable -> TCFuture<void>
 					{
-						if (pToDestroy)
-							co_await fg_Exchange(pToDestroy, nullptr)->f_Destroy();
+						if (ToDestroy)
+							co_await fg_Exchange(ToDestroy, nullptr)->f_Destroy();
 
 						co_return {};
 					}

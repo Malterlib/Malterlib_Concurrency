@@ -144,13 +144,13 @@ namespace NMib::NConcurrency
 
 		CStr TicketPermissionRequestID = NCryptography::fg_RandomID(Internal.m_TicketPermissionSubscriptions);
 
-		COnScopeExitShared pCleanup;
+		COnScopeExitShared Cleanup;
 
 		bool bHasPermissions = !_Permissions.f_IsEmpty();
 
 		if (bHasPermissions)
 		{
-			pCleanup = g_OnScopeExitActor / [this, TicketPermissionRequestID]
+			Cleanup = g_OnScopeExitActor / [this, TicketPermissionRequestID]
 				{
 					auto &Internal = *mp_pInternal;
 
@@ -167,7 +167,7 @@ namespace NMib::NConcurrency
 				, ForListen
 				, nullptr
 				, bHasPermissions
-				? g_ActorFunctor / [this, _Permissions, pCleanup = fg_Move(pCleanup), _UserID, Requirements](CStr _HostID, CCallingHostInfo _HostInfo) mutable -> TCFuture<void>
+				? g_ActorFunctor / [this, _Permissions, Cleanup = fg_Move(Cleanup), _UserID, Requirements](CStr _HostID, CCallingHostInfo _HostInfo) mutable -> TCFuture<void>
 				{
 					if (_Permissions.f_IsEmpty())
 						co_return {};

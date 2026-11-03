@@ -32,7 +32,7 @@ namespace NMib::NConcurrency
 			NAtomic::TCAtomic<bool> m_bPendingWake = false; // Set until a pending wake is consumed, including through another wrapper of the native run loop.
 
 #ifdef DPlatformFamily_macOS
-			CFRunLoopRef m_RunLoopRef = nullptr;
+			CFRunLoopRef m_pRunLoopRef = nullptr;
 #endif
 		};
 	}
@@ -48,7 +48,7 @@ namespace NMib::NConcurrency
 		NStorage::TCSharedPointer<COSMainRunLoopWakeSource> m_pSource = fg_Construct();
 
 #ifdef DPlatformFamily_macOS
-		CFRunLoopRef m_RunLoopRef = nullptr;
+		CFRunLoopRef m_pRunLoopRef = nullptr;
 		CFRunLoopSourceRef m_pRunLoopSourceRef = nullptr;
 #endif
 	};
@@ -62,9 +62,9 @@ namespace NMib::NConcurrency
 #endif
 
 #if defined(DPlatformFamily_macOS)
-		m_RunLoopRef = CFRunLoopGetCurrent();
-		CFRetain(m_RunLoopRef);
-		m_pSource->m_RunLoopRef = m_RunLoopRef;
+		m_pRunLoopRef = CFRunLoopGetCurrent();
+		CFRetain(m_pRunLoopRef);
+		m_pSource->m_pRunLoopRef = m_pRunLoopRef;
 
 		// Each wrapper needs a distinct context because CF source equality uses context identity.
 		CFRunLoopSourceContext Context
@@ -92,21 +92,21 @@ namespace NMib::NConcurrency
 
 					// Any wrapper can consume this source; clear the flag here so the next wake signals again.
 					Source.m_bPendingWake = false;
-					CFRunLoopStop(Source.m_RunLoopRef);
+					CFRunLoopStop(Source.m_pRunLoopRef);
 				}
 			}
 		;
 		m_pRunLoopSourceRef = CFRunLoopSourceCreate(nullptr, 0, &Context);
-		CFRunLoopAddSource(m_RunLoopRef, m_pRunLoopSourceRef, kCFRunLoopDefaultMode);
+		CFRunLoopAddSource(m_pRunLoopRef, m_pRunLoopSourceRef, kCFRunLoopDefaultMode);
 #endif
 	}
 
 	NPrivate::COSMainRunLoopWakeState::~COSMainRunLoopWakeState()
 	{
 #if defined(DPlatformFamily_macOS)
-		CFRunLoopRemoveSource(m_RunLoopRef, m_pRunLoopSourceRef, kCFRunLoopDefaultMode);
+		CFRunLoopRemoveSource(m_pRunLoopRef, m_pRunLoopSourceRef, kCFRunLoopDefaultMode);
 		CFRelease(m_pRunLoopSourceRef);
-		CFRelease(m_RunLoopRef);
+		CFRelease(m_pRunLoopRef);
 #endif
 	}
 
@@ -118,7 +118,7 @@ namespace NMib::NConcurrency
 
 #ifdef DPlatformFamily_macOS
 		CFRunLoopSourceSignal(m_pRunLoopSourceRef);
-		CFRunLoopWakeUp(m_RunLoopRef);
+		CFRunLoopWakeUp(m_pRunLoopRef);
 
 		if (m_Mode == EOSMainRunLoopMode::mc_ApplicationEvents)
 			NPrivate::fg_OSMainRunLoop_WakeApplication();
@@ -255,11 +255,11 @@ namespace NMib::NConcurrency
 		;
 	}
 
-	NFunction::TCFunctionMovable<void (FActorQueueDispatchNoAlloc &&_Dispatch)> COSMainRunLoop::f_Dispatcher()
+	NFunction::TCFunctionMovable<void (FActorQueueDispatchNoAlloc &&_fDispatch)> COSMainRunLoop::f_Dispatcher()
 	{
-		return [pThis = NStorage::TCSharedPointer<COSMainRunLoop>(fg_Explicit(this))](FActorQueueDispatchNoAlloc &&_Dispatch)
+		return [pThis = NStorage::TCSharedPointer<COSMainRunLoop>(fg_Explicit(this))](FActorQueueDispatchNoAlloc &&_fDispatch)
 			{
-				pThis->mp_RunQueue.f_AddToQueue(fg_Move(_Dispatch));
+				pThis->mp_RunQueue.f_AddToQueue(fg_Move(_fDispatch));
 
 				// An application-event wait needs a posted event; stopping the run loop alone does not return it.
 				pThis->f_Wake();

@@ -144,15 +144,15 @@ namespace NMib::NConcurrency
 		TCConcurrentRunQueue();
 		~TCConcurrentRunQueue();
 
-		static NStorage::TCUniquePointer<t_CEntry> fs_QueueEntry(FQueueDispatch &&_Functor);
+		static NStorage::TCUniquePointer<t_CEntry> fs_QueueEntry(FQueueDispatch &&_fFunctor);
 		bool f_AddToQueueIfEmpty(NStorage::TCUniquePointer<t_CEntry> &&_pEntry);
 		void f_AddToQueue(NStorage::TCUniquePointer<t_CEntry> &&_pEntry);
 		bool f_AddToQueueLocal(NStorage::TCUniquePointer<t_CEntry> &&_pEntry, CLocalQueueData &_LocalQueue);
 		bool f_AddToQueueLocalFirst(NStorage::TCUniquePointer<t_CEntry> &&_pEntry, CLocalQueueData &_LocalQueue);
 
-		void f_AddToQueue(FQueueDispatch &&_Functor);
-		bool f_AddToQueueLocal(FQueueDispatch &&_Functor, CLocalQueueData &_LocalQueue);
-		bool f_AddToQueueLocalFirst(FQueueDispatch &&_Functor, CLocalQueueData &_LocalQueue);
+		void f_AddToQueue(FQueueDispatch &&_fFunctor);
+		bool f_AddToQueueLocal(FQueueDispatch &&_fFunctor, CLocalQueueData &_LocalQueue);
+		bool f_AddToQueueLocalFirst(FQueueDispatch &&_fFunctor, CLocalQueueData &_LocalQueue);
 
 		void f_AddToQueue(TCConcurrentRunQueueEntryHolder<t_CBaseEntry> &&_Entry);
 		bool f_AddToQueueLocal(TCConcurrentRunQueueEntryHolder<t_CBaseEntry> &&_Entry, CLocalQueueData &_LocalQueue);

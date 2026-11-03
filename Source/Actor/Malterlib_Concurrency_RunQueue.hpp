@@ -108,9 +108,9 @@ namespace NMib::NConcurrency
 	}
 
 	template <typename t_CBaseEntry, typename t_CEntry>
-	auto TCConcurrentRunQueue<t_CBaseEntry, t_CEntry>::fs_QueueEntry(FQueueDispatch &&_Functor) -> NStorage::TCUniquePointer<t_CEntry>
+	auto TCConcurrentRunQueue<t_CBaseEntry, t_CEntry>::fs_QueueEntry(FQueueDispatch &&_fFunctor) -> NStorage::TCUniquePointer<t_CEntry>
 	{
-		return fg_Construct(fg_Move(_Functor));
+		return fg_Construct(fg_Move(_fFunctor));
 	}
 
 	template <typename t_CBaseEntry, typename t_CEntry>
@@ -204,9 +204,9 @@ namespace NMib::NConcurrency
 	}
 
 	template <typename t_CBaseEntry, typename t_CEntry>
-	void TCConcurrentRunQueue<t_CBaseEntry, t_CEntry>::f_AddToQueue(FQueueDispatch &&_Functor)
+	void TCConcurrentRunQueue<t_CBaseEntry, t_CEntry>::f_AddToQueue(FQueueDispatch &&_fFunctor)
 	{
-		NStorage::TCUniquePointer<t_CEntry> pNewEntryUnique = fg_Construct(fg_Move(_Functor));
+		NStorage::TCUniquePointer<t_CEntry> pNewEntryUnique = fg_Construct(fg_Move(_fFunctor));
 		t_CEntry *pNewEntry = pNewEntryUnique.f_Detach();
 		while (true)
 		{
@@ -218,10 +218,10 @@ namespace NMib::NConcurrency
 	}
 
 	template <typename t_CBaseEntry, typename t_CEntry>
-	bool TCConcurrentRunQueue<t_CBaseEntry, t_CEntry>::f_AddToQueueLocal(FQueueDispatch &&_Functor, CLocalQueueData &_LocalQueue)
+	bool TCConcurrentRunQueue<t_CBaseEntry, t_CEntry>::f_AddToQueueLocal(FQueueDispatch &&_fFunctor, CLocalQueueData &_LocalQueue)
 	{
 		bool bWasEmpty = _LocalQueue.m_LocalQueue.f_IsEmpty();
-		NStorage::TCUniquePointer<t_CEntry> pNewEntryUnique = fg_Construct(fg_Move(_Functor));
+		NStorage::TCUniquePointer<t_CEntry> pNewEntryUnique = fg_Construct(fg_Move(_fFunctor));
 		pNewEntryUnique->m_Link.f_Construct();
 		_LocalQueue.m_LocalQueue.f_Insert(pNewEntryUnique.f_Detach());
 		++_LocalQueue.m_nEntries;
@@ -229,10 +229,10 @@ namespace NMib::NConcurrency
 	}
 
 	template <typename t_CBaseEntry, typename t_CEntry>
-	bool TCConcurrentRunQueue<t_CBaseEntry, t_CEntry>::f_AddToQueueLocalFirst(FQueueDispatch &&_Functor, CLocalQueueData &_LocalQueue)
+	bool TCConcurrentRunQueue<t_CBaseEntry, t_CEntry>::f_AddToQueueLocalFirst(FQueueDispatch &&_fFunctor, CLocalQueueData &_LocalQueue)
 	{
 		bool bWasEmpty = _LocalQueue.m_LocalQueue.f_IsEmpty();
-		NStorage::TCUniquePointer<t_CEntry> pNewEntryUnique = fg_Construct(fg_Move(_Functor));
+		NStorage::TCUniquePointer<t_CEntry> pNewEntryUnique = fg_Construct(fg_Move(_fFunctor));
 		pNewEntryUnique->m_Link.f_Construct();
 		_LocalQueue.m_LocalQueue.f_InsertFirst(pNewEntryUnique.f_Detach());
 		++_LocalQueue.m_nEntries;

@@ -202,9 +202,9 @@ namespace NMib::NConcurrency
 
 							{
 								auto DatabaseKey = fs_GetDatabaseKey<CSensorReadingKey>(Prefix, Sensor.m_Info);
-								auto ReadCursor = _ReadTransaction.m_Transaction.f_ReadCursor((CSensorKey const &)DatabaseKey);
-								if (ReadCursor.f_Last())
-									Sensor.m_LastSeenUniqueSequence = fg_Max(ReadCursor.f_Key<CSensorReadingKey>().m_UniqueSequence, Sensor.m_LastSeenUniqueSequence);
+								auto iReading = _ReadTransaction.m_Transaction.f_ReadCursor((CSensorKey const &)DatabaseKey);
+								if (iReading.f_Last())
+									Sensor.m_LastSeenUniqueSequence = fg_Max(iReading.f_Key<CSensorReadingKey>().m_UniqueSequence, Sensor.m_LastSeenUniqueSequence);
 							}
 						}
 

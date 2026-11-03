@@ -31,9 +31,9 @@ namespace NMib::NConcurrency
 	protected:
 		void fp_StartQueueProcessing() override;
 		void fp_DestroyThreaded() override;
-		void fp_QueueProcessDestroy(FActorQueueDispatch &&_Functor, CConcurrencyThreadLocal &_ThreadLocal) override;
+		void fp_QueueProcessDestroy(FActorQueueDispatch &&_fFunctor, CConcurrencyThreadLocal &_ThreadLocal) override;
 		void fp_QueueRunProcess(CConcurrencyThreadLocal &_ThreadLocal) override;
-		void fp_QueueProcess(FActorQueueDispatch &&_Functor, CConcurrencyThreadLocal &_ThreadLocal) override;
+		void fp_QueueProcess(FActorQueueDispatch &&_fFunctor, CConcurrencyThreadLocal &_ThreadLocal) override;
 		void fp_QueueProcessEntry(CConcurrentRunQueueEntryHolder &&_Entry, CConcurrencyThreadLocal &_ThreadLocal) override;
 
 		NThread::CLowLevelLock mp_ThreadLock;
@@ -42,8 +42,8 @@ namespace NMib::NConcurrency
 		NThread::CEvent mp_ThreadStartedEvent;
 		NStr::CStr mp_ThreadName;
 #if defined(DPlatformFamily_macOS)
-		CFRunLoopRef mp_RunLoopRef = nullptr;
-		CFRunLoopSourceRef mp_RunLoopSourceRef = nullptr;
+		CFRunLoopRef mp_pRunLoopRef = nullptr;
+		CFRunLoopSourceRef mp_pRunLoopSourceRef = nullptr;
 #endif
 	};
 }

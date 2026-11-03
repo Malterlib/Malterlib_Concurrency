@@ -154,11 +154,11 @@ namespace NMib::NConcurrency
 		if (!Actor)
 			return {};
 
-		TCActorFunctor<t_CFunction, t_bCoalesced> Return;
-		Return.mp_Actor = fg_Move(Actor);
-		Return.mp_pFunctor = mp_pFunctor;
+		TCActorFunctor<t_CFunction, t_bCoalesced> fReturn;
+		fReturn.mp_Actor = fg_Move(Actor);
+		fReturn.mp_pFunctor = mp_pFunctor;
 
-		return fg_Move(Return);
+		return fg_Move(fReturn);
 	}
 
 	template <typename t_CFunction, bool t_bCoalesced>

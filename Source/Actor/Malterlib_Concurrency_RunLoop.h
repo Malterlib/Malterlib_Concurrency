@@ -33,7 +33,7 @@ namespace NMib::NConcurrency
 		virtual bool f_WaitOnceTimeout(fp64 _Timeout) = 0;
 		virtual void f_Wake() = 0;
 		virtual CActorDestroyEventLoop f_ActorDestroyLoop() = 0;
-		virtual NFunction::TCFunctionMovable<void (FActorQueueDispatchNoAlloc &&_Dispatch)> f_Dispatcher() = 0;
+		virtual NFunction::TCFunctionMovable<void (FActorQueueDispatchNoAlloc &&_fDispatch)> f_Dispatcher() = 0;
 		void f_Sleep(fp64 _Time);
 
 		CReferenceCount m_RefCount;
@@ -48,7 +48,7 @@ namespace NMib::NConcurrency
 		bool f_WaitOnceTimeout(fp64 _Timeout) override;
 		void f_Wake() override;
 		CActorDestroyEventLoop f_ActorDestroyLoop() override;
-		NFunction::TCFunctionMovable<void (FActorQueueDispatchNoAlloc &&_Dispatch)> f_Dispatcher() override;
+		NFunction::TCFunctionMovable<void (FActorQueueDispatchNoAlloc &&_fDispatch)> f_Dispatcher() override;
 
 		align_cacheline CConcurrentRunQueueNonVirtualNoAlloc m_RunQueue;
 		NThread::CEventAutoReset &m_Event;
@@ -71,7 +71,7 @@ namespace NMib::NConcurrency
 	private:
 		static void fsp_Wake(void *_pContext);
 
-		NFunction::TCFunctionMovable<void (FActorQueueDispatchNoAlloc &&_Dispatch)> mp_fDispatch;
+		NFunction::TCFunctionMovable<void (FActorQueueDispatchNoAlloc &&_fDispatch)> mp_fDispatch;
 		bool mp_bRegistered = false;
 	};
 

@@ -184,14 +184,14 @@ namespace NMib::NConcurrency::NPrivate
 			)
 		;
 
-		auto *PromiseData = static_cast<TCPromiseData<void> *>(m_pPromiseData);
+		auto *pPromiseData = static_cast<TCPromiseData<void> *>(m_pPromiseData);
 
 		if constexpr (NTraits::cIsSame<CReturnNoReference, TCAsyncResult<void>>)
-			PromiseData->f_SetResultNoReport(fg_Forward<tf_CReturnType>(_Value));
+			pPromiseData->f_SetResultNoReport(fg_Forward<tf_CReturnType>(_Value));
 		else if constexpr (NTraits::cIsSame<CReturnNoReference, TCWrapped<void>>)
-			PromiseData->f_SetResultNoReport(fg_ForwardAs<tf_CReturnType>(static_cast<TCAsyncResult<void> &>(_Value)));
+			pPromiseData->f_SetResultNoReport(fg_ForwardAs<tf_CReturnType>(static_cast<TCAsyncResult<void> &>(_Value)));
 		else if constexpr (NTraits::cIsSame<CReturnNoReference, TCPromise<void>>)
-			PromiseData->f_SetResultNoReport(fg_Forward<tf_CReturnType>(_Value));
+			pPromiseData->f_SetResultNoReport(fg_Forward<tf_CReturnType>(_Value));
 		else
 		{
 			if constexpr (NException::cIsException<CReturnNoReference>)
@@ -202,10 +202,10 @@ namespace NMib::NConcurrency::NPrivate
 						, "Only safe to newly created exceptions, otherwise use exception pointers"
 					)
 				;
-				PromiseData->f_SetExceptionNoReport(fg_Forward<tf_CReturnType>(_Value));
+				pPromiseData->f_SetExceptionNoReport(fg_Forward<tf_CReturnType>(_Value));
 			}
 			else
-				PromiseData->f_SetExceptionNoReport(fg_Forward<tf_CReturnType>(_Value));
+				pPromiseData->f_SetExceptionNoReport(fg_Forward<tf_CReturnType>(_Value));
 		}
 #endif
 	}

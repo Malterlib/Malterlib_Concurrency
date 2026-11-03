@@ -106,19 +106,19 @@ namespace
 				ClientSettings.m_PrivateKeyData = ClientDatabase.m_BasicConfig.m_CAPrivateKey;
 				ClientSettings.m_PublicCertificateData = pClientConnection->m_PublicClientCertificate;
 
-				NNetwork::FVirtualSocketFactory ClientSocketFactory;
+				NNetwork::FVirtualSocketFactory fClientSocketFactory;
 				if (bAuthenticatedUnix)
 				{
 					NStorage::TCSharedPointer<CAuthenticatedUnixContext> pClientContext = fg_Construct(CAuthenticatedUnixContext::EType::mc_Client, ClientSettings);
-					ClientSocketFactory = CSocket_AuthenticatedUnix::fs_GetFactory(pClientContext);
+					fClientSocketFactory = CSocket_AuthenticatedUnix::fs_GetFactory(pClientContext);
 				}
 				else
 				{
 					NStorage::TCSharedPointer<CSSLContext> pClientContext = fg_Construct(CSSLContext::EType_Client, ClientSettings);
-					ClientSocketFactory = CSocket_SSL::fs_GetFactory(pClientContext);
+					fClientSocketFactory = CSocket_SSL::fs_GetFactory(pClientContext);
 				}
 
-				TCActor<CDDPClient> Client = fg_ConstructActor<CDDPClient>(ConnectToURL, "", fg_Default(), "", ClientSocketFactory);
+				TCActor<CDDPClient> Client = fg_ConstructActor<CDDPClient>(ConnectToURL, "", fg_Default(), "", fClientSocketFactory);
 
 				CDDPClient::CConnectInfo ConnectionInfo = Client(&CDDPClient::f_Connect, "", "", "", "", 20.0, nullptr).f_CallSync();
 

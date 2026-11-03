@@ -2194,14 +2194,14 @@ namespace NMib::NConcurrency::NTest
 						)
 					;
 
-					auto Iterator = co_await fg_Move(Generator).f_GetPipelinedIterator(1);
+					auto iIterator = co_await fg_Move(Generator).f_GetPipelinedIterator(1);
 					DMibTest(DMibExpr(pTestState->m_nDestroyed.f_Load()) == DMibExpr(0) && DMibExpr("2"));
 					DMibTest(DMibExpr(pTestState->m_nDestructed.f_Load()) == DMibExpr(0) && DMibExpr("2"));
-					DMibAssertTrue(Iterator);
-					DMibExpect(*Iterator, ==, 1);
+					DMibAssertTrue(iIterator);
+					DMibExpect(*iIterator, ==, 1);
 
-					co_await ++Iterator;
-					DMibExpectFalse(Iterator);
+					co_await ++iIterator;
+					DMibExpectFalse(iIterator);
 
 					DMibExpect(pTestState->m_nDestroyed.f_Load(), ==, 1);
 					DMibExpect(pTestState->m_nDestructed.f_Load(), ==, 1);
@@ -2271,19 +2271,19 @@ namespace NMib::NConcurrency::NTest
 						)
 					;
 
-					auto Iterator = co_await fg_Move(Generator).f_GetPipelinedIterator(1);
+					auto iIterator = co_await fg_Move(Generator).f_GetPipelinedIterator(1);
 					DMibTest(DMibExpr(pTestState->m_nDestroyed.f_Load()) == DMibExpr(0) && DMibExpr("2"));
 					DMibTest(DMibExpr(pTestState->m_nDestructed.f_Load()) == DMibExpr(0) && DMibExpr("2"));
-					DMibAssertTrue(Iterator);
-					DMibExpect(*Iterator, ==, 1);
+					DMibAssertTrue(iIterator);
+					DMibExpect(*iIterator, ==, 1);
 
-					co_await ++Iterator;
-					DMibTest(!!DMibExpr(Iterator) && DMibExpr("2"));
+					co_await ++iIterator;
+					DMibTest(!!DMibExpr(iIterator) && DMibExpr("2"));
 
 					DMibTest(DMibExpr(pTestState->m_nDestroyed.f_Load()) == DMibExpr(0) && DMibExpr("3"));
 					DMibTest(DMibExpr(pTestState->m_nDestructed.f_Load()) == DMibExpr(0) && DMibExpr("3"));
 
-					co_await fg_Move(Iterator).f_Destroy();
+					co_await fg_Move(iIterator).f_Destroy();
 
 					DMibExpect(pTestState->m_nDestroyed.f_Load(), ==, 1);
 					DMibExpect(pTestState->m_nDestructed.f_Load(), ==, 1);
@@ -2316,19 +2316,19 @@ namespace NMib::NConcurrency::NTest
 						)
 					;
 
-					auto Iterator = co_await fg_Move(Generator).f_GetSimpleIterator();
+					auto iIterator = co_await fg_Move(Generator).f_GetSimpleIterator();
 					DMibTest(DMibExpr(pTestState->m_nDestroyed.f_Load()) == DMibExpr(0) && DMibExpr("2"));
 					DMibTest(DMibExpr(pTestState->m_nDestructed.f_Load()) == DMibExpr(0) && DMibExpr("2"));
-					DMibAssertTrue(Iterator);
-					DMibExpect(*Iterator, ==, 1);
+					DMibAssertTrue(iIterator);
+					DMibExpect(*iIterator, ==, 1);
 
-					co_await ++Iterator;
-					DMibTest(!!DMibExpr(Iterator) && DMibExpr("2"));
+					co_await ++iIterator;
+					DMibTest(!!DMibExpr(iIterator) && DMibExpr("2"));
 
 					DMibTest(DMibExpr(pTestState->m_nDestroyed.f_Load()) == DMibExpr(0) && DMibExpr("3"));
 					DMibTest(DMibExpr(pTestState->m_nDestructed.f_Load()) == DMibExpr(0) && DMibExpr("3"));
 
-					co_await fg_Move(Iterator).f_Destroy();
+					co_await fg_Move(iIterator).f_Destroy();
 
 					DMibExpect(pTestState->m_nDestroyed.f_Load(), ==, 1);
 					DMibExpect(pTestState->m_nDestructed.f_Load(), ==, 1);
@@ -2362,14 +2362,14 @@ namespace NMib::NConcurrency::NTest
 					;
 
 					{
-						auto Iterator = co_await fg_Move(Generator).f_GetPipelinedIterator(1);
+						auto iIterator = co_await fg_Move(Generator).f_GetPipelinedIterator(1);
 						DMibTest(DMibExpr(pTestState->m_nDestroyed.f_Load()) == DMibExpr(0) && DMibExpr("2"));
 						DMibTest(DMibExpr(pTestState->m_nDestructed.f_Load()) == DMibExpr(0) && DMibExpr("2"));
-						DMibAssertTrue(Iterator);
-						DMibExpect(*Iterator, ==, 1);
+						DMibAssertTrue(iIterator);
+						DMibExpect(*iIterator, ==, 1);
 
-						co_await ++Iterator;
-						DMibTest(!!DMibExpr(Iterator) && DMibExpr("2"));
+						co_await ++iIterator;
+						DMibTest(!!DMibExpr(iIterator) && DMibExpr("2"));
 
 						DMibTest(DMibExpr(pTestState->m_nDestroyed.f_Load()) == DMibExpr(0) && DMibExpr("3"));
 						DMibTest(DMibExpr(pTestState->m_nDestructed.f_Load()) == DMibExpr(0) && DMibExpr("3"));
@@ -2409,14 +2409,14 @@ namespace NMib::NConcurrency::NTest
 					;
 
 					{
-						auto Iterator = co_await fg_Move(Generator).f_GetSimpleIterator();
+						auto iIterator = co_await fg_Move(Generator).f_GetSimpleIterator();
 						DMibTest(DMibExpr(pTestState->m_nDestroyed.f_Load()) == DMibExpr(0) && DMibExpr("2"));
 						DMibTest(DMibExpr(pTestState->m_nDestructed.f_Load()) == DMibExpr(0) && DMibExpr("2"));
-						DMibAssertTrue(Iterator);
-						DMibExpect(*Iterator, ==, 1);
+						DMibAssertTrue(iIterator);
+						DMibExpect(*iIterator, ==, 1);
 
-						co_await ++Iterator;
-						DMibTest(!!DMibExpr(Iterator) && DMibExpr("2"));
+						co_await ++iIterator;
+						DMibTest(!!DMibExpr(iIterator) && DMibExpr("2"));
 
 						DMibTest(DMibExpr(pTestState->m_nDestroyed.f_Load()) == DMibExpr(0) && DMibExpr("3"));
 						DMibTest(DMibExpr(pTestState->m_nDestructed.f_Load()) == DMibExpr(0) && DMibExpr("3"));
@@ -2453,19 +2453,19 @@ namespace NMib::NConcurrency::NTest
 						)
 					;
 
-					auto Iterator = co_await fg_Move(Generator).f_GetPipelinedIterator(1);
+					auto iIterator = co_await fg_Move(Generator).f_GetPipelinedIterator(1);
 					DMibTest(DMibExpr(pTestState->m_nDestroyed.f_Load()) == DMibExpr(0) && DMibExpr("2"));
 					DMibTest(DMibExpr(pTestState->m_nDestructed.f_Load()) == DMibExpr(0) && DMibExpr("2"));
-					DMibAssertTrue(Iterator);
-					DMibExpect(*Iterator, ==, 1);
+					DMibAssertTrue(iIterator);
+					DMibExpect(*iIterator, ==, 1);
 
-					co_await ++Iterator;
-					DMibTest(!!DMibExpr(Iterator) && DMibExpr("2"));
+					co_await ++iIterator;
+					DMibTest(!!DMibExpr(iIterator) && DMibExpr("2"));
 
 					DMibTest(DMibExpr(pTestState->m_nDestroyed.f_Load()) == DMibExpr(0) && DMibExpr("3"));
 					DMibTest(DMibExpr(pTestState->m_nDestructed.f_Load()) == DMibExpr(0) && DMibExpr("3"));
 
-					co_await fg_Move(Iterator).f_Destroy();
+					co_await fg_Move(iIterator).f_Destroy();
 
 					DMibExpect(pTestState->m_nDestroyed.f_Load(), ==, 1);
 					DMibExpect(pTestState->m_nDestructed.f_Load(), ==, 1);
@@ -2496,19 +2496,19 @@ namespace NMib::NConcurrency::NTest
 						)
 					;
 
-					auto Iterator = co_await fg_Move(Generator).f_GetSimpleIterator();
+					auto iIterator = co_await fg_Move(Generator).f_GetSimpleIterator();
 					DMibTest(DMibExpr(pTestState->m_nDestroyed.f_Load()) == DMibExpr(0) && DMibExpr("2"));
 					DMibTest(DMibExpr(pTestState->m_nDestructed.f_Load()) == DMibExpr(0) && DMibExpr("2"));
-					DMibAssertTrue(Iterator);
-					DMibExpect(*Iterator, ==, 1);
+					DMibAssertTrue(iIterator);
+					DMibExpect(*iIterator, ==, 1);
 
-					co_await ++Iterator;
-					DMibTest(!!DMibExpr(Iterator) && DMibExpr("2"));
+					co_await ++iIterator;
+					DMibTest(!!DMibExpr(iIterator) && DMibExpr("2"));
 
 					DMibTest(DMibExpr(pTestState->m_nDestroyed.f_Load()) == DMibExpr(0) && DMibExpr("3"));
 					DMibTest(DMibExpr(pTestState->m_nDestructed.f_Load()) == DMibExpr(0) && DMibExpr("3"));
 
-					co_await fg_Move(Iterator).f_Destroy();
+					co_await fg_Move(iIterator).f_Destroy();
 
 					DMibExpect(pTestState->m_nDestroyed.f_Load(), ==, 1);
 					DMibExpect(pTestState->m_nDestructed.f_Load(), ==, 1);

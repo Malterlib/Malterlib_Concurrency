@@ -228,12 +228,12 @@ namespace NMib::NConcurrency
 			return;
 		}
 
-		NNetwork::FVirtualSocketFactory SocketFactory;
+		NNetwork::FVirtualSocketFactory fSocketFactory;
 		bool bAuthenticatedUnix = bool(_pConnection->m_pAuthenticatedUnixContext);
 		if (bAuthenticatedUnix)
-			SocketFactory = NNetwork::CSocket_AuthenticatedUnix::fs_GetFactory(_pConnection->m_pAuthenticatedUnixContext);
+			fSocketFactory = NNetwork::CSocket_AuthenticatedUnix::fs_GetFactory(_pConnection->m_pAuthenticatedUnixContext);
 		else
-			SocketFactory = NNetwork::CSocket_SSL::fs_GetFactory(_pConnection->m_pSSLContext);
+			fSocketFactory = NNetwork::CSocket_SSL::fs_GetFactory(_pConnection->m_pSSLContext);
 
 		NWeb::CWebSocketClientActor::CConnectSettings ConnectSettings;
 		ConnectSettings.m_ConnectToAddress = ToConnectTo.f_GetHost();
@@ -242,7 +242,7 @@ namespace NMib::NConcurrency
 		ConnectSettings.m_Origin = ToConnectTo.f_Encode();
 		ConnectSettings.m_Protocols = NContainer::fg_CreateVector<NStr::CStr>("MalterlibDistributedActors");
 		ConnectSettings.m_Request = fg_Move(Request);
-		ConnectSettings.m_SocketFactory = fg_Move(SocketFactory);
+		ConnectSettings.m_fSocketFactory = fg_Move(fSocketFactory);
 		ConnectSettings.m_SendWindowBytes = _pConnection->m_SendWindowBytes;
 		// The CLI exports the listen address so both endpoints derive matching frame limits from the configured host.
 		// Public receive limits are a security contract. Custom connections substituting a loopback host for a public listen
@@ -274,7 +274,7 @@ namespace NMib::NConcurrency
 					return;
 				}
 
-				auto fReportError = [this, _bRetry, _bRetryOnFirst, _pPromise, pConnectionWeak, Sequence](NStr::CStr const &_Error, NException::CExceptionPointer const &_Exception)
+				auto fReportError = [this, _bRetry, _bRetryOnFirst, _pPromise, pConnectionWeak, Sequence](NStr::CStr const &_Error, NException::CExceptionPointer const &_pException)
 					{
 						auto pConnection = pConnectionWeak.f_Lock();
 						if (!pConnection)
@@ -287,7 +287,7 @@ namespace NMib::NConcurrency
 						if (!_bRetryOnFirst)
 						{
 							if (_pPromise)
-								_pPromise->f_SetException(_Exception);
+								_pPromise->f_SetException(_pException);
 							return;
 						}
 						if (_pPromise)

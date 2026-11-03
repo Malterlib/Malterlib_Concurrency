@@ -130,12 +130,12 @@ namespace
 							)
 						;
 
-						auto OnResize = g_ActorFunctor / [](ICCommandLineControl::CScreenChange _ScreenChange) -> TCFuture<void>
+						auto fOnResize = g_ActorFunctor / [](ICCommandLineControl::CScreenChange _ScreenChange) -> TCFuture<void>
 							{
 								co_return {};
 							}
 						;
-						CActorSubscription Screen = (co_await _pCommandLine->f_RegisterForScreenChange(fg_Move(OnResize))).f_GetSubscription();
+						CActorSubscription Screen = (co_await _pCommandLine->f_RegisterForScreenChange(fg_Move(fOnResize))).f_GetSubscription();
 						DMibExpectTrue(Screen);
 						auto DestroyScreen = co_await fg_AsyncDestroy(fg_Move(Screen));
 
@@ -147,12 +147,12 @@ namespace
 							DMibTestPath(bBinary ? "Binary" : "Text");
 							if (bBinary)
 							{
-								auto OnInput = g_ActorFunctor / [](NProcess::EStdInReaderOutputType _Type, CIOByteVector _Input, CStr _Error) -> TCFuture<void>
+								auto fOnInput = g_ActorFunctor / [](NProcess::EStdInReaderOutputType _Type, CIOByteVector _Input, CStr _Error) -> TCFuture<void>
 									{
 										co_return {};
 									}
 								;
-								Input = (co_await _pCommandLine->f_RegisterForStdInBinary(fg_Move(OnInput), NProcess::EStdInReaderFlag_None)).f_GetSubscription();
+								Input = (co_await _pCommandLine->f_RegisterForStdInBinary(fg_Move(fOnInput), NProcess::EStdInReaderFlag_None)).f_GetSubscription();
 							}
 							else
 								Input = (co_await _pCommandLine->f_RegisterForStdIn(fTextInput(), NProcess::EStdInReaderFlag_None)).f_GetSubscription();

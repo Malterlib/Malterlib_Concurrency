@@ -193,14 +193,14 @@ namespace NMib::NConcurrency
 
 	void CTimerActor::CInternal::fp_CallTimerCallback(CTimeMeasure &_Timer, CTimerSubscriptionState &_Callback)
 	{
-		auto fLocked = _Callback.m_fCallback.f_Lock();
-		if (!fLocked)
+		auto Locked = _Callback.m_fCallback.f_Lock();
+		if (!Locked)
 			return;
 
 		_Callback.m_bOutstanding = true;
 		_Callback.m_bMissed = false;
 
-		(*fLocked)() >
+		(*Locked)() >
 			[
 				this
 				, pTimer = &_Timer
@@ -256,10 +256,10 @@ namespace NMib::NConcurrency
 
 		if (_Timer.m_fOneshotCallback)
 		{
-			auto fLocked = _Timer.m_fOneshotCallback.f_Lock();
-			if (fLocked)
+			auto Locked = _Timer.m_fOneshotCallback.f_Lock();
+			if (Locked)
 			{
-				(*fLocked)().f_OnResultSet
+				(*Locked)().f_OnResultSet
 					(
 						[](TCAsyncResult<void> &&_Result)
 						{
@@ -529,12 +529,12 @@ namespace NMib::NConcurrency
 				if (*pDestroyed)
 					co_return {};
 
-				auto ToDestroy = fg_Move(pTimer->m_fOneshotCallback);
+				auto fToDestroy = fg_Move(pTimer->m_fOneshotCallback);
 				if (pTimer->m_TreeLink.f_IsInTree())
 					Internal.m_TimerQueue.f_Remove(pTimer);
 				Internal.m_OneshotTimers.f_Remove(*pTimer);
 
-				co_await fg_Move(ToDestroy).f_Destroy();
+				co_await fg_Move(fToDestroy).f_Destroy();
 
 				co_return {};
 			}
@@ -588,7 +588,7 @@ namespace NMib::NConcurrency
 
 				auto &Internal = *mp_pInternal;
 
-				auto ToDestroy = fg_Move(pCallback->m_fCallback);
+				auto fToDestroy = fg_Move(pCallback->m_fCallback);
 
 				// Removing the last callback also removes its timer. Destroying a callback runs the destructors of its members, which
 				// can run anything, so the timer isn't used afterwards.
@@ -605,7 +605,7 @@ namespace NMib::NConcurrency
 					// NOLINTNEXTLINE(malterlib-coroutine-actor-reference): the lookups in the list before it only read the list
 					pTimer->m_Callbacks.f_Remove(*pCallback);
 
-				co_await fg_Move(ToDestroy).f_Destroy();
+				co_await fg_Move(fToDestroy).f_Destroy();
 
 				co_return {};
 			}
@@ -656,14 +656,14 @@ namespace NMib::NConcurrency
 
 				auto &Internal = *mp_pInternal;
 
-				auto ToDestroy = fg_Move(pCallback->m_fCallback);
+				auto fToDestroy = fg_Move(pCallback->m_fCallback);
 
 				if (pTimer->m_TreeLink.f_IsInTree())
 					Internal.m_TimerQueue.f_Remove(pTimer);
 				// NOLINTNEXTLINE(malterlib-coroutine-actor-reference): the removal from the timer queue above only unlinks the timer
 				Internal.m_ExactTimers.f_Remove(*pTimer);
 
-				co_await fg_Move(ToDestroy).f_Destroy();
+				co_await fg_Move(fToDestroy).f_Destroy();
 
 				co_return {};
 			}

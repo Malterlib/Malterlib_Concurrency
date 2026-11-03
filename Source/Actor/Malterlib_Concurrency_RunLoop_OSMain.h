@@ -30,7 +30,7 @@ namespace NMib::NConcurrency
 		bool f_WaitOnceTimeout(fp64 _Timeout) override;
 		void f_Wake() override;
 		CActorDestroyEventLoop f_ActorDestroyLoop() override;
-		NFunction::TCFunctionMovable<void (FActorQueueDispatchNoAlloc &&_Dispatch)> f_Dispatcher() override;
+		NFunction::TCFunctionMovable<void (FActorQueueDispatchNoAlloc &&_fDispatch)> f_Dispatcher() override;
 
 	private:
 		align_cacheline CConcurrentRunQueueNonVirtualNoAlloc mp_RunQueue;

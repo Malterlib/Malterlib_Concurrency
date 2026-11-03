@@ -124,8 +124,8 @@ namespace NMib::NConcurrency
 		static DMibSuppressUndefinedSanitizer TCActorInternal<CActor> *fs_GetRealActor(NConcurrency::CActorHolder *_pActorInternal);
 
 	protected:
-		template <typename tf_CReturnType, typename tf_CFunction, typename ...tfp_CParams>
-		inline_always tf_CReturnType fp_DispatchWithReturnCoroutine(tf_CFunction &&_fToDisptach, tfp_CParams ...p_Params);
+		template <typename tf_CReturnType, typename tf_FFunction, typename ...tfp_CParams>
+		inline_always tf_CReturnType fp_DispatchWithReturnCoroutine(tf_FFunction &&_fToDisptach, tfp_CParams ...p_Params);
 
 		virtual void fp_Construct();
 		DMibActorPhase(Destroy) virtual TCFuture<void> fp_Destroy();
@@ -192,8 +192,8 @@ namespace NMib::NConcurrency
 		template <typename tf_CParam>
 		void f_Construct(tf_CParam &&_Param);
 
-		template <typename tf_CParam>
-		void f_ConstructFunctor(tf_CParam &&_fConstruct);
+		template <typename tf_FParam>
+		void f_ConstructFunctor(tf_FParam &&_fConstruct);
 
 		TCFuture<void> f_Destroy();
 

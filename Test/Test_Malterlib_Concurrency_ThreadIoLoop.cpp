@@ -18,8 +18,8 @@ namespace
 	using namespace NMib::NConcurrency;
 	using namespace NMib::NStr;
 
-	template <typename tf_CFunctor>
-	void fg_RunOnQueue(EPriority _Priority, umint _iQueue, tf_CFunctor const &_fToRun)
+	template <typename tf_FFunctor>
+	void fg_RunOnQueue(EPriority _Priority, umint _iQueue, tf_FFunctor const &_fToRun)
 	{
 		NThread::CEvent Done;
 		Done.f_ResetSignaled();
@@ -388,9 +388,9 @@ namespace
 				NThread::CEvent Delivered;
 				Delivered.f_ResetSignaled();
 
-				pthread_t QueueThread = {};
-				NAtomic::TCAtomic<pthread_t> RanOnThread = {};
-				COnScopeExitShared pSubscription;
+				pthread_t QueueThread = {}; // NOLINT(malterlib-conceptual-prefix): pthread_t is a pointer on macOS and an integer on Linux
+				NAtomic::TCAtomic<pthread_t> RanOnThread = {}; // NOLINT(malterlib-conceptual-prefix): pthread_t is a pointer on macOS and an integer on Linux
+				COnScopeExitShared Subscription;
 
 				// Register on the queue's own thread to bind signal delivery to that thread's loop.
 				fg_RunOnQueue
@@ -401,7 +401,7 @@ namespace
 						{
 							QueueThread = pthread_self();
 
-							pSubscription = NSys::fg_System_RegisterForThreadSignal
+							Subscription = NSys::fg_System_RegisterForThreadSignal
 								(
 									SIGUSR1
 									, [&]
@@ -423,14 +423,14 @@ namespace
 								, c_iQueue
 								, [&]
 								{
-									pSubscription.f_Clear();
+									Subscription.f_Clear();
 								}
 							)
 						;
 					}
 				;
 
-				DMibExpectTrue(pSubscription);
+				DMibExpectTrue(Subscription);
 
 				DMibExpect(pthread_kill(QueueThread, SIGUSR1), ==, 0);
 
@@ -454,7 +454,7 @@ namespace
 				bool bThrew = false;
 				try
 				{
-					auto pSubscription = NSys::fg_System_RegisterForThreadSignal
+					auto Subscription = NSys::fg_System_RegisterForThreadSignal
 						(
 							SIGUSR1
 							, []
@@ -462,7 +462,7 @@ namespace
 							}
 						)
 					;
-					(void)pSubscription;
+					(void)Subscription;
 				}
 				catch (NException::CException const &)
 				{

@@ -49,7 +49,7 @@ namespace NMib::NConcurrency
 	template <typename t_CType, typename t_CLock>
 	TCLockActor<t_CType, t_CLock>::CLockReference::CLockReference(TCLockActor *_pThis, aint _LockSequence)
 		: mp_pState(_pThis->mp_pState)
-		, mp_pActor(fg_ThisActor(_pThis).f_Weak())
+		, mp_Actor(fg_ThisActor(_pThis).f_Weak())
 		, mp_LockSequence(_LockSequence)
 	{
 	}
@@ -57,7 +57,7 @@ namespace NMib::NConcurrency
 	template <typename t_CType, typename t_CLock>
 	TCLockActor<t_CType, t_CLock>::CLockReference::CLockReference(CLockReference &&_Other)
 		: mp_pState(fg_Move(_Other.mp_pState))
-		, mp_pActor(fg_Move(_Other.mp_pActor))
+		, mp_Actor(fg_Move(_Other.mp_Actor))
 		, mp_LockSequence(_Other.mp_LockSequence)
 	{
 	}
@@ -65,7 +65,7 @@ namespace NMib::NConcurrency
 	template <typename t_CType, typename t_CLock>
 	typename TCLockActor<t_CType, t_CLock>::CLockReference &TCLockActor<t_CType, t_CLock>::CLockReference::operator = (CLockReference &&_Other)
 	{
-		mp_pActor = fg_Move(_Other.mp_pActor);
+		mp_Actor = fg_Move(_Other.mp_Actor);
 		mp_pState = fg_Move(_Other.mp_pState);
 		mp_LockSequence = _Other.mp_LockSequence;
 	}
@@ -76,7 +76,7 @@ namespace NMib::NConcurrency
 		if (mp_pState)
 		{
 			mp_pState->f_Unlock(mp_LockSequence);
-			if (auto Actor = mp_pActor.f_Lock())
+			if (auto Actor = mp_Actor.f_Lock())
 				Actor.template f_Bind<&TCLockActor<t_CType, t_CLock>::fp_Unlock>(mp_LockSequence).f_DiscardResult();
 		}
 	}

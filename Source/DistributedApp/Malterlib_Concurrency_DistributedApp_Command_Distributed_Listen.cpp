@@ -108,8 +108,8 @@ namespace NMib::NConcurrency
 		for (auto &ListenEntry : Listens.f_Entries())
 		{
 			auto &Address = ListenEntry.f_Key();
-			auto PrimaryValue = (PrimaryListen && *PrimaryListen == Address.m_URL ? "true" : "");
-			TableRenderer.f_AddRow(Address.m_URL.f_Encode(), PrimaryValue, fg_FormatSendWindow(ListenEntry.f_Value().m_SendWindowBytes));
+			auto pPrimaryValue = (PrimaryListen && *PrimaryListen == Address.m_URL ? "true" : "");
+			TableRenderer.f_AddRow(Address.m_URL.f_Encode(), pPrimaryValue, fg_FormatSendWindow(ListenEntry.f_Value().m_SendWindowBytes));
 		}
 
 		DMibLogWithCategory(Mib/Concurrency/App, Info, "Reported listen addresses to command line");

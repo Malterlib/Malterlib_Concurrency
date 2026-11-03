@@ -23,14 +23,14 @@ namespace NMib::NConcurrency
 		return (EPriority)mp_Priority;
 	}
 
-	inline_always void CActorHolder::f_QueueProcess(FActorQueueDispatch &&_Functor, CConcurrencyThreadLocal &_ThreadLocal)
+	inline_always void CActorHolder::f_QueueProcess(FActorQueueDispatch &&_fFunctor, CConcurrencyThreadLocal &_ThreadLocal)
 	{
-		fp_QueueProcess(fg_Move(_Functor), _ThreadLocal);
+		fp_QueueProcess(fg_Move(_fFunctor), _ThreadLocal);
 	}
 
-	inline_always void CActorHolder::f_QueueProcessDestroy(FActorQueueDispatch &&_Functor, CConcurrencyThreadLocal &_ThreadLocal)
+	inline_always void CActorHolder::f_QueueProcessDestroy(FActorQueueDispatch &&_fFunctor, CConcurrencyThreadLocal &_ThreadLocal)
 	{
-		fp_QueueProcessDestroy(fg_Move(_Functor), _ThreadLocal);
+		fp_QueueProcessDestroy(fg_Move(_fFunctor), _ThreadLocal);
 	}
 
 	inline_always void CActorHolder::f_QueueProcessEntry(CConcurrentRunQueueEntryHolder &&_Entry, CConcurrencyThreadLocal &_ThreadLocal)

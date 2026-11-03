@@ -248,10 +248,10 @@ namespace NMib::NConcurrency::NPrivate
 		{
 		}
 
-		CU2FDevice(CU2FDevice &&) = default;
-		CU2FDevice(CU2FDevice const &) = default;
-		CU2FDevice &operator = (CU2FDevice &&) = default;
-		CU2FDevice &operator = (CU2FDevice const &) = default;
+		CU2FDevice(CU2FDevice &&_Other) = default;
+		CU2FDevice(CU2FDevice const &_Other) = default;
+		CU2FDevice &operator = (CU2FDevice &&_Other) = default;
+		CU2FDevice &operator = (CU2FDevice const &_Other) = default;
 
 		static TCFuture<CU2FDevice> DMibWorkaroundUBSanSectionErrorsDisable fs_Init(TCActor<CHumanInterfaceDeviceActor> _Device, CStr _Path)
 		{

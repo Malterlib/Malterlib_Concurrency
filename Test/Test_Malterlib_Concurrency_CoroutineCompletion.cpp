@@ -40,8 +40,8 @@ namespace NMib::NConcurrency
 		{
 		}
 
-		CCompletionProbe(CCompletionProbe &&) = default;
-		CCompletionProbe(CCompletionProbe const &) = delete;
+		CCompletionProbe(CCompletionProbe &&_Other) = default;
+		CCompletionProbe(CCompletionProbe const &_Other) = delete;
 
 		~CCompletionProbe()
 		{

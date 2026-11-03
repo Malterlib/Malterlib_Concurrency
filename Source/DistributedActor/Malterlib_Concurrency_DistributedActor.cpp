@@ -198,7 +198,7 @@ namespace NMib::NConcurrency
 				DMibFastCheck(!_Other.m_Scope);
 			}
 
-			CState(CState const &) = delete;
+			CState(CState const &_Other) = delete;
 
 			~CState()
 			{
@@ -286,7 +286,7 @@ namespace NMib::NConcurrency
 				DMibFastCheck(!_Other.m_Scope);
 			}
 
-			CState(CState const &) = delete;
+			CState(CState const &_Other) = delete;
 
 			~CState()
 			{
@@ -898,6 +898,7 @@ namespace NMib::NConcurrency
 	}
 
 #ifndef DCompiler_MSVC_Workaround
+	// NOLINTBEGIN(malterlib-parameter-naming): the check asks for parameter names in explicit instantiations, which have none
 	template auto fg_ConstructRemoteDistributedActor<CActor>
 		(
 			TCActor<CActorDistributionManager> const &_DistributionManager
@@ -933,5 +934,6 @@ namespace NMib::NConcurrency
 		(NMib::NStorage::TCSharedPointer<NPrivate::CDistributedActorData> &&, NMib::NStream::CBinaryStorage &&, NPrivate::CDistributedActorStreamContext &) &&
 		-> TCFuture<NStream::CBinaryStorage>
 	;
+	// NOLINTEND(malterlib-parameter-naming)
 #endif
 }

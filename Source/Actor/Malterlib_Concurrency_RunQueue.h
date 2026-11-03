@@ -20,7 +20,7 @@ namespace NMib::NConcurrency
 
 	using FActorQueueDispatch = NFunction::TCFunction
 		<
-			void (NFunction::CThisTag &, CConcurrencyThreadLocal &_ThreadLocal)
+			void (NFunction::CThisTag &_ThisTag, CConcurrencyThreadLocal &_ThreadLocal)
 			, NFunction::CFunctionNoCopyTag
 			, NFunction::TCFunctionNoAllocOptions<true, gc_ActorQueueDispatchFunctionMemory - gc_ActorQueueDispatchQueueEntryOverhead, sizeof(void *), false>
 		>
@@ -28,7 +28,7 @@ namespace NMib::NConcurrency
 
 	using FActorQueueDispatchEmpty = NFunction::TCFunction
 		<
-			void (NFunction::CThisTag &, CConcurrencyThreadLocal &_ThreadLocal)
+			void (NFunction::CThisTag &_ThisTag, CConcurrencyThreadLocal &_ThreadLocal)
 			, NFunction::CFunctionNoCopyTag
 			, NFunction::TCFunctionNoAllocOptions<true, 0, sizeof(void *), false>
 		>
@@ -63,7 +63,7 @@ namespace NMib::NConcurrency
 
 	using FActorQueueDispatchNoAlloc = NFunction::TCFunction
 		<
-			void (NFunction::CThisTag &, CConcurrencyThreadLocal &_ThreadLocal)
+			void (NFunction::CThisTag &_ThisTag, CConcurrencyThreadLocal &_ThreadLocal)
 			, NFunction::CFunctionNoCopyTag
 			, NFunction::TCFunctionNoAllocOptions
 			<
@@ -108,57 +108,57 @@ namespace NMib::NConcurrency
 #endif
 	};
 
-	template <typename tf_CBaseEntry>
+	template <typename t_CBaseEntry>
 	struct TCConcurrentRunQueueEntryHolder
 	{
-		TCConcurrentRunQueueEntryHolder(tf_CBaseEntry *_pEntry);
+		TCConcurrentRunQueueEntryHolder(t_CBaseEntry *_pEntry);
 		TCConcurrentRunQueueEntryHolder(TCConcurrentRunQueueEntryHolder &&_Other);
 		TCConcurrentRunQueueEntryHolder &operator = (TCConcurrentRunQueueEntryHolder &&_Other);
 		~TCConcurrentRunQueueEntryHolder();
 
 		bool f_IsEmpty() const;
-		tf_CBaseEntry *operator -> ();
-		tf_CBaseEntry *f_Detach();
+		t_CBaseEntry *operator -> ();
+		t_CBaseEntry *f_Detach();
 
 	private:
-		tf_CBaseEntry *mp_pEntry;
+		t_CBaseEntry *mp_pEntry;
 	};
 
 	using CConcurrentRunQueueEntryHolder = TCConcurrentRunQueueEntryHolder<CConcurrentRunQueueEntry>;
 
-	template <typename tf_CBaseEntry, typename tf_CEntry>
+	template <typename t_CBaseEntry, typename t_CEntry>
 	struct TCConcurrentRunQueue
 	{
-		using FQueueDispatch = typename tf_CEntry::FQueueDispatch;
+		using FQueueDispatch = typename t_CEntry::FQueueDispatch;
 
 		struct CLocalQueueData
 		{
 			~CLocalQueueData();
 
-			tf_CBaseEntry *f_PopFirst();
+			t_CBaseEntry *f_PopFirst();
 
-			DMibListLinkDS_List_FromTemplate(tf_CBaseEntry, m_Link) m_LocalQueue;
+			DMibListLinkDS_List_FromTemplate(t_CBaseEntry, m_Link) m_LocalQueue;
 			umint m_nEntries = 0;
 		};
 
 		TCConcurrentRunQueue();
 		~TCConcurrentRunQueue();
 
-		static NStorage::TCUniquePointer<tf_CEntry> fs_QueueEntry(FQueueDispatch &&_Functor);
-		bool f_AddToQueueIfEmpty(NStorage::TCUniquePointer<tf_CEntry> &&_pEntry);
-		void f_AddToQueue(NStorage::TCUniquePointer<tf_CEntry> &&_pEntry);
-		bool f_AddToQueueLocal(NStorage::TCUniquePointer<tf_CEntry> &&_pEntry, CLocalQueueData &_LocalQueue);
-		bool f_AddToQueueLocalFirst(NStorage::TCUniquePointer<tf_CEntry> &&_pEntry, CLocalQueueData &_LocalQueue);
+		static NStorage::TCUniquePointer<t_CEntry> fs_QueueEntry(FQueueDispatch &&_Functor);
+		bool f_AddToQueueIfEmpty(NStorage::TCUniquePointer<t_CEntry> &&_pEntry);
+		void f_AddToQueue(NStorage::TCUniquePointer<t_CEntry> &&_pEntry);
+		bool f_AddToQueueLocal(NStorage::TCUniquePointer<t_CEntry> &&_pEntry, CLocalQueueData &_LocalQueue);
+		bool f_AddToQueueLocalFirst(NStorage::TCUniquePointer<t_CEntry> &&_pEntry, CLocalQueueData &_LocalQueue);
 
 		void f_AddToQueue(FQueueDispatch &&_Functor);
 		bool f_AddToQueueLocal(FQueueDispatch &&_Functor, CLocalQueueData &_LocalQueue);
 		bool f_AddToQueueLocalFirst(FQueueDispatch &&_Functor, CLocalQueueData &_LocalQueue);
 
-		void f_AddToQueue(TCConcurrentRunQueueEntryHolder<tf_CBaseEntry> &&_Entry);
-		bool f_AddToQueueLocal(TCConcurrentRunQueueEntryHolder<tf_CBaseEntry> &&_Entry, CLocalQueueData &_LocalQueue);
-		bool f_AddToQueueLocalFirst(TCConcurrentRunQueueEntryHolder<tf_CBaseEntry> &&_Entry, CLocalQueueData &_LocalQueue);
+		void f_AddToQueue(TCConcurrentRunQueueEntryHolder<t_CBaseEntry> &&_Entry);
+		bool f_AddToQueueLocal(TCConcurrentRunQueueEntryHolder<t_CBaseEntry> &&_Entry, CLocalQueueData &_LocalQueue);
+		bool f_AddToQueueLocalFirst(TCConcurrentRunQueueEntryHolder<t_CBaseEntry> &&_Entry, CLocalQueueData &_LocalQueue);
 
-		void f_AddChainToQueue(tf_CBaseEntry *_pFirstEntry, tf_CBaseEntry *_pLastEntry);
+		void f_AddChainToQueue(t_CBaseEntry *_pFirstEntry, t_CBaseEntry *_pLastEntry);
 
 		umint f_TransferThreadSafeQueue(CLocalQueueData &_LocalQueue);
 		bool f_IsEmpty(CLocalQueueData &_LocalQueue);
@@ -167,7 +167,7 @@ namespace NMib::NConcurrency
 		void f_RemoveAllExceptFirst(CLocalQueueData &_LocalQueue);
 
 	private:
-		NAtomic::TCAtomic<tf_CBaseEntry *> mp_pFirstQueued;
+		NAtomic::TCAtomic<t_CBaseEntry *> mp_pFirstQueued;
 	};
 
 	using CConcurrentRunQueue = TCConcurrentRunQueue<CConcurrentRunQueueEntry, CConcurrentRunQueueEntry_Functor>;

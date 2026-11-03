@@ -434,7 +434,7 @@ namespace NMib::NConcurrency
 			TCActorResultCall<tf_CResultActor, tf_CResultFunctor> &&_ResultCall
 		)
 		&&
-		requires (NTraits::cIsCallableWith<tf_CResultFunctor, void (TCAsyncResult<t_CReturn> &&)>) // Incorrect type in result call
+		requires (NTraits::cIsCallableWith<tf_CResultFunctor, void (TCAsyncResult<t_CReturn> &&_Result)>) // Incorrect type in result call
 	{
 		DMibFastCheck(_ResultCall.mp_Actor);
 

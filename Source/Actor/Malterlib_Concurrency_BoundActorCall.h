@@ -37,7 +37,7 @@ namespace NMib::NConcurrency
 
 		template <typename tf_CResultActor, typename tf_CResultFunctor>
 		void operator > (TCActorResultCall<tf_CResultActor, tf_CResultFunctor> &&_ResultCall) &&
-			requires (NTraits::cIsCallableWith<tf_CResultFunctor, void (TCAsyncResult<t_CReturn> &&)>) // Incorrect type in result call
+			requires (NTraits::cIsCallableWith<tf_CResultFunctor, void (TCAsyncResult<t_CReturn> &&_Result)>) // Incorrect type in result call
 		;
 
 		template <typename tf_FOnResult>

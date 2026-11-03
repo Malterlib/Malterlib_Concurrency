@@ -22,10 +22,10 @@ namespace NMib::NConcurrency::NPrivate
 		CDistributedActorStreamContext(uint32 _ActorProtocolVersion, bool _bCallInitiator);
 		~CDistributedActorStreamContext();
 
-		CDistributedActorStreamContext(CDistributedActorStreamContext const &);
-		CDistributedActorStreamContext(CDistributedActorStreamContext &&);
-		CDistributedActorStreamContext &operator = (CDistributedActorStreamContext const &);
-		CDistributedActorStreamContext &operator = (CDistributedActorStreamContext &&);
+		CDistributedActorStreamContext(CDistributedActorStreamContext const &_Other);
+		CDistributedActorStreamContext(CDistributedActorStreamContext &&_Other);
+		CDistributedActorStreamContext &operator = (CDistributedActorStreamContext const &_Other);
+		CDistributedActorStreamContext &operator = (CDistributedActorStreamContext &&_Other);
 
 		bool f_ValidateContext(NStr::CStr &o_Error);
 		uint32 f_ActorProtocolVersion() const;
@@ -75,8 +75,8 @@ namespace NMib::NConcurrency
 		template <typename tf_CActor>
 		void f_Feed(TCActor<tf_CActor> &&_Actor);
 
-		template <typename ...tf_CFunctionOptions>
-		void f_Feed(NFunction::TCFunction<tf_CFunctionOptions...> const &_Function);
+		template <typename ...tfp_CFunctionOptions>
+		void f_Feed(NFunction::TCFunction<tfp_CFunctionOptions...> const &_Function);
 
 		template <typename tf_CSignature>
 		void f_Feed(NFunction::TCFunctionMutable<tf_CSignature> const &_Function);
@@ -87,8 +87,8 @@ namespace NMib::NConcurrency
 		template <typename tf_CSignature>
 		void f_Feed(NFunction::TCFunctionMutable<tf_CSignature> &&_Function);
 
-		template <typename ...tf_CFunctionOptions>
-		void f_Feed(NFunction::TCFunction<tf_CFunctionOptions...> &&_Function);
+		template <typename ...tfp_CFunctionOptions>
+		void f_Feed(NFunction::TCFunction<tfp_CFunctionOptions...> &&_Function);
 
 		template <typename tf_CFunction, uint32 tf_SubscriptionID>
 		void f_Feed(TCActorFunctorWithID<tf_CFunction, tf_SubscriptionID> &&_ActorFunctor);
@@ -142,8 +142,8 @@ namespace NMib::NConcurrency
 		template <typename tf_CActor>
 		void f_Consume(TCActor<tf_CActor> &_Actor);
 
-		template <typename ...tf_CFunctionOptions>
-		void f_Consume(NFunction::TCFunction<tf_CFunctionOptions...> &_Function);
+		template <typename ...tfp_CFunctionOptions>
+		void f_Consume(NFunction::TCFunction<tfp_CFunctionOptions...> &_Function);
 
 		template <typename tf_CSignature>
 		void f_Consume(NFunction::TCFunctionMovable<tf_CSignature> &_Function);

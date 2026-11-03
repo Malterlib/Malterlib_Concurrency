@@ -30,9 +30,9 @@ namespace NMib::NConcurrency::NPrivate
 
 		mark_artificial inline_always TCWrappedCoroutineReturnObject(CHandle _Handle) noexcept;
 
-		TCWrappedCoroutineReturnObject(TCWrappedCoroutineReturnObject const &) = delete;
-		TCWrappedCoroutineReturnObject &operator = (TCWrappedCoroutineReturnObject const &) = delete;
-		TCWrappedCoroutineReturnObject &operator = (TCWrappedCoroutineReturnObject &&) = delete;
+		TCWrappedCoroutineReturnObject(TCWrappedCoroutineReturnObject const &_Other) = delete;
+		TCWrappedCoroutineReturnObject &operator = (TCWrappedCoroutineReturnObject const &_Other) = delete;
+		TCWrappedCoroutineReturnObject &operator = (TCWrappedCoroutineReturnObject &&_Other) = delete;
 
 		mark_artificial inline_always TCWrappedCoroutineReturnObject(TCWrappedCoroutineReturnObject &&_Other) noexcept;
 
@@ -77,8 +77,8 @@ namespace NMib::NConcurrency::NPrivate
 		template <typename tf_CReturnType>
 		void return_value(tf_CReturnType &&_Value);
 
-		void return_value(CVoidTag &&);
-		void return_value(CVoidTag const &);
+		void return_value(CVoidTag &&_Void);
+		void return_value(CVoidTag const &_Void);
 	};
 }
 

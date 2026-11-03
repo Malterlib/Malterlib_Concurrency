@@ -537,7 +537,7 @@ namespace NMib::NConcurrency
 			return m_bInitialReady;
 		}
 
-		inline_always void await_suspend(TCCoroutineHandle<>) const noexcept
+		inline_always void await_suspend(TCCoroutineHandle<> _Handle) const noexcept
 		{
 		}
 
@@ -843,7 +843,7 @@ namespace NMib::NConcurrency
 
 namespace NMib::NConcurrency::NPrivate
 {
-	template <typename tfp_CThis, bool t_bIsComplete = NTraits::cIsComplete<tfp_CThis>>
+	template <typename t_CThis, bool t_bIsComplete = NTraits::cIsComplete<t_CThis>>
 	struct TCCoroutineContextFlagsFromParams_This
 	{
 		static constexpr NMib::NConcurrency::ECoroutineFlag mc_Value = NMib::NConcurrency::ECoroutineFlag_UnsafeThisPointer; // Assume lambda
@@ -855,17 +855,17 @@ namespace NMib::NConcurrency::NPrivate
 		static constexpr NMib::NConcurrency::ECoroutineFlag mc_Value = NMib::NConcurrency::ECoroutineFlag_None; // Free functions
 	};
 
-	template <typename tfp_CThis>
-	struct TCCoroutineContextFlagsFromParams_This<tfp_CThis, true>
+	template <typename t_CThis>
+	struct TCCoroutineContextFlagsFromParams_This<t_CThis, true>
 	{
 		static constexpr NMib::NConcurrency::ECoroutineFlag mc_Value
-			= NTraits::cIsReference<tfp_CThis>
+			= NTraits::cIsReference<t_CThis>
 			?
 			(
 				(
-					NTraits::cIsBaseOf<NTraits::TCRemoveReference<tfp_CThis>, CActor>
-					|| NTraits::cIsBaseOf<NTraits::TCRemoveReference<tfp_CThis>, CActorInternal>
-					|| NTraits::cIsBaseOf<NTraits::TCRemoveReference<tfp_CThis>, CAllowUnsafeThis>
+					NTraits::cIsBaseOf<NTraits::TCRemoveReference<t_CThis>, CActor>
+					|| NTraits::cIsBaseOf<NTraits::TCRemoveReference<t_CThis>, CActorInternal>
+					|| NTraits::cIsBaseOf<NTraits::TCRemoveReference<t_CThis>, CAllowUnsafeThis>
 				)
 				? NMib::NConcurrency::ECoroutineFlag_None
 				: NMib::NConcurrency::ECoroutineFlag_UnsafeThisPointer
@@ -878,7 +878,7 @@ namespace NMib::NConcurrency::NPrivate
 	// reference parameter would refer to the moved-from argument. Other coroutines may take references: the
 	// malterlib-coroutine-reference-parameter clang-tidy check verifies that they are only used before the first suspension,
 	// unless the function runs to completion (DMibRunsToCompletion).
-	template <typename tfp_CThis, bool t_bIsComplete = NTraits::cIsComplete<tfp_CThis>>
+	template <typename t_CThis, bool t_bIsComplete = NTraits::cIsComplete<t_CThis>>
 	struct TCCoroutineContextIsActorMember
 	{
 		static constexpr bool mc_bValue = false;
@@ -890,10 +890,10 @@ namespace NMib::NConcurrency::NPrivate
 		static constexpr bool mc_bValue = false;
 	};
 
-	template <typename tfp_CThis>
-	struct TCCoroutineContextIsActorMember<tfp_CThis, true>
+	template <typename t_CThis>
+	struct TCCoroutineContextIsActorMember<t_CThis, true>
 	{
-		static constexpr bool mc_bValue = NTraits::cIsReference<tfp_CThis> && NTraits::cIsBaseOf<NTraits::TCRemoveReference<tfp_CThis>, CActor>;
+		static constexpr bool mc_bValue = NTraits::cIsReference<t_CThis> && NTraits::cIsBaseOf<NTraits::TCRemoveReference<t_CThis>, CActor>;
 	};
 
 	template <typename ...tp_CParams>
@@ -902,17 +902,17 @@ namespace NMib::NConcurrency::NPrivate
 		static constexpr NMib::NConcurrency::ECoroutineFlag mc_Value = NMib::NConcurrency::ECoroutineFlag_None;
 	};
 
-	template <typename tp_CFirstParam, typename ...tp_CParams>
-	struct TCCoroutineContextFlagsFromParams<tp_CFirstParam, tp_CParams...>
+	template <typename t_CFirstParam, typename ...tp_CParams>
+	struct TCCoroutineContextFlagsFromParams<t_CFirstParam, tp_CParams...>
 	{
 		static constexpr NMib::NConcurrency::ECoroutineFlag mc_Value = NMib::NConcurrency::ECoroutineFlag
 			(
 				(
-					((... || NMib::NTraits::cIsReference<tp_CParams>) && TCCoroutineContextIsActorMember<tp_CFirstParam>::mc_bValue)
+					((... || NMib::NTraits::cIsReference<tp_CParams>) && TCCoroutineContextIsActorMember<t_CFirstParam>::mc_bValue)
 					? NMib::NConcurrency::ECoroutineFlag_UnsafeReferenceParameters
 					: NMib::NConcurrency::ECoroutineFlag_None
 				)
-				| TCCoroutineContextFlagsFromParams_This<tp_CFirstParam>::mc_Value
+				| TCCoroutineContextFlagsFromParams_This<t_CFirstParam>::mc_Value
 			)
 		;
 	};

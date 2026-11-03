@@ -49,10 +49,10 @@ namespace NMib::NConcurrency
 	template <typename t_CActor>
 	struct TCTrustedActorSubscription
 	{
-		TCTrustedActorSubscription(TCTrustedActorSubscription const &) = delete;
-		TCTrustedActorSubscription &operator = (TCTrustedActorSubscription const &) = delete;
-		TCTrustedActorSubscription(TCTrustedActorSubscription &&);
-		TCTrustedActorSubscription &operator = (TCTrustedActorSubscription &&);
+		TCTrustedActorSubscription(TCTrustedActorSubscription const &_Other) = delete;
+		TCTrustedActorSubscription &operator = (TCTrustedActorSubscription const &_Other) = delete;
+		TCTrustedActorSubscription(TCTrustedActorSubscription &&_Other);
+		TCTrustedActorSubscription &operator = (TCTrustedActorSubscription &&_Other);
 		TCTrustedActorSubscription() = default;
 		~TCTrustedActorSubscription();
 
@@ -109,7 +109,7 @@ namespace NMib::NConcurrency
 		};
 
 		CPermissionQuery();
-		CPermissionQuery(TCInitializerList<NStr::CStr> const &);
+		CPermissionQuery(TCInitializerList<NStr::CStr> const &_Init);
 		CPermissionQuery &&f_Description(NStr::CStr const &_Description) &&;
 		CPermissionQuery &&f_Wildcard(bool _bIsWildcard) &&;
 		auto f_MatchesPermission
@@ -140,10 +140,10 @@ namespace NMib::NConcurrency
 
 	struct CTrustedPermissionSubscription
 	{
-		CTrustedPermissionSubscription(CTrustedPermissionSubscription const &) = delete;
-		CTrustedPermissionSubscription &operator = (CTrustedPermissionSubscription const &) = delete;
-		CTrustedPermissionSubscription(CTrustedPermissionSubscription &&);
-		CTrustedPermissionSubscription &operator = (CTrustedPermissionSubscription &&);
+		CTrustedPermissionSubscription(CTrustedPermissionSubscription const &_Other) = delete;
+		CTrustedPermissionSubscription &operator = (CTrustedPermissionSubscription const &_Other) = delete;
+		CTrustedPermissionSubscription(CTrustedPermissionSubscription &&_Other);
+		CTrustedPermissionSubscription &operator = (CTrustedPermissionSubscription &&_Other);
 		CTrustedPermissionSubscription() = default;
 		~CTrustedPermissionSubscription();
 
@@ -444,10 +444,10 @@ namespace NMib::NConcurrency
 
 	struct CDistributedActorTrustManagerProxy;
 
-	template <typename t_CType>
-	TCFuture<NStr::CStr> fg_ExportUser(TCActor<t_CType> _TrustManager, NStr::CStr _UserID, bool _bIncludePrivate);
-	template <typename t_CType>
-	TCFuture<NStr::CStr> fg_ImportUser(TCActor<t_CType> _TrustManager, NStr::CStr _UserData);
+	template <typename tf_CType>
+	TCFuture<NStr::CStr> fg_ExportUser(TCActor<tf_CType> _TrustManager, NStr::CStr _UserID, bool _bIncludePrivate);
+	template <typename tf_CType>
+	TCFuture<NStr::CStr> fg_ImportUser(TCActor<tf_CType> _TrustManager, NStr::CStr _UserData);
 	extern template TCFuture<NStr::CStr> fg_ImportUser(TCActor<CDistributedActorTrustManager> _TrustManager, NStr::CStr _UserData);
 	extern template TCFuture<NStr::CStr> fg_ImportUser(TCActor<CDistributedActorTrustManagerInterface> _TrustManager, NStr::CStr _UserData);
 	extern template TCFuture<NStr::CStr> fg_ImportUser(TCDistributedActor<CDistributedActorTrustManagerInterface> _TrustManager, NStr::CStr _UserData);

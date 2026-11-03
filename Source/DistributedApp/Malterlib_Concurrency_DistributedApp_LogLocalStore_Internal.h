@@ -39,7 +39,7 @@ namespace NMib::NConcurrency
 
 		struct CLog
 		{
-			CLog(CLog &&) = default;
+			CLog(CLog &&_Other) = default;
 			CLog(CDistributedAppLogReporter::CLogInfo &&_Info)
 				: m_Info(fg_Move(_Info))
 			{

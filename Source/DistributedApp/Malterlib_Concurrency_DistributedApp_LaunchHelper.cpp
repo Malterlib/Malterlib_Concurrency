@@ -67,7 +67,7 @@ namespace NMib::NConcurrency
 
 		Subscription->f_Destroy() > fg_Move(Promise.m_Promise) / [Promise = Promise.m_Promise, This = fg_Move(*this)]() mutable
 			{
-				This.CDistributedApp_LaunchInfoData::f_Destroy() > [Promise = fg_Move(Promise)](TCAsyncResult<void> &&)
+				This.CDistributedApp_LaunchInfoData::f_Destroy() > [Promise = fg_Move(Promise)](TCAsyncResult<void> &&_Result)
 					{
 						Promise.f_SetResult();
 					}

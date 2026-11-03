@@ -392,5 +392,5 @@ namespace NMib::NConcurrency
 
 namespace NMib::NFunction
 {
-	template struct TCFunctionMovable<void (NConcurrency::TCAsyncResult<void> &&)>;
+	template struct TCFunctionMovable<void (NConcurrency::TCAsyncResult<void> &&_Result)>;
 }

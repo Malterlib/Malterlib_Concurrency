@@ -13,7 +13,7 @@ namespace NMib::NConcurrency
 	template <typename ...tp_CParams>
 	struct TCSafeCallParamsToFunctionPointerImpl<NMeta::TCTypeList<tp_CParams...>>
 	{
-		using CType = NTraits::TCAddPointer<void (NTraits::TCRemoveQualifiers<NTraits::TCDecay<tp_CParams>>...)>;
+		using CType = NTraits::TCAddPointer<void (NTraits::TCRemoveQualifiers<NTraits::TCDecay<tp_CParams>> ...p_Params)>;
 	};
 
 	template <typename t_CParams>
@@ -27,7 +27,8 @@ namespace NMib::NConcurrency
 		template <typename t_CFunction, typename ...tp_CParams>
 		struct TCCallSafeIsValidFunction
 		{
-			static constexpr bool mc_Value = NTraits::cIsCallableWith<TCSafeCallParamsToFunctionPointer<TCCallSafeFunctionParams<t_CFunction>>, void (tp_CParams...)>;
+			// NOLINTNEXTLINE(malterlib-parameter-naming): the check takes the expanded pack for a parameter
+			static constexpr bool mc_Value = NTraits::cIsCallableWith<TCSafeCallParamsToFunctionPointer<TCCallSafeFunctionParams<t_CFunction>>, void (tp_CParams ...p_Params)>;
 		};
 
 		template <typename t_CType, typename ...tp_COptions, typename ...tp_CParams>
@@ -39,7 +40,7 @@ namespace NMib::NConcurrency
 
 	template <typename tf_CReturn, typename ...tfp_CStorageParams, typename tf_CFunction, typename ...tfp_CParams, umint ...tfp_Indices>
 	auto fg_CallSafeImpl(tf_CFunction &&_Function, NMeta::TCIndices<tfp_Indices...> const &_Indices, tfp_CParams && ...p_Params)
-		requires NTraits::cIsCallableWith<TCSafeCallParamsToFunctionPointer<NMeta::TCTypeList<tfp_CStorageParams...>>, void (tfp_CParams...)>
+		requires NTraits::cIsCallableWith<TCSafeCallParamsToFunctionPointer<NMeta::TCTypeList<tfp_CStorageParams...>>, void (tfp_CParams ...p_CallParams)>
 	{
 		static_assert(NPrivate::TCIsFuture<tf_CReturn>::mc_Value || NPrivate::TCIsUnsafeFuture<tf_CReturn>::mc_Value || NPrivate::TCIsAsyncGenerator<tf_CReturn>::mc_Value);
 
@@ -117,10 +118,10 @@ namespace NMib::NConcurrency
 
 	template <typename tf_CFunction, typename tf_CFunctor, typename ...tfp_CStorageParams, typename ...tfp_CParams>
 	mark_artificial inline_always auto fg_CallSafeGenericImpl(NMeta::TCTypeList<tfp_CStorageParams...> _TypeList, tf_CFunctor &&_fFunction, tfp_CParams && ...p_Params)
-		requires NTraits::cIsCallableWith<TCSafeCallParamsToFunctionPointer<NMeta::TCTypeList<tfp_CStorageParams...>>, void (tfp_CParams...)>
+		requires NTraits::cIsCallableWith<TCSafeCallParamsToFunctionPointer<NMeta::TCTypeList<tfp_CStorageParams...>>, void (tfp_CParams ...p_CallParams)>
 	{
 		using FFunctionType = NTraits::TCRemoveReference<tf_CFunction>;
-		using CReturn = NTraits::TCCallableReturnTypeFor<FFunctionType, void (tfp_CParams...)>;
+		using CReturn = NTraits::TCCallableReturnTypeFor<FFunctionType, void (tfp_CParams ...p_CallParams)>;
 		return fg_CallSafeImpl<CReturn, tfp_CStorageParams...>
 			(
 				fg_Forward<tf_CFunctor>(_fFunction)

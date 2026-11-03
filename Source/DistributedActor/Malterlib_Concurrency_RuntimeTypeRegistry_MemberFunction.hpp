@@ -18,7 +18,7 @@ namespace NMib::NConcurrency::NPrivate
 	}
 
 	template <typename tf_CStream, umint ...tfp_Indices, typename ...tfp_CParams>
-	auto fg_DecodeParams(tf_CStream &_ParamsStream, NMeta::TCIndices<tfp_Indices...> const &, NMeta::TCTypeList<tfp_CParams...> const &)
+	auto fg_DecodeParams(tf_CStream &_ParamsStream, NMeta::TCIndices<tfp_Indices...> const &_Indices, NMeta::TCTypeList<tfp_CParams...> const &_ParamTypes)
 	{
 		NStorage::TCTuple<NTraits::TCDecay<tfp_CParams>...> ParamList;
 
@@ -333,7 +333,7 @@ namespace NMib::NConcurrency::NPrivate
 			, t_CStreamContext
 			, t_CStreamParams
 			, t_CStreamResult
-		>::TCRuntimeTypeRegistryEntry_MemberFunctionInit(NMeta::TCTypeList<tfp_CAlternate...>)
+		>::TCRuntimeTypeRegistryEntry_MemberFunctionInit(NMeta::TCTypeList<tfp_CAlternate...> _AlternateTypes)
 	{
 		*TCMemberFunctionRegistryImpl
 			<

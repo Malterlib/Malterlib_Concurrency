@@ -27,10 +27,10 @@ namespace NMib::NConcurrency
 			friend struct NConcurrency::CActor;
 
 			CThisActor() = default;
-			CThisActor(CThisActor &&) = default;
-			CThisActor(CThisActor const &) = default;
-			CThisActor &operator = (CThisActor &&) = default;
-			CThisActor &operator = (CThisActor const &) = default;
+			CThisActor(CThisActor &&_Other) = default;
+			CThisActor(CThisActor const &_Other) = default;
+			CThisActor &operator = (CThisActor &&_Other) = default;
+			CThisActor &operator = (CThisActor const &_Other) = default;
 		};
 
 		template <typename t_CType>
@@ -56,12 +56,12 @@ namespace NMib::NConcurrency
 		using CActorHolder = CDefaultActorHolder;
 
 		CActor();
-		CActor(CActor &&) = delete;
-		CActor(CActor const &) = delete;
+		CActor(CActor &&_Other) = delete;
+		CActor(CActor const &_Other) = delete;
 		virtual ~CActor();
 
-		CActor &operator = (CActor &&) = delete;
-		CActor &operator = (CActor const &) = delete;
+		CActor &operator = (CActor &&_Other) = delete;
+		CActor &operator = (CActor const &_Other) = delete;
 
 		DMibActorPhaseFlag(Destroy) bool f_IsDestroyed() const;
 		TCFuture<void> f_Dispatch(NFunction::TCFunctionMovable<void ()> _fToDisptach);

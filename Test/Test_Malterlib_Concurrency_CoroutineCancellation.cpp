@@ -25,8 +25,8 @@ namespace NMib::NConcurrency
 	{
 		using CActorHolder = CDelegatedActorHolder;
 
-		template <typename t_CResult>
-		TCFuture<t_CResult> f_WaitForDestruction(TCFuture<void> _Resume)
+		template <typename tf_CResult>
+		TCFuture<tf_CResult> f_WaitForDestruction(TCFuture<void> _Resume)
 		{
 			co_await fg_Move(_Resume);
 
@@ -165,7 +165,7 @@ namespace NMib::NConcurrency
 					uint8 m_Data[256] = {};
 				};
 
-				auto fCheck = []<typename t_CResult>(NStr::CStr const &_Case)
+				auto fCheck = []<typename tf_CResult>(NStr::CStr const &_Case)
 					{
 						DMibTestPath(_Case);
 						TCPromise<void> Resume;
@@ -173,7 +173,7 @@ namespace NMib::NConcurrency
 						TCActor<CCancelledDelegatedActor> Delegated{fg_Construct(), Root};
 						TCActor<CCancelledDelegatedActor> Actor{fg_Construct(), Delegated};
 						TCPromise<bool> Observed;
-						TCFuture<t_CResult> Future = Actor(&CCancelledDelegatedActor::f_WaitForDestruction<t_CResult>, Resume.f_Future());
+						TCFuture<tf_CResult> Future = Actor(&CCancelledDelegatedActor::f_WaitForDestruction<tf_CResult>, Resume.f_Future());
 						fg_Dispatch
 							(
 								Actor
@@ -186,7 +186,7 @@ namespace NMib::NConcurrency
 
 						Future.f_OnResultSet
 							(
-								[&Future, Observed](TCAsyncResult<t_CResult> &&_Result)
+								[&Future, Observed](TCAsyncResult<tf_CResult> &&_Result)
 								{
 									bool bDeleted = !_Result && NException::fg_ExceptionIsOfType<CExceptionActorDeleted>(_Result.f_GetException());
 									Future.f_Clear();

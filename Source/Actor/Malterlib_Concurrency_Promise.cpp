@@ -188,7 +188,7 @@ namespace NMib::NConcurrency
 	{
 	}
 
-	CFutureCoroutineContext::CCaptureExceptionScopeAwaiter CFutureCoroutineContext::await_transform(CCaptureExceptionsHelper) noexcept
+	CFutureCoroutineContext::CCaptureExceptionScopeAwaiter CFutureCoroutineContext::await_transform(CCaptureExceptionsHelper _Helper) noexcept
 	{
 		return CCaptureExceptionScopeAwaiter{{}, this};
 	}
@@ -448,7 +448,7 @@ namespace NMib::NConcurrency
 		m_pException = fg_Move(_pException);
 	}
 
-	void COnResumeException::f_ApplyValue(NPrivate::CPromiseDataBase *)
+	void COnResumeException::f_ApplyValue(NPrivate::CPromiseDataBase *_pPromiseData)
 	{
 		DMibFastCheck(false); // Should never be called - this type only holds exceptions
 	}

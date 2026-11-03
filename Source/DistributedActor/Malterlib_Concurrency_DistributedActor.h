@@ -112,8 +112,8 @@ namespace NMib::NConcurrency
 		COrdering_Weak operator <=> (TCActor<tf_CActor> const &_Right) const noexcept;
 		COrdering_Weak operator <=> (TCActor<> const &_Right) const noexcept;
 
-		template <typename t_CActor>
-		bool operator == (TCActor<t_CActor> const &_Right) const noexcept;
+		template <typename tf_CActor>
+		bool operator == (TCActor<tf_CActor> const &_Right) const noexcept;
 		bool operator == (TCActor<> const &_Right) const noexcept;
 
 		template <typename tf_CStr>
@@ -151,8 +151,8 @@ namespace NMib::NConcurrency
 	template <typename t_CActor>
 	struct TCDistributedActorWrapper : public t_CActor
 	{
-		template <typename ...tf_CActor>
-		TCDistributedActorWrapper(tf_CActor && ...p_Params);
+		template <typename ...tfp_CParams>
+		TCDistributedActorWrapper(tfp_CParams && ...p_Params);
 	};
 
 	template <typename t_CActor>
@@ -365,11 +365,11 @@ namespace NMib::NConcurrency
 		CDistributedActorPublication();
 		~CDistributedActorPublication();
 
-		CDistributedActorPublication(CDistributedActorPublication const &) = delete;
-		CDistributedActorPublication &operator = (CDistributedActorPublication const &) = delete;
+		CDistributedActorPublication(CDistributedActorPublication const &_Other) = delete;
+		CDistributedActorPublication &operator = (CDistributedActorPublication const &_Other) = delete;
 
-		CDistributedActorPublication(CDistributedActorPublication &&);
-		CDistributedActorPublication &operator = (CDistributedActorPublication &&);
+		CDistributedActorPublication(CDistributedActorPublication &&_Other);
+		CDistributedActorPublication &operator = (CDistributedActorPublication &&_Other);
 
 		bool f_IsValid() const;
 		TCFuture<void> f_Destroy(fp32 _WaitForPublicationsTimeout = 10.0);
@@ -421,11 +421,11 @@ namespace NMib::NConcurrency
 		CDistributedActorListenReference();
 		~CDistributedActorListenReference();
 
-		CDistributedActorListenReference(CDistributedActorListenReference const &) = delete;
-		CDistributedActorListenReference &operator = (CDistributedActorListenReference const &) = delete;
+		CDistributedActorListenReference(CDistributedActorListenReference const &_Other) = delete;
+		CDistributedActorListenReference &operator = (CDistributedActorListenReference const &_Other) = delete;
 
-		CDistributedActorListenReference(CDistributedActorListenReference &&);
-		CDistributedActorListenReference &operator = (CDistributedActorListenReference &&);
+		CDistributedActorListenReference(CDistributedActorListenReference &&_Other);
+		CDistributedActorListenReference &operator = (CDistributedActorListenReference &&_Other);
 
 		void f_Clear();
 		TCFuture<void> f_Stop();
@@ -461,11 +461,11 @@ namespace NMib::NConcurrency
 		CDistributedActorConnectionReference();
 		~CDistributedActorConnectionReference();
 
-		CDistributedActorConnectionReference(CDistributedActorConnectionReference const &) = delete;
-		CDistributedActorConnectionReference &operator = (CDistributedActorConnectionReference const &) = delete;
+		CDistributedActorConnectionReference(CDistributedActorConnectionReference const &_Other) = delete;
+		CDistributedActorConnectionReference &operator = (CDistributedActorConnectionReference const &_Other) = delete;
 
-		CDistributedActorConnectionReference(CDistributedActorConnectionReference &&);
-		CDistributedActorConnectionReference &operator = (CDistributedActorConnectionReference &&);
+		CDistributedActorConnectionReference(CDistributedActorConnectionReference &&_Other);
+		CDistributedActorConnectionReference &operator = (CDistributedActorConnectionReference &&_Other);
 
 		void f_Clear();
 		TCFuture<void> f_Disconnect(bool _bPreserveHost = false);
@@ -955,6 +955,7 @@ using namespace NMib::NConcurrency;
 #ifndef DCompiler_MSVC_Workaround
 namespace NMib::NConcurrency
 {
+	// NOLINTBEGIN(malterlib-parameter-naming): the check asks for parameter names in explicit instantiations, which have none
 	extern template struct TCActor<CActorDistributionManager>;
 
 	extern template auto TCActor<CActorDistributionManager>::f_InternalCallActor
@@ -980,5 +981,6 @@ namespace NMib::NConcurrency
 		(NMib::NStorage::TCSharedPointer<NPrivate::CDistributedActorData> &&, NMib::NStream::CBinaryStorage &&, NPrivate::CDistributedActorStreamContext &) &&
 		-> TCFuture<NStream::CBinaryStorage>
 	;
+	// NOLINTEND(malterlib-parameter-naming)
 }
 #endif

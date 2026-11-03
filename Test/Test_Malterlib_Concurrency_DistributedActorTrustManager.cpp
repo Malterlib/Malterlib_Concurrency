@@ -417,37 +417,37 @@ namespace NTestTrustManager
 				m_ServerTrustManager->f_BlockDestroy(m_pRunLoop->f_ActorDestroyLoop());
 			}
 
-			template <typename tf_CKey, typename tf_CValue, typename ...tf_CParams>
+			template <typename tf_CKey, typename tf_CValue, typename ...tfp_CParams>
 			void f_CreateMapHelper(TCMap<tf_CKey, tf_CValue> &_Return)
 			{
 			}
 
-			template <typename tf_CKey, typename tf_CValue, typename ...tf_CParams>
-			void f_CreateMapHelper(TCMap<tf_CKey, tf_CValue> &_Return, tf_CKey &&_First, tf_CParams && ...p_Params)
+			template <typename tf_CKey, typename tf_CValue, typename ...tfp_CParams>
+			void f_CreateMapHelper(TCMap<tf_CKey, tf_CValue> &_Return, tf_CKey &&_First, tfp_CParams && ...p_Params)
 			{
 				_Return[fg_Forward<tf_CKey>(_First)];
-				f_CreateMapHelper<tf_CKey, tf_CValue>(_Return, fg_Forward<tf_CParams>(p_Params)...);
+				f_CreateMapHelper<tf_CKey, tf_CValue>(_Return, fg_Forward<tfp_CParams>(p_Params)...);
 			}
 
-			template <typename tf_CKey, typename tf_CValue, typename ...tf_CParams>
-			TCMap<NTraits::TCRemoveReferenceAndQualifiers<tf_CKey>, NTraits::TCRemoveReferenceAndQualifiers<tf_CValue>> f_CreateMap(tf_CKey &&_First, tf_CParams && ...p_Params)
+			template <typename tf_CKey, typename tf_CValue, typename ...tfp_CParams>
+			TCMap<NTraits::TCRemoveReferenceAndQualifiers<tf_CKey>, NTraits::TCRemoveReferenceAndQualifiers<tf_CValue>> f_CreateMap(tf_CKey &&_First, tfp_CParams && ...p_Params)
 			{
 				TCMap<NTraits::TCRemoveReferenceAndQualifiers<tf_CKey>, NTraits::TCRemoveReferenceAndQualifiers<tf_CValue>> Return;
 				f_CreateMapHelper<NTraits::TCRemoveReferenceAndQualifiers<tf_CKey>, NTraits::TCRemoveReferenceAndQualifiers<tf_CValue>>
 					(
 						Return
 						, fg_Forward<tf_CKey>(_First)
-						, fg_Forward<tf_CParams>(p_Params)...
+						, fg_Forward<tfp_CParams>(p_Params)...
 					)
 				;
 				return Return;
 			}
 
-			template <typename tf_CKey, typename tf_CValue, typename ...tf_CParams>
-			TCMap<tf_CKey, tf_CValue> f_CreateMap(tf_CParams && ...p_Params)
+			template <typename tf_CKey, typename tf_CValue, typename ...tfp_CParams>
+			TCMap<tf_CKey, tf_CValue> f_CreateMap(tfp_CParams && ...p_Params)
 			{
 				TCMap<tf_CKey, tf_CValue> Return;
-				f_CreateMapHelper<tf_CKey, tf_CValue>(Return, fg_Forward<tf_CParams>(p_Params)...);
+				f_CreateMapHelper<tf_CKey, tf_CValue>(Return, fg_Forward<tfp_CParams>(p_Params)...);
 				return Return;
 			}
 
@@ -3761,7 +3761,7 @@ namespace NTestTrustManager
 					(
 						&CDistributedActorTrustManager::f_GenerateConnectionTicket
 						, ServerAddress
-						, g_ActorFunctor(fg_ConcurrentActor()) / [](CStr, CCallingHostInfo, NContainer::CByteVector) -> TCFuture<void>
+						, g_ActorFunctor(fg_ConcurrentActor()) / [](CStr _HostID, CCallingHostInfo _HostInfo, NContainer::CByteVector _CertificateRequest) -> TCFuture<void>
 						{
 							co_return {};
 						}

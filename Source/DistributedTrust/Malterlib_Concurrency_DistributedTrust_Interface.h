@@ -112,8 +112,8 @@ namespace NMib::NConcurrency
 			CLocalPermissionRequirements(CPermissionRequirements const &_Other);
 
 			CLocalPermissionRequirements() = default;
-			CLocalPermissionRequirements(CLocalPermissionRequirements &&) = default;
-			CLocalPermissionRequirements(CLocalPermissionRequirements const &) = default;
+			CLocalPermissionRequirements(CLocalPermissionRequirements &&_Other) = default;
+			CLocalPermissionRequirements(CLocalPermissionRequirements const &_Other) = default;
 
 			template <typename tf_CStream>
 			void f_Stream(tf_CStream &_Stream);
@@ -159,11 +159,11 @@ namespace NMib::NConcurrency
 			CLocalCallingHostInfo(CCallingHostInfo const &_Other);
 
 			CLocalCallingHostInfo() = default;
-			CLocalCallingHostInfo(CLocalCallingHostInfo &&) = default;
-			CLocalCallingHostInfo(CLocalCallingHostInfo const &) = default;
+			CLocalCallingHostInfo(CLocalCallingHostInfo &&_Other) = default;
+			CLocalCallingHostInfo(CLocalCallingHostInfo const &_Other) = default;
 
-			CLocalCallingHostInfo &operator = (CLocalCallingHostInfo &&) = default;
-			CLocalCallingHostInfo &operator = (CLocalCallingHostInfo const &) = default;
+			CLocalCallingHostInfo &operator = (CLocalCallingHostInfo &&_Other) = default;
+			CLocalCallingHostInfo &operator = (CLocalCallingHostInfo const &_Other) = default;
 
 			template <typename tf_CStream>
 			void f_Stream(tf_CStream &_Stream);
@@ -179,11 +179,11 @@ namespace NMib::NConcurrency
 			CLocalAuthenticationData(CAuthenticationData const &_Other);
 
 			CLocalAuthenticationData() = default;
-			CLocalAuthenticationData(CLocalAuthenticationData &&) = default;
-			CLocalAuthenticationData(CLocalAuthenticationData const &) = default;
+			CLocalAuthenticationData(CLocalAuthenticationData &&_Other) = default;
+			CLocalAuthenticationData(CLocalAuthenticationData const &_Other) = default;
 
-			CLocalAuthenticationData &operator = (CLocalAuthenticationData &&) = default;
-			CLocalAuthenticationData &operator = (CLocalAuthenticationData const &) = default;
+			CLocalAuthenticationData &operator = (CLocalAuthenticationData &&_Other) = default;
+			CLocalAuthenticationData &operator = (CLocalAuthenticationData const &_Other) = default;
 
 			template <typename tf_CStream>
 			void f_Stream(tf_CStream &_Stream);

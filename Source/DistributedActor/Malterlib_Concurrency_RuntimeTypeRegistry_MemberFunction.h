@@ -94,13 +94,13 @@ namespace NMib::NConcurrency::NPrivate
 
 	private:
 		template <umint ...tfp_Indices, typename ...tfp_CParams>
-		auto fp_Call(t_CStreamParams &_ParamsStream, void *_pObject, NMeta::TCIndices<tfp_Indices...> const &, NMeta::TCTypeList<tfp_CParams...> const &)
+		auto fp_Call(t_CStreamParams &_ParamsStream, void *_pObject, NMeta::TCIndices<tfp_Indices...> const &_Indices, NMeta::TCTypeList<tfp_CParams...> const &_ParamTypes)
 			-> NConcurrency::TCFuture<NStream::CBinaryStorage>
 			requires (TCIsAsyncGenerator<t_CReturn>::mc_Value)
 		;
 
 		template <umint ...tfp_Indices, typename ...tfp_CParams>
-		auto fp_Call(t_CStreamParams &_ParamsStream, void *_pObject, NMeta::TCIndices<tfp_Indices...> const &, NMeta::TCTypeList<tfp_CParams...> const &)
+		auto fp_Call(t_CStreamParams &_ParamsStream, void *_pObject, NMeta::TCIndices<tfp_Indices...> const &_Indices, NMeta::TCTypeList<tfp_CParams...> const &_ParamTypes)
 			-> NConcurrency::TCUnsafeFuture<NStream::CBinaryStorage>
 			requires (!TCIsAsyncGenerator<t_CReturn>::mc_Value)
 		;
@@ -116,7 +116,7 @@ namespace NMib::NConcurrency::NPrivate
 
 	private:
 		template <umint ...tfp_Indices, typename ...tfp_CParams>
-		auto fp_Call(t_CStreamParams &_ParamsStream, void *_pObject, NMeta::TCIndices<tfp_Indices...> const &, NMeta::TCTypeList<tfp_CParams...> const &)
+		auto fp_Call(t_CStreamParams &_ParamsStream, void *_pObject, NMeta::TCIndices<tfp_Indices...> const &_Indices, NMeta::TCTypeList<tfp_CParams...> const &_ParamTypes)
 			-> NConcurrency::TCUnsafeFuture<NStream::CBinaryStorage>
 		;
 	};
@@ -131,7 +131,7 @@ namespace NMib::NConcurrency::NPrivate
 
 	private:
 		template <umint ...tfp_Indices, typename ...tfp_CParams>
-		auto fp_Call(t_CStreamParams &_ParamsStream, void *_pObject, NMeta::TCIndices<tfp_Indices...> const &, NMeta::TCTypeList<tfp_CParams...> const &)
+		auto fp_Call(t_CStreamParams &_ParamsStream, void *_pObject, NMeta::TCIndices<tfp_Indices...> const &_Indices, NMeta::TCTypeList<tfp_CParams...> const &_ParamTypes)
 			-> NConcurrency::TCFuture<NStream::CBinaryStorage>
 		;
 	};
@@ -147,7 +147,7 @@ namespace NMib::NConcurrency::NPrivate
 	struct TCRuntimeTypeRegistryEntry_MemberFunctionInit
 	{
 		template <typename ...tfp_CAlternate>
-		TCRuntimeTypeRegistryEntry_MemberFunctionInit(NMeta::TCTypeList<tfp_CAlternate...>);
+		TCRuntimeTypeRegistryEntry_MemberFunctionInit(NMeta::TCTypeList<tfp_CAlternate...> _AlternateTypes);
 	};
 
 	template

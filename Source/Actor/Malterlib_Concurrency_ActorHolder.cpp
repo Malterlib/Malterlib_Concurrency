@@ -117,7 +117,7 @@ namespace NMib::NConcurrency
 	{
 	}
 
-	void CActorHolder::fp_SetDestroyResult(TCAsyncResult<void> const &)
+	void CActorHolder::fp_SetDestroyResult(TCAsyncResult<void> const &_Result)
 	{
 	}
 
@@ -680,7 +680,7 @@ namespace NMib::NConcurrency
 			(
 				static_cast<TCActorInternal<CActor> *>(_pActorHolder)
 				, &CActor::fp_DestroyInternal
-				, [pSelfReference = fg_Move(pSelfReference)](TCAsyncResult<void> &&) mutable
+				, [pSelfReference = fg_Move(pSelfReference)](TCAsyncResult<void> &&_Result) mutable
 				{
 					// If fp_DestroyInternal was not able to be called, prevent infinite destroy loop
 					auto *pActor = pSelfReference->fp_GetActorRelaxed();

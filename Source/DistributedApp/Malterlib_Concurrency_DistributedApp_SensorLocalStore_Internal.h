@@ -39,7 +39,7 @@ namespace NMib::NConcurrency
 
 		struct CSensor
 		{
-			CSensor(CSensor &&) = default;
+			CSensor(CSensor &&_Other) = default;
 			CSensor(CDistributedAppSensorReporter::CSensorInfo &&_Info)
 				: m_Info(fg_Move(_Info))
 			{

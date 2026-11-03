@@ -72,11 +72,11 @@ namespace NMib::NConcurrency
 		CDistributedAppState() = delete;
 		~CDistributedAppState();
 
-		CDistributedAppState(CDistributedAppState const &);
-		CDistributedAppState(CDistributedAppState &&);
+		CDistributedAppState(CDistributedAppState const &_Other);
+		CDistributedAppState(CDistributedAppState &&_Other);
 
-		CDistributedAppState &operator = (CDistributedAppState const &);
-		CDistributedAppState &operator = (CDistributedAppState &&);
+		CDistributedAppState &operator = (CDistributedAppState const &_Other);
+		CDistributedAppState &operator = (CDistributedAppState &&_Other);
 
 	private:
 		friend struct CDistributedAppActor;

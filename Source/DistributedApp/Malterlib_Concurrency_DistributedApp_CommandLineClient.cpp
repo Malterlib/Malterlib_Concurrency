@@ -486,7 +486,7 @@ namespace NMib::NConcurrency
 					, _WatchPath
 					, NMib::NFile::EFileChange_All
 					, g_ActorFunctor / [fHasConnection, Promise = Pair.m_Promise, bSet = false]
-					(NContainer::TCVector<NMib::NFile::CFileChangeNotification::CNotification>) mutable -> TCFuture<void>
+					(NContainer::TCVector<NMib::NFile::CFileChangeNotification::CNotification> _Notifications) mutable -> TCFuture<void>
 					{
 						auto Capture = co_await g_CaptureExceptions;
 

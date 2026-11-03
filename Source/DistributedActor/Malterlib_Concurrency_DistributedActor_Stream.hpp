@@ -8,7 +8,7 @@
 namespace NMib::NConcurrency
 {
 	template <uint32 t_SubscriptionID>
-	TCActorSubscriptionWithID<t_SubscriptionID>::TCActorSubscriptionWithID(CNullPtr)
+	TCActorSubscriptionWithID<t_SubscriptionID>::TCActorSubscriptionWithID(CNullPtr _pNull)
 	{
 	}
 
@@ -76,7 +76,7 @@ namespace NMib::NConcurrency
 	}
 
 	template <typename t_CFunction, uint32 t_SubscriptionID>
-	TCActorFunctorWithID<t_CFunction, t_SubscriptionID>::TCActorFunctorWithID(CNullPtr)
+	TCActorFunctorWithID<t_CFunction, t_SubscriptionID>::TCActorFunctorWithID(CNullPtr _pNull)
 		: TCActorFunctor<t_CFunction>()
 	{
 	}
@@ -100,7 +100,7 @@ namespace NMib::NConcurrency
 	}
 
 	template <typename t_CInterface, uint32 t_SubscriptionID>
-	TCDistributedActorInterfaceWithID<t_CInterface, t_SubscriptionID>::TCDistributedActorInterfaceWithID(CNullPtr)
+	TCDistributedActorInterfaceWithID<t_CInterface, t_SubscriptionID>::TCDistributedActorInterfaceWithID(CNullPtr _pNull)
 	{
 	}
 
@@ -223,7 +223,7 @@ namespace NMib::NConcurrency
 	}
 
 	template <typename t_CReturnType, uint32 t_SubscriptionID>
-	TCAsyncGeneratorWithID<t_CReturnType, t_SubscriptionID>::TCAsyncGeneratorWithID(CNullPtr)
+	TCAsyncGeneratorWithID<t_CReturnType, t_SubscriptionID>::TCAsyncGeneratorWithID(CNullPtr _pNull)
 	{
 	}
 

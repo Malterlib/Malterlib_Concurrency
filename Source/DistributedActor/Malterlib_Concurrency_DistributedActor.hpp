@@ -412,9 +412,9 @@ namespace NMib::NConcurrency
 	}
 
 	template <typename t_CActor>
-	template <typename ...tf_CActor>
-	TCDistributedActorWrapper<t_CActor>::TCDistributedActorWrapper(tf_CActor && ...p_Params)
-		: t_CActor(fg_Forward<tf_CActor>(p_Params)...)
+	template <typename ...tfp_CParams>
+	TCDistributedActorWrapper<t_CActor>::TCDistributedActorWrapper(tfp_CParams && ...p_Params)
+		: t_CActor(fg_Forward<tfp_CParams>(p_Params)...)
 	{
 	}
 
@@ -480,7 +480,7 @@ namespace NMib::NConcurrency
 			(
 				TCActor<CActorDistributionManager> const &_DistributionManager
 				, TCConstruct<tf_CHolderType, tfp_CHolderParams...> &&_HolderParams
-				, NMeta::TCIndices<tfp_Indidies...> const &
+				, NMeta::TCIndices<tfp_Indidies...> const &_Indices
 				, tfp_CParams && ...p_Params
 			)
 			-> TCActor<TCDistributedActorWrapper<tf_CActor>>
@@ -618,14 +618,14 @@ namespace NMib::NConcurrency
 		;
 	}
 
-	template <typename t_CActor>
-	bool CDistributedActorIdentifier::operator == (TCActor<t_CActor> const &_Right) const noexcept
+	template <typename tf_CActor>
+	bool CDistributedActorIdentifier::operator == (TCActor<tf_CActor> const &_Right) const noexcept
 	{
 		return *this == (TCActor<> const &)_Right;
 	}
 
-	template <typename t_CActor>
-	COrdering_Weak CDistributedActorIdentifier::operator <=> (TCActor<t_CActor> const &_Right) const noexcept
+	template <typename tf_CActor>
+	COrdering_Weak CDistributedActorIdentifier::operator <=> (TCActor<tf_CActor> const &_Right) const noexcept
 	{
 		return *this <=> (TCActor<> const &)_Right;
 	}

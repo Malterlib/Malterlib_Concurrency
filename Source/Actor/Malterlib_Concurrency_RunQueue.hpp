@@ -7,53 +7,53 @@
 
 namespace NMib::NConcurrency
 {
-	template <typename tf_CBaseEntry>
-	TCConcurrentRunQueueEntryHolder<tf_CBaseEntry>::TCConcurrentRunQueueEntryHolder(tf_CBaseEntry *_pEntry)
+	template <typename t_CBaseEntry>
+	TCConcurrentRunQueueEntryHolder<t_CBaseEntry>::TCConcurrentRunQueueEntryHolder(t_CBaseEntry *_pEntry)
 		: mp_pEntry(_pEntry)
 	{
 	}
 
-	template <typename tf_CBaseEntry>
-	TCConcurrentRunQueueEntryHolder<tf_CBaseEntry>::TCConcurrentRunQueueEntryHolder(TCConcurrentRunQueueEntryHolder &&_Other)
+	template <typename t_CBaseEntry>
+	TCConcurrentRunQueueEntryHolder<t_CBaseEntry>::TCConcurrentRunQueueEntryHolder(TCConcurrentRunQueueEntryHolder &&_Other)
 		: mp_pEntry(fg_Exchange(_Other.mp_pEntry, nullptr))
 	{
 	}
 
-	template <typename tf_CBaseEntry>
-	auto TCConcurrentRunQueueEntryHolder<tf_CBaseEntry>::operator = (TCConcurrentRunQueueEntryHolder &&_Other) -> TCConcurrentRunQueueEntryHolder &
+	template <typename t_CBaseEntry>
+	auto TCConcurrentRunQueueEntryHolder<t_CBaseEntry>::operator = (TCConcurrentRunQueueEntryHolder &&_Other) -> TCConcurrentRunQueueEntryHolder &
 	{
 		mp_pEntry = fg_Exchange(_Other.mp_pEntry, nullptr);
 
 		return *this;
 	}
 
-	template <typename tf_CBaseEntry>
-	TCConcurrentRunQueueEntryHolder<tf_CBaseEntry>::~TCConcurrentRunQueueEntryHolder()
+	template <typename t_CBaseEntry>
+	TCConcurrentRunQueueEntryHolder<t_CBaseEntry>::~TCConcurrentRunQueueEntryHolder()
 	{
 		if (mp_pEntry)
 			mp_pEntry->f_Cleanup();
 	}
 
-	template <typename tf_CBaseEntry>
-	bool TCConcurrentRunQueueEntryHolder<tf_CBaseEntry>::f_IsEmpty() const
+	template <typename t_CBaseEntry>
+	bool TCConcurrentRunQueueEntryHolder<t_CBaseEntry>::f_IsEmpty() const
 	{
 		return !mp_pEntry;
 	}
 
-	template <typename tf_CBaseEntry>
-	tf_CBaseEntry *TCConcurrentRunQueueEntryHolder<tf_CBaseEntry>::operator -> ()
+	template <typename t_CBaseEntry>
+	t_CBaseEntry *TCConcurrentRunQueueEntryHolder<t_CBaseEntry>::operator -> ()
 	{
 		return mp_pEntry;
 	}
 
-	template <typename tf_CBaseEntry>
-	tf_CBaseEntry *TCConcurrentRunQueueEntryHolder<tf_CBaseEntry>::f_Detach()
+	template <typename t_CBaseEntry>
+	t_CBaseEntry *TCConcurrentRunQueueEntryHolder<t_CBaseEntry>::f_Detach()
 	{
 		return fg_Exchange(mp_pEntry, nullptr);
 	}
 
-	template <typename tf_CBaseEntry, typename tf_CEntry>
-	TCConcurrentRunQueue<tf_CBaseEntry, tf_CEntry>::~TCConcurrentRunQueue()
+	template <typename t_CBaseEntry, typename t_CEntry>
+	TCConcurrentRunQueue<t_CBaseEntry, t_CEntry>::~TCConcurrentRunQueue()
 	{
 		auto *pEntry = mp_pFirstQueued.f_Exchange(nullptr, NAtomic::gc_MemoryOrder_Acquire);
 		if (!pEntry)
@@ -67,23 +67,23 @@ namespace NMib::NConcurrency
 		}
 	}
 
-	template <typename tf_CBaseEntry, typename tf_CEntry>
-	TCConcurrentRunQueue<tf_CBaseEntry, tf_CEntry>::TCConcurrentRunQueue()
+	template <typename t_CBaseEntry, typename t_CEntry>
+	TCConcurrentRunQueue<t_CBaseEntry, t_CEntry>::TCConcurrentRunQueue()
 	{
 	}
 
-	template <typename tf_CBaseEntry, typename tf_CEntry>
-	TCConcurrentRunQueue<tf_CBaseEntry, tf_CEntry>::CLocalQueueData::~CLocalQueueData()
+	template <typename t_CBaseEntry, typename t_CEntry>
+	TCConcurrentRunQueue<t_CBaseEntry, t_CEntry>::CLocalQueueData::~CLocalQueueData()
 	{
 		while (auto *pEntry = m_LocalQueue.f_Pop())
 		{
 			pEntry->m_Link.f_UnsafeUnlink();
-			fg_DeleteObjectDefiniteType(NMemory::CDefaultAllocator(), static_cast<tf_CEntry *>(pEntry));
+			fg_DeleteObjectDefiniteType(NMemory::CDefaultAllocator(), static_cast<t_CEntry *>(pEntry));
 		}
 	}
 
-	template <typename tf_CBaseEntry, typename tf_CEntry>
-	auto TCConcurrentRunQueue<tf_CBaseEntry, tf_CEntry>::CLocalQueueData::f_PopFirst() -> tf_CBaseEntry *
+	template <typename t_CBaseEntry, typename t_CEntry>
+	auto TCConcurrentRunQueue<t_CBaseEntry, t_CEntry>::CLocalQueueData::f_PopFirst() -> t_CBaseEntry *
 	{
 		auto *pEntry = m_LocalQueue.f_GetFirst();
 		if (!pEntry)
@@ -95,8 +95,8 @@ namespace NMib::NConcurrency
 		return pEntry;
 	}
 
-	template <typename tf_CBaseEntry, typename tf_CEntry>
-	void TCConcurrentRunQueue<tf_CBaseEntry, tf_CEntry>::f_AddChainToQueue(tf_CBaseEntry *_pFirstEntry, tf_CBaseEntry *_pLastEntry)
+	template <typename t_CBaseEntry, typename t_CEntry>
+	void TCConcurrentRunQueue<t_CBaseEntry, t_CEntry>::f_AddChainToQueue(t_CBaseEntry *_pFirstEntry, t_CBaseEntry *_pLastEntry)
 	{
 		while (true)
 		{
@@ -107,16 +107,16 @@ namespace NMib::NConcurrency
 		}
 	}
 
-	template <typename tf_CBaseEntry, typename tf_CEntry>
-	auto TCConcurrentRunQueue<tf_CBaseEntry, tf_CEntry>::fs_QueueEntry(FQueueDispatch &&_Functor) -> NStorage::TCUniquePointer<tf_CEntry>
+	template <typename t_CBaseEntry, typename t_CEntry>
+	auto TCConcurrentRunQueue<t_CBaseEntry, t_CEntry>::fs_QueueEntry(FQueueDispatch &&_Functor) -> NStorage::TCUniquePointer<t_CEntry>
 	{
 		return fg_Construct(fg_Move(_Functor));
 	}
 
-	template <typename tf_CBaseEntry, typename tf_CEntry>
-	bool TCConcurrentRunQueue<tf_CBaseEntry, tf_CEntry>::f_AddToQueueIfEmpty(NStorage::TCUniquePointer<tf_CEntry> &&_pEntry)
+	template <typename t_CBaseEntry, typename t_CEntry>
+	bool TCConcurrentRunQueue<t_CBaseEntry, t_CEntry>::f_AddToQueueIfEmpty(NStorage::TCUniquePointer<t_CEntry> &&_pEntry)
 	{
-		tf_CEntry *pNewEntry = _pEntry.f_Get();
+		t_CEntry *pNewEntry = _pEntry.f_Get();
 		pNewEntry->m_pNextQueued.f_Store(nullptr, NAtomic::gc_MemoryOrder_Relaxed);
 
 		while (true)
@@ -133,10 +133,10 @@ namespace NMib::NConcurrency
 		}
 	}
 
-	template <typename tf_CBaseEntry, typename tf_CEntry>
-	void TCConcurrentRunQueue<tf_CBaseEntry, tf_CEntry>::f_AddToQueue(NStorage::TCUniquePointer<tf_CEntry> &&_pEntry)
+	template <typename t_CBaseEntry, typename t_CEntry>
+	void TCConcurrentRunQueue<t_CBaseEntry, t_CEntry>::f_AddToQueue(NStorage::TCUniquePointer<t_CEntry> &&_pEntry)
 	{
-		tf_CEntry *pNewEntry = _pEntry.f_Detach();
+		t_CEntry *pNewEntry = _pEntry.f_Detach();
 		while (true)
 		{
 			auto *pFirstEntry = mp_pFirstQueued.f_Load(NAtomic::gc_MemoryOrder_Relaxed);
@@ -146,8 +146,8 @@ namespace NMib::NConcurrency
 		}
 	}
 
-	template <typename tf_CBaseEntry, typename tf_CEntry>
-	bool TCConcurrentRunQueue<tf_CBaseEntry, tf_CEntry>::f_AddToQueueLocal(NStorage::TCUniquePointer<tf_CEntry> &&_pEntry, CLocalQueueData &_LocalQueue)
+	template <typename t_CBaseEntry, typename t_CEntry>
+	bool TCConcurrentRunQueue<t_CBaseEntry, t_CEntry>::f_AddToQueueLocal(NStorage::TCUniquePointer<t_CEntry> &&_pEntry, CLocalQueueData &_LocalQueue)
 	{
 		bool bWasEmpty = _LocalQueue.m_LocalQueue.f_IsEmpty();
 		auto pEntry = _pEntry.f_Detach();
@@ -157,8 +157,8 @@ namespace NMib::NConcurrency
 		return bWasEmpty;
 	}
 
-	template <typename tf_CBaseEntry, typename tf_CEntry>
-	bool TCConcurrentRunQueue<tf_CBaseEntry, tf_CEntry>::f_AddToQueueLocalFirst(NStorage::TCUniquePointer<tf_CEntry> &&_pEntry, CLocalQueueData &_LocalQueue)
+	template <typename t_CBaseEntry, typename t_CEntry>
+	bool TCConcurrentRunQueue<t_CBaseEntry, t_CEntry>::f_AddToQueueLocalFirst(NStorage::TCUniquePointer<t_CEntry> &&_pEntry, CLocalQueueData &_LocalQueue)
 	{
 		bool bWasEmpty = _LocalQueue.m_LocalQueue.f_IsEmpty();
 		auto pEntry = _pEntry.f_Detach();
@@ -168,8 +168,8 @@ namespace NMib::NConcurrency
 		return bWasEmpty;
 	}
 
-	template <typename tf_CBaseEntry, typename tf_CEntry>
-	void TCConcurrentRunQueue<tf_CBaseEntry, tf_CEntry>::f_AddToQueue(TCConcurrentRunQueueEntryHolder<tf_CBaseEntry> &&_Entry)
+	template <typename t_CBaseEntry, typename t_CEntry>
+	void TCConcurrentRunQueue<t_CBaseEntry, t_CEntry>::f_AddToQueue(TCConcurrentRunQueueEntryHolder<t_CBaseEntry> &&_Entry)
 	{
 		auto *pNewEntry = _Entry.f_Detach();
 		while (true)
@@ -181,8 +181,8 @@ namespace NMib::NConcurrency
 		}
 	}
 
-	template <typename tf_CBaseEntry, typename tf_CEntry>
-	bool TCConcurrentRunQueue<tf_CBaseEntry, tf_CEntry>::f_AddToQueueLocal(TCConcurrentRunQueueEntryHolder<tf_CBaseEntry> &&_Entry, CLocalQueueData &_LocalQueue)
+	template <typename t_CBaseEntry, typename t_CEntry>
+	bool TCConcurrentRunQueue<t_CBaseEntry, t_CEntry>::f_AddToQueueLocal(TCConcurrentRunQueueEntryHolder<t_CBaseEntry> &&_Entry, CLocalQueueData &_LocalQueue)
 	{
 		bool bWasEmpty = _LocalQueue.m_LocalQueue.f_IsEmpty();
 		auto pEntry = _Entry.f_Detach();
@@ -192,8 +192,8 @@ namespace NMib::NConcurrency
 		return bWasEmpty;
 	}
 
-	template <typename tf_CBaseEntry, typename tf_CEntry>
-	bool TCConcurrentRunQueue<tf_CBaseEntry, tf_CEntry>::f_AddToQueueLocalFirst(TCConcurrentRunQueueEntryHolder<tf_CBaseEntry> &&_Entry, CLocalQueueData &_LocalQueue)
+	template <typename t_CBaseEntry, typename t_CEntry>
+	bool TCConcurrentRunQueue<t_CBaseEntry, t_CEntry>::f_AddToQueueLocalFirst(TCConcurrentRunQueueEntryHolder<t_CBaseEntry> &&_Entry, CLocalQueueData &_LocalQueue)
 	{
 		bool bWasEmpty = _LocalQueue.m_LocalQueue.f_IsEmpty();
 		auto pEntry = _Entry.f_Detach();
@@ -203,11 +203,11 @@ namespace NMib::NConcurrency
 		return bWasEmpty;
 	}
 
-	template <typename tf_CBaseEntry, typename tf_CEntry>
-	void TCConcurrentRunQueue<tf_CBaseEntry, tf_CEntry>::f_AddToQueue(FQueueDispatch &&_Functor)
+	template <typename t_CBaseEntry, typename t_CEntry>
+	void TCConcurrentRunQueue<t_CBaseEntry, t_CEntry>::f_AddToQueue(FQueueDispatch &&_Functor)
 	{
-		NStorage::TCUniquePointer<tf_CEntry> pNewEntryUnique = fg_Construct(fg_Move(_Functor));
-		tf_CEntry *pNewEntry = pNewEntryUnique.f_Detach();
+		NStorage::TCUniquePointer<t_CEntry> pNewEntryUnique = fg_Construct(fg_Move(_Functor));
+		t_CEntry *pNewEntry = pNewEntryUnique.f_Detach();
 		while (true)
 		{
 			auto *pFirstEntry = mp_pFirstQueued.f_Load(NAtomic::gc_MemoryOrder_Relaxed);
@@ -217,30 +217,30 @@ namespace NMib::NConcurrency
 		}
 	}
 
-	template <typename tf_CBaseEntry, typename tf_CEntry>
-	bool TCConcurrentRunQueue<tf_CBaseEntry, tf_CEntry>::f_AddToQueueLocal(FQueueDispatch &&_Functor, CLocalQueueData &_LocalQueue)
+	template <typename t_CBaseEntry, typename t_CEntry>
+	bool TCConcurrentRunQueue<t_CBaseEntry, t_CEntry>::f_AddToQueueLocal(FQueueDispatch &&_Functor, CLocalQueueData &_LocalQueue)
 	{
 		bool bWasEmpty = _LocalQueue.m_LocalQueue.f_IsEmpty();
-		NStorage::TCUniquePointer<tf_CEntry> pNewEntryUnique = fg_Construct(fg_Move(_Functor));
+		NStorage::TCUniquePointer<t_CEntry> pNewEntryUnique = fg_Construct(fg_Move(_Functor));
 		pNewEntryUnique->m_Link.f_Construct();
 		_LocalQueue.m_LocalQueue.f_Insert(pNewEntryUnique.f_Detach());
 		++_LocalQueue.m_nEntries;
 		return bWasEmpty;
 	}
 
-	template <typename tf_CBaseEntry, typename tf_CEntry>
-	bool TCConcurrentRunQueue<tf_CBaseEntry, tf_CEntry>::f_AddToQueueLocalFirst(FQueueDispatch &&_Functor, CLocalQueueData &_LocalQueue)
+	template <typename t_CBaseEntry, typename t_CEntry>
+	bool TCConcurrentRunQueue<t_CBaseEntry, t_CEntry>::f_AddToQueueLocalFirst(FQueueDispatch &&_Functor, CLocalQueueData &_LocalQueue)
 	{
 		bool bWasEmpty = _LocalQueue.m_LocalQueue.f_IsEmpty();
-		NStorage::TCUniquePointer<tf_CEntry> pNewEntryUnique = fg_Construct(fg_Move(_Functor));
+		NStorage::TCUniquePointer<t_CEntry> pNewEntryUnique = fg_Construct(fg_Move(_Functor));
 		pNewEntryUnique->m_Link.f_Construct();
 		_LocalQueue.m_LocalQueue.f_InsertFirst(pNewEntryUnique.f_Detach());
 		++_LocalQueue.m_nEntries;
 		return bWasEmpty;
 	}
 
-	template <typename tf_CBaseEntry, typename tf_CEntry>
-	void TCConcurrentRunQueue<tf_CBaseEntry, tf_CEntry>::f_RemoveAllExceptFirst(CLocalQueueData &_LocalQueue)
+	template <typename t_CBaseEntry, typename t_CEntry>
+	void TCConcurrentRunQueue<t_CBaseEntry, t_CEntry>::f_RemoveAllExceptFirst(CLocalQueueData &_LocalQueue)
 	{
 		f_TransferThreadSafeQueue(_LocalQueue);
 
@@ -249,42 +249,42 @@ namespace NMib::NConcurrency
 			if (pEntry->m_Link.f_IsAloneInList())
 				break;
 			pEntry->m_Link.f_UnsafeUnlink();
-			fg_DeleteObjectDefiniteType(NMemory::CDefaultAllocator(), static_cast<tf_CEntry *>(pEntry));
+			fg_DeleteObjectDefiniteType(NMemory::CDefaultAllocator(), static_cast<t_CEntry *>(pEntry));
 		}
 
 		_LocalQueue.m_nEntries = _LocalQueue.m_LocalQueue.f_IsEmpty() ? 0 : 1;
 	}
 
-	template <typename tf_CBaseEntry, typename tf_CEntry>
-	void TCConcurrentRunQueue<tf_CBaseEntry, tf_CEntry>::f_RemoveAll(CLocalQueueData &_LocalQueue)
+	template <typename t_CBaseEntry, typename t_CEntry>
+	void TCConcurrentRunQueue<t_CBaseEntry, t_CEntry>::f_RemoveAll(CLocalQueueData &_LocalQueue)
 	{
 		f_TransferThreadSafeQueue(_LocalQueue);
 
 		while (auto *pEntry = _LocalQueue.m_LocalQueue.f_Pop())
 		{
 			pEntry->m_Link.f_UnsafeUnlink();
-			fg_DeleteObjectDefiniteType(NMemory::CDefaultAllocator(), static_cast<tf_CEntry *>(pEntry));
+			fg_DeleteObjectDefiniteType(NMemory::CDefaultAllocator(), static_cast<t_CEntry *>(pEntry));
 		}
 
 		_LocalQueue.m_nEntries = 0;
 	}
 
-	template <typename tf_CBaseEntry, typename tf_CEntry>
-	bool TCConcurrentRunQueue<tf_CBaseEntry, tf_CEntry>::f_OneOrLessInQueue(CLocalQueueData &_LocalQueue)
+	template <typename t_CBaseEntry, typename t_CEntry>
+	bool TCConcurrentRunQueue<t_CBaseEntry, t_CEntry>::f_OneOrLessInQueue(CLocalQueueData &_LocalQueue)
 	{
 		return (_LocalQueue.m_LocalQueue.f_IsEmpty() || _LocalQueue.m_LocalQueue.f_GetFirst()->m_Link.f_IsAloneInList())
 			&& mp_pFirstQueued.f_Load(NAtomic::gc_MemoryOrder_Relaxed) == nullptr
 		;
 	}
 
-	template <typename tf_CBaseEntry, typename tf_CEntry>
-	bool TCConcurrentRunQueue<tf_CBaseEntry, tf_CEntry>::f_IsEmpty(CLocalQueueData &_LocalQueue)
+	template <typename t_CBaseEntry, typename t_CEntry>
+	bool TCConcurrentRunQueue<t_CBaseEntry, t_CEntry>::f_IsEmpty(CLocalQueueData &_LocalQueue)
 	{
 		return _LocalQueue.m_LocalQueue.f_IsEmpty() && mp_pFirstQueued.f_Load(NAtomic::gc_MemoryOrder_Relaxed) == nullptr;
 	}
 
-	template <typename tf_CBaseEntry, typename tf_CEntry>
-	umint TCConcurrentRunQueue<tf_CBaseEntry, tf_CEntry>::f_TransferThreadSafeQueue(CLocalQueueData &_LocalQueue)
+	template <typename t_CBaseEntry, typename t_CEntry>
+	umint TCConcurrentRunQueue<t_CBaseEntry, t_CEntry>::f_TransferThreadSafeQueue(CLocalQueueData &_LocalQueue)
 	{
 		auto *pEntry = mp_pFirstQueued.f_Exchange(nullptr, NAtomic::gc_MemoryOrder_Acquire);
 		if (!pEntry)

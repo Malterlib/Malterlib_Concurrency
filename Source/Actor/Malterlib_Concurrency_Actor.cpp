@@ -176,15 +176,15 @@ namespace NMib::NConcurrency
 		return m_Promise.f_Future();
 	}
 
-	CCanDestroyTracker::CCanDestroyResultFunctor::CCanDestroyResultFunctor(CCanDestroyResultFunctor &&) = default;
-	CCanDestroyTracker::CCanDestroyResultFunctor::CCanDestroyResultFunctor(CCanDestroyResultFunctor const &) = default;
+	CCanDestroyTracker::CCanDestroyResultFunctor::CCanDestroyResultFunctor(CCanDestroyResultFunctor &&_Other) = default;
+	CCanDestroyTracker::CCanDestroyResultFunctor::CCanDestroyResultFunctor(CCanDestroyResultFunctor const &_Other) = default;
 
 	CCanDestroyTracker::CCanDestroyResultFunctor::CCanDestroyResultFunctor(NStorage::TCSharedPointer<CCanDestroyTracker> &&_pThis)
 		: m_pThis(fg_Move(_pThis))
 	{
 	}
 
-	void CCanDestroyTracker::CCanDestroyResultFunctor::operator () (TCAsyncResult<void> &&)
+	void CCanDestroyTracker::CCanDestroyResultFunctor::operator () (TCAsyncResult<void> &&_Result)
 	{
 	}
 

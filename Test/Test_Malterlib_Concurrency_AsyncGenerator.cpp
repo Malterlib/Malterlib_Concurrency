@@ -646,7 +646,7 @@ namespace
 
 				TCActor<CTestActor> TestActor = fg_Construct();
 
-				TCFunctionMovable<TCAsyncGenerator<int32> (int32 const &)> fTestEager = [](int32 _Value) -> TCAsyncGenerator<int32>
+				TCFunctionMovable<TCAsyncGenerator<int32> (int32 const &_Value)> fTestEager = [](int32 _Value) -> TCAsyncGenerator<int32>
 					{
 						co_yield 1;
 						co_yield _Value;
@@ -707,7 +707,7 @@ namespace
 
 				TCActor<CTestActor> TestActor = fg_Construct();
 
-				TCFunctionMovable<TCAsyncGenerator<int32> (int32)> fTestEager = [](int32 _Value) -> TCAsyncGenerator<int32>
+				TCFunctionMovable<TCAsyncGenerator<int32> (int32 _Value)> fTestEager = [](int32 _Value) -> TCAsyncGenerator<int32>
 					{
 						co_yield 1;
 						co_yield _Value;

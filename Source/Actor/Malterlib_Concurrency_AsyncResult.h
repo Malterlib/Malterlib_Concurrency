@@ -289,7 +289,7 @@ namespace NMib::NConcurrency
 
 		NException::CExceptionPointer f_TryGetException() && override;
 		void f_SetException(NException::CExceptionPointer &&_pException) override;
-		void f_ApplyValue(NPrivate::CPromiseDataBase *) override;
+		void f_ApplyValue(NPrivate::CPromiseDataBase *_pPromiseData) override;
 
 		NException::CExceptionPointer m_pException;
 	};
@@ -321,7 +321,7 @@ namespace NMib::NConcurrency
 
 namespace NMib::NFunction
 {
-	extern template struct TCFunctionMovable<void (NConcurrency::TCAsyncResult<void> &&)>;
+	extern template struct TCFunctionMovable<void (NConcurrency::TCAsyncResult<void> &&_Result)>;
 }
 
 #include "Malterlib_Concurrency_AsyncResult.hpp"

@@ -23,7 +23,7 @@ namespace NMib::NConcurrency
 		CDistributedApp_LaunchInfoData();
 		~CDistributedApp_LaunchInfoData();
 
-		CDistributedApp_LaunchInfoData(CDistributedApp_LaunchInfoData &&) = default;
+		CDistributedApp_LaunchInfoData(CDistributedApp_LaunchInfoData &&_Other) = default;
 		CDistributedApp_LaunchInfoData(CDistributedApp_LaunchInfoData const &_Other) = default;
 
 		CDistributedApp_LaunchInfoData &operator = (CDistributedApp_LaunchInfoData &&_Other) = default;

@@ -34,7 +34,7 @@ namespace NMib::NConcurrency
 	{
 		// The index is allocated on first use and identifies the type for as long as the process lives.
 		// Windows builds compile without thread safe function local statics, so it is published by hand
-		template <typename t_CActor>
+		template <typename tf_CActor>
 		umint fg_GetSingletonIndex()
 		{
 			static constinit NAtomic::TCAtomic<umint> s_Index = 0; // Constant initialized, and holds the index plus one so that zero means unallocated
@@ -65,10 +65,10 @@ namespace NMib::NConcurrency
 	// remaining actors. The create function runs under the singleton lock and may ask for other
 	// singletons. The result is wrapped so that a caller awaiting it forwards the shutdown error
 	// as its own result instead of catching an exception
-	template <typename t_CActor, typename tf_FCreate>
-	TCWrapped<TCActor<t_CActor>> CConcurrencyManager::f_GetSingleton(tf_FCreate const &_fCreate)
+	template <typename tf_CActor, typename tf_FCreate>
+	TCWrapped<TCActor<tf_CActor>> CConcurrencyManager::f_GetSingleton(tf_FCreate const &_fCreate)
 	{
-		umint iSingleton = NPrivate::fg_GetSingletonIndex<t_CActor>();
+		umint iSingleton = NPrivate::fg_GetSingletonIndex<tf_CActor>();
 
 		DMibLockTyped(NThread::CMutual, m_SingletonLock);
 
@@ -81,12 +81,12 @@ namespace NMib::NConcurrency
 		if (m_Singletons[iSingleton].f_IsEmpty())
 		{
 			// A singleton that _fCreate asks for can grow m_Singletons, so the slot is only indexed once it has returned
-			NStorage::TCUniquePointer<CSingleton> pSingleton = fg_Construct<TCSingleton<t_CActor>>(_fCreate());
+			NStorage::TCUniquePointer<CSingleton> pSingleton = fg_Construct<TCSingleton<tf_CActor>>(_fCreate());
 			m_Singletons[iSingleton] = fg_Move(pSingleton);
 			m_SingletonCreationOrder.f_InsertLast(iSingleton);
 		}
 
-		return ((TCSingleton<t_CActor> *)m_Singletons[iSingleton].f_Get())->m_Actor;
+		return ((TCSingleton<tf_CActor> *)m_Singletons[iSingleton].f_Get())->m_Actor;
 	}
 
 	template <typename tf_CType, typename ...tfp_CParams>
@@ -145,7 +145,8 @@ namespace NMib::NConcurrency
 	namespace NPrivate
 	{
 		template <typename tf_CActor, typename tf_CHolderType, typename ...tfp_CHolderParams, typename ...tfp_CParams, umint ...tfp_Indidies>
-		TCActor<tf_CActor> fg_ConstructActorHelper(TCConstruct<tf_CHolderType, tfp_CHolderParams...> &&_HolderParams, NMeta::TCIndices<tfp_Indidies...> const &, tfp_CParams && ...p_Params)
+		auto fg_ConstructActorHelper(TCConstruct<tf_CHolderType, tfp_CHolderParams...> &&_HolderParams, NMeta::TCIndices<tfp_Indidies...> const &_Indices, tfp_CParams && ...p_Params)
+			-> TCActor<tf_CActor>
 		{
 			return fg_ConcurrencyManager().f_ConstructActor
 				(

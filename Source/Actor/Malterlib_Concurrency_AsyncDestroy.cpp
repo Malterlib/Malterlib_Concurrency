@@ -9,7 +9,7 @@ namespace NMib::NConcurrency
 {
 	constinit CAsyncDestroyHelper g_AsyncDestroy;
 
-	TCFutureAwaiter<void, true, CVoidTag> CFutureCoroutineContext::await_transform(CAsyncDestroyHelper)
+	TCFutureAwaiter<void, true, CVoidTag> CFutureCoroutineContext::await_transform(CAsyncDestroyHelper _Helper)
 	{
 		DMibFastCheck(m_bRuntimeStateConstructed);
 
@@ -29,7 +29,7 @@ namespace NMib::NConcurrency
 		return {g_Void, {}};
 	}
 
-	TCFutureAwaiter<NContainer::TCVector<TCAsyncResult<void>>, true, CVoidTag> CFutureCoroutineContext::await_transform(CAsyncDestroyHelperNoUnWrap)
+	TCFutureAwaiter<NContainer::TCVector<TCAsyncResult<void>>, true, CVoidTag> CFutureCoroutineContext::await_transform(CAsyncDestroyHelperNoUnWrap _Helper)
 	{
 		DMibFastCheck(m_bRuntimeStateConstructed);
 

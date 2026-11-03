@@ -150,7 +150,7 @@ namespace NMib::NConcurrency
 			f_ConcurrencyManager().f_DispatchOnCurrentThreadOrConcurrent
 				(
 					EPriority_Normal
-					, [pRan, Done](CConcurrencyThreadLocal &)
+					, [pRan, Done](CConcurrencyThreadLocal &_ThreadLocal)
 					{
 						Done.f_SetResult(pRan->f_Load());
 					}

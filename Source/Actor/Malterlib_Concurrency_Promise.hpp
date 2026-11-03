@@ -101,13 +101,13 @@ namespace NMib::NConcurrency
 	}
 
 	template <typename t_CReturnValue>
-	TCFuture<t_CReturnValue>::TCFuture(NStorage::TCSharedPointer<NPrivate::TCPromiseData<t_CReturnValue>> &&_pData, NPrivate::CFutureConstructIgnoreFutureGotten)
+	TCFuture<t_CReturnValue>::TCFuture(NStorage::TCSharedPointer<NPrivate::TCPromiseData<t_CReturnValue>> &&_pData, NPrivate::CFutureConstructIgnoreFutureGotten _IgnoreFutureGotten)
 		: mp_pData(fg_Move(_pData))
 	{
 	}
 
 	template <typename t_CReturnValue>
-	TCFuture<t_CReturnValue>::TCFuture(NStorage::TCSharedPointer<NPrivate::TCPromiseData<t_CReturnValue>> &&_pData, NPrivate::CFutureConstructSetFutureGotten)
+	TCFuture<t_CReturnValue>::TCFuture(NStorage::TCSharedPointer<NPrivate::TCPromiseData<t_CReturnValue>> &&_pData, NPrivate::CFutureConstructSetFutureGotten _SetFutureGotten)
 		: mp_pData(fg_Move(_pData))
 	{
 #if DMibEnableSafeCheck > 0
@@ -225,7 +225,7 @@ namespace NMib::NConcurrency
 	}
 
 	template <typename t_CReturnValue>
-	TCPromise<t_CReturnValue>::TCPromise(CPromiseConstructConsume, CConcurrencyThreadLocal &_ThreadLocal)
+	TCPromise<t_CReturnValue>::TCPromise(CPromiseConstructConsume _Consume, CConcurrencyThreadLocal &_ThreadLocal)
 		: mp_pData
 		(
 			NPrivate::fg_ConsumePromise<t_CReturnValue, NPrivate::EConsumePromiseFlag_UsePromise>
@@ -243,7 +243,7 @@ namespace NMib::NConcurrency
 	}
 
 	template <typename t_CReturnValue>
-	TCPromise<t_CReturnValue>::TCPromise(CPromiseConstructNoConsume, int32 _RefCount, CConcurrencyThreadLocal &_ThreadLocal)
+	TCPromise<t_CReturnValue>::TCPromise(CPromiseConstructNoConsume _NoConsume, int32 _RefCount, CConcurrencyThreadLocal &_ThreadLocal)
 		: mp_pData(fg_Construct(_ThreadLocal.m_SystemThreadLocal.m_PromiseThreadLocal, _RefCount))
 	{
 		DMibFastCheck(!_ThreadLocal.m_SystemThreadLocal.m_PromiseThreadLocal.m_bSupendOnInitialSuspend); // It's not allowed to have a actor call that isn't a co-routine.
@@ -262,24 +262,24 @@ namespace NMib::NConcurrency
 	}
 
 	template <typename t_CReturnValue>
-	TCPromise<t_CReturnValue>::TCPromise(CPromiseConstructDiscardResult)
+	TCPromise<t_CReturnValue>::TCPromise(CPromiseConstructDiscardResult _DiscardResult)
 		: mp_pData(fg_Construct(CPromiseConstructDiscardResult(), 0))
 	{
 	}
 
 	template <typename t_CReturnValue>
-	TCPromise<t_CReturnValue>::TCPromise(CPromiseConstructDiscardResult, int32 _RefCount, CConcurrencyThreadLocal &_ThreadLocal)
+	TCPromise<t_CReturnValue>::TCPromise(CPromiseConstructDiscardResult _DiscardResult, int32 _RefCount, CConcurrencyThreadLocal &_ThreadLocal)
 		: mp_pData(fg_Construct(CPromiseConstructDiscardResult(), _RefCount))
 	{
 	}
 
 	template <typename t_CReturnValue>
-	TCPromise<t_CReturnValue>::TCPromise(CPromiseConstructEmpty)
+	TCPromise<t_CReturnValue>::TCPromise(CPromiseConstructEmpty _Empty)
 	{
 	}
 
 	template <typename t_CReturnValue>
-	TCPromise<t_CReturnValue>::TCPromise(CPromiseConstructEmpty, int32 _RefCount, CConcurrencyThreadLocal &_ThreadLocal)
+	TCPromise<t_CReturnValue>::TCPromise(CPromiseConstructEmpty _Empty, int32 _RefCount, CConcurrencyThreadLocal &_ThreadLocal)
 	{
 	}
 
@@ -474,7 +474,7 @@ namespace NMib::NConcurrency
 	}
 
 	template <typename t_CReturnValue>
-	mark_no_coroutine_debug TCFuture<t_CReturnValue> TCPromise<t_CReturnValue>::operator <<= (CVoidTag const &)
+	mark_no_coroutine_debug TCFuture<t_CReturnValue> TCPromise<t_CReturnValue>::operator <<= (CVoidTag const &_Void)
 	{
 		this->mp_pData->f_SetResult();
 		return f_MoveFuture();
@@ -929,7 +929,7 @@ namespace NMib::NConcurrency
 					auto bFound = NException::fg_VisitException<tfp_CExceptions...>
 						(
 							_pException
-							, [](auto &&)
+							, [](auto &&_Exception)
 							{
 							}
 						)
@@ -1076,7 +1076,7 @@ namespace NMib::NConcurrency::NPrivate
 	}
 
 	template <typename t_CReturnValue>
-	TCPromiseData<t_CReturnValue>::TCPromiseData(CPromiseConstructDiscardResult, int32 _RefCount)
+	TCPromiseData<t_CReturnValue>::TCPromiseData(CPromiseConstructDiscardResult _DiscardResult, int32 _RefCount)
 		: CPromiseDataBase
 		(
 			_RefCount
@@ -1103,7 +1103,7 @@ namespace NMib::NConcurrency::NPrivate
 	}
 
 	template <typename t_CReturnValue>
-	TCPromiseData<t_CReturnValue>::TCPromiseData(CPromiseConstructDirectFuture)
+	TCPromiseData<t_CReturnValue>::TCPromiseData(CPromiseConstructDirectFuture _DirectFuture)
 		: CPromiseDataBase
 		(
 			CPromiseDataBaseRefCount::mc_FutureBit - 1

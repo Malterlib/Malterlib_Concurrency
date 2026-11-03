@@ -29,7 +29,7 @@ namespace NMib::NConcurrency
 	{
 		umint fg_AllocateSingletonIndex(NAtomic::TCAtomic<umint> &_Index);
 
-		template <typename t_CActor>
+		template <typename tf_CActor>
 		umint fg_GetSingletonIndex();
 
 #if DMibConfig_Concurrency_DebugFutures
@@ -76,8 +76,8 @@ namespace NMib::NConcurrency
 		CIoLoopCreateScope(CIoLoopBinding const &_Binding);
 		~CIoLoopCreateScope();
 
-		CIoLoopCreateScope(CIoLoopCreateScope const &) = delete;
-		CIoLoopCreateScope &operator = (CIoLoopCreateScope const &) = delete;
+		CIoLoopCreateScope(CIoLoopCreateScope const &_Other) = delete;
+		CIoLoopCreateScope &operator = (CIoLoopCreateScope const &_Other) = delete;
 
 	private:
 		DMibThreadLocalScopeDebugMember;
@@ -152,8 +152,8 @@ namespace NMib::NConcurrency
 		void f_SetExecutionPriority(EPriority _Priority, EExecutionPriority _ExecutionPriority);
 		EExecutionPriority f_GetExecutionPriority(EPriority _Priority);
 
-		template <typename t_CActor, typename tf_FCreate>
-		TCWrapped<TCActor<t_CActor>> f_GetSingleton(tf_FCreate const &_fCreate);
+		template <typename tf_CActor, typename tf_FCreate>
+		TCWrapped<TCActor<tf_CActor>> f_GetSingleton(tf_FCreate const &_fCreate);
 
 		bool f_DestroyingAlwaysAliveActors() const;
 

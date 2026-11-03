@@ -106,11 +106,11 @@ namespace
 			Section.f_RegisterCommand
 				(
 					{"Names"_o= _o["--test-input"], "Description"_o= "Exercise redirected input subscriptions."}
-					, [](CEJsonSorted, NStorage::TCSharedPointer<CCommandLineControl> _pCommandLine) -> TCFuture<uint32>
+					, [](CEJsonSorted _Params, NStorage::TCSharedPointer<CCommandLineControl> _pCommandLine) -> TCFuture<uint32>
 					{
 						auto fTextInput = []
 							{
-								return g_ActorFunctor / [](NProcess::EStdInReaderOutputType, CStrIO) -> TCFuture<void>
+								return g_ActorFunctor / [](NProcess::EStdInReaderOutputType _Type, CStrIO _Input) -> TCFuture<void>
 									{
 										co_return {};
 									}
@@ -130,7 +130,7 @@ namespace
 							)
 						;
 
-						auto OnResize = g_ActorFunctor / [](ICCommandLineControl::CScreenChange) -> TCFuture<void>
+						auto OnResize = g_ActorFunctor / [](ICCommandLineControl::CScreenChange _ScreenChange) -> TCFuture<void>
 							{
 								co_return {};
 							}
@@ -147,7 +147,7 @@ namespace
 							DMibTestPath(bBinary ? "Binary" : "Text");
 							if (bBinary)
 							{
-								auto OnInput = g_ActorFunctor / [](NProcess::EStdInReaderOutputType, CIOByteVector, CStr) -> TCFuture<void>
+								auto OnInput = g_ActorFunctor / [](NProcess::EStdInReaderOutputType _Type, CIOByteVector _Input, CStr _Error) -> TCFuture<void>
 									{
 										co_return {};
 									}

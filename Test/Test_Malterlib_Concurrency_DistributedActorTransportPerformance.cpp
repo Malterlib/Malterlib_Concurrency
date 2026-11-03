@@ -325,13 +325,13 @@ namespace NTestTransportPerformance
 			DMibExpectTrue(_PerfTest);
 		}
 
-		template <typename t_CClientActor>
+		template <typename tf_CClientActor>
 		static void fs_MeasurePing(CTestPerformance &_PerfTest, CActorRunLoopTestHelper &_RunLoopHelper, CStr const &_Scheme, CStr const &_SuiteTag, bool _bHighCPUServerActor)
 		{
 			DMibTestPath("{}_{}"_f << _SuiteTag << _Scheme);
 
 			CTransportBenchState State(_RunLoopHelper, _Scheme, _SuiteTag, 1, _bHighCPUServerActor);
-			TCActor<t_CClientActor> ClientActor = fg_ConstructActor<t_CClientActor>();
+			TCActor<tf_CClientActor> ClientActor = fg_ConstructActor<tf_CClientActor>();
 
 			ClientActor(&CTransportBenchClientActor::f_RunPing, State.m_RemoteActor, mc_nPingRoundTrips / 8).f_CallSync(_RunLoopHelper.m_pRunLoop, g_Timeout);
 

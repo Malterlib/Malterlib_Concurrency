@@ -16,7 +16,7 @@ namespace NMib::NConcurrency::NPrivate
 	struct TCDecayedTupleHelper<NMeta::TCTypeList<tp_CParams...>>
 	{
 		using CMoveList = NMeta::TCTypeList<NTraits::TCAddRValueReference<NTraits::TCDecay<tp_CParams>>...>;
-		using CCallType = void (*)(NTraits::TCDecay<tp_CParams>...);
+		using CCallType = void (*)(NTraits::TCDecay<tp_CParams> ...p_Params);
 		using CType = NStorage::TCTuple<NTraits::TCDecay<tp_CParams>...>;
 		using CIndices = NMeta::TCConsecutiveIndices<sizeof...(tp_CParams)>;
 	};
@@ -25,7 +25,7 @@ namespace NMib::NConcurrency::NPrivate
 	concept cIsActorFunctorCallableWith = NTraits::cIsCallableWith
 		<
 			typename NPrivate::TCDecayedTupleHelper<typename NTraits::TCFunctionTraits<t_CFunction>::CParams>::CCallType
-			, void (tp_CParams...)
+			, void (tp_CParams ...p_Params)
 		>
 	;
 
@@ -87,13 +87,13 @@ namespace NMib::NConcurrency::NPrivate
 		using CType = TCActorFunctorCoalescedStorage<t_CFunction>;
 	};
 
-	template <typename t_CFunction, bool t_bCoalesced>
-	auto fg_ConstructActorFunctorStorage(NFunction::TCFunctionMovable<typename TCAddRValueReferencesToFunctor<t_CFunction>::FType> &&_fFunctor)
-		-> NStorage::TCSharedPointer<typename TCActorFunctorStorage<t_CFunction, t_bCoalesced>::CType>
+	template <typename tf_CFunction, bool tf_bCoalesced>
+	auto fg_ConstructActorFunctorStorage(NFunction::TCFunctionMovable<typename TCAddRValueReferencesToFunctor<tf_CFunction>::FType> &&_fFunctor)
+		-> NStorage::TCSharedPointer<typename TCActorFunctorStorage<tf_CFunction, tf_bCoalesced>::CType>
 	;
 
-	template <typename t_CStorage>
-	auto fg_ReopenCoalescedGateOnFailure(NStorage::TCSharedPointer<t_CStorage> const &_pStorage, uint32 _Generation, TCFuture<void> &&_Delivery) -> TCFuture<void>;
+	template <typename tf_CStorage>
+	auto fg_ReopenCoalescedGateOnFailure(NStorage::TCSharedPointer<tf_CStorage> const &_pStorage, uint32 _Generation, TCFuture<void> &&_Delivery) -> TCFuture<void>;
 }
 
 namespace NMib::NConcurrency
@@ -109,13 +109,13 @@ namespace NMib::NConcurrency
 
 namespace NMib::NConcurrency::NPrivate
 {
-	template <typename t_CFunction, bool t_bCoalesced>
-	auto fg_ConstructActorFunctorStorage(NFunction::TCFunctionMovable<typename TCAddRValueReferencesToFunctor<t_CFunction>::FType> &&_fFunctor)
-		-> NStorage::TCSharedPointer<typename TCActorFunctorStorage<t_CFunction, t_bCoalesced>::CType>
+	template <typename tf_CFunction, bool tf_bCoalesced>
+	auto fg_ConstructActorFunctorStorage(NFunction::TCFunctionMovable<typename TCAddRValueReferencesToFunctor<tf_CFunction>::FType> &&_fFunctor)
+		-> NStorage::TCSharedPointer<typename TCActorFunctorStorage<tf_CFunction, tf_bCoalesced>::CType>
 	{
-		using CStorage = typename TCActorFunctorStorage<t_CFunction, t_bCoalesced>::CType;
+		using CStorage = typename TCActorFunctorStorage<tf_CFunction, tf_bCoalesced>::CType;
 
-		if constexpr (!t_bCoalesced)
+		if constexpr (!tf_bCoalesced)
 		{
 			NStorage::TCSharedPointer<CStorage> pStorage = fg_Construct(fg_Move(_fFunctor));
 
@@ -128,7 +128,7 @@ namespace NMib::NConcurrency::NPrivate
 			// delivery and not on the caller when the delivery is queued
 			NStorage::TCSharedPointer<CStorage> pStorage = fg_Construct();
 			// NOLINTNEXTLINE(malterlib-coroutine-lambda-call): the storage keeps the function, which only the actor functor calls
-			static_cast<NFunction::TCFunctionMovable<typename TCAddRValueReferencesToFunctor<t_CFunction>::FType> &>(*pStorage)
+			static_cast<NFunction::TCFunctionMovable<typename TCAddRValueReferencesToFunctor<tf_CFunction>::FType> &>(*pStorage)
 				= [pGate = &pStorage->m_Gate, fFunctor = fg_Move(_fFunctor)]
 				() mutable -> TCFuture<void>
 				{
@@ -144,8 +144,8 @@ namespace NMib::NConcurrency::NPrivate
 	}
 
 	// A delivery that never ran must reopen the gate it armed, and only that one
-	template <typename t_CStorage>
-	auto fg_ReopenCoalescedGateOnFailure(NStorage::TCSharedPointer<t_CStorage> const &_pStorage, uint32 _Generation, TCFuture<void> &&_Delivery) -> TCFuture<void>
+	template <typename tf_CStorage>
+	auto fg_ReopenCoalescedGateOnFailure(NStorage::TCSharedPointer<tf_CStorage> const &_pStorage, uint32 _Generation, TCFuture<void> &&_Delivery) -> TCFuture<void>
 	{
 		TCPromiseFuturePair<void> Pair;
 		fg_Move(_Delivery).f_OnResultSet

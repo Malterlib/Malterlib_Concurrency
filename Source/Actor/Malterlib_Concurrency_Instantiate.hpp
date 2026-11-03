@@ -3,6 +3,7 @@
 
 #pragma once
 
+// NOLINTBEGIN(malterlib-parameter-naming): the check asks for parameter names in explicit instantiations, which have none
 namespace NMib::NConcurrency
 {
 	extern template NMib::NConcurrency::TCActor<NMib::NConcurrency::CActor>::~TCActor();
@@ -119,3 +120,4 @@ namespace NMib
 		-> NMib::NStorage::NPrivate::TCSharedPointerCounter<NMib::TCOnScopeExit<NFunction::TCFunctionMovable<void ()>>, false, 0> *
 	;
 }
+// NOLINTEND(malterlib-parameter-naming)

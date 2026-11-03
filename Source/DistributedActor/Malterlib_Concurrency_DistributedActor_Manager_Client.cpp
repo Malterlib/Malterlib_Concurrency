@@ -10,8 +10,8 @@
 
 namespace NMib::NConcurrency
 {
-	CDistributedActorConnectionReference::CDistributedActorConnectionReference(CDistributedActorConnectionReference &&) = default;
-	CDistributedActorConnectionReference &CDistributedActorConnectionReference::operator = (CDistributedActorConnectionReference &&) = default;
+	CDistributedActorConnectionReference::CDistributedActorConnectionReference(CDistributedActorConnectionReference &&_Other) = default;
+	CDistributedActorConnectionReference &CDistributedActorConnectionReference::operator = (CDistributedActorConnectionReference &&_Other) = default;
 
 	CDistributedActorConnectionReference::CDistributedActorConnectionReference(TCWeakActor<CActorDistributionManager> const &_DistributionManager, NStr::CStr const &_ConnectionID)
 		: mp_DistributionManager(_DistributionManager)

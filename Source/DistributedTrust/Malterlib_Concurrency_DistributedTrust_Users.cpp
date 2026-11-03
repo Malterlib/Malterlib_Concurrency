@@ -187,20 +187,20 @@ namespace NMib::NConcurrency
 		co_return {};
 	}
 
-	template <typename t_CType>
-	TCFuture<CStr> DMibWorkaroundUBSanSectionErrors fg_ExportUser(TCActor<t_CType> _TrustManager, CStr _UserID, bool _bIncludePrivate)
+	template <typename tf_CType>
+	TCFuture<CStr> DMibWorkaroundUBSanSectionErrors fg_ExportUser(TCActor<tf_CType> _TrustManager, CStr _UserID, bool _bIncludePrivate)
 	{
 		if (!CActorDistributionManager::fs_IsValidUserID(_UserID))
 			co_return DMibErrorInstance("Invalid user ID");
 
-		auto UserInfo = co_await _TrustManager.template f_CallActor(&t_CType::f_TryGetUser)(_UserID);
+		auto UserInfo = co_await _TrustManager.template f_CallActor(&tf_CType::f_TryGetUser)(_UserID);
 
 		if (!UserInfo)
 			co_return DMibErrorInstance("User {} does not exist"_f << _UserID);
 
 		NContainer::TCMap<NStr::CStr, CDistributedActorTrustManagerInterface::CLocalAuthenticationData> Factors = co_await _TrustManager.template f_CallActor
 			(
-				&t_CType::f_EnumUserAuthenticationFactors
+				&tf_CType::f_EnumUserAuthenticationFactors
 			)
 			(_UserID)
 		;
@@ -229,8 +229,8 @@ namespace NMib::NConcurrency
 		co_return {};
 	}
 
-	template <typename t_CType>
-	TCFuture<NStr::CStr> DMibWorkaroundUBSanSectionErrors fg_ImportUser(TCActor<t_CType> _TrustManager, NStr::CStr _UserData)
+	template <typename tf_CType>
+	TCFuture<NStr::CStr> DMibWorkaroundUBSanSectionErrors fg_ImportUser(TCActor<tf_CType> _TrustManager, NStr::CStr _UserData)
 	{
 		struct CResult
 		{
@@ -293,13 +293,13 @@ namespace NMib::NConcurrency
 		}
 
 		NStr::CStr UserID = Result.m_UserID;
-		auto UserInfo = co_await _TrustManager.template f_CallActor(&t_CType::f_TryGetUser)(UserID);
+		auto UserInfo = co_await _TrustManager.template f_CallActor(&tf_CType::f_TryGetUser)(UserID);
 
 		if (!UserInfo)
-			co_await _TrustManager.template f_CallActor(&t_CType::f_AddUser)(Result.m_UserID, Result.m_UserInfo.m_UserName);
+			co_await _TrustManager.template f_CallActor(&tf_CType::f_AddUser)(Result.m_UserID, Result.m_UserInfo.m_UserName);
 
-		co_await _TrustManager.template f_CallActor(&t_CType::f_SetUserInfo)(Result.m_UserID, Result.m_UserInfo.m_UserName, NContainer::TCSet<CStr>{}, Result.m_UserInfo.m_Metadata);
-		auto Factors = co_await _TrustManager.template f_CallActor(&t_CType::f_EnumUserAuthenticationFactors)(Result.m_UserID);
+		co_await _TrustManager.template f_CallActor(&tf_CType::f_SetUserInfo)(Result.m_UserID, Result.m_UserInfo.m_UserName, NContainer::TCSet<CStr>{}, Result.m_UserInfo.m_Metadata);
+		auto Factors = co_await _TrustManager.template f_CallActor(&tf_CType::f_EnumUserAuthenticationFactors)(Result.m_UserID);
 
 		TCFutureVector<void> Results;
 
@@ -311,10 +311,10 @@ namespace NMib::NConcurrency
 			if (pFactor)
 			{
 				if (pFactor->m_PrivateData.f_IsEmpty() || !Data.m_PrivateData.f_IsEmpty())
-					_TrustManager.template f_CallActor(&t_CType::f_SetUserAuthenticationFactor)(Result.m_UserID, FactorID, fg_TempCopy(Data)) > Results;
+					_TrustManager.template f_CallActor(&tf_CType::f_SetUserAuthenticationFactor)(Result.m_UserID, FactorID, fg_TempCopy(Data)) > Results;
 			}
 			else
-				_TrustManager.template f_CallActor(&t_CType::f_AddUserAuthenticationFactor)(Result.m_UserID, FactorID, fg_TempCopy(Data)) > Results;
+				_TrustManager.template f_CallActor(&tf_CType::f_AddUserAuthenticationFactor)(Result.m_UserID, FactorID, fg_TempCopy(Data)) > Results;
 		}
 
 		co_await fg_AllDone(Results);

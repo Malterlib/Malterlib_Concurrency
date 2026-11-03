@@ -28,7 +28,7 @@ namespace
 			(
 				_Priority
 				, _iQueue
-				, [&](auto && ...)
+				, [&](auto && ...p_Params)
 				{
 					_fToRun();
 					Done.f_SetSignaled();
@@ -86,7 +86,7 @@ namespace
 						Pipe[0]
 						, &Reports
 						, NSys::EIoLoopEvent::mc_None
-						, [](void *_pToken, NSys::EIoLoopEvent _Events, int)
+						, [](void *_pToken, NSys::EIoLoopEvent _Events, int _Error)
 						{
 							if (fg_IsSet(_Events, NSys::EIoLoopEvent::mc_Read))
 								++*static_cast<umint *>(_pToken);
@@ -144,7 +144,7 @@ namespace
 						Pipe[0]
 						, &Reports
 						, NSys::EIoLoopEvent::mc_Read
-						, [](void *_pToken, NSys::EIoLoopEvent _Events, int)
+						, [](void *_pToken, NSys::EIoLoopEvent _Events, int _Error)
 						{
 							if (fg_IsSet(_Events, NSys::EIoLoopEvent::mc_Read))
 								++*static_cast<umint *>(_pToken);

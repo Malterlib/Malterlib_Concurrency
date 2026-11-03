@@ -3,6 +3,7 @@
 
 #include "Malterlib_Concurrency_Manager.h"
 
+// NOLINTBEGIN(malterlib-parameter-naming): the check asks for parameter names in explicit instantiations, which have none
 namespace NMib::NConcurrency
 {
 	template NMib::NConcurrency::TCActor<NMib::NConcurrency::CActor>::~TCActor();
@@ -114,3 +115,4 @@ namespace NMib
 		-> NMib::NStorage::NPrivate::TCSharedPointerCounter<NMib::TCOnScopeExit<NFunction::TCFunctionMovable<void ()>>, false, 0> *
 	;
 }
+// NOLINTEND(malterlib-parameter-naming)

@@ -556,8 +556,13 @@ namespace NMib::NConcurrency
 				>
 			;
 
-			static_assert(NTraits::cIsCallableWith<NTraits::TCRemoveReference<tf_FToDispatch>, void (NTraits::TCRemoveQualifiersAndAddRValueReference<tfp_CParams>...)>);
-			using CReturnType = NTraits::TCCallableReturnTypeFor<NTraits::TCRemoveReference<tf_FToDispatch>, void (NTraits::TCRemoveQualifiersAndAddRValueReference<tfp_CParams>...)>;
+			static_assert(NTraits::cIsCallableWith<NTraits::TCRemoveReference<tf_FToDispatch>, void (NTraits::TCRemoveQualifiersAndAddRValueReference<tfp_CParams> ...p_CallParams)>);
+			using CReturnType = NTraits::TCCallableReturnTypeFor
+				<
+					NTraits::TCRemoveReference<tf_FToDispatch>
+					, void (NTraits::TCRemoveQualifiersAndAddRValueReference<tfp_CParams> ...p_CallParams)
+				>
+			;
 
 			if constexpr (NPrivate::TCIsFuture<CReturnType>::mc_Value || NPrivate::TCIsAsyncGenerator<CReturnType>::mc_Value)
 			{
@@ -569,7 +574,10 @@ namespace NMib::NConcurrency
 							, CBindActorOptions{EActorCallType::mc_Direct, EVirtualCall::mc_NotVirtual}
 						>
 						(
-							NFunction::TCFunctionMovable<CReturnType (NTraits::TCRemoveQualifiersAndAddRValueReference<tfp_CFunctionParams>...)>(fg_Forward<tf_FToDispatch>(_fDispatch))
+							NFunction::TCFunctionMovable<CReturnType (NTraits::TCRemoveQualifiersAndAddRValueReference<tfp_CFunctionParams> ...p_FunctionParams)>
+							(
+								fg_Forward<tf_FToDispatch>(_fDispatch)
+							)
 							, fg_Forward<tfp_CParams>(p_Params)...
 						)
 					;
@@ -578,7 +586,10 @@ namespace NMib::NConcurrency
 				{
 					return reinterpret_cast<CCallActor>(_Actor).template f_BindByValue<&CActor::f_DispatchWithReturn<CReturnType, tfp_CFunctionParams...>, EVirtualCall::mc_NotVirtual>
 						(
-							NFunction::TCFunctionMovable<CReturnType (NTraits::TCRemoveQualifiersAndAddRValueReference<tfp_CFunctionParams>...)>(fg_Forward<tf_FToDispatch>(_fDispatch))
+							NFunction::TCFunctionMovable<CReturnType (NTraits::TCRemoveQualifiersAndAddRValueReference<tfp_CFunctionParams> ...p_FunctionParams)>
+							(
+								fg_Forward<tf_FToDispatch>(_fDispatch)
+							)
 							, fg_Forward<tfp_CParams>(p_Params)...
 						)
 					;
@@ -960,7 +971,7 @@ namespace NMib::NConcurrency
 	template <typename t_CReturnValue>
 	template <typename tf_CFunctor>
 	inline_always void TCFuture<t_CReturnValue>::operator > (tf_CFunctor &&_Functor) &&
-		requires (NTraits::cIsCallableWith<NTraits::TCRemoveReferenceAndQualifiers<tf_CFunctor>, void (TCAsyncResult<t_CReturnValue> &&)>)
+		requires (NTraits::cIsCallableWith<NTraits::TCRemoveReferenceAndQualifiers<tf_CFunctor>, void (TCAsyncResult<t_CReturnValue> &&_Result)>)
 	{
 		auto Actor = fg_CurrentActor();
 		DMibFastCheck(Actor);
@@ -970,7 +981,7 @@ namespace NMib::NConcurrency
 	template <typename t_CReturnValue>
 	template <typename tf_CResultActor, typename tf_CResultFunctor>
 	void TCFuture<t_CReturnValue>::operator > (TCActorResultCall<tf_CResultActor, tf_CResultFunctor> &&_ResultCall) &&
-		requires (NTraits::cIsCallableWith<tf_CResultFunctor, void (TCAsyncResult<t_CReturnValue> &&)>) // Incorrect type in result call
+		requires (NTraits::cIsCallableWith<tf_CResultFunctor, void (TCAsyncResult<t_CReturnValue> &&_Result)>) // Incorrect type in result call
 	{
 		auto This = fg_Move(*this);
 

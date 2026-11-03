@@ -206,7 +206,7 @@ namespace
 	};
 
 	// Bound concurrent threads: sanitizer stacks can exhaust 32-bit address space before prior actors finish destruction.
-	template <auto t_fFunction>
+	template <auto tf_fFunction>
 	TCFuture<void> fg_DestructSeparateThreadActors()
 	{
 		constexpr umint c_nActors = 200;
@@ -220,7 +220,7 @@ namespace
 				TCActor<CDestructActorSeparateThread> Actor{fg_Construct(), "TestThread"};
 
 				for (umint iCall = 0; iCall < 200; ++iCall)
-					Actor.f_Bind<t_fFunction>() > Results;
+					Actor.f_Bind<tf_fFunction>() > Results;
 
 				g_Dispatch(fg_ConcurrentActor()) / [Actor = fg_Move(Actor)]() mutable -> TCFuture<void>
 					{
@@ -390,7 +390,7 @@ namespace
 
 	struct CCallbackActor : public CActor
 	{
-		TCFuture<CActorSubscription> f_RegisterCallback(TCActorFunctor<TCFuture<void> (int32)> _fCallback)
+		TCFuture<CActorSubscription> f_RegisterCallback(TCActorFunctor<TCFuture<void> (int32 _Value)> _fCallback)
 		{
 			m_fCallback = fg_Move(_fCallback);
 
@@ -408,7 +408,7 @@ namespace
 		}
 
 	private:
-		TCActorFunctor<TCFuture<void> (int32)> m_fCallback;
+		TCActorFunctor<TCFuture<void> (int32 _Value)> m_fCallback;
 	};
 
 	TCFuture<umint> fg_ReturnCoroOne()
@@ -1156,7 +1156,7 @@ namespace
 									[TestActor]() -> TCFuture<uint32>
 									{
 										TCPromise<void> Promise;
-										TestActor(&CExceptionActor::f_GetErrorVoid) + TestActor(&CExceptionActor::f_GetError) > Promise / [Promise](CVoidTag, uint32 _Value)
+										TestActor(&CExceptionActor::f_GetErrorVoid) + TestActor(&CExceptionActor::f_GetError) > Promise / [Promise](CVoidTag _Void, uint32 _Value)
 											{
 												Promise.f_SetResult();
 											}
@@ -1744,7 +1744,7 @@ namespace
 									if ((i & gc_YieldMask) == gc_YieldMask)
 										co_await g_Yield;
 
-									PerfTestActor.f_Bind<&CPerformanceTestActor::f_AddInt>(uint32(1)) > g_DirectResult / [](TCAsyncResult<void> &&)
+									PerfTestActor.f_Bind<&CPerformanceTestActor::f_AddInt>(uint32(1)) > g_DirectResult / [](TCAsyncResult<void> &&_Result)
 										{
 										}
 									;
@@ -1790,7 +1790,7 @@ namespace
 									if ((i & gc_YieldMask) == gc_YieldMask)
 										co_await g_Yield;
 
-									PerfTestActor.f_Bind<&CPerformanceTestActor::f_AddIntNoFuture>(uint32(1)) > g_DirectResult / [](TCAsyncResult<void> &&)
+									PerfTestActor.f_Bind<&CPerformanceTestActor::f_AddIntNoFuture>(uint32(1)) > g_DirectResult / [](TCAsyncResult<void> &&_Result)
 										{
 										}
 									;
@@ -1836,7 +1836,7 @@ namespace
 									if ((i & gc_YieldMask) == gc_YieldMask)
 										co_await g_Yield;
 
-									PerfTestActor.f_Bind<&CPerformanceTestActor::f_AddIntCoro>(uint32(1)) > g_DirectResult / [](TCAsyncResult<void> &&)
+									PerfTestActor.f_Bind<&CPerformanceTestActor::f_AddIntCoro>(uint32(1)) > g_DirectResult / [](TCAsyncResult<void> &&_Result)
 										{
 										}
 									;
@@ -1884,7 +1884,7 @@ namespace
 									if ((i & gc_YieldMask) == gc_YieldMask)
 										co_await g_Yield;
 
-									PerfTestActor.f_Bind<&CPerformanceTestActor::f_AddInt>(uint32(1)) > ReplyActor / [](TCAsyncResult<void> &&)
+									PerfTestActor.f_Bind<&CPerformanceTestActor::f_AddInt>(uint32(1)) > ReplyActor / [](TCAsyncResult<void> &&_Result)
 										{
 										}
 									;
@@ -1966,7 +1966,7 @@ namespace
 									if ((i & gc_YieldMask) == gc_YieldMask)
 										co_await g_Yield;
 
-									PerfTestActor.f_Bind<&CPerformanceTestActor::f_AddInt>(uint32(1)) > PerfTestActor / [](TCAsyncResult<void> &&)
+									PerfTestActor.f_Bind<&CPerformanceTestActor::f_AddInt>(uint32(1)) > PerfTestActor / [](TCAsyncResult<void> &&_Result)
 										{
 										}
 									;

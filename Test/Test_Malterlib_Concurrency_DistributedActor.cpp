@@ -67,7 +67,7 @@ namespace NTest1
 		{
 		}
 
-		TCVector<CStr> f_TestTemplateTypes(TCSet<CStr> const &)
+		TCVector<CStr> f_TestTemplateTypes(TCSet<CStr> const &_Strings)
 		{
 			return {};
 		}
@@ -92,10 +92,10 @@ struct CActorSubscriptionReferenceDummy : public CActorSubscriptionReference
 	}
 };
 
-template <typename t_CMemberFunctionPointer>
+template <typename tf_CMemberFunctionPointer>
 consteval bool fg_Test()
 {
-	t_CMemberFunctionPointer x = nullptr;
+	tf_CMemberFunctionPointer x = nullptr;
 
 	return x == x;
 }

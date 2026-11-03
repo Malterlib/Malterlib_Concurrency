@@ -188,7 +188,7 @@ namespace NTestActor2
 
 				CEvent Event;
 
-				fg_Move(pActor).f_Destroy() > fg_ThisConcurrentActor() / [&](TCAsyncResult<void> &&)
+				fg_Move(pActor).f_Destroy() > fg_ThisConcurrentActor() / [&](TCAsyncResult<void> &&_Result)
 					{
 						Event.f_SetSignaled();
 					}

@@ -111,7 +111,7 @@ namespace NMib::NConcurrency
 						(
 							EPriority_NormalHighCPU
 							, 0
-							, [&Destination, QueuePriority](CConcurrencyThreadLocal &)
+							, [&Destination, QueuePriority](CConcurrencyThreadLocal &_ThreadLocal)
 							{
 								QueuePriority.f_SetResult(Destination.f_GetTimerActor()->f_GetPriority());
 							}

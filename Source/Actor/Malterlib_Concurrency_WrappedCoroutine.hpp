@@ -170,12 +170,12 @@ namespace NMib::NConcurrency::NPrivate
 		}
 	}
 
-	inline void TCWrappedCoroutinePromise<void>::return_value(CVoidTag &&)
+	inline void TCWrappedCoroutinePromise<void>::return_value(CVoidTag &&_Void)
 	{
 		this->m_Result.f_SetResult();
 	}
 
-	inline void TCWrappedCoroutinePromise<void>::return_value(CVoidTag const &)
+	inline void TCWrappedCoroutinePromise<void>::return_value(CVoidTag const &_Void)
 	{
 		this->m_Result.f_SetResult();
 	}

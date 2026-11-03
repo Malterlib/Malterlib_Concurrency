@@ -15,10 +15,10 @@ namespace NMib::NConcurrency
 	template <typename t_CReturnValue>
 	struct TCActorSubscriptionCleanupFunctor : public CActorSubscriptionReference
 	{
-		TCActorSubscriptionCleanupFunctor(TCActorSubscriptionCleanupFunctor const &) = delete;
-		TCActorSubscriptionCleanupFunctor &operator = (TCActorSubscriptionCleanupFunctor const &) = delete;
-		TCActorSubscriptionCleanupFunctor(TCActorSubscriptionCleanupFunctor &&) = delete;
-		TCActorSubscriptionCleanupFunctor &operator = (TCActorSubscriptionCleanupFunctor &&) = delete;
+		TCActorSubscriptionCleanupFunctor(TCActorSubscriptionCleanupFunctor const &_Other) = delete;
+		TCActorSubscriptionCleanupFunctor &operator = (TCActorSubscriptionCleanupFunctor const &_Other) = delete;
+		TCActorSubscriptionCleanupFunctor(TCActorSubscriptionCleanupFunctor &&_Other) = delete;
+		TCActorSubscriptionCleanupFunctor &operator = (TCActorSubscriptionCleanupFunctor &&_Other) = delete;
 		TCActorSubscriptionCleanupFunctor(TCActor<> const &_DispatchActor, NFunction::TCFunctionMovable<t_CReturnValue ()> &&_fCleanup);
 		~TCActorSubscriptionCleanupFunctor();
 

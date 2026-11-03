@@ -20,8 +20,8 @@ namespace NMib::NConcurrency
 		};
 	}
 
-	CDistributedActorPublication::CDistributedActorPublication(CDistributedActorPublication &&) = default;
-	CDistributedActorPublication &CDistributedActorPublication::operator = (CDistributedActorPublication &&) = default;
+	CDistributedActorPublication::CDistributedActorPublication(CDistributedActorPublication &&_Other) = default;
+	CDistributedActorPublication &CDistributedActorPublication::operator = (CDistributedActorPublication &&_Other) = default;
 
 	CDistributedActorPublication::CDistributedActorPublication(TCWeakActor<CActorDistributionManager> const &_DistributionManager, NStr::CStr const &_Namespace, NStr::CStr const &_ActorID)
 		: mp_DistributionManager(_DistributionManager)

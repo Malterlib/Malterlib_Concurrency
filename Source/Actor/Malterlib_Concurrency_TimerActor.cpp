@@ -805,8 +805,8 @@ namespace NMib::NConcurrency
 			{
 			}
 
-			CPromiseHolder(CPromiseHolder &&) = default;
-			CPromiseHolder(CPromiseHolder const &) = delete;
+			CPromiseHolder(CPromiseHolder &&_Other) = default;
+			CPromiseHolder(CPromiseHolder const &_Other) = delete;
 
 			~CPromiseHolder()
 			{

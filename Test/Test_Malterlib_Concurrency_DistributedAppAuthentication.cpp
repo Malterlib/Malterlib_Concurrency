@@ -54,11 +54,11 @@ namespace NTestAuthentication
 		}
 
 		CPermissionQueryLocal() = default;
-		CPermissionQueryLocal(CPermissionQueryLocal &&) = default;
-		CPermissionQueryLocal(CPermissionQueryLocal const &) = default;
+		CPermissionQueryLocal(CPermissionQueryLocal &&_Other) = default;
+		CPermissionQueryLocal(CPermissionQueryLocal const &_Other) = default;
 
-		CPermissionQueryLocal &operator = (CPermissionQueryLocal &&) = default;
-		CPermissionQueryLocal &operator = (CPermissionQueryLocal const &) = default;
+		CPermissionQueryLocal &operator = (CPermissionQueryLocal &&_Other) = default;
+		CPermissionQueryLocal &operator = (CPermissionQueryLocal const &_Other) = default;
 
 		CEJsonSorted f_ToJson() const
 		{

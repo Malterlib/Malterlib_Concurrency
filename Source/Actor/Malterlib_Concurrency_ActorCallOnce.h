@@ -12,7 +12,7 @@ namespace NMib::NConcurrency
 	template <typename t_CResult, typename ...tp_CParams>
 	struct TCActorCallOnce
 	{
-		TCActorCallOnce(TCActorFunctor<TCFuture<t_CResult> (tp_CParams...)> &&_fFunction, bool _bSupportRetry, NStr::CStr const &_ErrorOnRunning = NStr::CStr());
+		TCActorCallOnce(TCActorFunctor<TCFuture<t_CResult> (tp_CParams ...p_Params)> &&_fFunction, bool _bSupportRetry, NStr::CStr const &_ErrorOnRunning = NStr::CStr());
 		~TCActorCallOnce();
 
 		TCFuture<t_CResult> operator () (tp_CParams ...p_Params);
@@ -24,10 +24,10 @@ namespace NMib::NConcurrency
 		{
 			using CActorHolder = CDelegatedActorHolder;
 
-			CCallState(TCActorFunctor<TCFuture<t_CResult> (tp_CParams...)> &&_fToPerform, NStr::CStr const &_ErrorOnRunning, bool _bSupportRetry);
+			CCallState(TCActorFunctor<TCFuture<t_CResult> (tp_CParams ...p_Params)> &&_fToPerform, NStr::CStr const &_ErrorOnRunning, bool _bSupportRetry);
 			TCFuture<t_CResult> f_Call(NTraits::TCDecay<tp_CParams> ...p_Params);
 
-			TCActorFunctor<TCFuture<t_CResult> (tp_CParams...)> m_fToPerform;
+			TCActorFunctor<TCFuture<t_CResult> (tp_CParams ...p_Params)> m_fToPerform;
 			NStr::CStr m_ErrorOnRunning;
 			NContainer::TCVector<TCPromise<t_CResult>> m_Promises;
 			bool m_bRunning = false;

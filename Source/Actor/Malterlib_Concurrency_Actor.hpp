@@ -26,7 +26,7 @@ namespace NMib::NConcurrency
 
 	template <typename t_CActor>
 	template <typename tf_CType, typename ...tfp_CParams, typename ...tfp_CHolderParams, umint ...tfp_Indidies>
-	void TCActor<t_CActor>::fp_Construct(TCConstruct<void, TCConstruct<tf_CType, tfp_CParams...>, tfp_CHolderParams...> &&_Construct, NMeta::TCIndices<tfp_Indidies...> const &)
+	void TCActor<t_CActor>::fp_Construct(TCConstruct<void, TCConstruct<tf_CType, tfp_CParams...>, tfp_CHolderParams...> &&_Construct, NMeta::TCIndices<tfp_Indidies...> const &_Indices)
 	{
 		*this = fg_CurrentConcurrencyManager().f_ConstructActor
 			(
@@ -53,7 +53,7 @@ namespace NMib::NConcurrency
 	}
 
 	template <typename t_CActor>
-	TCActor<t_CActor>::TCActor(CNullPtr)
+	TCActor<t_CActor>::TCActor(CNullPtr _pNull)
 		: m_pInternalActor(nullptr)
 	{
 	}
@@ -215,7 +215,7 @@ namespace NMib::NConcurrency
 	}
 
 	template <typename t_CActor>
-	TCActor<t_CActor> &TCActor<t_CActor>::operator = (CNullPtr)
+	TCActor<t_CActor> &TCActor<t_CActor>::operator = (CNullPtr _pNull)
 	{
 		m_pInternalActor = nullptr;
 		return *this;

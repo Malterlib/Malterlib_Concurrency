@@ -12,5 +12,5 @@ namespace NMib::NStr
 namespace NMib::NConcurrency
 {
 	template void CDistributedAppSensorReporter::CVersion::f_Format<NStr::CStr>(NStr::CStr &o_Str) const;
-	template TCActorFunctor<TCFuture<void> (NContainer::TCVector<CDistributedAppSensorReporter::CSensorReading>)>::~TCActorFunctor();
+	template TCActorFunctor<TCFuture<void> (NContainer::TCVector<CDistributedAppSensorReporter::CSensorReading> _Readings)>::~TCActorFunctor();
 }

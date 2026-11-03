@@ -7,22 +7,22 @@
 
 namespace NMib::NConcurrency
 {
-	template <typename ...tf_CFunctionOptions>
-	void CDistributedActorWriteStream::f_Feed(NFunction::TCFunction<tf_CFunctionOptions...> const &_Function)
+	template <typename ...tfp_CFunctionOptions>
+	void CDistributedActorWriteStream::f_Feed(NFunction::TCFunction<tfp_CFunctionOptions...> const &_Function)
 	{
-		static_assert(NFunction::TCFunctionInfo<NFunction::TCFunction<tf_CFunctionOptions...>>::mc_nCalls == 1, "Only supports functions with one signature");
+		static_assert(NFunction::TCFunctionInfo<NFunction::TCFunction<tfp_CFunctionOptions...>>::mc_nCalls == 1, "Only supports functions with one signature");
 		static_assert
 			(
 				NPrivate::TCIsFuture
 				<
-					typename NTraits::TCFunctionTraits<typename NFunction::TCFunctionInfo<NFunction::TCFunction<tf_CFunctionOptions...>>::template TFCallType<0>>::CReturn
+					typename NTraits::TCFunctionTraits<typename NFunction::TCFunctionInfo<NFunction::TCFunction<tfp_CFunctionOptions...>>::template TFCallType<0>>::CReturn
 				>
 				::mc_Value
 				, "Only functions that return a future are supported"
 			)
 		;
 
-		f_FeedFunction(fg_Construct<NPrivate::TCStreamingFunction<NFunction::TCFunction<tf_CFunctionOptions...>>>(_Function));
+		f_FeedFunction(fg_Construct<NPrivate::TCStreamingFunction<NFunction::TCFunction<tfp_CFunctionOptions...>>>(_Function));
 	}
 
 	template <typename tf_CSignature>
@@ -42,22 +42,22 @@ namespace NMib::NConcurrency
 		f_FeedFunction(fg_Construct<NPrivate::TCStreamingFunction<NFunction::TCFunctionMutable<tf_CSignature>>>(_Function));
 	}
 
-	template <typename ...tf_CFunctionOptions>
-	void CDistributedActorWriteStream::f_Feed(NFunction::TCFunction<tf_CFunctionOptions...> &&_Function)
+	template <typename ...tfp_CFunctionOptions>
+	void CDistributedActorWriteStream::f_Feed(NFunction::TCFunction<tfp_CFunctionOptions...> &&_Function)
 	{
-		static_assert(NFunction::TCFunctionInfo<NFunction::TCFunction<tf_CFunctionOptions...>>::mc_nCalls == 1, "Only supports functions with one signature");
+		static_assert(NFunction::TCFunctionInfo<NFunction::TCFunction<tfp_CFunctionOptions...>>::mc_nCalls == 1, "Only supports functions with one signature");
 		static_assert
 			(
 				NPrivate::TCIsFuture
 				<
-					typename NTraits::TCFunctionTraits<typename NFunction::TCFunctionInfo<NFunction::TCFunction<tf_CFunctionOptions...>>::template TFCallType<0>>::CReturn
+					typename NTraits::TCFunctionTraits<typename NFunction::TCFunctionInfo<NFunction::TCFunction<tfp_CFunctionOptions...>>::template TFCallType<0>>::CReturn
 				>
 				::mc_Value
 				, "Only functions that return a future are supported"
 			)
 		;
 
-		f_FeedFunction(fg_Construct<NPrivate::TCStreamingFunction<NFunction::TCFunction<tf_CFunctionOptions...>>>(fg_Move(_Function)));
+		f_FeedFunction(fg_Construct<NPrivate::TCStreamingFunction<NFunction::TCFunction<tfp_CFunctionOptions...>>>(fg_Move(_Function)));
 	}
 
 	template <typename tf_CSignature>
@@ -100,7 +100,7 @@ namespace NMib::NConcurrency
 		struct TCStreamingFunctionHelper;
 
 		template <typename t_CReturn, typename ...tp_CParams>
-		struct TCStreamingFunctionHelper<t_CReturn (tp_CParams...)>
+		struct TCStreamingFunctionHelper<t_CReturn (tp_CParams ...p_Params)>
 		{
 			static constexpr umint mc_nParams = sizeof...(tp_CParams);
 			static constexpr bool mc_bIsFuture = TCIsFuture<t_CReturn>::mc_Value;
@@ -412,26 +412,26 @@ namespace NMib::NConcurrency
 		};
 
 		template <typename t_CReturn, typename ...tp_CParams>
-		struct TCStreamingFunctionHelper<t_CReturn (tp_CParams...) noexcept> : public TCStreamingFunctionHelper<t_CReturn (tp_CParams...)>
+		struct TCStreamingFunctionHelper<t_CReturn (tp_CParams ...p_Params) noexcept> : public TCStreamingFunctionHelper<t_CReturn (tp_CParams ...p_Params)>
 		{
 		};
 	}
 
-	template <typename ...tf_CFunctionOptions>
-	void CDistributedActorReadStream::f_Consume(NFunction::TCFunction<tf_CFunctionOptions...> &_Function)
+	template <typename ...tfp_CFunctionOptions>
+	void CDistributedActorReadStream::f_Consume(NFunction::TCFunction<tfp_CFunctionOptions...> &_Function)
 	{
-		static_assert(NFunction::TCFunctionInfo<NFunction::TCFunction<tf_CFunctionOptions...>>::mc_nCalls == 1, "Only supports functions with one signature");
+		static_assert(NFunction::TCFunctionInfo<NFunction::TCFunction<tfp_CFunctionOptions...>>::mc_nCalls == 1, "Only supports functions with one signature");
 		static_assert
 			(
 				NPrivate::TCIsFuture
 				<
-					typename NTraits::TCFunctionTraits<typename NFunction::TCFunctionInfo<NFunction::TCFunction<tf_CFunctionOptions...>>::template TFCallType<0>>::CReturn
+					typename NTraits::TCFunctionTraits<typename NFunction::TCFunctionInfo<NFunction::TCFunction<tfp_CFunctionOptions...>>::template TFCallType<0>>::CReturn
 				>
 				::mc_Value
 				, "Only functions that return a future are supported"
 			)
 		;
-		using FFunctionSignature = typename NFunction::TCFunctionInfo<NFunction::TCFunction<tf_CFunctionOptions...>>::template TFCallType<0>;
+		using FFunctionSignature = typename NFunction::TCFunctionInfo<NFunction::TCFunction<tfp_CFunctionOptions...>>::template TFCallType<0>;
 
 		NStr::CStr FunctionID;
 		*this >> FunctionID;

@@ -17,18 +17,18 @@ namespace NMib::NConcurrency
 
 		// Each singleton asks for the next one while it is created. A type asked for the first time gets a new singleton
 		// index, so the manager grows its singleton storage while the slots of the outer singletons are being filled
-		template <umint t_Depth>
-		TCWrapped<TCActor<TCNestedSingletonActor<t_Depth>>> fg_GetNestedSingleton(CConcurrencyManager &_Manager, umint &o_nCreated)
+		template <umint tf_Depth>
+		TCWrapped<TCActor<TCNestedSingletonActor<tf_Depth>>> fg_GetNestedSingleton(CConcurrencyManager &_Manager, umint &o_nCreated)
 		{
-			return _Manager.f_GetSingleton<TCNestedSingletonActor<t_Depth>>
+			return _Manager.f_GetSingleton<TCNestedSingletonActor<tf_Depth>>
 				(
 					[&]
 					{
-						if constexpr (t_Depth + 1 < gc_NestedSingletonDepth)
-							TCActor<TCNestedSingletonActor<t_Depth + 1>> Next = fg_GetNestedSingleton<t_Depth + 1>(_Manager, o_nCreated).f_Move();
+						if constexpr (tf_Depth + 1 < gc_NestedSingletonDepth)
+							TCActor<TCNestedSingletonActor<tf_Depth + 1>> Next = fg_GetNestedSingleton<tf_Depth + 1>(_Manager, o_nCreated).f_Move();
 
 						++o_nCreated;
-						return _Manager.f_ConstructActor(fg_Construct<TCNestedSingletonActor<t_Depth>>());
+						return _Manager.f_ConstructActor(fg_Construct<TCNestedSingletonActor<tf_Depth>>());
 					}
 				)
 			;

@@ -132,11 +132,11 @@ namespace NMib::NConcurrency::NTest
 		{
 		}
 
-		CTestReturn(CTestReturn const &)
+		CTestReturn(CTestReturn const &_Other)
 		{
 		}
 
-		CTestReturn(CTestReturn &&)
+		CTestReturn(CTestReturn &&_Other)
 		{
 		}
 
@@ -1813,7 +1813,7 @@ namespace NMib::NConcurrency::NTest
 			{
 			}
 
-			CToAsyncDestroy(CToAsyncDestroy &&) = default;
+			CToAsyncDestroy(CToAsyncDestroy &&_Other) = default;
 
 			~CToAsyncDestroy()
 			{

@@ -81,7 +81,7 @@ namespace NMib::NConcurrency
 			return true;
 		}
 
-		inline_always void await_suspend(TCCoroutineHandle<>) const noexcept
+		inline_always void await_suspend(TCCoroutineHandle<> _Handle) const noexcept
 		{
 		}
 
@@ -230,8 +230,8 @@ namespace NMib::NConcurrency
 		CInitialSuspend initial_suspend() noexcept;
 		CFinalAwaiter final_suspend() noexcept;
 
-		template <typename t_CThis, ECoroutineFlag tf_Flags>
-		decltype(auto) await_transform(TCFutureForwardThis<t_CThis, tf_Flags> &&_MoveThis)
+		template <typename tf_CThis, ECoroutineFlag tf_Flags>
+		decltype(auto) await_transform(TCFutureForwardThis<tf_CThis, tf_Flags> &&_MoveThis)
 		{
 #ifndef DMibClangAnalyzerWorkaround
 			DMibFastCheck(m_Flags & ECoroutineFlag_UnsafeThisPointer); // You don't need to move this
@@ -257,11 +257,11 @@ namespace NMib::NConcurrency
 			return {};
 		}
 
-		CCaptureExceptionScopeAwaiter await_transform(CCaptureExceptionsHelper) noexcept;
+		CCaptureExceptionScopeAwaiter await_transform(CCaptureExceptionsHelper _Helper) noexcept;
 		CCaptureExceptionScopeWithTransformerAwaiter await_transform(CCaptureExceptionsHelperWithTransformer &&_Transformer) noexcept;
 
-		TCFutureAwaiter<void, true, CVoidTag> await_transform(CAsyncDestroyHelper);
-		TCFutureAwaiter<NContainer::TCVector<TCAsyncResult<void>>, true, CVoidTag> await_transform(CAsyncDestroyHelperNoUnWrap);
+		TCFutureAwaiter<void, true, CVoidTag> await_transform(CAsyncDestroyHelper _Helper);
+		TCFutureAwaiter<NContainer::TCVector<TCAsyncResult<void>>, true, CVoidTag> await_transform(CAsyncDestroyHelperNoUnWrap _Helper);
 		CFutureCoroutineContextOnResumeScopeAwaiter &&await_transform(CFutureCoroutineContextOnResumeScopeAwaiter &&_Awaiter) noexcept;
 
 		void unhandled_exception();
@@ -273,10 +273,10 @@ namespace NMib::NConcurrency
 		TCFuture<void> f_AsyncDestroy(CConcurrencyThreadLocal &_ThreadLocal);
 		FDeliverResult f_PrepareResult(FKeepaliveSetResult *_fSetResult, TCActor<CActor> &&_Actor);
 
-		template <typename t_CAwaitable>
-		decltype(auto) await_transform(t_CAwaitable &&_Awaitable)
+		template <typename tf_CAwaitable>
+		decltype(auto) await_transform(tf_CAwaitable &&_Awaitable)
 		{
-			return fg_Forward<t_CAwaitable>(_Awaitable);
+			return fg_Forward<tf_CAwaitable>(_Awaitable);
 		}
 
 		void f_Suspend(CSystemThreadLocal &_ThreadLocal, bool _bAddToActor)
@@ -377,8 +377,8 @@ namespace NMib::NConcurrency
 
 	struct CFutureCoroutineContextOnResumeScopeAwaiter : public CSuspendNever
 	{
-		CFutureCoroutineContextOnResumeScopeAwaiter(CFutureCoroutineContextOnResumeScopeAwaiter &&) = delete;
-		CFutureCoroutineContextOnResumeScopeAwaiter(CFutureCoroutineContextOnResumeScopeAwaiter const &) = delete;
+		CFutureCoroutineContextOnResumeScopeAwaiter(CFutureCoroutineContextOnResumeScopeAwaiter &&_Other) = delete;
+		CFutureCoroutineContextOnResumeScopeAwaiter(CFutureCoroutineContextOnResumeScopeAwaiter const &_Other) = delete;
 		~CFutureCoroutineContextOnResumeScopeAwaiter()
 #if DMibEnableSafeCheck > 0
 			noexcept(false)
@@ -438,7 +438,7 @@ namespace NMib::NConcurrency::NPrivate
 	{
 		TCFutureCoroutineKeepAliveImplicit(NStorage::TCSharedPointer<NPrivate::TCPromiseData<t_CReturnType>> &&_pPromiseData);
 		TCFutureCoroutineKeepAliveImplicit(TCFutureCoroutineKeepAliveImplicit &&_Other);
-		TCFutureCoroutineKeepAliveImplicit(TCFutureCoroutineKeepAliveImplicit const &) = delete;
+		TCFutureCoroutineKeepAliveImplicit(TCFutureCoroutineKeepAliveImplicit const &_Other) = delete;
 		~TCFutureCoroutineKeepAliveImplicit();
 
 		TCFutureCoroutineKeepAliveImplicit f_Copy() const;
@@ -466,8 +466,8 @@ namespace NMib::NConcurrency::NPrivate
 	{
 		TCFutureCoroutineKeepAlive(TCActor<CActor> &&_Actor, NStorage::TCSharedPointer<NPrivate::TCPromiseData<t_CReturnType>> &&_pPromiseData);
 		TCFutureCoroutineKeepAlive(TCWeakActor<CActor> &&_Actor, NStorage::TCSharedPointer<NPrivate::TCPromiseData<t_CReturnType>> &&_pPromiseData);
-		TCFutureCoroutineKeepAlive(TCFutureCoroutineKeepAlive &&);
-		TCFutureCoroutineKeepAlive(TCFutureCoroutineKeepAlive const &) = delete;
+		TCFutureCoroutineKeepAlive(TCFutureCoroutineKeepAlive &&_Other);
+		TCFutureCoroutineKeepAlive(TCFutureCoroutineKeepAlive const &_Other) = delete;
 		~TCFutureCoroutineKeepAlive();
 
 		TCActor<CActor> f_MoveActor();
@@ -499,7 +499,7 @@ namespace NMib::NConcurrency::NPrivate
 		{
 		}
 
-		TCFutureCoroutineContextShared(TCFutureCoroutineContextShared &&) = delete;
+		TCFutureCoroutineContextShared(TCFutureCoroutineContextShared &&_Other) = delete;
 		~TCFutureCoroutineContextShared() noexcept;
 
 		TCFutureCoroutineKeepAlive<t_CReturnType> f_KeepAlive(TCActor<> &&_Actor);
@@ -518,7 +518,7 @@ namespace NMib::NConcurrency::NPrivate
 				return true;
 			}
 
-			constexpr void await_suspend(auto &&) const noexcept
+			constexpr void await_suspend(auto &&_Handle) const noexcept
 			{
 			}
 
@@ -814,7 +814,7 @@ namespace NMib::NConcurrency::NPrivate
 
 #if DMibEnableSafeCheck > 0
 	/// Returns a unique pointer value for each type T, used for debug type checking
-	template <typename t_CType>
+	template <typename tf_CType>
 	inline void const *fg_PromiseDataTypeId()
 	{
 		static char const s_TypeId = 0;
@@ -921,8 +921,8 @@ namespace NMib::NConcurrency::NPrivate
 
 		TCPromiseData(TCPromiseDataInit<t_CReturnValue> &&_Init, int32 _RefCount);
 		TCPromiseData(FOnResult &&_fOnResult, int32 _RefCount);
-		TCPromiseData(CPromiseConstructDiscardResult, int32 _RefCount);
-		TCPromiseData(CPromiseConstructDirectFuture);
+		TCPromiseData(CPromiseConstructDiscardResult _DiscardResult, int32 _RefCount);
+		TCPromiseData(CPromiseConstructDirectFuture _DirectFuture);
 		~TCPromiseData();
 
 		void f_Reset();
@@ -1175,12 +1175,12 @@ namespace NMib::NConcurrency
 
 		template <typename tf_CFunctor>
 		void operator > (tf_CFunctor &&_Functor) &&
-			requires (NTraits::cIsCallableWith<NTraits::TCRemoveReferenceAndQualifiers<tf_CFunctor>, void (TCAsyncResult<t_CReturnValue> &&)>)
+			requires (NTraits::cIsCallableWith<NTraits::TCRemoveReferenceAndQualifiers<tf_CFunctor>, void (TCAsyncResult<t_CReturnValue> &&_Result)>)
 		;
 
 		template <typename tf_CResultActor, typename tf_CResultFunctor>
 		void operator > (TCActorResultCall<tf_CResultActor, tf_CResultFunctor> &&_ResultCall) &&
-			requires (NTraits::cIsCallableWith<tf_CResultFunctor, void (TCAsyncResult<t_CReturnValue> &&)>) // Incorrect type in result call
+			requires (NTraits::cIsCallableWith<tf_CResultFunctor, void (TCAsyncResult<t_CReturnValue> &&_Result)>) // Incorrect type in result call
 		;
 
 		template <typename tf_CReturnValue>
@@ -1233,8 +1233,8 @@ namespace NMib::NConcurrency
 		static NStorage::TCSharedPointer<NPrivate::TCPromiseData<t_CReturnValue>> fsp_CreateData();
 
 		TCFuture(NStorage::TCSharedPointer<NPrivate::TCPromiseData<t_CReturnValue>> &&_pData);
-		TCFuture(NStorage::TCSharedPointer<NPrivate::TCPromiseData<t_CReturnValue>> &&_pData, NPrivate::CFutureConstructIgnoreFutureGotten);
-		TCFuture(NStorage::TCSharedPointer<NPrivate::TCPromiseData<t_CReturnValue>> &&_pData, NPrivate::CFutureConstructSetFutureGotten);
+		TCFuture(NStorage::TCSharedPointer<NPrivate::TCPromiseData<t_CReturnValue>> &&_pData, NPrivate::CFutureConstructIgnoreFutureGotten _IgnoreFutureGotten);
+		TCFuture(NStorage::TCSharedPointer<NPrivate::TCPromiseData<t_CReturnValue>> &&_pData, NPrivate::CFutureConstructSetFutureGotten _SetFutureGotten);
 
 		NStorage::TCSharedPointer<NPrivate::TCPromiseData<t_CReturnValue>> mp_pData;
 	};
@@ -1242,12 +1242,12 @@ namespace NMib::NConcurrency
 	// Deduction guides for TCFuture
 	template <typename t_CType>
 		requires (!NTraits::cIsSame<t_CType, CVoidTag> && !NTraits::cIsSame<t_CType, NException::CExceptionPointer> && !NTraits::cIsBaseOf<t_CType, NException::CExceptionBase>)
-	TCFuture(t_CType) -> TCFuture<t_CType>;
+	TCFuture(t_CType _Value) -> TCFuture<t_CType>;
 
-	TCFuture(CVoidTag) -> TCFuture<void>;
+	TCFuture(CVoidTag _Void) -> TCFuture<void>;
 
 	template <typename t_CType>
-	TCFuture(TCAsyncResult<t_CType>) -> TCFuture<t_CType>;
+	TCFuture(TCAsyncResult<t_CType> _Result) -> TCFuture<t_CType>;
 
 	template <typename t_CReturnValue, ECoroutineFlag t_Flags>
 	struct [[nodiscard("You need to co_await or forward the result to a functor with > operator")]] TCFutureWithFlags : public TCFuture<t_CReturnValue>
@@ -1274,12 +1274,12 @@ namespace NMib::NConcurrency
 		TCPromise(CConcurrencyThreadLocal &_ThreadLocal = fg_ConcurrencyThreadLocal());
 		~TCPromise();
 
-		TCPromise(CPromiseConstructConsume, CConcurrencyThreadLocal &_ThreadLocal = fg_ConcurrencyThreadLocal());
-		TCPromise(CPromiseConstructEmpty);
-		TCPromise(CPromiseConstructEmpty, int32 _RefCount, CConcurrencyThreadLocal &_ThreadLocal);
-		TCPromise(CPromiseConstructNoConsume, int32 _RefCount = 0, CConcurrencyThreadLocal &_ThreadLocal = fg_ConcurrencyThreadLocal());
-		TCPromise(CPromiseConstructDiscardResult);
-		TCPromise(CPromiseConstructDiscardResult, int32 _RefCount, CConcurrencyThreadLocal &_ThreadLocal);
+		TCPromise(CPromiseConstructConsume _Consume, CConcurrencyThreadLocal &_ThreadLocal = fg_ConcurrencyThreadLocal());
+		TCPromise(CPromiseConstructEmpty _Empty);
+		TCPromise(CPromiseConstructEmpty _Empty, int32 _RefCount, CConcurrencyThreadLocal &_ThreadLocal);
+		TCPromise(CPromiseConstructNoConsume _NoConsume, int32 _RefCount = 0, CConcurrencyThreadLocal &_ThreadLocal = fg_ConcurrencyThreadLocal());
+		TCPromise(CPromiseConstructDiscardResult _DiscardResult);
+		TCPromise(CPromiseConstructDiscardResult _DiscardResult, int32 _RefCount, CConcurrencyThreadLocal &_ThreadLocal);
 		TCPromise(FOnResult &&_fOnResult);
 		TCPromise(FOnResult &&_fOnResult, int32 _RefCount, CConcurrencyThreadLocal &_ThreadLocal);
 
@@ -1314,7 +1314,7 @@ namespace NMib::NConcurrency
 
 		NStorage::TCSharedPointer<NPrivate::TCPromiseData<t_CReturnValue>> const &f_Unsafe_PromiseData() const;
 
-		mark_no_coroutine_debug TCFuture<t_CReturnValue> operator <<= (CVoidTag const &);
+		mark_no_coroutine_debug TCFuture<t_CReturnValue> operator <<= (CVoidTag const &_Void);
 		mark_no_coroutine_debug TCFuture<t_CReturnValue> operator <<= (TCFuture<t_CReturnValue> &&_Future);
 
 		template <typename tf_CReturn, typename tf_CActor, typename tf_FFunctionPointer, CBindActorOptions tf_BindOptions, bool tf_bByValue, typename ...tfp_CParams>

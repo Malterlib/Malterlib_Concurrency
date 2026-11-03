@@ -9,7 +9,7 @@ namespace NMib::NConcurrency
 	struct TCActorInterface : public TCActor<t_CInterface>
 	{
 		TCActorInterface() = default;
-		TCActorInterface(CNullPtr);
+		TCActorInterface(CNullPtr _pNull);
 		TCActorInterface(TCActor<t_CInterface> &&_Actor, CActorSubscription &&_Subscription = nullptr);
 
 		CActorSubscription const &f_GetSubscription() const;

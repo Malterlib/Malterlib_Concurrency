@@ -23,8 +23,8 @@ namespace NMib::NContainer
 	struct TCThreadSafeQueueListEntry
 	{
 	private:
-		template <typename tf_ObjectType, typename tf_CAllocator, typename ...tfp_CParams>
-		friend tf_ObjectType *NMib::fg_ConstructObject(tf_CAllocator &&_Allocator, tfp_CParams && ...p_Params);
+		template <typename tf_CObjectType, typename tf_CAllocator, typename ...tfp_CParams>
+		friend tf_CObjectType *NMib::fg_ConstructObject(tf_CAllocator &&_Allocator, tfp_CParams && ...p_Params);
 
 		template <typename t_CType0, typename t_CAllocator0>
 		friend struct TCThreadSafeQueue;
@@ -164,12 +164,12 @@ namespace NMib::NContainer
 			m_Queue.push(pEntry);
 		}
 
-		void f_PopAllToVector(NContainer::TCVector<t_CType> &_olItems)
+		void f_PopAllToVector(NContainer::TCVector<t_CType> &o_Items)
 		{
 			CListEntry *pEntry = nullptr;
 			while (m_Queue.pop(pEntry))
 			{
-				_olItems.f_Insert(fg_Move(pEntry->m_Data));
+				o_Items.f_Insert(fg_Move(pEntry->m_Data));
 				fg_DeleteObjectDefiniteType(t_CAllocator(), pEntry);
 			}
 		}
@@ -209,8 +209,8 @@ namespace NMib::NContainer
 	struct TCThreadSafeQueueListEntry
 	{
 	private:
-		template <typename tf_ObjectType, typename tf_CAllocator, typename ...tfp_CParams>
-		friend tf_ObjectType *NMib::fg_ConstructObject(tf_CAllocator &&_Allocator, tfp_CParams && ...p_Params);
+		template <typename tf_CObjectType, typename tf_CAllocator, typename ...tfp_CParams>
+		friend tf_CObjectType *NMib::fg_ConstructObject(tf_CAllocator &&_Allocator, tfp_CParams && ...p_Params);
 
 		template <typename t_CType0, typename t_CAllocator0>
 		friend struct TCThreadSafeQueue;
@@ -402,14 +402,14 @@ namespace NMib::NContainer
 			}
 		}
 
-		void f_PopAllToVector(NContainer::TCVector<t_CType> &_olItems)
+		void f_PopAllToVector(NContainer::TCVector<t_CType> &o_Items)
 		{
 			DMibLock(m_Lock);
 
 			CListEntry *pEntry = m_Queue.f_Pop();
 			while (pEntry)
 			{
-				_olItems.f_Insert(fg_Move(pEntry->m_Data));
+				o_Items.f_Insert(fg_Move(pEntry->m_Data));
 				fg_DeleteObjectDefiniteType(t_CAllocator(), pEntry);
 				pEntry = m_Queue.f_Pop();
 			}

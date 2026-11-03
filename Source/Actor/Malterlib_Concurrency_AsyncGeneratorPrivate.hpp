@@ -72,7 +72,7 @@ namespace NMib::NConcurrency::NPrivate
 	}
 
 	template <typename t_CReturnType>
-	void TCAsyncGeneratorCoroutineContext<t_CReturnType>::return_value(CEmpty)
+	void TCAsyncGeneratorCoroutineContext<t_CReturnType>::return_value(CEmpty _Empty)
 	{
 #ifndef DMibClangAnalyzerWorkaround
 		auto *pPromiseData = static_cast<TCPromiseData<NStorage::TCOptional<t_CReturnType>> *>(this->m_pPromiseData);

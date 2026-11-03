@@ -28,11 +28,11 @@ namespace NMib::NConcurrency
 		{
 			~CIterator();
 
-			CIterator(CIterator &&) = default;
-			CIterator(CIterator const &) = delete;
+			CIterator(CIterator &&_Other) = default;
+			CIterator(CIterator const &_Other) = delete;
 
-			CIterator &operator = (CIterator &&) = default;
-			CIterator &operator = (CIterator const &) = delete;
+			CIterator &operator = (CIterator &&_Other) = default;
+			CIterator &operator = (CIterator const &_Other) = delete;
 
 			explicit operator bool () const;
 
@@ -53,11 +53,11 @@ namespace NMib::NConcurrency
 		{
 			~CPipelinedIterator();
 
-			CPipelinedIterator(CPipelinedIterator &&) = default;
-			CPipelinedIterator(CPipelinedIterator const &) = delete;
+			CPipelinedIterator(CPipelinedIterator &&_Other) = default;
+			CPipelinedIterator(CPipelinedIterator const &_Other) = delete;
 
-			CPipelinedIterator &operator = (CPipelinedIterator &&) = default;
-			CPipelinedIterator &operator = (CPipelinedIterator const &) = delete;
+			CPipelinedIterator &operator = (CPipelinedIterator &&_Other) = default;
+			CPipelinedIterator &operator = (CPipelinedIterator const &_Other) = delete;
 
 			explicit operator bool () const;
 
@@ -78,11 +78,11 @@ namespace NMib::NConcurrency
 
 		TCAsyncGenerator() = default;
 
-		TCAsyncGenerator(TCAsyncGenerator &&) = default;
-		TCAsyncGenerator(TCAsyncGenerator const &) = delete;
+		TCAsyncGenerator(TCAsyncGenerator &&_Other) = default;
+		TCAsyncGenerator(TCAsyncGenerator const &_Other) = delete;
 
-		TCAsyncGenerator &operator = (TCAsyncGenerator &&) = default;
-		TCAsyncGenerator &operator = (TCAsyncGenerator const &) = delete;
+		TCAsyncGenerator &operator = (TCAsyncGenerator &&_Other) = default;
+		TCAsyncGenerator &operator = (TCAsyncGenerator const &_Other) = delete;
 
 		TCFuture<void> f_Destroy() &&;
 

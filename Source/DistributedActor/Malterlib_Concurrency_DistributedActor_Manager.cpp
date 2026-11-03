@@ -459,8 +459,8 @@ namespace NMib::NConcurrency
 			}
 		;
 
-		template <umint t_nUnits>
-		bool fg_ParseScaled(NStr::CStr const &_Text, CSendWindowUnit const (&_Units)[t_nUnits], fp64 _UnitlessScale, fp64 &o_Value)
+		template <umint tf_nUnits>
+		bool fg_ParseScaled(NStr::CStr const &_Text, CSendWindowUnit const (&_Units)[tf_nUnits], fp64 _UnitlessScale, fp64 &o_Value)
 		{
 			NStr::CStr Number = _Text.f_Trim();
 			fp64 Scale = _UnitlessScale;

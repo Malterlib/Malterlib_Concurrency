@@ -12,8 +12,8 @@ namespace NMib::NConcurrency
 {
 	using namespace NStr;
 
-	CDistributedActorListenReference::CDistributedActorListenReference(CDistributedActorListenReference &&) = default;
-	CDistributedActorListenReference &CDistributedActorListenReference::operator = (CDistributedActorListenReference &&) = default;
+	CDistributedActorListenReference::CDistributedActorListenReference(CDistributedActorListenReference &&_Other) = default;
+	CDistributedActorListenReference &CDistributedActorListenReference::operator = (CDistributedActorListenReference &&_Other) = default;
 
 	CDistributedActorListenReference::CDistributedActorListenReference(TCWeakActor<CActorDistributionManager> const &_DistributionManager, NStr::CStr const &_ListenID)
 		: mp_DistributionManager(_DistributionManager)

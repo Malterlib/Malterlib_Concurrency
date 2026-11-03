@@ -98,7 +98,7 @@ namespace NMib::NConcurrency::NPrivate
 
 		CSuspendAlways initial_suspend() noexcept;
 
-		void return_value(CEmpty);
+		void return_value(CEmpty _Empty);
 
 		template <typename tf_CReturnType>
 		void return_value(tf_CReturnType &&_Value);

@@ -83,11 +83,11 @@ namespace NMib::NConcurrency
 	{
 	}
 
-	CDistributedAppState::CDistributedAppState(CDistributedAppState const &) = default;
-	CDistributedAppState::CDistributedAppState(CDistributedAppState &&) = default;
+	CDistributedAppState::CDistributedAppState(CDistributedAppState const &_Other) = default;
+	CDistributedAppState::CDistributedAppState(CDistributedAppState &&_Other) = default;
 
-	CDistributedAppState &CDistributedAppState::operator = (CDistributedAppState const &) = default;
-	CDistributedAppState &CDistributedAppState::operator = (CDistributedAppState &&) = default;
+	CDistributedAppState &CDistributedAppState::operator = (CDistributedAppState const &_Other) = default;
+	CDistributedAppState &CDistributedAppState::operator = (CDistributedAppState &&_Other) = default;
 
 	CDistributedAppActor::CInternal::CInternal() = default;
 	CDistributedAppActor::CInternal::~CInternal() = default;

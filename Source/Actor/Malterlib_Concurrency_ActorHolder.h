@@ -86,7 +86,7 @@ namespace NMib::NConcurrency
 
 		using FDestroyHolderOnDestroyed = NFunction::TCFunction
 			<
-				void (NFunction::CThisTag &)
+				void (NFunction::CThisTag &_ThisTag)
 				, NFunction::CFunctionNoCopyTag
 				, NFunction::TCFunctionNoAllocOptions
 				<
@@ -181,8 +181,8 @@ namespace NMib::NConcurrency
 		struct COnDestroy
 		{
 			COnDestroy() = default;
-			COnDestroy(COnDestroy const &) = delete;
-			COnDestroy(COnDestroy &&) = default;
+			COnDestroy(COnDestroy const &_Other) = delete;
+			COnDestroy(COnDestroy &&_Other) = default;
 
 			NFunction::TCFunctionMutable<TCFuture<void> ()> m_fOnDestroy;
 

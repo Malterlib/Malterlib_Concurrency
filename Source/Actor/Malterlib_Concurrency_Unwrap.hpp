@@ -288,7 +288,7 @@ namespace NMib::NConcurrency::NUnwrap
 	}
 
 	template <typename tf_CData>
-	decltype(auto) operator | (tf_CData &&_ToUnwrap, CUnwrapHelper const &)
+	decltype(auto) operator | (tf_CData &&_ToUnwrap, CUnwrapHelper const &_Helper)
 	{
 		using CResultType = decltype(fg_Unwrap(fg_Forward<tf_CData>(_ToUnwrap)));
 
@@ -296,7 +296,7 @@ namespace NMib::NConcurrency::NUnwrap
 	}
 
 	template <typename tf_CData>
-	decltype(auto) operator | (tf_CData &&_ToUnwrap, CUnwrapFirstHelper const &)
+	decltype(auto) operator | (tf_CData &&_ToUnwrap, CUnwrapFirstHelper const &_Helper)
 	{
 		using CResultType = decltype(fg_UnwrapFirst(fg_Forward<tf_CData>(_ToUnwrap)));
 
@@ -326,27 +326,27 @@ namespace NMib::NConcurrency::NUnwrap
 
 namespace NMib::NConcurrency
 {
-	template <typename t_CReturnType>
-	auto operator co_await (TCAsyncResult<t_CReturnType> &&_Result)
+	template <typename tf_CReturnType>
+	auto operator co_await (TCAsyncResult<tf_CReturnType> &&_Result)
 	{
-		return NUnwrap::TCUnwrapAwaiter<TCAsyncResult<t_CReturnType>>(fg_Move(_Result));
+		return NUnwrap::TCUnwrapAwaiter<TCAsyncResult<tf_CReturnType>>(fg_Move(_Result));
 	}
 
-	template <typename t_CReturnType>
-	auto operator co_await (TCWrapped<t_CReturnType> &&_Result)
+	template <typename tf_CReturnType>
+	auto operator co_await (TCWrapped<tf_CReturnType> &&_Result)
 	{
-		return operator co_await (static_cast<TCAsyncResult<t_CReturnType> &&>(_Result));
+		return operator co_await (static_cast<TCAsyncResult<tf_CReturnType> &&>(_Result));
 	}
 
-	template <typename t_CReturnType, typename tf_CTransformerParam>
-	auto operator % (TCAsyncResult<t_CReturnType> &&_Result, tf_CTransformerParam &&_Param)
+	template <typename tf_CReturnType, typename tf_CTransformerParam>
+	auto operator % (TCAsyncResult<tf_CReturnType> &&_Result, tf_CTransformerParam &&_Param)
 	{
-		return NUnwrap::TCUnwrapAwaiter<TCAsyncResult<t_CReturnType>, FExceptionTransformer>(fg_Move(_Result), fg_ExceptionTransformer(nullptr, fg_Forward<tf_CTransformerParam>(_Param)));
+		return NUnwrap::TCUnwrapAwaiter<TCAsyncResult<tf_CReturnType>, FExceptionTransformer>(fg_Move(_Result), fg_ExceptionTransformer(nullptr, fg_Forward<tf_CTransformerParam>(_Param)));
 	}
 
-	template <typename t_CReturnType, typename tf_CTransformerParam>
-	auto operator % (TCWrapped<t_CReturnType> &&_Result, tf_CTransformerParam &&_Param)
+	template <typename tf_CReturnType, typename tf_CTransformerParam>
+	auto operator % (TCWrapped<tf_CReturnType> &&_Result, tf_CTransformerParam &&_Param)
 	{
-		return static_cast<TCAsyncResult<t_CReturnType> &&>(_Result) % fg_Forward<tf_CTransformerParam>(_Param);
+		return static_cast<TCAsyncResult<tf_CReturnType> &&>(_Result) % fg_Forward<tf_CTransformerParam>(_Param);
 	}
 }

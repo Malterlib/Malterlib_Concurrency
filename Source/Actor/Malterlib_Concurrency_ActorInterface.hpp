@@ -13,7 +13,7 @@ namespace NMib::NConcurrency
 	}
 
 	template <typename t_CInterface>
-	TCActorInterface<t_CInterface>::TCActorInterface(CNullPtr)
+	TCActorInterface<t_CInterface>::TCActorInterface(CNullPtr _pNull)
 	{
 	}
 

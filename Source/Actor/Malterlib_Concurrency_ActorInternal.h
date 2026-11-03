@@ -100,7 +100,7 @@ namespace NMib::NConcurrency
 	};
 
 	template <typename tf_CToDelete>
-	void fg_DeleteWeakObject(CInternalActorAllocator &, tf_CToDelete *_pObject)
+	void fg_DeleteWeakObject(CInternalActorAllocator &_Allocator, tf_CToDelete *_pObject)
 		requires (NTraits::cIsBaseOf<tf_CToDelete, NConcurrency::CActorHolder>)
 	;
 }

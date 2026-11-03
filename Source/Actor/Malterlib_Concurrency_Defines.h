@@ -47,7 +47,7 @@ namespace NMib::NConcurrency
 	template <typename t_CReturnValue>
 	using TCFutureOnResult = NFunction::TCFunction
 		<
-			void (NFunction::CThisTag &, TCAsyncResult<t_CReturnValue> &&_AsyncResult)
+			void (NFunction::CThisTag &_ThisTag, TCAsyncResult<t_CReturnValue> &&_AsyncResult)
 			, NFunction::CFunctionNoCopyTag
 			, NFunction::TCFunctionNoAllocOptions<true, gc_FutureOnResultStorage, sizeof(void *), false>
 		>
@@ -127,11 +127,11 @@ namespace NMib::NConcurrency
 			NTraits::cIsCallableWith
 			<
 				NTraits::TCAddPointer<typename NTraits::TCMemberFunctionPointerTraits<NTraits::TCRemoveReference<t_CMemberFunction>>::FFunctionType>
-				, void (NTraits::TCRemoveQualifiersAndAddRValueReference<tp_CCallParams>...)
+				, void (NTraits::TCRemoveQualifiersAndAddRValueReference<tp_CCallParams> ...p_CallParams)
 			>
 			&& NTraits::cIsBaseOfOrSame<t_CActor, typename NTraits::TCMemberFunctionPointerTraits<NTraits::TCRemoveReference<t_CMemberFunction>>::CClass>
 		)
-		|| NTraits::cIsCallableWith<t_CMemberFunction, void (NTraits::TCRemoveQualifiersAndAddRValueReference<tp_CCallParams>...)>
+		|| NTraits::cIsCallableWith<t_CMemberFunction, void (NTraits::TCRemoveQualifiersAndAddRValueReference<tp_CCallParams> ...p_CallParams)>
 	;
 
 	/// Check if functor is callable with the specified parameters when called through the actor interface.
@@ -226,12 +226,12 @@ namespace NMib::NConcurrency
 		;
 
 #ifdef DMibCanDetectVirtualMemberFunctions_Constexpr
-		template <EVirtualCall t_Detected, EVirtualCall t_Specified>
+		template <EVirtualCall tf_Detected, EVirtualCall tf_Specified>
 		consteval EVirtualCall fg_CheckVirtualCallDetection()
 		{
-			static_assert(t_Specified == EVirtualCall::mc_Dynamic || t_Detected == t_Specified);
+			static_assert(tf_Specified == EVirtualCall::mc_Dynamic || tf_Detected == tf_Specified);
 
-			return t_Detected;
+			return tf_Detected;
 		}
 #endif
 
@@ -396,7 +396,7 @@ namespace NMib::NConcurrency
 		};
 
 		template <typename tf_CType, typename ...tfp_CParams, typename ...tfp_CHolderParams, umint ...tfp_Indidies>
-		void fp_Construct(TCConstruct<void, TCConstruct<tf_CType, tfp_CParams...>, tfp_CHolderParams...> &&_Construct, NMeta::TCIndices<tfp_Indidies...> const &);
+		void fp_Construct(TCConstruct<void, TCConstruct<tf_CType, tfp_CParams...>, tfp_CHolderParams...> &&_Construct, NMeta::TCIndices<tfp_Indidies...> const &_Indices);
 
 	public:
 		TCActor();
@@ -405,7 +405,7 @@ namespace NMib::NConcurrency
 		TCActor(TCConstruct<tf_CType, tfp_CParams...> &&_Construct, tfp_CHolderParams && ...p_HolderParams);
 		TCActor(TCActorHolderSharedPointer<CActorInternal> const &_pActor);
 		TCActor(TCActorHolderSharedPointer<CActorInternal> &&_pActor);
-		TCActor(CNullPtr);
+		TCActor(CNullPtr _pNull);
 		TCActor(TCActor const &_Other);
 		TCActor(TCActor &&_Other);
 		template <typename tf_CActor>
@@ -416,7 +416,7 @@ namespace NMib::NConcurrency
 		TCActor &operator = (TCActorHolderSharedPointer<CActorInternal> &&_pActor);
 		TCActor &operator = (TCActor const &_Other);
 		TCActor &operator = (TCActor &&_Other);
-		TCActor &operator = (CNullPtr);
+		TCActor &operator = (CNullPtr _pNull);
 		template <typename tf_CType, typename ...tfp_CParams, typename ...tfp_CHolderParams>
 		TCActor &operator = (TCConstruct<void, TCConstruct<tf_CType, tfp_CParams...>, tfp_CHolderParams...> &&_Construct);
 		template <typename tf_CType, typename ...tfp_CParams>
@@ -634,7 +634,7 @@ namespace NMib::NConcurrency
 	struct CBlockingActorCheckout
 	{
 		CBlockingActorCheckout(CConcurrencyManager *_pConcurrencyManager, CBlockingActorStorage *_pBlockingActorStorage);
-		CBlockingActorCheckout(CBlockingActorCheckout const &) = delete;
+		CBlockingActorCheckout(CBlockingActorCheckout const &_Other) = delete;
 		CBlockingActorCheckout(CBlockingActorCheckout &&_Other);
 		~CBlockingActorCheckout();
 

@@ -37,8 +37,8 @@ namespace NDistributedActorPriorityTests
 		uint32 m_CallID;
 		uint8 m_Priority;
 
-		template <typename t_CStream>
-		void f_Stream(t_CStream &_Stream)
+		template <typename tf_CStream>
+		void f_Stream(tf_CStream &_Stream)
 		{
 			_Stream % m_CallID;
 			_Stream % m_Priority;

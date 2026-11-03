@@ -29,11 +29,11 @@ namespace NMib::NConcurrency
 		CIoCompletionOpHold() = default;
 		explicit CIoCompletionOpHold(NStorage::TCSharedPointer<CIoCompletionOpTracker> const &_pTracker);
 		CIoCompletionOpHold(CIoCompletionOpHold &&_Other);
-		CIoCompletionOpHold(CIoCompletionOpHold const &) = delete;
+		CIoCompletionOpHold(CIoCompletionOpHold const &_Other) = delete;
 		~CIoCompletionOpHold();
 
 		CIoCompletionOpHold &operator = (CIoCompletionOpHold &&_Other);
-		CIoCompletionOpHold &operator = (CIoCompletionOpHold const &) = delete;
+		CIoCompletionOpHold &operator = (CIoCompletionOpHold const &_Other) = delete;
 
 	private:
 		void fp_Release();

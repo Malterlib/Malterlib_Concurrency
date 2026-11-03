@@ -63,8 +63,8 @@ namespace NMib::NConcurrency
 		CRunLoopThreadSpawnServer(NStorage::TCSharedPointer<CRunLoop> const &_pRunLoop);
 		~CRunLoopThreadSpawnServer();
 
-		CRunLoopThreadSpawnServer(CRunLoopThreadSpawnServer const &) = delete;
-		CRunLoopThreadSpawnServer &operator = (CRunLoopThreadSpawnServer const &) = delete;
+		CRunLoopThreadSpawnServer(CRunLoopThreadSpawnServer const &_Other) = delete;
+		CRunLoopThreadSpawnServer &operator = (CRunLoopThreadSpawnServer const &_Other) = delete;
 
 		bool f_IsServing() const;
 

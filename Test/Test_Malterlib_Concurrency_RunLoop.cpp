@@ -169,8 +169,8 @@ namespace NMib::NConcurrency
 
 				{
 					void *pPool = objc_autoreleasePoolPush();
-					id pApplication = ((id (*)(Class, SEL))objc_msgSend)(objc_getClass("NSApplication"), sel_registerName("sharedApplication"));
-					((void (*)(id, SEL, long))objc_msgSend)(pApplication, sel_registerName("setActivationPolicy:"), 2); // NSApplicationActivationPolicyProhibited
+					id pApplication = ((id (*)(Class _pClass, SEL _pSelector))objc_msgSend)(objc_getClass("NSApplication"), sel_registerName("sharedApplication"));
+					((void (*)(id _pObject, SEL _pSelector, long _Policy))objc_msgSend)(pApplication, sel_registerName("setActivationPolicy:"), 2); // NSApplicationActivationPolicyProhibited
 					objc_autoreleasePoolPop(pPool);
 				}
 
@@ -199,7 +199,7 @@ namespace NMib::NConcurrency
 				Before = fResidentBytes();
 				auto pWaker = NThread::CThreadObject::fs_StartThread
 					(
-						[&](NThread::CThreadObject *) -> aint
+						[&](NThread::CThreadObject *_pThread) -> aint
 						{
 							for (umint i = 0; i < c_nIterations; ++i)
 								pLoop->f_Wake();
@@ -242,11 +242,11 @@ namespace NMib::NConcurrency
 
 					auto pThread = NThread::CThreadObject::fs_StartThread
 						(
-							[&](NThread::CThreadObject *) -> aint
+							[&](NThread::CThreadObject *_pThread) -> aint
 							{
 								auto pChildThread = NThread::CThreadObject::fs_StartThread
 									(
-										[&](NThread::CThreadObject *) -> aint
+										[&](NThread::CThreadObject *_pChildThread) -> aint
 										{
 											ChildNice = getpriority(PRIO_PROCESS, 0);
 											return 0;

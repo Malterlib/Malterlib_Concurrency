@@ -21,13 +21,13 @@ namespace NMib::NConcurrency
 		using CStripedReturn = typename NPrivate::TCIsFuture<CReturn>::CType;
 
 		TCActorFunctorWeak() = default;
-		TCActorFunctorWeak(TCActorFunctorWeak &&) = default;
-		TCActorFunctorWeak &operator = (TCActorFunctorWeak &&) = default;
-		TCActorFunctorWeak(TCActorFunctorWeak const &) = delete;
-		TCActorFunctorWeak &operator = (TCActorFunctorWeak const &) = delete;
+		TCActorFunctorWeak(TCActorFunctorWeak &&_Other) = default;
+		TCActorFunctorWeak &operator = (TCActorFunctorWeak &&_Other) = default;
+		TCActorFunctorWeak(TCActorFunctorWeak const &_Other) = delete;
+		TCActorFunctorWeak &operator = (TCActorFunctorWeak const &_Other) = delete;
 		~TCActorFunctorWeak();
 
-		TCActorFunctorWeak(CNullPtr);
+		TCActorFunctorWeak(CNullPtr _pNull);
 		TCActorFunctorWeak(TCActor<CActor> &&_Actor, CFunction &&_fFunctor);
 
 		template <typename ...tfp_CParams>
@@ -69,7 +69,7 @@ namespace NMib::NConcurrency
 		NStorage::TCSharedPointer<CStorage> mp_pFunctor;
 	};
 
-	template <bool t_bCoalesced = false, typename tf_CFunctor>
+	template <bool tf_bCoalesced = false, typename tf_CFunctor>
 	auto fg_ActorFunctorWeak(TCActor<> const &_Actor, tf_CFunctor &&_fFunctor)
 	{
 		using FFunction = NPrivate::TCRemoveReferencesFromFunctor
@@ -79,7 +79,7 @@ namespace NMib::NConcurrency
 			::FType
 		;
 
-		return TCActorFunctorWeak<FFunction, t_bCoalesced>{fg_TempCopy(_Actor), fg_Forward<tf_CFunctor>(_fFunctor)};
+		return TCActorFunctorWeak<FFunction, tf_bCoalesced>{fg_TempCopy(_Actor), fg_Forward<tf_CFunctor>(_fFunctor)};
 	}
 
 	template <bool t_bCoalesced>

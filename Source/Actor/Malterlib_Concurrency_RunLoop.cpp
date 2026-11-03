@@ -59,7 +59,7 @@ namespace NMib::NConcurrency
 		auto &This = *static_cast<CRunLoopThreadSpawnServer *>(_pContext);
 		This.mp_fDispatch
 			(
-				[](CConcurrencyThreadLocal &)
+				[](CConcurrencyThreadLocal &_ThreadLocal)
 				{
 					NSys::fg_Thread_ServeSpawnRequests();
 				}

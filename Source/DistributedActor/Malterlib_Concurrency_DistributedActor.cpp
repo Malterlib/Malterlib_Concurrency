@@ -908,7 +908,7 @@ namespace NMib::NConcurrency
 		-> TCDistributedActor<CActor>
 	;
 
-	template class TCActor<CActorDistributionManager>;
+	template struct TCActor<CActorDistributionManager>;
 
 	template auto TCActor<CActorDistributionManager>::f_InternalCallActor
 		<

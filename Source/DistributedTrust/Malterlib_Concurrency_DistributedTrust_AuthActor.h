@@ -12,8 +12,8 @@
 
 namespace NMib::NConcurrency
 {
-	class CDistributedActorTrustManager;
-	class ICDistributedActorTrustManagerAuthenticationActor;
+	struct CDistributedActorTrustManager;
+	struct ICDistributedActorTrustManagerAuthenticationActor;
 	struct CCommandLineControl;
 
 	struct CAuthenticationActorInfo
@@ -22,9 +22,8 @@ namespace NMib::NConcurrency
 		EAuthenticationFactorCategory m_Category = EAuthenticationFactorCategory_None;
 	};
 
-	class ICDistributedActorTrustManagerAuthenticationActor : public NConcurrency::CActor
+	struct ICDistributedActorTrustManagerAuthenticationActor : public NConcurrency::CActor
 	{
-	public:
 		struct CVerifyAuthenticationReturn
 		{
 			bool m_bVerified = false;

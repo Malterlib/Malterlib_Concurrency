@@ -12,9 +12,8 @@ namespace
 	using namespace NMib::NConcurrency;
 	using namespace NMib::NException;
 
-	class CAsyncResultTestActor : public CActor
+	struct CAsyncResultTestActor : public CActor
 	{
-	public:
 		TCFuture<int32> f_TestAwaitAsyncResultValue()
 		{
 			TCAsyncResult<int32> Result;
@@ -193,8 +192,9 @@ namespace
 		return TCWrapped<void>(fg_Move(Result));
 	}
 
-	class CAsyncResult_Tests : public NMib::NTest::CTest
+	struct CAsyncResult_Tests : public NMib::NTest::CTest
 	{
+	private:
 		void f_DoTests()
 		{
 			DMibTestSuite("ExceptionTests")

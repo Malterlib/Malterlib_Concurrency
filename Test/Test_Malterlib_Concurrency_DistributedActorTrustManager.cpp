@@ -171,16 +171,18 @@ namespace NTestTrustManager
 		CStr m_Name;
 	};
 
-	class CDistributedActorTrustManagerAuthenticationActorFactoryTest1 : public ICDistributedActorTrustManagerAuthenticationActorFactory
+	struct CDistributedActorTrustManagerAuthenticationActorFactoryTest1 : public ICDistributedActorTrustManagerAuthenticationActorFactory
 	{
+	private:
 		CAuthenticationActorInfo operator () (TCActor<CDistributedActorTrustManager> const &_TrustManager) override
 		{
 			return CAuthenticationActorInfo{fg_ConstructActor<CAuthenticationActorTestSucceed>(_TrustManager, "Test1"), EAuthenticationFactorCategory_None};
 		}
 	};
 
-	class CDistributedActorTrustManagerAuthenticationActorFactoryTest2 : public ICDistributedActorTrustManagerAuthenticationActorFactory
+	struct CDistributedActorTrustManagerAuthenticationActorFactoryTest2 : public ICDistributedActorTrustManagerAuthenticationActorFactory
 	{
+	private:
 		CAuthenticationActorInfo operator () (TCActor<CDistributedActorTrustManager> const &_TrustManager) override
 		{
 			return CAuthenticationActorInfo{fg_ConstructActor<CAuthenticationActorFail>(_TrustManager, "Test2"), EAuthenticationFactorCategory_None};
@@ -190,9 +192,8 @@ namespace NTestTrustManager
 	DMibAuthenticationFactorRegister(CDistributedActorTrustManagerAuthenticationActorFactoryTest1);
 	DMibAuthenticationFactorRegister(CDistributedActorTrustManagerAuthenticationActorFactoryTest2);
 
-	class CDistributedActorTrustManager_Tests : public NMib::NTest::CTest
+	struct CDistributedActorTrustManager_Tests : public NMib::NTest::CTest
 	{
-	public:
 		struct CTestActor : public CActor
 		{
 			enum : uint32

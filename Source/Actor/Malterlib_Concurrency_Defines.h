@@ -17,7 +17,7 @@ namespace NMib::NConcurrency
 	template <typename t_CReturnValue, ECoroutineFlag t_Flags>
 	struct TCFutureWithFlags;
 
-	class CActorHolder;
+	struct CActorHolder;
 
 	static constexpr umint gc_FutureOnResultStorage = sizeof(void *) * 3;
 
@@ -145,14 +145,14 @@ namespace NMib::NConcurrency
 	};
 
 	struct CActor;
-	class CDefaultActorHolder;
+	struct CDefaultActorHolder;
 	template <typename t_CActor>
-	class TCActorInternal;
+	struct TCActorInternal;
 
-	class CConcurrencyManager;
-	class CSeparateThreadActorHolder;
+	struct CConcurrencyManager;
+	struct CSeparateThreadActorHolder;
 	struct CSeparateThreadActor;
-	class CDelegatedActorHolder;
+	struct CDelegatedActorHolder;
 	struct CCurrentActorScope;
 	struct CCurrentlyProcessingActorScope;
 
@@ -160,10 +160,10 @@ namespace NMib::NConcurrency
 	struct TCActorResultCall;
 
 	template <typename t_CActor = CActor>
-	class TCActor;
+	struct TCActor;
 
 	template <typename t_CActor>
-	class TCWeakActor;
+	struct TCWeakActor;
 
 	template <typename t_CReturnValue>
 	struct TCPromise;
@@ -288,7 +288,7 @@ namespace NMib::NConcurrency
 	};
 
 	template <typename t_CActor>
-	class TCWeakActor;
+	struct TCWeakActor;
 
 	template <typename tf_CActor>
 	decltype(auto) fg_GetActorInternal(tf_CActor &&_Actor);
@@ -298,7 +298,7 @@ namespace NMib::NConcurrency
 		TCFuture<void> f_Destroy() &&;
 
 	private:
-		friend class CConcurrencyManager;
+		friend struct CConcurrencyManager;
 
 		TCFuture<void> fp_DestroyUnused() &&;
 	};
@@ -379,25 +379,9 @@ namespace NMib::NConcurrency
 	struct TCBoundActorCallAwaiter;
 
 	template <typename t_CActor>
-	class TCActor /// \brief Contain an instance of a CActor
+	struct TCActor /// \brief Contain an instance of a CActor
 		: public TCConditional<TCIsActorAlwaysAlive<t_CActor>::mc_bImpl, CEmpty, CActorCommon>
 	{
-		friend class CConcurrencyManager;
-		template <typename t_CActor2>
-		friend class TCActor;
-		template <typename t_CActor2>
-		friend class TCWeakActor;
-		template <typename t_CActor2>
-		friend class TCActorInternal;
-
-		friend class CActorHolder;
-		friend class CDelegatedActorHolder;
-		friend struct CActorCommon;
-
-		template <typename tf_CActor>
-		friend decltype(auto) fg_GetActorInternal(tf_CActor &&_Actor);
-
-	public:
 		using CActorInternal = TCActorInternal<t_CActor>;
 		using CContainedActor = t_CActor;
 
@@ -567,6 +551,22 @@ namespace NMib::NConcurrency
 		void f_Format(tf_CStr &o_Str) const;
 
 		DMibSuppressUndefinedSanitizer inline_always TCActorInternal<CActor> *f_GetRealActor() const;
+
+	private:
+		friend struct CConcurrencyManager;
+		template <typename t_CActor2>
+		friend struct TCActor;
+		template <typename t_CActor2>
+		friend struct TCWeakActor;
+		template <typename t_CActor2>
+		friend struct TCActorInternal;
+
+		friend struct CActorHolder;
+		friend struct CDelegatedActorHolder;
+		friend struct CActorCommon;
+
+		template <typename tf_CActor>
+		friend decltype(auto) fg_GetActorInternal(tf_CActor &&_Actor);
 	};
 
 	template <typename tf_CActor, typename tf_CActorSource>
@@ -623,9 +623,8 @@ namespace NMib::NConcurrency
 
 	struct CCanDestroyTracker;
 
-	class CActorSubscriptionReference
+	struct CActorSubscriptionReference
 	{
-	public:
 		virtual ~CActorSubscriptionReference();
 		virtual TCFuture<void> f_Destroy() = 0;
 	};

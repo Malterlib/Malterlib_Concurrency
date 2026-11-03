@@ -7,9 +7,8 @@
 
 namespace NMib::NConcurrency
 {
-	class CDistributedActorTrustManagerDatabase_JsonDirectory : public ICDistributedActorTrustManagerDatabase
+	struct CDistributedActorTrustManagerDatabase_JsonDirectory : public ICDistributedActorTrustManagerDatabase
 	{
-	public:
 		CDistributedActorTrustManagerDatabase_JsonDirectory(NStr::CStr const &_BaseDirectory);
 		~CDistributedActorTrustManagerDatabase_JsonDirectory();
 

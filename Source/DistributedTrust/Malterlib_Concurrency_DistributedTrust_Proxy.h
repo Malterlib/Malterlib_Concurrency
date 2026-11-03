@@ -7,12 +7,11 @@
 
 namespace NMib::NConcurrency
 {
-	class ICDistributedActorTrustManagerAuthenticationActor;
+	struct ICDistributedActorTrustManagerAuthenticationActor;
 	struct CAuthenticationActorInfo;
 
-	class CDistributedActorTrustManagerProxy : public CDistributedActorTrustManagerInterface
+	struct CDistributedActorTrustManagerProxy : public CDistributedActorTrustManagerInterface
 	{
-	public:
 		enum EPermission
 		{
 			EPermission_None = 0

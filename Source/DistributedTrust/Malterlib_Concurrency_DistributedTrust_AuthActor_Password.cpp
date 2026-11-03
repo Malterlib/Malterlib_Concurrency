@@ -20,9 +20,8 @@ namespace NMib::NConcurrency
 	using namespace NNetwork;
 	using namespace NContainer;
 
-	class CDistributedActorTrustManagerAuthenticationActorPassword : public ICDistributedActorTrustManagerAuthenticationActor
+	struct CDistributedActorTrustManagerAuthenticationActorPassword : public ICDistributedActorTrustManagerAuthenticationActor
 	{
-	public:
 		CDistributedActorTrustManagerAuthenticationActorPassword(TCWeakActor<CDistributedActorTrustManager> const &_TrustManager);
 		virtual ~CDistributedActorTrustManagerAuthenticationActorPassword();
 
@@ -237,8 +236,9 @@ namespace NMib::NConcurrency
 		co_return fg_Move(Return);
 	}
 
-	class CDistributedActorTrustManagerAuthenticationActorFactoryPassword : public ICDistributedActorTrustManagerAuthenticationActorFactory
+	struct CDistributedActorTrustManagerAuthenticationActorFactoryPassword : public ICDistributedActorTrustManagerAuthenticationActorFactory
 	{
+	private:
 		CAuthenticationActorInfo operator () (TCActor<CDistributedActorTrustManager> const &_TrustManager) override;
 		static umint ms_MakeActive;
 	};

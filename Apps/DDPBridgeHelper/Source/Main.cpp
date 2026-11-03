@@ -11,8 +11,9 @@
 using namespace NMib;
 using namespace NMib::NConcurrency::NDDPBridgeHelper;
 
-class CDDPBridgeHelper : public CApplication
+struct CDDPBridgeHelper : public CApplication
 {
+private:
 	aint f_Main()
 	{
 		return NConcurrency::fg_RunApp

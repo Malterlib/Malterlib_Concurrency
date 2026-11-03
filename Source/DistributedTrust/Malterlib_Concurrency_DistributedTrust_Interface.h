@@ -12,10 +12,9 @@
 namespace NMib::NConcurrency
 {
 	struct CAuthenticationActorInfo;
-	class ICDistributedActorTrustManagerAuthenticationActor;
-	class CDistributedActorTrustManagerInterface : public NConcurrency::CActor
+	struct ICDistributedActorTrustManagerAuthenticationActor;
+	struct CDistributedActorTrustManagerInterface : public NConcurrency::CActor
 	{
-	public:
 		enum : uint32
 		{
 			EProtocolVersion_Min                                = 0x102

@@ -84,9 +84,8 @@ namespace NTest2
 	};
 }
 
-class CActorSubscriptionReferenceDummy : public CActorSubscriptionReference
+struct CActorSubscriptionReferenceDummy : public CActorSubscriptionReference
 {
-public:
 	TCFuture<void> f_Destroy() override
 	{
 		co_return {};
@@ -127,9 +126,8 @@ struct CTestiii2 : public CTestiii
 	}
 };
 
-class CDistributedActorBase : public CActor
+struct CDistributedActorBase : public CActor
 {
-public:
 	enum : uint32
 	{
 		EProtocolVersion_Min       = 0x101
@@ -151,9 +149,8 @@ public:
 	virtual CStr f_GetCallingHostID() const = 0;
 };
 
-class CDistributedActorNonPublished : public CDistributedActorBase
+struct CDistributedActorNonPublished : public CDistributedActorBase
 {
-public:
 	CDistributedActorNonPublished()
 	{
 		DMibPublishActorFunction(CDistributedActorNonPublished::f_SetSubscriptionNonPublished);
@@ -167,9 +164,8 @@ public:
 	}
 };
 
-class CDistributedActorInterface : public CActor
+struct CDistributedActorInterface : public CActor
 {
-public:
 	enum : uint32
 	{
 		EProtocolVersion_Min       = 0x101
@@ -239,9 +235,8 @@ struct CMultipleSubscriptionsVector
 	}
 };
 
-class CDistributedActor : public CDistributedActorNonPublished
+struct CDistributedActor : public CDistributedActorNonPublished
 {
-public:
 	struct CCallback
 	{
 		~CCallback()
@@ -960,8 +955,502 @@ public:
 	}
 };
 
-class CDistributedActor_Tests : public NMib::NTest::CTest
+struct CDistributedActor_Tests : public NMib::NTest::CTest
 {
+	void f_FunctionalTests()
+	{
+		DMibTestSuite("Unknown exception type")
+		{
+			auto Exception = DMibErrorInstance("The real failure message");
+
+			NStream::CBinaryStreamMemory<NStream::CBinaryStreamDefault, NContainer::CIOByteVector> FeedStream;
+			NConcurrency::NPrivate::fg_FeedException(FeedStream, Exception, false);
+			NContainer::CIOByteVector Data = FeedStream.f_MoveVector();
+
+			// Corrupt the leading type hash so the receiving-side type lookup fails.
+			Data[0] = uint8(0xde);
+			Data[1] = uint8(0xc0);
+			Data[2] = uint8(0xad);
+			Data[3] = uint8(0x0b);
+
+			{
+				NStream::CBinaryStreamMemoryPtr<NStream::CBinaryStreamDefault> ConsumeStream;
+				ConsumeStream.f_OpenRead(Data);
+
+				NException::CExceptionPointer pException = NConcurrency::NPrivate::fg_ConsumeException(ConsumeStream, false);
+				CStr Message = NException::fg_ExceptionString(pException);
+				DMibExpectTrue(Message.f_Find("The real failure message") >= 0);
+				DMibExpectTrue(Message.f_Find("received as unregistered exception type") >= 0);
+				DMibExpect(ConsumeStream.f_GetPosition(), ==, NStream::CFilePos(Data.f_GetLen()));
+			}
+
+			{
+				NStream::CBinaryStreamMemory<NStream::CBinaryStreamDefault, NContainer::CIOByteVector> GarbageStream;
+				GarbageStream << uint32(0x0badc0de);
+				uint64 PayloadSize = 4;
+				NStream::fg_FeedLenToStream(GarbageStream, PayloadSize);
+				GarbageStream << uint32(0xffffffff);
+				NContainer::CIOByteVector GarbageData = GarbageStream.f_MoveVector();
+
+				NStream::CBinaryStreamMemoryPtr<NStream::CBinaryStreamDefault> ConsumeStream;
+				ConsumeStream.f_OpenRead(GarbageData);
+
+				NException::CExceptionPointer pException = NConcurrency::NPrivate::fg_ConsumeException(ConsumeStream, false);
+				DMibExpectTrue(bool(pException));
+				DMibExpect(ConsumeStream.f_GetPosition(), ==, NStream::CFilePos(GarbageData.f_GetLen()));
+			}
+
+			{
+				DMibTestPath("Size shorter than the payload");
+
+				NStream::CBinaryStreamMemory<NStream::CBinaryStreamDefault, NContainer::CIOByteVector> ValidStream;
+				NConcurrency::NPrivate::fg_FeedException(ValidStream, Exception, false);
+				NContainer::CIOByteVector ValidData = ValidStream.f_MoveVector();
+
+				NStream::CBinaryStreamMemoryPtr<NStream::CBinaryStreamDefault> HeaderStream;
+				HeaderStream.f_OpenRead(ValidData);
+				uint32 TypeHash = 0;
+				HeaderStream >> TypeHash;
+				uint64 PayloadSize = 0;
+				NStream::fg_ConsumeLenFromStream(HeaderStream, PayloadSize);
+				umint PayloadStart = umint(HeaderStream.f_GetPosition());
+
+				NStream::CBinaryStreamMemory<NStream::CBinaryStreamDefault, NContainer::CIOByteVector> ShortStream;
+				ShortStream << TypeHash;
+				NStream::fg_FeedLenToStream(ShortStream, uint64(1));
+				ShortStream.f_FeedBytes(ValidData.f_GetArray() + PayloadStart, ValidData.f_GetLen() - PayloadStart);
+				NContainer::CIOByteVector ShortData = ShortStream.f_MoveVector();
+
+				NStream::CBinaryStreamMemoryPtr<NStream::CBinaryStreamDefault> ConsumeStream;
+				ConsumeStream.f_OpenRead(ShortData);
+				DMibExpectException
+					(
+						NConcurrency::NPrivate::fg_ConsumeException(ConsumeStream, false)
+						, DMibErrorInstance("The exception (type hash {nh}) is longer than the size it was sent with"_f << TypeHash)
+					)
+				;
+			}
+		};
+
+		DMibTestSuite("Exception stream versions")
+		{
+			using namespace NExceptionVersionTest;
+
+			constexpr uint32 c_Sentinel = 0x5e771e1;
+			CVersionedData Data;
+			Data.m_Original = 11;
+			Data.m_Added = 22;
+			auto Exception = NMib::NException::fg_MakeException(CVersionedException(nullptr, "Versioned failure", false, Data));
+
+			// Streams the exception reply, then a sentinel that shows the reader ended up after the exception
+			auto fFeedException = [&](NMib::NException::CExceptionPointer const &_pException, uint32 _ActorProtocolVersion)
+				{
+					TCAsyncResult<void> Result;
+					Result.f_SetException(_pException);
+
+					NStream::TCBinaryStreamStorage<NStream::CBinaryStreamDefault> Stream;
+					NConcurrency::NPrivate::fg_StreamAsyncResultException(Stream, Result, _ActorProtocolVersion);
+					Stream << c_Sentinel;
+					return Stream.f_MoveStorage();
+				}
+			;
+
+			auto fFeed = [&](uint32 _ActorProtocolVersion)
+				{
+					return fFeedException(Exception, _ActorProtocolVersion);
+				}
+			;
+
+			// A reply as a sender of _Version would write it, with _ExtraField after the fields this version knows when set. The size
+			// is measured with a null stream first, as fg_StreamAsyncResultException does.
+			auto fFeedAs = [&](uint32 _Version, TCOptional<uint32> _ExtraField)
+				{
+					CVersionedException Typed(nullptr, "Versioned failure", false, Data);
+					auto fFeedPayload = [&](auto &_Stream)
+						{
+							DMibBinaryStreamVersion(_Stream, _Version);
+							_Stream << Typed;
+							if (_ExtraField)
+								_Stream << *_ExtraField;
+						}
+					;
+
+					NStream::TCBinaryStreamNull<NStream::CBinaryStreamDefault> MeasureStream;
+					fFeedPayload(MeasureStream);
+
+					NStream::TCBinaryStreamStorage<NStream::CBinaryStreamDefault> Stream;
+					Stream << uint8(1);
+					Stream << CVersionedException::ms_TypeHash;
+					Stream << _Version;
+					NStream::fg_FeedLenToStream(Stream, uint64(MeasureStream.f_GetLength()));
+					fFeedPayload(Stream);
+					Stream << c_Sentinel;
+					return Stream.f_MoveStorage();
+				}
+			;
+
+			auto fVersionedData = [&](NMib::NException::CExceptionPointer const &_pException) -> TCOptional<CVersionedData>
+				{
+					TCOptional<CVersionedData> Consumed;
+					NMib::NException::fg_VisitException<CVersionedException>
+						(
+							_pException
+							, [&](CVersionedException const &_Exception)
+							{
+								Consumed = _Exception.f_GetSpecific();
+							}
+						)
+					;
+					return Consumed;
+				}
+			;
+
+			auto fConsumeException = [&](NStream::CBinaryStorage const &_Storage, uint32 _ActorProtocolVersion) -> NMib::NException::CExceptionPointer
+				{
+					NStream::TCBinaryStreamStoragePtr<> Stream;
+					Stream.f_OpenRead(_Storage);
+
+					TCAsyncResult<void> Result;
+					DMibAssertTrue(NConcurrency::NPrivate::fg_CopyReplyToAsyncResultShared(Stream, Result, _ActorProtocolVersion));
+
+					uint32 Sentinel = 0;
+					Stream >> Sentinel;
+					DMibExpect(Sentinel, ==, c_Sentinel);
+
+					return Result.f_GetException();
+				}
+			;
+
+			auto fConsume = [&](NStream::CBinaryStorage const &_Storage, uint32 _ActorProtocolVersion) -> TCOptional<CVersionedData>
+				{
+					return fVersionedData(fConsumeException(_Storage, _ActorProtocolVersion));
+				}
+			;
+
+			DMibTestCategory("Current")
+			{
+				auto Consumed = fConsume(fFeed(EDistributedActorProtocolVersion_Current), EDistributedActorProtocolVersion_Current);
+				DMibAssertTrue(bool(Consumed));
+				DMibExpect(Consumed->m_Original, ==, 11u);
+				DMibExpect(Consumed->m_Added, ==, 22u);
+			};
+
+			DMibTestCategory("PeerWithoutVersions")
+			{
+				// The layout of version 0, which a peer from before exception stream versions knows
+				auto Consumed = fConsume(fFeed(EDistributedActorProtocolVersion_FrameSizes), EDistributedActorProtocolVersion_FrameSizes);
+				DMibAssertTrue(bool(Consumed));
+				DMibExpect(Consumed->m_Original, ==, 11u);
+				DMibExpect(Consumed->m_Added, ==, 0u);
+			};
+
+			DMibTestCategory("OlderSender")
+			{
+				auto Consumed = fConsume(fFeedAs(0, {}), EDistributedActorProtocolVersion_Current);
+				DMibAssertTrue(bool(Consumed));
+				DMibExpect(Consumed->m_Original, ==, 11u);
+				DMibExpect(Consumed->m_Added, ==, 0u);
+			};
+
+			DMibTestCategory("NewerSender")
+			{
+				// Version 2 has a field this build doesn't know, which the reader skips
+				auto Consumed = fConsume(fFeedAs(2, 0xfeedu), EDistributedActorProtocolVersion_Current);
+				DMibAssertTrue(bool(Consumed));
+				DMibExpect(Consumed->m_Original, ==, 11u);
+				DMibExpect(Consumed->m_Added, ==, 22u);
+			};
+
+			DMibTestCategory("Wrapped")
+			{
+				auto Wrapped = NMib::NException::fg_MakeException(NMib::NException::CExceptionWrapped(nullptr, "Outer failure", false, NMib::NException::CExceptionWrappedData(Exception)));
+
+				auto fWrapped = [&](uint32 _ActorProtocolVersion) -> TCOptional<CVersionedData>
+					{
+						TCOptional<CVersionedData> Nested;
+						NMib::NException::fg_VisitException<NMib::NException::CExceptionWrapped>
+							(
+								fConsumeException(fFeedException(Wrapped, _ActorProtocolVersion), _ActorProtocolVersion)
+								, [&](NMib::NException::CExceptionWrapped const &_Exception)
+								{
+									Nested = fVersionedData(_Exception.f_GetSpecific().m_pWrapped);
+								}
+							)
+						;
+						return Nested;
+					}
+				;
+
+				{
+					DMibTestPath("Current");
+					auto Current = fWrapped(EDistributedActorProtocolVersion_Current);
+					DMibAssertTrue(bool(Current));
+					DMibExpect(Current->m_Original, ==, 11u);
+					DMibExpect(Current->m_Added, ==, 22u);
+				}
+
+				{
+					DMibTestPath("PeerWithoutVersions");
+					auto PeerWithoutVersions = fWrapped(EDistributedActorProtocolVersion_FrameSizes);
+					DMibAssertTrue(bool(PeerWithoutVersions));
+					DMibExpect(PeerWithoutVersions->m_Original, ==, 11u);
+					DMibExpect(PeerWithoutVersions->m_Added, ==, 0u);
+				}
+			};
+
+			DMibTestCategory("Vector")
+			{
+				NContainer::TCVector<NMib::NException::CExceptionPointer> Exceptions{Exception, Exception};
+				auto Vector = NMib::NException::fg_MakeException
+					(
+						NMib::NException::CExceptionExceptionVector(nullptr, "Outer failures", false, NMib::NException::CExceptionExceptionVectorData(fg_Move(Exceptions)))
+					)
+				;
+
+				auto fVector = [&](uint32 _ActorProtocolVersion)
+					{
+						NContainer::TCVector<CVersionedData> Nested;
+						NMib::NException::fg_VisitException<NMib::NException::CExceptionExceptionVector>
+							(
+								fConsumeException(fFeedException(Vector, _ActorProtocolVersion), _ActorProtocolVersion)
+								, [&](NMib::NException::CExceptionExceptionVector const &_Exception)
+								{
+									for (auto &pNested : _Exception.f_GetSpecific().m_Exceptions)
+									{
+										if (auto Data = fVersionedData(pNested))
+											Nested.f_Insert(*Data);
+									}
+								}
+							)
+						;
+						return Nested;
+					}
+				;
+
+				{
+					DMibTestPath("Current");
+					auto Current = fVector(EDistributedActorProtocolVersion_Current);
+					DMibAssert(Current.f_GetLen(), ==, umint(2));
+					DMibExpect(Current[1].m_Added, ==, 22u);
+				}
+
+				{
+					DMibTestPath("PeerWithoutVersions");
+					auto PeerWithoutVersions = fVector(EDistributedActorProtocolVersion_FrameSizes);
+					DMibAssert(PeerWithoutVersions.f_GetLen(), ==, umint(2));
+					DMibExpect(PeerWithoutVersions[1].m_Original, ==, 11u);
+					DMibExpect(PeerWithoutVersions[1].m_Added, ==, 0u);
+				}
+			};
+
+			// Feeds an exception, then a sentinel that shows the reader ended up after the exception
+			auto fStreamed = [&](auto &&_fFeed, auto &&_fConsume) -> TCOptional<CVersionedData>
+				{
+					NStream::CBinaryStreamMemory<NStream::CBinaryStreamDefault, NContainer::CIOByteVector> FeedStream;
+					_fFeed(FeedStream);
+					FeedStream << c_Sentinel;
+					NContainer::CIOByteVector Bytes = FeedStream.f_MoveVector();
+
+					NStream::CBinaryStreamMemoryPtr<NStream::CBinaryStreamDefault> ConsumeStream;
+					ConsumeStream.f_OpenRead(Bytes);
+					NMib::NException::CExceptionPointer pConsumed = _fConsume(ConsumeStream);
+					uint32 Sentinel = 0;
+					ConsumeStream >> Sentinel;
+					DMibExpect(Sentinel, ==, c_Sentinel);
+
+					return fVersionedData(pConsumed);
+				}
+			;
+
+			DMibTestCategory("ExceptionPointerFormat")
+			{
+				for (bool bVersioned : {true, false})
+				{
+					DMibTestPath(bVersioned ? "Versioned" : "Unversioned");
+					auto Consumed = fStreamed
+						(
+							[&](auto &_Stream)
+							{
+								NConcurrency::NPrivate::fg_FeedException(_Stream, Exception, bVersioned);
+							}
+							, [&](auto &_Stream)
+							{
+								return NConcurrency::NPrivate::fg_ConsumeException(_Stream, bVersioned);
+							}
+						)
+					;
+					DMibAssertTrue(bool(Consumed));
+					DMibExpect(Consumed->m_Original, ==, 11u);
+					DMibExpect(Consumed->m_Added, ==, bVersioned ? 22u : 0u);
+				}
+			};
+
+			DMibTestCategory("StreamableExceptionPointer")
+			{
+				{
+					DMibTestPath("Default");
+					auto Consumed = fStreamed
+						(
+							[&](auto &_Stream)
+							{
+								_Stream << NMib::NException::CStreamableExceptionPointer(Exception);
+							}
+							, [&](auto &_Stream)
+							{
+								NMib::NException::CStreamableExceptionPointer Consumed;
+								_Stream >> Consumed;
+								return Consumed.m_pException;
+							}
+						)
+					;
+					DMibAssertTrue(bool(Consumed));
+					DMibExpect(Consumed->m_Added, ==, 22u);
+				}
+
+				for (bool bVersioned : {true, false})
+				{
+					DMibTestPath(bVersioned ? "Versioned" : "Unversioned");
+					auto Consumed = fStreamed
+						(
+							[&](auto &_Stream)
+							{
+								_Stream << NMib::NException::CStreamableExceptionPointer(Exception, bVersioned);
+							}
+							, [&](auto &_Stream)
+							{
+								NMib::NException::CStreamableExceptionPointer Consumed(bVersioned);
+								_Stream >> Consumed;
+								return Consumed.m_pException;
+							}
+						)
+					;
+					DMibAssertTrue(bool(Consumed));
+					DMibExpect(Consumed->m_Original, ==, 11u);
+					DMibExpect(Consumed->m_Added, ==, bVersioned ? 22u : 0u);
+				}
+			};
+		};
+
+		DMibTestSuite("Local")
+		{
+			struct CState : public CRunTestsState
+			{
+				CState(CActorRunLoopTestHelper &_Helper)
+					: m_Helper(_Helper)
+				{
+				}
+
+				TCDistributedActor<CDistributedActor> f_CreateActor() override
+				{
+					return m_TestState.f_GetServer().f_GetManager()->f_ConstructActor<CDistributedActor>();
+				}
+
+				CActorRunLoopTestHelper &m_Helper;
+				CDistributedActorTestHelperCombined m_TestState{NFile::CFile::fs_GetProgramDirectory() / "Sockets/DistributedActor4", m_Helper.m_pRunLoop};
+			};
+
+			fp_RunTests
+				(
+					[&](CActorRunLoopTestHelper &_Helper) -> TCSharedPointer<CRunTestsState>
+					{
+						TCSharedPointer<CState> pState;
+						pState = fg_Construct(_Helper);
+						pState->m_TestState.f_Init();
+						return pState;
+					}
+					, false
+					, "Sockets/DistributedActorLocal"
+				)
+			;
+		};
+		DMibTestCategory("Remote")
+		{
+			DMibTestSuite("Basics")
+			{
+				fp_BasicTests("localhost");
+			};
+			DMibTestSuite("Basics Unix Sockets")
+			{
+				fp_BasicTests("UNIX:" + fg_GetSafeUnixSocketPath("{}/TestDistributedActor.socket"_f << NMib::NFile::CFile::fs_GetProgramDirectory()));
+			};
+			DMibTestSuite("Anonymous client")
+			{
+				fp_AnonymousClientTests();
+			};
+
+			DMibTestSuite("On disconnected")
+			{
+				fp_OnDisconnectedTests();
+			};
+			DMibTestSuite("Invalid state")
+			{
+				fp_InvalidStateTests();
+			};
+			DMibTestSuite("Republish")
+			{
+				fp_RepublishTests();
+			};
+			DMibTestSuite("Republish non-waiting")
+			{
+				fp_RepublishNonWaitingTests();
+			};
+
+			DMibTestSuite("Remote")
+			{
+				struct CState : public CRunTestsState
+				{
+					CState(CActorRunLoopTestHelper &_Helper)
+						: m_Helper(_Helper)
+					{
+					}
+
+					TCDistributedActor<CDistributedActor> f_CreateActor() override
+					{
+						auto Actor = m_TestState.f_GetRemoteActor<CDistributedActor>(m_SubscriptionID);
+
+						if (!Actor)
+							DMibError("Failed to distributed actor environment");
+
+						return Actor;
+					}
+
+					CActorRunLoopTestHelper &m_Helper;
+					CDistributedActorTestHelperCombined m_TestState{NFile::CFile::fs_GetProgramDirectory() / "Sockets/DistributedActor5", m_Helper.m_pRunLoop};
+					CStr m_SubscriptionID;
+				};
+
+				fp_RunTests
+					(
+						[&](CActorRunLoopTestHelper &_Helper) -> TCSharedPointer<CRunTestsState>
+						{
+							TCSharedPointer<CState> pTestState = fg_Construct(_Helper);
+
+							pTestState->m_TestState.f_SeparateServerManager();
+							pTestState->m_TestState.f_Init();
+							pTestState->m_TestState.f_Publish<CDistributedActor, CDistributedActorBase>
+								(
+									pTestState->m_TestState.f_GetServer().f_GetManager()->f_ConstructActor<CDistributedActor>()
+									, "Test"
+								)
+							;
+							pTestState->m_SubscriptionID = pTestState->m_TestState.f_Subscribe("Test");
+
+							return pTestState;
+						}
+						, false
+						, "Sockets/DistributedActorRemote"
+					)
+				;
+			};
+		};
+	}
+
+	void f_DoTests()
+	{
+		f_FunctionalTests();
+	}
+
+private:
 	static_assert(fg_GetMemberFunctionHash<DMibPointerToMemberFunctionForHash(&CDistributedActor::f_AddInt)>() == 0x9064522d);
 	static_assert(fg_GetMemberFunctionHash<DMibPointerToMemberFunctionForHash(&CDistributedActor::f_GetResult)>() == 0x5a3610f5);
 	static_assert(fg_GetMemberFunctionHash<DMibPointerToMemberFunctionForHash(&CDistributedActor::f_GetInterface)>() == 0x2939aa90);
@@ -2524,500 +3013,6 @@ class CDistributedActor_Tests : public NMib::NTest::CTest
 		RemoteActor.f_CallActor(&CDistributedActorBase::f_AddIntVirtual)(10).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
 		uint32 Result = RemoteActor.f_CallActor(&CDistributedActorBase::f_GetResultVirtual)().f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
 		DMibExpect(Result, ==, 10);
-	}
-
-public:
-	void f_FunctionalTests()
-	{
-		DMibTestSuite("Unknown exception type")
-		{
-			auto Exception = DMibErrorInstance("The real failure message");
-
-			NStream::CBinaryStreamMemory<NStream::CBinaryStreamDefault, NContainer::CIOByteVector> FeedStream;
-			NConcurrency::NPrivate::fg_FeedException(FeedStream, Exception, false);
-			NContainer::CIOByteVector Data = FeedStream.f_MoveVector();
-
-			// Corrupt the leading type hash so the receiving-side type lookup fails.
-			Data[0] = uint8(0xde);
-			Data[1] = uint8(0xc0);
-			Data[2] = uint8(0xad);
-			Data[3] = uint8(0x0b);
-
-			{
-				NStream::CBinaryStreamMemoryPtr<NStream::CBinaryStreamDefault> ConsumeStream;
-				ConsumeStream.f_OpenRead(Data);
-
-				NException::CExceptionPointer pException = NConcurrency::NPrivate::fg_ConsumeException(ConsumeStream, false);
-				CStr Message = NException::fg_ExceptionString(pException);
-				DMibExpectTrue(Message.f_Find("The real failure message") >= 0);
-				DMibExpectTrue(Message.f_Find("received as unregistered exception type") >= 0);
-				DMibExpect(ConsumeStream.f_GetPosition(), ==, NStream::CFilePos(Data.f_GetLen()));
-			}
-
-			{
-				NStream::CBinaryStreamMemory<NStream::CBinaryStreamDefault, NContainer::CIOByteVector> GarbageStream;
-				GarbageStream << uint32(0x0badc0de);
-				uint64 PayloadSize = 4;
-				NStream::fg_FeedLenToStream(GarbageStream, PayloadSize);
-				GarbageStream << uint32(0xffffffff);
-				NContainer::CIOByteVector GarbageData = GarbageStream.f_MoveVector();
-
-				NStream::CBinaryStreamMemoryPtr<NStream::CBinaryStreamDefault> ConsumeStream;
-				ConsumeStream.f_OpenRead(GarbageData);
-
-				NException::CExceptionPointer pException = NConcurrency::NPrivate::fg_ConsumeException(ConsumeStream, false);
-				DMibExpectTrue(bool(pException));
-				DMibExpect(ConsumeStream.f_GetPosition(), ==, NStream::CFilePos(GarbageData.f_GetLen()));
-			}
-
-			{
-				DMibTestPath("Size shorter than the payload");
-
-				NStream::CBinaryStreamMemory<NStream::CBinaryStreamDefault, NContainer::CIOByteVector> ValidStream;
-				NConcurrency::NPrivate::fg_FeedException(ValidStream, Exception, false);
-				NContainer::CIOByteVector ValidData = ValidStream.f_MoveVector();
-
-				NStream::CBinaryStreamMemoryPtr<NStream::CBinaryStreamDefault> HeaderStream;
-				HeaderStream.f_OpenRead(ValidData);
-				uint32 TypeHash = 0;
-				HeaderStream >> TypeHash;
-				uint64 PayloadSize = 0;
-				NStream::fg_ConsumeLenFromStream(HeaderStream, PayloadSize);
-				umint PayloadStart = umint(HeaderStream.f_GetPosition());
-
-				NStream::CBinaryStreamMemory<NStream::CBinaryStreamDefault, NContainer::CIOByteVector> ShortStream;
-				ShortStream << TypeHash;
-				NStream::fg_FeedLenToStream(ShortStream, uint64(1));
-				ShortStream.f_FeedBytes(ValidData.f_GetArray() + PayloadStart, ValidData.f_GetLen() - PayloadStart);
-				NContainer::CIOByteVector ShortData = ShortStream.f_MoveVector();
-
-				NStream::CBinaryStreamMemoryPtr<NStream::CBinaryStreamDefault> ConsumeStream;
-				ConsumeStream.f_OpenRead(ShortData);
-				DMibExpectException
-					(
-						NConcurrency::NPrivate::fg_ConsumeException(ConsumeStream, false)
-						, DMibErrorInstance("The exception (type hash {nh}) is longer than the size it was sent with"_f << TypeHash)
-					)
-				;
-			}
-		};
-
-		DMibTestSuite("Exception stream versions")
-		{
-			using namespace NExceptionVersionTest;
-
-			constexpr uint32 c_Sentinel = 0x5e771e1;
-			CVersionedData Data;
-			Data.m_Original = 11;
-			Data.m_Added = 22;
-			auto Exception = NMib::NException::fg_MakeException(CVersionedException(nullptr, "Versioned failure", false, Data));
-
-			// Streams the exception reply, then a sentinel that shows the reader ended up after the exception
-			auto fFeedException = [&](NMib::NException::CExceptionPointer const &_pException, uint32 _ActorProtocolVersion)
-				{
-					TCAsyncResult<void> Result;
-					Result.f_SetException(_pException);
-
-					NStream::TCBinaryStreamStorage<NStream::CBinaryStreamDefault> Stream;
-					NConcurrency::NPrivate::fg_StreamAsyncResultException(Stream, Result, _ActorProtocolVersion);
-					Stream << c_Sentinel;
-					return Stream.f_MoveStorage();
-				}
-			;
-
-			auto fFeed = [&](uint32 _ActorProtocolVersion)
-				{
-					return fFeedException(Exception, _ActorProtocolVersion);
-				}
-			;
-
-			// A reply as a sender of _Version would write it, with _ExtraField after the fields this version knows when set. The size
-			// is measured with a null stream first, as fg_StreamAsyncResultException does.
-			auto fFeedAs = [&](uint32 _Version, TCOptional<uint32> _ExtraField)
-				{
-					CVersionedException Typed(nullptr, "Versioned failure", false, Data);
-					auto fFeedPayload = [&](auto &_Stream)
-						{
-							DMibBinaryStreamVersion(_Stream, _Version);
-							_Stream << Typed;
-							if (_ExtraField)
-								_Stream << *_ExtraField;
-						}
-					;
-
-					NStream::TCBinaryStreamNull<NStream::CBinaryStreamDefault> MeasureStream;
-					fFeedPayload(MeasureStream);
-
-					NStream::TCBinaryStreamStorage<NStream::CBinaryStreamDefault> Stream;
-					Stream << uint8(1);
-					Stream << CVersionedException::ms_TypeHash;
-					Stream << _Version;
-					NStream::fg_FeedLenToStream(Stream, uint64(MeasureStream.f_GetLength()));
-					fFeedPayload(Stream);
-					Stream << c_Sentinel;
-					return Stream.f_MoveStorage();
-				}
-			;
-
-			auto fVersionedData = [&](NMib::NException::CExceptionPointer const &_pException) -> TCOptional<CVersionedData>
-				{
-					TCOptional<CVersionedData> Consumed;
-					NMib::NException::fg_VisitException<CVersionedException>
-						(
-							_pException
-							, [&](CVersionedException const &_Exception)
-							{
-								Consumed = _Exception.f_GetSpecific();
-							}
-						)
-					;
-					return Consumed;
-				}
-			;
-
-			auto fConsumeException = [&](NStream::CBinaryStorage const &_Storage, uint32 _ActorProtocolVersion) -> NMib::NException::CExceptionPointer
-				{
-					NStream::TCBinaryStreamStoragePtr<> Stream;
-					Stream.f_OpenRead(_Storage);
-
-					TCAsyncResult<void> Result;
-					DMibAssertTrue(NConcurrency::NPrivate::fg_CopyReplyToAsyncResultShared(Stream, Result, _ActorProtocolVersion));
-
-					uint32 Sentinel = 0;
-					Stream >> Sentinel;
-					DMibExpect(Sentinel, ==, c_Sentinel);
-
-					return Result.f_GetException();
-				}
-			;
-
-			auto fConsume = [&](NStream::CBinaryStorage const &_Storage, uint32 _ActorProtocolVersion) -> TCOptional<CVersionedData>
-				{
-					return fVersionedData(fConsumeException(_Storage, _ActorProtocolVersion));
-				}
-			;
-
-			DMibTestCategory("Current")
-			{
-				auto Consumed = fConsume(fFeed(EDistributedActorProtocolVersion_Current), EDistributedActorProtocolVersion_Current);
-				DMibAssertTrue(bool(Consumed));
-				DMibExpect(Consumed->m_Original, ==, 11u);
-				DMibExpect(Consumed->m_Added, ==, 22u);
-			};
-
-			DMibTestCategory("PeerWithoutVersions")
-			{
-				// The layout of version 0, which a peer from before exception stream versions knows
-				auto Consumed = fConsume(fFeed(EDistributedActorProtocolVersion_FrameSizes), EDistributedActorProtocolVersion_FrameSizes);
-				DMibAssertTrue(bool(Consumed));
-				DMibExpect(Consumed->m_Original, ==, 11u);
-				DMibExpect(Consumed->m_Added, ==, 0u);
-			};
-
-			DMibTestCategory("OlderSender")
-			{
-				auto Consumed = fConsume(fFeedAs(0, {}), EDistributedActorProtocolVersion_Current);
-				DMibAssertTrue(bool(Consumed));
-				DMibExpect(Consumed->m_Original, ==, 11u);
-				DMibExpect(Consumed->m_Added, ==, 0u);
-			};
-
-			DMibTestCategory("NewerSender")
-			{
-				// Version 2 has a field this build doesn't know, which the reader skips
-				auto Consumed = fConsume(fFeedAs(2, 0xfeedu), EDistributedActorProtocolVersion_Current);
-				DMibAssertTrue(bool(Consumed));
-				DMibExpect(Consumed->m_Original, ==, 11u);
-				DMibExpect(Consumed->m_Added, ==, 22u);
-			};
-
-			DMibTestCategory("Wrapped")
-			{
-				auto Wrapped = NMib::NException::fg_MakeException(NMib::NException::CExceptionWrapped(nullptr, "Outer failure", false, NMib::NException::CExceptionWrappedData(Exception)));
-
-				auto fWrapped = [&](uint32 _ActorProtocolVersion) -> TCOptional<CVersionedData>
-					{
-						TCOptional<CVersionedData> Nested;
-						NMib::NException::fg_VisitException<NMib::NException::CExceptionWrapped>
-							(
-								fConsumeException(fFeedException(Wrapped, _ActorProtocolVersion), _ActorProtocolVersion)
-								, [&](NMib::NException::CExceptionWrapped const &_Exception)
-								{
-									Nested = fVersionedData(_Exception.f_GetSpecific().m_pWrapped);
-								}
-							)
-						;
-						return Nested;
-					}
-				;
-
-				{
-					DMibTestPath("Current");
-					auto Current = fWrapped(EDistributedActorProtocolVersion_Current);
-					DMibAssertTrue(bool(Current));
-					DMibExpect(Current->m_Original, ==, 11u);
-					DMibExpect(Current->m_Added, ==, 22u);
-				}
-
-				{
-					DMibTestPath("PeerWithoutVersions");
-					auto PeerWithoutVersions = fWrapped(EDistributedActorProtocolVersion_FrameSizes);
-					DMibAssertTrue(bool(PeerWithoutVersions));
-					DMibExpect(PeerWithoutVersions->m_Original, ==, 11u);
-					DMibExpect(PeerWithoutVersions->m_Added, ==, 0u);
-				}
-			};
-
-			DMibTestCategory("Vector")
-			{
-				NContainer::TCVector<NMib::NException::CExceptionPointer> Exceptions{Exception, Exception};
-				auto Vector = NMib::NException::fg_MakeException
-					(
-						NMib::NException::CExceptionExceptionVector(nullptr, "Outer failures", false, NMib::NException::CExceptionExceptionVectorData(fg_Move(Exceptions)))
-					)
-				;
-
-				auto fVector = [&](uint32 _ActorProtocolVersion)
-					{
-						NContainer::TCVector<CVersionedData> Nested;
-						NMib::NException::fg_VisitException<NMib::NException::CExceptionExceptionVector>
-							(
-								fConsumeException(fFeedException(Vector, _ActorProtocolVersion), _ActorProtocolVersion)
-								, [&](NMib::NException::CExceptionExceptionVector const &_Exception)
-								{
-									for (auto &pNested : _Exception.f_GetSpecific().m_Exceptions)
-									{
-										if (auto Data = fVersionedData(pNested))
-											Nested.f_Insert(*Data);
-									}
-								}
-							)
-						;
-						return Nested;
-					}
-				;
-
-				{
-					DMibTestPath("Current");
-					auto Current = fVector(EDistributedActorProtocolVersion_Current);
-					DMibAssert(Current.f_GetLen(), ==, umint(2));
-					DMibExpect(Current[1].m_Added, ==, 22u);
-				}
-
-				{
-					DMibTestPath("PeerWithoutVersions");
-					auto PeerWithoutVersions = fVector(EDistributedActorProtocolVersion_FrameSizes);
-					DMibAssert(PeerWithoutVersions.f_GetLen(), ==, umint(2));
-					DMibExpect(PeerWithoutVersions[1].m_Original, ==, 11u);
-					DMibExpect(PeerWithoutVersions[1].m_Added, ==, 0u);
-				}
-			};
-
-			// Feeds an exception, then a sentinel that shows the reader ended up after the exception
-			auto fStreamed = [&](auto &&_fFeed, auto &&_fConsume) -> TCOptional<CVersionedData>
-				{
-					NStream::CBinaryStreamMemory<NStream::CBinaryStreamDefault, NContainer::CIOByteVector> FeedStream;
-					_fFeed(FeedStream);
-					FeedStream << c_Sentinel;
-					NContainer::CIOByteVector Bytes = FeedStream.f_MoveVector();
-
-					NStream::CBinaryStreamMemoryPtr<NStream::CBinaryStreamDefault> ConsumeStream;
-					ConsumeStream.f_OpenRead(Bytes);
-					NMib::NException::CExceptionPointer pConsumed = _fConsume(ConsumeStream);
-					uint32 Sentinel = 0;
-					ConsumeStream >> Sentinel;
-					DMibExpect(Sentinel, ==, c_Sentinel);
-
-					return fVersionedData(pConsumed);
-				}
-			;
-
-			DMibTestCategory("ExceptionPointerFormat")
-			{
-				for (bool bVersioned : {true, false})
-				{
-					DMibTestPath(bVersioned ? "Versioned" : "Unversioned");
-					auto Consumed = fStreamed
-						(
-							[&](auto &_Stream)
-							{
-								NConcurrency::NPrivate::fg_FeedException(_Stream, Exception, bVersioned);
-							}
-							, [&](auto &_Stream)
-							{
-								return NConcurrency::NPrivate::fg_ConsumeException(_Stream, bVersioned);
-							}
-						)
-					;
-					DMibAssertTrue(bool(Consumed));
-					DMibExpect(Consumed->m_Original, ==, 11u);
-					DMibExpect(Consumed->m_Added, ==, bVersioned ? 22u : 0u);
-				}
-			};
-
-			DMibTestCategory("StreamableExceptionPointer")
-			{
-				{
-					DMibTestPath("Default");
-					auto Consumed = fStreamed
-						(
-							[&](auto &_Stream)
-							{
-								_Stream << NMib::NException::CStreamableExceptionPointer(Exception);
-							}
-							, [&](auto &_Stream)
-							{
-								NMib::NException::CStreamableExceptionPointer Consumed;
-								_Stream >> Consumed;
-								return Consumed.m_pException;
-							}
-						)
-					;
-					DMibAssertTrue(bool(Consumed));
-					DMibExpect(Consumed->m_Added, ==, 22u);
-				}
-
-				for (bool bVersioned : {true, false})
-				{
-					DMibTestPath(bVersioned ? "Versioned" : "Unversioned");
-					auto Consumed = fStreamed
-						(
-							[&](auto &_Stream)
-							{
-								_Stream << NMib::NException::CStreamableExceptionPointer(Exception, bVersioned);
-							}
-							, [&](auto &_Stream)
-							{
-								NMib::NException::CStreamableExceptionPointer Consumed(bVersioned);
-								_Stream >> Consumed;
-								return Consumed.m_pException;
-							}
-						)
-					;
-					DMibAssertTrue(bool(Consumed));
-					DMibExpect(Consumed->m_Original, ==, 11u);
-					DMibExpect(Consumed->m_Added, ==, bVersioned ? 22u : 0u);
-				}
-			};
-		};
-
-		DMibTestSuite("Local")
-		{
-			struct CState : public CRunTestsState
-			{
-				CState(CActorRunLoopTestHelper &_Helper)
-					: m_Helper(_Helper)
-				{
-				}
-
-				TCDistributedActor<CDistributedActor> f_CreateActor() override
-				{
-					return m_TestState.f_GetServer().f_GetManager()->f_ConstructActor<CDistributedActor>();
-				}
-
-				CActorRunLoopTestHelper &m_Helper;
-				CDistributedActorTestHelperCombined m_TestState{NFile::CFile::fs_GetProgramDirectory() / "Sockets/DistributedActor4", m_Helper.m_pRunLoop};
-			};
-
-			fp_RunTests
-				(
-					[&](CActorRunLoopTestHelper &_Helper) -> TCSharedPointer<CRunTestsState>
-					{
-						TCSharedPointer<CState> pState;
-						pState = fg_Construct(_Helper);
-						pState->m_TestState.f_Init();
-						return pState;
-					}
-					, false
-					, "Sockets/DistributedActorLocal"
-				)
-			;
-		};
-		DMibTestCategory("Remote")
-		{
-			DMibTestSuite("Basics")
-			{
-				fp_BasicTests("localhost");
-			};
-			DMibTestSuite("Basics Unix Sockets")
-			{
-				fp_BasicTests("UNIX:" + fg_GetSafeUnixSocketPath("{}/TestDistributedActor.socket"_f << NMib::NFile::CFile::fs_GetProgramDirectory()));
-			};
-			DMibTestSuite("Anonymous client")
-			{
-				fp_AnonymousClientTests();
-			};
-
-			DMibTestSuite("On disconnected")
-			{
-				fp_OnDisconnectedTests();
-			};
-			DMibTestSuite("Invalid state")
-			{
-				fp_InvalidStateTests();
-			};
-			DMibTestSuite("Republish")
-			{
-				fp_RepublishTests();
-			};
-			DMibTestSuite("Republish non-waiting")
-			{
-				fp_RepublishNonWaitingTests();
-			};
-
-			DMibTestSuite("Remote")
-			{
-				struct CState : public CRunTestsState
-				{
-					CState(CActorRunLoopTestHelper &_Helper)
-						: m_Helper(_Helper)
-					{
-					}
-
-					TCDistributedActor<CDistributedActor> f_CreateActor() override
-					{
-						auto Actor = m_TestState.f_GetRemoteActor<CDistributedActor>(m_SubscriptionID);
-
-						if (!Actor)
-							DMibError("Failed to distributed actor environment");
-
-						return Actor;
-					}
-
-					CActorRunLoopTestHelper &m_Helper;
-					CDistributedActorTestHelperCombined m_TestState{NFile::CFile::fs_GetProgramDirectory() / "Sockets/DistributedActor5", m_Helper.m_pRunLoop};
-					CStr m_SubscriptionID;
-				};
-
-				fp_RunTests
-					(
-						[&](CActorRunLoopTestHelper &_Helper) -> TCSharedPointer<CRunTestsState>
-						{
-							TCSharedPointer<CState> pTestState = fg_Construct(_Helper);
-
-							pTestState->m_TestState.f_SeparateServerManager();
-							pTestState->m_TestState.f_Init();
-							pTestState->m_TestState.f_Publish<CDistributedActor, CDistributedActorBase>
-								(
-									pTestState->m_TestState.f_GetServer().f_GetManager()->f_ConstructActor<CDistributedActor>()
-									, "Test"
-								)
-							;
-							pTestState->m_SubscriptionID = pTestState->m_TestState.f_Subscribe("Test");
-
-							return pTestState;
-						}
-						, false
-						, "Sockets/DistributedActorRemote"
-					)
-				;
-			};
-		};
-	}
-
-	void f_DoTests()
-	{
-		f_FunctionalTests();
 	}
 };
 

@@ -11,9 +11,8 @@
 
 namespace NMib::NConcurrency
 {
-	class COSThreadRunLoopActorHolder : public CDefaultActorHolder
+	struct COSThreadRunLoopActorHolder : public CDefaultActorHolder
 	{
-	public:
 		COSThreadRunLoopActorHolder
 			(
 				CConcurrencyManager *_pConcurrencyManager

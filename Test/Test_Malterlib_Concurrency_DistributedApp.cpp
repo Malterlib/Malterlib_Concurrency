@@ -179,9 +179,8 @@ namespace
 		}
 	};
 
-	class CDistributedApp_Tests : public NMib::NTest::CTest
+	struct CDistributedApp_Tests : public NMib::NTest::CTest
 	{
-	public:
 		void fp_RunTests(TCFunction<void (CDistributedAppCommandLineClient &_Client)> &&_fTests, CStr const &_Name, bool _bInProcessOnly = false)
 		{
 			CStr ConfigDir = NFile::CFile::fs_GetProgramDirectory() / _Name;

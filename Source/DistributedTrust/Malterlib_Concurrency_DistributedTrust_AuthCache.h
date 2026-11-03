@@ -10,11 +10,11 @@
 
 namespace NMib::NConcurrency
 {
-	class CDistributedActorTrustManager;
+	struct CDistributedActorTrustManager;
 
 	struct CDistributedActorTrustManagerAuthenticationCache
 	{
-		friend class CDistributedActorTrustManager; // To simplify creation of new trusted permission subscriptions
+		friend struct CDistributedActorTrustManager; // To simplify creation of new trusted permission subscriptions
 
 		CDistributedActorTrustManagerAuthenticationCache();
 		CDistributedActorTrustManagerAuthenticationCache(CDistributedActorTrustManagerAuthenticationCache &&_Other);

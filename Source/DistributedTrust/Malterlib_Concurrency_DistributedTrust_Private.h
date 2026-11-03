@@ -5,7 +5,7 @@
 
 namespace NMib::NConcurrency
 {
-	class CDistributedActorTrustManager;
+	struct CDistributedActorTrustManager;
 	struct CTrustedPermissionSubscription;
 	struct CTrustedActorInfo;
 	template <typename t_CActor>
@@ -17,7 +17,7 @@ namespace NMib::NConcurrency::NPrivate
 {
 	struct CTrustedActorSubscriptionState
 	{
-		friend class NConcurrency::CDistributedActorTrustManager;
+		friend struct NConcurrency::CDistributedActorTrustManager;
 
 		NStorage::CIntrusiveRefCount m_RefCount;
 		TCWeakActor<CActor> m_DispatchActor;
@@ -40,7 +40,7 @@ namespace NMib::NConcurrency::NPrivate
 
 	struct CTrustedPermissionSubscriptionState
 	{
-		friend class NConcurrency::CDistributedActorTrustManager;
+		friend struct NConcurrency::CDistributedActorTrustManager;
 
 		CTrustedPermissionSubscriptionState();
 		~CTrustedPermissionSubscriptionState();

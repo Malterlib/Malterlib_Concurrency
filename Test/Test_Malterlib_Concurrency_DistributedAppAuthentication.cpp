@@ -131,7 +131,6 @@ namespace NTestAuthentication
 
 		struct CServer : public CActor
 		{
-		public:
 			using CActorHolder = CDelegatedActorHolder;
 
 			CServer(CDistributedAppState &_AppState)
@@ -277,7 +276,6 @@ namespace NTestAuthentication
 
 		struct CServer : public CActor
 		{
-		public:
 			using CActorHolder = CDelegatedActorHolder;
 
 			CServer(CDistributedAppState &_AppState)
@@ -451,7 +449,6 @@ namespace NTestAuthentication
 
 		struct CServer : public CActor
 		{
-		public:
 			using CActorHolder = CDelegatedActorHolder;
 
 			CServer(CDistributedAppState &_AppState)
@@ -1125,8 +1122,9 @@ namespace NTestAuthentication
 		CStr m_Name;
 	};
 
-	class CDistributedActorTrustManagerAuthenticationActorFactorySucceed1 : public ICDistributedActorTrustManagerAuthenticationActorFactory
+	struct CDistributedActorTrustManagerAuthenticationActorFactorySucceed1 : public ICDistributedActorTrustManagerAuthenticationActorFactory
 	{
+	private:
 		CAuthenticationActorInfo operator () (TCActor<CDistributedActorTrustManager> const &_TrustManager) override
 		{
 			EAuthenticationFactorCategory const None = EAuthenticationFactorCategory_None;
@@ -1134,8 +1132,9 @@ namespace NTestAuthentication
 		}
 	};
 
-	class CDistributedActorTrustManagerAuthenticationActorFactorySucceed2 : public ICDistributedActorTrustManagerAuthenticationActorFactory
+	struct CDistributedActorTrustManagerAuthenticationActorFactorySucceed2 : public ICDistributedActorTrustManagerAuthenticationActorFactory
 	{
+	private:
 		CAuthenticationActorInfo operator () (TCActor<CDistributedActorTrustManager> const &_TrustManager) override
 		{
 			EAuthenticationFactorCategory const Possession = EAuthenticationFactorCategory_Possession;
@@ -1143,8 +1142,9 @@ namespace NTestAuthentication
 		}
 	};
 
-	class CDistributedActorTrustManagerAuthenticationActorFactorySucceed3 : public ICDistributedActorTrustManagerAuthenticationActorFactory
+	struct CDistributedActorTrustManagerAuthenticationActorFactorySucceed3 : public ICDistributedActorTrustManagerAuthenticationActorFactory
 	{
+	private:
 		CAuthenticationActorInfo operator () (TCActor<CDistributedActorTrustManager> const &_TrustManager) override
 		{
 			EAuthenticationFactorCategory const Inherence = EAuthenticationFactorCategory_Inherence;
@@ -1152,8 +1152,9 @@ namespace NTestAuthentication
 		}
 	};
 
-	class CDistributedActorTrustManagerAuthenticationActorFactorySucceed4 : public ICDistributedActorTrustManagerAuthenticationActorFactory
+	struct CDistributedActorTrustManagerAuthenticationActorFactorySucceed4 : public ICDistributedActorTrustManagerAuthenticationActorFactory
 	{
+	private:
 		CAuthenticationActorInfo operator () (TCActor<CDistributedActorTrustManager> const &_TrustManager) override
 		{
 			EAuthenticationFactorCategory const Knowledge = EAuthenticationFactorCategory_Knowledge;
@@ -1161,8 +1162,9 @@ namespace NTestAuthentication
 		}
 	};
 
-	class CDistributedActorTrustManagerAuthenticationActorFactoryFail1 : public ICDistributedActorTrustManagerAuthenticationActorFactory
+	struct CDistributedActorTrustManagerAuthenticationActorFactoryFail1 : public ICDistributedActorTrustManagerAuthenticationActorFactory
 	{
+	private:
 		CAuthenticationActorInfo operator () (TCActor<CDistributedActorTrustManager> const &_TrustManager) override
 		{
 			return CAuthenticationActorInfo{fg_ConstructActor<CAuthenticationActorFail>(_TrustManager, "Fail1"), EAuthenticationFactorCategory_None};
@@ -1178,9 +1180,8 @@ namespace NTestAuthentication
 
 using namespace NTestAuthentication;
 
-class CDistributedAppAuthentication_Tests : public NMib::NTest::CTest
+struct CDistributedAppAuthentication_Tests : public NMib::NTest::CTest
 {
-public:
 	void f_DoTests()
 	{
 		DMibTestSuite("General")

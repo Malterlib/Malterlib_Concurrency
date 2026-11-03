@@ -276,8 +276,9 @@ namespace
 		}
 	};
 
-	class CAsyncGenerator_Tests : public NMib::NTest::CTest
+	struct CAsyncGenerator_Tests : public NMib::NTest::CTest
 	{
+	private:
 		void f_TestGeneral()
 		{
 			DMibTestSuite("General")

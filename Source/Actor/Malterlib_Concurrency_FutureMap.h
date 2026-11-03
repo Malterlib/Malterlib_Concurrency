@@ -36,6 +36,13 @@ namespace NMib::NConcurrency
 	template <typename t_CKey, typename t_CValue>
 	struct TCFutureMap final
 	{
+		TCFutureMap();
+		~TCFutureMap();
+		bool f_IsEmpty() const;
+
+		template <typename tf_CKey>
+		auto operator [] (tf_CKey &&_Key) -> TCFutureMapBoundKey<t_CKey, t_CValue, tf_CKey &&>;
+
 	private:
 		template <typename tf_CKey, typename tf_CValue>
 		friend TCFuture<NContainer::TCMap<tf_CKey, TCAsyncResult<tf_CValue>>> fg_AllDoneWrapped(TCFutureMap<tf_CKey, tf_CValue> &_Futures);
@@ -76,25 +83,16 @@ namespace NMib::NConcurrency
 			align_cacheline NStorage::CIntrusiveRefCount m_RefCount;
 		};
 
-		class CResultReceived final
+		struct CResultReceived final
 		{
-			TCAsyncResult<t_CValue> &mp_Result;
-			NStorage::TCSharedPointer<CInternal> mp_pInternal;
-
-		public:
 			CResultReceived(TCAsyncResult<t_CValue> &_Result, NStorage::TCSharedPointer<CInternal> const &_pInternal);
 			void operator () (TCAsyncResult<t_CValue> &&_Result) const;
+
+		private:
+			TCAsyncResult<t_CValue> &mp_Result;
+			NStorage::TCSharedPointer<CInternal> mp_pInternal;
 		};
 
-	public:
-		TCFutureMap();
-		~TCFutureMap();
-		bool f_IsEmpty() const;
-
-		template <typename tf_CKey>
-		auto operator [] (tf_CKey &&_Key) -> TCFutureMapBoundKey<t_CKey, t_CValue, tf_CKey &&>;
-
-	private:
 		template <typename tf_CKey>
 		CResultReceived fp_AddResult(tf_CKey &&_Key);
 

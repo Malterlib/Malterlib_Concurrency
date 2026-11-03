@@ -86,9 +86,8 @@ namespace NMib::NConcurrency
 	};
 
 	/// \brief Manages scheduling of running actors in a thread pool
-	class CConcurrencyManager
+	struct CConcurrencyManager
 	{
-	public:
 		CConcurrencyManager(EExecutionPriority _ExecutionPriority[EPriority_Max], EPriority _PriorityClamp = EPriority_Low);
 		~CConcurrencyManager();
 		void f_Init();
@@ -193,14 +192,14 @@ namespace NMib::NConcurrency
 #endif
 	private:
 		template <typename t_CActor>
-		friend class TCActorInternal;
+		friend struct TCActorInternal;
 
-		friend class CActorHolder;
+		friend struct CActorHolder;
 		friend struct CActorCommon;
 		friend struct CActor;
 		friend struct CTimerActor;
 		friend struct CTimerActorHolder;
-		friend class CDefaultActorHolder;
+		friend struct CDefaultActorHolder;
 		friend struct CCurrentActorScope;
 		friend struct CCurrentlyProcessingActorScope;
 		friend struct CConcurrencyThreadLocal;

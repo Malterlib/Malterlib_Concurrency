@@ -55,7 +55,7 @@ namespace NMib::NConcurrency
 
 	private:
 		friend struct CTimerActorHolder;
-		friend class CConcurrencyManager;
+		friend struct CConcurrencyManager;
 
 		struct CInternal;
 

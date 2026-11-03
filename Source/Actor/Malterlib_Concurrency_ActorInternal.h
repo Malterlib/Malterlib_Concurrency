@@ -31,42 +31,8 @@ namespace NMib::NConcurrency
 	struct CDistributedActorProtocolVersions;
 
 	template <typename t_CActor>
-	class align_cacheline TCActorInternal : public t_CActor::CActorHolder
+	struct align_cacheline TCActorInternal : public t_CActor::CActorHolder
 	{
-		using CSuper = typename t_CActor::CActorHolder;
-
-		template <typename t_CActor2>
-		friend class TCActor;
-
-		template <typename t_CActor0>
-		friend class TCActorInternal;
-
-		friend class CConcurrencyManager;
-
-		template <typename t_CType2, typename ...tp_COptions2>
-		friend class NStorage::TCSharedPointer;
-
-		friend struct NPrivate::CThisActor;
-
-		friend struct CActorDistributionManagerInternal;
-
-		template <bool t_bUnwrapTuple, typename t_CHandler2, typename t_CActor2, typename t_CResultTypes2, typename t_CResultIndicies2>
-		friend struct NPrivate::TCCallMutipleActorStorage;
-
-		template <typename tf_CActor>
-		friend tf_CActor *NPrivate::fg_GetInternalActor(TCActor<tf_CActor> const &_Actor);
-
-		template <typename tf_CActor>
-		friend tf_CActor *NPrivate::fg_GetInternalActor(TCActorInternal<tf_CActor> const &_Actor);
-
-		friend class CActorHolder;
-		friend struct CCurrentActorScope;
-		friend struct CCurrentlyProcessingActorScope;
-
-		TCActorInternal *fp_GetThis();
-		TCActorInternal<CActor> *fp_GetRealActor(NConcurrency::CActorHolder *_pActorInternal) const override;
-
-	public:
 		TCActorInternal(CConcurrencyManager *_pConcurrencyManager, NStorage::TCSharedPointer<ICDistributedActorData> &&_pDistributedActorData);
 
 		template <typename tf_CP0>
@@ -100,6 +66,39 @@ namespace NMib::NConcurrency
 		uint32 f_InterfaceVersion();
 
 	private:
+		using CSuper = typename t_CActor::CActorHolder;
+
+		template <typename t_CActor2>
+		friend struct TCActor;
+
+		template <typename t_CActor0>
+		friend struct TCActorInternal;
+
+		friend struct CConcurrencyManager;
+
+		template <typename t_CType2, typename ...tp_COptions2>
+		friend struct NStorage::TCSharedPointer;
+
+		friend struct NPrivate::CThisActor;
+
+		friend struct CActorDistributionManagerInternal;
+
+		template <bool t_bUnwrapTuple, typename t_CHandler2, typename t_CActor2, typename t_CResultTypes2, typename t_CResultIndicies2>
+		friend struct NPrivate::TCCallMutipleActorStorage;
+
+		template <typename tf_CActor>
+		friend tf_CActor *NPrivate::fg_GetInternalActor(TCActor<tf_CActor> const &_Actor);
+
+		template <typename tf_CActor>
+		friend tf_CActor *NPrivate::fg_GetInternalActor(TCActorInternal<tf_CActor> const &_Actor);
+
+		friend struct CActorHolder;
+		friend struct CCurrentActorScope;
+		friend struct CCurrentlyProcessingActorScope;
+
+		TCActorInternal *fp_GetThis();
+		TCActorInternal<CActor> *fp_GetRealActor(NConcurrency::CActorHolder *_pActorInternal) const override;
+
 		alignas(t_CActor) uint8 m_ActorMemory[sizeof(t_CActor)];
 	};
 

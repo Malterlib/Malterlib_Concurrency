@@ -26,9 +26,8 @@ namespace
 {
 	static fp64 g_Timeout = 60.0 * gc_TimeoutMultiplier;
 
-	class CDistributedDDPBridge_Tests : public NMib::NTest::CTest
+	struct CDistributedDDPBridge_Tests : public NMib::NTest::CTest
 	{
-	public:
 		void f_DoTests()
 		{
 			DMibTestSuite("DDP")

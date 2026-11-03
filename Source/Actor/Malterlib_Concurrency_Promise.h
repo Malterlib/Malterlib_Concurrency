@@ -18,10 +18,10 @@ namespace NMib::NConcurrency
 	struct CActor;
 
 	template <typename t_CActor>
-	class TCActor;
+	struct TCActor;
 
 	template <typename t_CActor>
-	class TCWeakActor;
+	struct TCWeakActor;
 
 	template <typename t_CReturnValue>
 	struct TCPromise;
@@ -142,7 +142,7 @@ namespace NMib::NConcurrency
 		}
 	};
 
-	class CActorHolder;
+	struct CActorHolder;
 
 	extern CAsyncDestroyHelper g_AsyncDestroy;
 
@@ -1268,7 +1268,6 @@ namespace NMib::NConcurrency
 	template <typename t_CReturnValue>
 	struct [[nodiscard]] TCPromise
 	{
-	public:
 		using FOnResult = typename NPrivate::TCPromiseData<t_CReturnValue>::FOnResult;
 
 		TCPromise(TCPromise const &_Other);

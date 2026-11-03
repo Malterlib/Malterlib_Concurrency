@@ -139,11 +139,11 @@ namespace NMib::NConcurrency
 	private:
 		template <typename tf_CActor>
 		friend TCActor<tf_CActor> fg_ThisActor(tf_CActor const *_pActor);
-		friend class CConcurrencyManager;
+		friend struct CConcurrencyManager;
 		template <typename t_CActor>
-		friend class TCActorInternal;
+		friend struct TCActorInternal;
 
-		friend class NConcurrency::CActorHolder;
+		friend struct NConcurrency::CActorHolder;
 		friend struct NConcurrency::CActorCommon;
 
 		static DMibSuppressUndefinedSanitizer TCActorInternal<CActor> *fs_GetRealActor(NConcurrency::CActorHolder *_pActorInternal);
@@ -166,14 +166,14 @@ namespace NMib::NConcurrency
 		DMibListLinkDS_List(CFutureCoroutineContext, m_Link) mp_SuspendedCoroutines;
 	};
 
-	class CSeparateThreadActorHolder;
+	struct CSeparateThreadActorHolder;
 
 	struct CSeparateThreadActor : public CActor
 	{
 		using CActorHolder = CSeparateThreadActorHolder;
 	};
 
-	class CDispatchingActorHolder;
+	struct CDispatchingActorHolder;
 
 	struct CDispatchingActor : public CActor
 	{

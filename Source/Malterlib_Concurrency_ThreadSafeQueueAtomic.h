@@ -12,21 +12,22 @@
 namespace NMib::NContainer
 {
 	template <typename t_CType, typename t_CAllocator, int t_DefaultSize>
-	class TCThreadSafeQueueAtomic;
+	struct TCThreadSafeQueueAtomic;
 	template <typename t_CType, typename t_CAllocator, int t_DefaultSize>
-	class TCThreadSafeQueueAtomicEntry;
+	struct TCThreadSafeQueueAtomicEntry;
 
 	template <typename t_CType>
-	class TCThreadSafeQueueAtomicListEntry
+	struct TCThreadSafeQueueAtomicListEntry
 	{
+	private:
 		template <typename tf_ObjectType, typename tf_CAllocator, typename ...tfp_CParams>
 		friend tf_ObjectType *NMib::fg_ConstructObject(tf_CAllocator &&_Allocator, tfp_CParams && ...p_Params);
 
 		template <typename t_CType0, typename t_CAllocator0, int t_DefaultSize0>
-		friend class TCThreadSafeQueueAtomic;
+		friend struct TCThreadSafeQueueAtomic;
 
 		template <typename t_CType0, typename t_CAllocator0, int t_DefaultSize0>
-		friend class TCThreadSafeQueueAtomicEntry;
+		friend struct TCThreadSafeQueueAtomicEntry;
 
 		t_CType m_Data;
 
@@ -38,21 +39,8 @@ namespace NMib::NContainer
 	};
 
 	template <typename t_CType, typename t_CAllocator = NMemory::CAllocator_Heap, int t_DefaultSize = DDefaultThreadSafeQueueSize>
-	class TCThreadSafeQueueAtomicEntry
+	struct TCThreadSafeQueueAtomicEntry
 	{
-		TCThreadSafeQueueAtomicListEntry<t_CType> *m_pEntry;
-		// template <typename t_CType, typename t_CAllocator>
-		friend class TCThreadSafeQueueAtomic<t_CType, t_CAllocator, t_DefaultSize>;
-		TCThreadSafeQueueAtomicEntry(TCThreadSafeQueueAtomicListEntry<t_CType> *_pEntry)
-			: m_pEntry(_pEntry)
-		{
-		}
-
-		// Disable copy
-		TCThreadSafeQueueAtomicEntry(TCThreadSafeQueueAtomicEntry const &_Other);
-		TCThreadSafeQueueAtomicEntry &operator = (TCThreadSafeQueueAtomicEntry const &_Other);
-
-	public:
 		TCThreadSafeQueueAtomicEntry(TCThreadSafeQueueAtomicEntry &&_Other)
 			: m_pEntry(_Other.m_pEntry)
 		{
@@ -120,53 +108,24 @@ namespace NMib::NContainer
 		{
 			return f_IsValid();
 		}
+
+	private:
+		TCThreadSafeQueueAtomicListEntry<t_CType> *m_pEntry;
+		// template <typename t_CType, typename t_CAllocator>
+		friend struct TCThreadSafeQueueAtomic<t_CType, t_CAllocator, t_DefaultSize>;
+		TCThreadSafeQueueAtomicEntry(TCThreadSafeQueueAtomicListEntry<t_CType> *_pEntry)
+			: m_pEntry(_pEntry)
+		{
+		}
+
+		// Disable copy
+		TCThreadSafeQueueAtomicEntry(TCThreadSafeQueueAtomicEntry const &_Other);
+		TCThreadSafeQueueAtomicEntry &operator = (TCThreadSafeQueueAtomicEntry const &_Other);
 	};
 
 	template <typename t_CType, typename t_CAllocator = NMemory::CAllocator_Heap, int t_DefaultSize = DDefaultThreadSafeQueueSize>
-	class TCThreadSafeQueueAtomic
+	struct TCThreadSafeQueueAtomic
 	{
-		using CListEntry = TCThreadSafeQueueAtomicListEntry<t_CType>;
-		using CReturnEntry = TCThreadSafeQueueAtomicEntry<t_CType, t_CAllocator>;
-
-		template <typename T>
-		struct CStdAllocator : public std::allocator<T>
-		{
-			T *allocate(size_t n)
-			{
-				return (T *)t_CAllocator::f_Alloc(n * sizeof(T));
-			}
-
-			void deallocate(T *p, size_t n)
-			{
-				t_CAllocator::f_Free(p, sizeof(T) * n);
-			}
-
-			template <typename t_CType2>
-			struct rebind
-			{
-				using other = CStdAllocator<t_CType2>;
-			};
-		};
-
-		using allocator_type = typename boost::lockfree::allocator<CStdAllocator<void>>;
-
-		boost::lockfree::queue<CListEntry *, allocator_type> m_Queue {t_DefaultSize};
-
-		using CAllocator = t_CAllocator;
-
-		void fp_Clear()
-		{
-			CListEntry *pEntry;
-			while (m_Queue.pop(pEntry))
-				fg_DeleteObjectDefiniteType(t_CAllocator(), pEntry);
-		}
-
-		TCThreadSafeQueueAtomic(TCThreadSafeQueueAtomic const &_Other);
-		TCThreadSafeQueueAtomic(TCThreadSafeQueueAtomic &&_Other);
-		TCThreadSafeQueueAtomic &operator = (TCThreadSafeQueueAtomic const &_Other);
-		TCThreadSafeQueueAtomic &operator = (TCThreadSafeQueueAtomic &&_Other);
-
-	public:
 		TCThreadSafeQueueAtomic()
 		{
 		}
@@ -216,5 +175,47 @@ namespace NMib::NContainer
 		{
 			return fg_RemoveQualifiers(m_Queue).empty();
 		}
+
+	private:
+		using CListEntry = TCThreadSafeQueueAtomicListEntry<t_CType>;
+		using CReturnEntry = TCThreadSafeQueueAtomicEntry<t_CType, t_CAllocator>;
+
+		template <typename T>
+		struct CStdAllocator : public std::allocator<T>
+		{
+			T *allocate(size_t n)
+			{
+				return (T *)t_CAllocator::f_Alloc(n * sizeof(T));
+			}
+
+			void deallocate(T *p, size_t n)
+			{
+				t_CAllocator::f_Free(p, sizeof(T) * n);
+			}
+
+			template <typename t_CType2>
+			struct rebind
+			{
+				using other = CStdAllocator<t_CType2>;
+			};
+		};
+
+		using allocator_type = typename boost::lockfree::allocator<CStdAllocator<void>>;
+
+		boost::lockfree::queue<CListEntry *, allocator_type> m_Queue {t_DefaultSize};
+
+		using CAllocator = t_CAllocator;
+
+		void fp_Clear()
+		{
+			CListEntry *pEntry;
+			while (m_Queue.pop(pEntry))
+				fg_DeleteObjectDefiniteType(t_CAllocator(), pEntry);
+		}
+
+		TCThreadSafeQueueAtomic(TCThreadSafeQueueAtomic const &_Other);
+		TCThreadSafeQueueAtomic(TCThreadSafeQueueAtomic &&_Other);
+		TCThreadSafeQueueAtomic &operator = (TCThreadSafeQueueAtomic const &_Other);
+		TCThreadSafeQueueAtomic &operator = (TCThreadSafeQueueAtomic &&_Other);
 	};
 }

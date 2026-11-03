@@ -15,21 +15,22 @@ namespace NMib::NContainer
 {
 #ifdef DMibContainer_UseBoostLockFreeQueue
 	template <typename t_CType, typename t_CAllocator>
-	class TCThreadSafeQueue;
+	struct TCThreadSafeQueue;
 	template <typename t_CType, typename t_CAllocator>
-	class TCThreadSafeQueueEntry;
+	struct TCThreadSafeQueueEntry;
 
 	template <typename t_CType>
-	class TCThreadSafeQueueListEntry
+	struct TCThreadSafeQueueListEntry
 	{
+	private:
 		template <typename tf_ObjectType, typename tf_CAllocator, typename ...tfp_CParams>
 		friend tf_ObjectType *NMib::fg_ConstructObject(tf_CAllocator &&_Allocator, tfp_CParams && ...p_Params);
 
 		template <typename t_CType0, typename t_CAllocator0>
-		friend class TCThreadSafeQueue;
+		friend struct TCThreadSafeQueue;
 
 		template <typename t_CType0, typename t_CAllocator0>
-		friend class TCThreadSafeQueueEntry;
+		friend struct TCThreadSafeQueueEntry;
 
 		t_CType m_Data;
 
@@ -41,21 +42,8 @@ namespace NMib::NContainer
 	};
 
 	template <typename t_CType, typename t_CAllocator = NMemory::CAllocator_Heap>
-	class TCThreadSafeQueueEntry
+	struct TCThreadSafeQueueEntry
 	{
-		TCThreadSafeQueueListEntry<t_CType> *m_pEntry;
-		// template <typename t_CType, typename t_CAllocator>
-		friend class TCThreadSafeQueue<t_CType, t_CAllocator>;
-		TCThreadSafeQueueEntry(TCThreadSafeQueueListEntry<t_CType> *_pEntry)
-			: m_pEntry(_pEntry)
-		{
-		}
-
-		// Disable copy
-		TCThreadSafeQueueEntry(TCThreadSafeQueueEntry const &_Other);
-		TCThreadSafeQueueEntry &operator = (TCThreadSafeQueueEntry const &_Other);
-
-	public:
 		TCThreadSafeQueueEntry(TCThreadSafeQueueEntry &&_Other)
 			: m_pEntry(_Other.m_pEntry)
 		{
@@ -123,31 +111,24 @@ namespace NMib::NContainer
 		{
 			return f_IsValid();
 		}
+
+	private:
+		TCThreadSafeQueueListEntry<t_CType> *m_pEntry;
+		// template <typename t_CType, typename t_CAllocator>
+		friend struct TCThreadSafeQueue<t_CType, t_CAllocator>;
+		TCThreadSafeQueueEntry(TCThreadSafeQueueListEntry<t_CType> *_pEntry)
+			: m_pEntry(_pEntry)
+		{
+		}
+
+		// Disable copy
+		TCThreadSafeQueueEntry(TCThreadSafeQueueEntry const &_Other);
+		TCThreadSafeQueueEntry &operator = (TCThreadSafeQueueEntry const &_Other);
 	};
 
 	template <typename t_CType, typename t_CAllocator = NMemory::CAllocator_Heap>
-	class TCThreadSafeQueue
+	struct TCThreadSafeQueue
 	{
-		using CListEntry = TCThreadSafeQueueListEntry<t_CType>;
-		using CReturnEntry = TCThreadSafeQueueEntry<t_CType, t_CAllocator>;
-
-		boost::lockfree::queue<CListEntry *> m_Queue;
-
-		using CAllocator = t_CAllocator;
-
-		void fp_Clear()
-		{
-			CListEntry *pEntry;
-			while (m_Queue.pop(pEntry))
-				fg_DeleteObjectDefiniteType(t_CAllocator(), pEntry);
-		}
-
-		TCThreadSafeQueue(TCThreadSafeQueue const &_Other);
-		TCThreadSafeQueue(TCThreadSafeQueue &&_Other);
-		TCThreadSafeQueue &operator = (TCThreadSafeQueue const &_Other);
-		TCThreadSafeQueue &operator = (TCThreadSafeQueue &&_Other);
-
-	public:
 		TCThreadSafeQueue()
 		{
 		}
@@ -197,24 +178,45 @@ namespace NMib::NContainer
 		{
 			return fg_RemoveQualifiers(m_Queue).empty();
 		}
+
+	private:
+		using CListEntry = TCThreadSafeQueueListEntry<t_CType>;
+		using CReturnEntry = TCThreadSafeQueueEntry<t_CType, t_CAllocator>;
+
+		boost::lockfree::queue<CListEntry *> m_Queue;
+
+		using CAllocator = t_CAllocator;
+
+		void fp_Clear()
+		{
+			CListEntry *pEntry;
+			while (m_Queue.pop(pEntry))
+				fg_DeleteObjectDefiniteType(t_CAllocator(), pEntry);
+		}
+
+		TCThreadSafeQueue(TCThreadSafeQueue const &_Other);
+		TCThreadSafeQueue(TCThreadSafeQueue &&_Other);
+		TCThreadSafeQueue &operator = (TCThreadSafeQueue const &_Other);
+		TCThreadSafeQueue &operator = (TCThreadSafeQueue &&_Other);
 	};
 #else
 	template <typename t_CType, typename t_CAllocator>
-	class TCThreadSafeQueue;
+	struct TCThreadSafeQueue;
 	template <typename t_CType, typename t_CAllocator>
-	class TCThreadSafeQueueEntry;
+	struct TCThreadSafeQueueEntry;
 
 	template <typename t_CType>
-	class TCThreadSafeQueueListEntry
+	struct TCThreadSafeQueueListEntry
 	{
+	private:
 		template <typename tf_ObjectType, typename tf_CAllocator, typename ...tfp_CParams>
 		friend tf_ObjectType *NMib::fg_ConstructObject(tf_CAllocator &&_Allocator, tfp_CParams && ...p_Params);
 
 		template <typename t_CType0, typename t_CAllocator0>
-		friend class TCThreadSafeQueue;
+		friend struct TCThreadSafeQueue;
 
 		template <typename t_CType0, typename t_CAllocator0>
-		friend class TCThreadSafeQueueEntry;
+		friend struct TCThreadSafeQueueEntry;
 
 		DMibListLinkDS_Link(TCThreadSafeQueueListEntry, m_Link);
 		t_CType m_Data;
@@ -227,21 +229,8 @@ namespace NMib::NContainer
 	};
 
 	template <typename t_CType, typename t_CAllocator = NMemory::CAllocator_Heap>
-	class TCThreadSafeQueueEntry
+	struct TCThreadSafeQueueEntry
 	{
-		TCThreadSafeQueueListEntry<t_CType> *m_pEntry;
-		// template <typename t_CType, typename t_CAllocator>
-		friend class TCThreadSafeQueue<t_CType, t_CAllocator>;
-		TCThreadSafeQueueEntry(TCThreadSafeQueueListEntry<t_CType> *_pEntry)
-			: m_pEntry(_pEntry)
-		{
-		}
-
-		// Disable copy
-		TCThreadSafeQueueEntry(TCThreadSafeQueueEntry const &_Other);
-		TCThreadSafeQueueEntry &operator = (TCThreadSafeQueueEntry const &_Other);
-
-	public:
 		TCThreadSafeQueueEntry(TCThreadSafeQueueEntry &&_Other)
 			: m_pEntry(_Other.m_pEntry)
 		{
@@ -309,11 +298,25 @@ namespace NMib::NContainer
 		{
 			return f_IsValid();
 		}
+
+	private:
+		TCThreadSafeQueueListEntry<t_CType> *m_pEntry;
+		// template <typename t_CType, typename t_CAllocator>
+		friend struct TCThreadSafeQueue<t_CType, t_CAllocator>;
+		TCThreadSafeQueueEntry(TCThreadSafeQueueListEntry<t_CType> *_pEntry)
+			: m_pEntry(_pEntry)
+		{
+		}
+
+		// Disable copy
+		TCThreadSafeQueueEntry(TCThreadSafeQueueEntry const &_Other);
+		TCThreadSafeQueueEntry &operator = (TCThreadSafeQueueEntry const &_Other);
 	};
 
 	template <typename t_CType, typename t_CAllocator = NMemory::CAllocator_Heap>
-	class TCThreadSafeQueue
+	struct TCThreadSafeQueue
 	{
+	private:
 		using CListEntry = TCThreadSafeQueueListEntry<t_CType>;
 		using CReturnEntry = TCThreadSafeQueueEntry<t_CType, t_CAllocator>;
 

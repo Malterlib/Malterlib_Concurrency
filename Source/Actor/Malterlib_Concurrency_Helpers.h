@@ -29,11 +29,11 @@ namespace NMib::NConcurrency
 #endif
 
 	template <typename t_CActor>
-	class TCActorInternal;
+	struct TCActorInternal;
 
 	struct CTimerActor;
 	struct CConcurrentActor;
-	class CActorHolder;
+	struct CActorHolder;
 
 	struct CThisConcurrentActor;
 	struct CThisConcurrentActorLowPrio;

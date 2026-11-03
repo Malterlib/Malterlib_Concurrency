@@ -32,9 +32,8 @@ namespace NMib::NConcurrency::NTest
 	static thread_local umint g_ThreadLocalCpp;
 	static thread_local umint g_ThreadLocalCpp2;
 
-	class CPingPongActor : public CActor
+	struct CPingPongActor : public CActor
 	{
-	public:
 		CPingPongActor()
 		{
 		}
@@ -85,8 +84,9 @@ namespace NMib::NConcurrency::NTest
 		TCActor<CPingPongActor> mp_Next;
 	};
 
-	class CCoroutinesPerformance_Tests : public NMib::NTest::CTest
+	struct CCoroutinesPerformance_Tests : public NMib::NTest::CTest
 	{
+	private:
 #if defined(DMibDebug) || defined(DMibSanitizerEnabled)
 		static constexpr umint mc_nLoops = 16384;
 #else

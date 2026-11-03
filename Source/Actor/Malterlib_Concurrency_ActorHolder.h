@@ -68,11 +68,12 @@ namespace NMib::NConcurrency
 	};
 
 	/// \brief Manages actor execution and lifetime
-	class CActorHolder DWorkaroundVirtualLayout
+	struct CActorHolder DWorkaroundVirtualLayout
 	{
-		friend class CConcurrencyManager;
+	private:
+		friend struct CConcurrencyManager;
 		friend struct CActor;
-		friend class CDelegatedActorHolder;
+		friend struct CDelegatedActorHolder;
 		friend struct CActorCommon;
 		friend struct CFutureCoroutineContext;
 
@@ -253,9 +254,8 @@ namespace NMib::NConcurrency
 		// Alignment zone 4: Actor storage, other actor holder data
 	};
 
-	class CDefaultActorHolder : public CActorHolder
+	struct CDefaultActorHolder : public CActorHolder
 	{
-	public:
 		CDefaultActorHolder
 			(
 				CConcurrencyManager *_pConcurrencyManager
@@ -273,9 +273,8 @@ namespace NMib::NConcurrency
 		void fp_QueueProcessEntry(CConcurrentRunQueueEntryHolder &&_Entry, CConcurrencyThreadLocal &_ThreadLocal) override;
 	};
 
-	class CDispatchingActorHolder : public CDefaultActorHolder
+	struct CDispatchingActorHolder : public CDefaultActorHolder
 	{
-	public:
 		CDispatchingActorHolder
 			(
 				CConcurrencyManager *_pConcurrencyManager
@@ -297,9 +296,8 @@ namespace NMib::NConcurrency
 		NThread::CLowLevelLock mp_DestroyLock;
 	};
 
-	class CDelegatedActorHolder : public CDefaultActorHolder
+	struct CDelegatedActorHolder : public CDefaultActorHolder
 	{
-	public:
 		CDelegatedActorHolder
 			(
 				CConcurrencyManager *_pConcurrencyManager
@@ -326,9 +324,8 @@ namespace NMib::NConcurrency
 		COnDestroy const *mp_pOnDestroyEntry = nullptr;
 	};
 
-	class CSeparateThreadActorHolder : public CDefaultActorHolder
+	struct CSeparateThreadActorHolder : public CDefaultActorHolder
 	{
-	public:
 		CSeparateThreadActorHolder
 			(
 				CConcurrencyManager *_pConcurrencyManager
@@ -366,9 +363,8 @@ namespace NMib::NConcurrency
 		NAtomic::TCAtomic<umint> mp_JobQueueWorking;
 	};
 
-	class CDirectCallActorHolder : public CDefaultActorHolder
+	struct CDirectCallActorHolder : public CDefaultActorHolder
 	{
-	public:
 		CDirectCallActorHolder
 			(
 				CConcurrencyManager *_pConcurrencyManager

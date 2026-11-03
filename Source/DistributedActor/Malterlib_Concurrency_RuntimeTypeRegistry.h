@@ -15,16 +15,16 @@
 
 namespace NMib::NStream
 {
-	class CBinaryStreamDefault;
+	struct CBinaryStreamDefault;
 
 	template <typename t_CStreamType>
-	class CBinaryStreamMemoryPtr;
+	struct CBinaryStreamMemoryPtr;
 
 	template <typename t_CStreamType, typename t_CVector>
-	class CBinaryStreamMemory;
+	struct CBinaryStreamMemory;
 
 	template <typename t_CStreamType>
-	class TCBinaryStreamNull;
+	struct TCBinaryStreamNull;
 
 	struct CBinaryStorage;
 
@@ -37,7 +37,7 @@ namespace NMib::NStream
 
 namespace NMib::NException
 {
-	class CExceptionBase;
+	struct CExceptionBase;
 }
 
 namespace NMib::NConcurrency

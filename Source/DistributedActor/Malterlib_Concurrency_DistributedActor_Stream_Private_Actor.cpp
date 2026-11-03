@@ -25,9 +25,8 @@ namespace NMib::NConcurrency
 		ActorFunctor.m_Actor = _Actor;
 	}
 
-	class CRemoteDispatchActorActorHolder : public CDefaultActorHolder
+	struct CRemoteDispatchActorActorHolder : public CDefaultActorHolder
 	{
-	public:
 		CRemoteDispatchActorActorHolder
 			(
 				CConcurrencyManager *_pConcurrencyManager

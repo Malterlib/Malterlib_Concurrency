@@ -29,9 +29,8 @@ namespace NMib
 }
 namespace
 {
-	class CLocklessQueueu_Tests : public NMib::NTest::CTest
+	struct CLocklessQueueu_Tests : public NMib::NTest::CTest
 	{
-	public:
 		void f_DoTests()
 		{
 		}

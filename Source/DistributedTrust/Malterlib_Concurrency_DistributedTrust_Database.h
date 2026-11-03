@@ -185,9 +185,8 @@ namespace NMib::NConcurrency::NDistributedActorTrustManagerDatabase
 
 namespace NMib::NConcurrency
 {
-	class ICDistributedActorTrustManagerDatabase : public NConcurrency::CActor
+	struct ICDistributedActorTrustManagerDatabase : public NConcurrency::CActor
 	{
-	public:
 		using CBasicConfig = NDistributedActorTrustManagerDatabase::CBasicConfig;
 		using CServerCertificate = NDistributedActorTrustManagerDatabase::CServerCertificate;
 		using CListenConfig = NDistributedActorTrustManagerDatabase::CListenConfig;

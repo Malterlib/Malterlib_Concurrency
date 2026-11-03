@@ -20,9 +20,8 @@ namespace NTestActor2
 
 	constinit static NAtomic::TCAtomic<umint> g_nDestroyedActors{0};
 
-	class CTestActor : public CActor
+	struct CTestActor : public CActor
 	{
-	public:
 		void f_TestValue()
 		{
 		}
@@ -104,9 +103,8 @@ namespace NTestActor2
 		}
 	};
 
-	class CLocalActor : public CActor
+	struct CLocalActor : public CActor
 	{
-	public:
 		using CActorHolder = CDispatchingActorHolder;
 	};
 
@@ -138,9 +136,8 @@ namespace NTestActor2
 		}
 	};
 
-	class CConcurrency_Tests : public NMib::NTest::CTest
+	struct CConcurrency_Tests : public NMib::NTest::CTest
 	{
-	public:
 		void fp_SyncOnAllThreads()
 		{
 			TCFutureVector<void> Results;

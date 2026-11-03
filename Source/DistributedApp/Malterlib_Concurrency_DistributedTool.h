@@ -10,9 +10,8 @@ namespace NMib::NConcurrency
 {
 	struct CDistributedToolAppActor;
 
-	class CDistributedTool
+	struct CDistributedTool
 	{
-	public:
 		virtual ~CDistributedTool()
 		{
 		}

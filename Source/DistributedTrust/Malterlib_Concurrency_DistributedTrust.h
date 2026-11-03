@@ -17,7 +17,7 @@
 namespace NMib::NConcurrency
 {
 	struct CCommandLineControl;
-	class CDistributedActorTrustManager;
+	struct CDistributedActorTrustManager;
 
 	struct CAuthenticationActorInfo;
 	struct CDistributedActorTrustManagerAuthenticationCache;
@@ -75,7 +75,7 @@ namespace NMib::NConcurrency
 		NContainer::TCMap<CDistributedActorIdentifier, TCTrustedActor<t_CActor>> m_Actors;
 
 	public:
-		friend class CDistributedActorTrustManager;
+		friend struct CDistributedActorTrustManager;
 
 		struct CState : public NPrivate::CTrustedActorSubscriptionState
 		{
@@ -212,7 +212,7 @@ namespace NMib::NConcurrency
 			const
 			-> CPermissionQuery::EQueryResult
 		;
-		friend class CDistributedActorTrustManager;
+		friend struct CDistributedActorTrustManager;
 		friend struct NPrivate::CTrustedPermissionSubscriptionState;
 
 		NStorage::TCSharedPointer<NPrivate::CTrustedPermissionSubscriptionState> mp_pState;
@@ -242,9 +242,8 @@ namespace NMib::NConcurrency
 
 	fp64 fg_DefaultInitialConnectionTimeout();
 
-	class CDistributedActorTrustManager : public NConcurrency::CActor
+	struct CDistributedActorTrustManager : public NConcurrency::CActor
 	{
-	public:
 		using CActorHolder = CDistributedActorTrustManagerHolder;
 		using CNamespacePermissions = CDistributedActorTrustManagerInterface::CNamespacePermissions;
 		using CTrustTicket = CDistributedActorTrustManagerInterface::CTrustTicket;
@@ -443,7 +442,7 @@ namespace NMib::NConcurrency
 		NStorage::TCUniquePointer<CInternal> mp_pInternal;
 	};
 
-	class CDistributedActorTrustManagerProxy;
+	struct CDistributedActorTrustManagerProxy;
 
 	template <typename t_CType>
 	TCFuture<NStr::CStr> fg_ExportUser(TCActor<t_CType> _TrustManager, NStr::CStr _UserID, bool _bIncludePrivate);

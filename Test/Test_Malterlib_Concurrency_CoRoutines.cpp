@@ -105,9 +105,8 @@ namespace NMib::NConcurrency::NTest
 	{
 	};
 
-	class CTestActor2 : public CActor
+	struct CTestActor2 : public CActor
 	{
-	public:
 		using CActorHolder = CDelegatedActorHolder;
 
 		TCFuture<uint32> f_Test()
@@ -1516,9 +1515,8 @@ namespace NMib::NConcurrency::NTest
 		}
 	};
 
-	class CBaseActor : public CActor
+	struct CBaseActor : public CActor
 	{
-	public:
 		virtual uint32 f_GetValue()
 		{
 			return 1;
@@ -1533,9 +1531,8 @@ namespace NMib::NConcurrency::NTest
 		virtual TCFuture<uint32> f_UniquePointer(TCUniquePointer<CStr> _pValue) = 0;
 	};
 
-	class CDerivedActor : public CBaseActor
+	struct CDerivedActor : public CBaseActor
 	{
-	public:
 		virtual uint32 f_GetValue() override
 		{
 			return 2;
@@ -1575,8 +1572,9 @@ namespace NMib::NConcurrency::NTest
 		umint m_DummyMember1 = 1;
 	};
 
-	class CCoroutines_Tests : public NMib::NTest::CTest
+	struct CCoroutines_Tests : public NMib::NTest::CTest
 	{
+	private:
 		TCFuture<void> fp_BlockOnAllThreads()
 		{
 			umint nThreads = NSys::fg_Thread_GetVirtualCores();

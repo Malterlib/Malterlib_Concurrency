@@ -26,6 +26,12 @@ namespace NMib::NConcurrency
 	template <typename t_CType>
 	struct TCFutureVector final
 	{
+		TCFutureVector(umint _DefinedSize);
+		TCFutureVector();
+		~TCFutureVector();
+		void f_SetLen(umint _DefinedSize);
+		bool f_IsEmpty() const;
+
 	private:
 		template <typename tf_CType>
 		friend TCFuture<NContainer::TCVector<TCAsyncResult<tf_CType>>> fg_AllDoneWrapped(TCFutureVector<tf_CType> &_Futures);
@@ -74,24 +80,16 @@ namespace NMib::NConcurrency
 			NAtomic::TCAtomic<CQueuedResult *> mp_pFirstResult;
 		};
 
-		class CResultReceived final
+		struct CResultReceived final
 		{
-			umint mp_iResult;
-			NStorage::TCSharedPointer<CInternal> mp_pInternal;
-
-		public:
 			CResultReceived(umint _iResult, NStorage::TCSharedPointer<CInternal> const &_pInternal);
 			void operator () (TCAsyncResult<t_CType> &&_Result) const;
+
+		private:
+			umint mp_iResult;
+			NStorage::TCSharedPointer<CInternal> mp_pInternal;
 		};
 
-	public:
-		TCFutureVector(umint _DefinedSize);
-		TCFutureVector();
-		~TCFutureVector();
-		void f_SetLen(umint _DefinedSize);
-		bool f_IsEmpty() const;
-
-	private:
 		CResultReceived fp_AddResult();
 
 		auto fp_GetResults();

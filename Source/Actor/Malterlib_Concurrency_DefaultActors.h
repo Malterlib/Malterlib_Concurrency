@@ -237,7 +237,7 @@ namespace NMib::NConcurrency
 
 	TCActor<CDynamicConcurrentActorHighCPU> const &fg_DynamicConcurrentActorHighCPU();
 
-	class CDirectCallActorHolder;
+	struct CDirectCallActorHolder;
 
 	struct CDirectCallActor : public CActor
 	{

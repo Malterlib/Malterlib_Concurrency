@@ -7,9 +7,8 @@
 
 namespace NMib::NConcurrency
 {
-	class COSMainRunLoopActorHolder : public CDefaultActorHolder
+	struct COSMainRunLoopActorHolder : public CDefaultActorHolder
 	{
-	public:
 		COSMainRunLoopActorHolder
 			(
 				CConcurrencyManager *_pConcurrencyManager

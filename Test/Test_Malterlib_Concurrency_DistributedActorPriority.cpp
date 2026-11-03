@@ -102,9 +102,8 @@ namespace NDistributedActorPriorityTests
 		}
 	};
 
-	class CDistributedActorPriority_Tests : public NMib::NTest::CTest
+	struct CDistributedActorPriority_Tests : public NMib::NTest::CTest
 	{
-	public:
 		// Test actor that can report the priority of incoming calls
 		struct CPriorityTestActor : public CActor
 		{

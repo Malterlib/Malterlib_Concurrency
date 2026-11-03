@@ -6,16 +6,8 @@
 namespace NMib::NConcurrency
 {
 	template <typename t_CActor = CActor>
-	class TCWeakActor
+	struct TCWeakActor
 	{
-		friend class CConcurrencyManager;
-		template <typename t_CActor2>
-		friend class TCActor;
-		template <typename t_CActor2>
-		friend class TCWeakActor;
-		friend class CConcurrencyManager;
-
-	public:
 		using CActorInternal = TCActorInternal<t_CActor>;
 		using CContainedActor = t_CActor;
 		using CNonWeak = TCActor<t_CActor>;
@@ -161,5 +153,13 @@ namespace NMib::NConcurrency
 
 		template <typename tf_CStr>
 		void f_Format(tf_CStr &o_Str) const;
+
+	private:
+		friend struct CConcurrencyManager;
+		template <typename t_CActor2>
+		friend struct TCActor;
+		template <typename t_CActor2>
+		friend struct TCWeakActor;
+		friend struct CConcurrencyManager;
 	};
 }

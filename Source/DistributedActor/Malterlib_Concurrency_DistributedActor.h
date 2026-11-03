@@ -955,7 +955,7 @@ using namespace NMib::NConcurrency;
 #ifndef DCompiler_MSVC_Workaround
 namespace NMib::NConcurrency
 {
-	extern template class TCActor<CActorDistributionManager>;
+	extern template struct TCActor<CActorDistributionManager>;
 
 	extern template auto TCActor<CActorDistributionManager>::f_InternalCallActor
 		<

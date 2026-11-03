@@ -10,9 +10,8 @@
 namespace NMib::NConcurrency
 {
 	template <typename t_CResult, typename ...tp_CParams>
-	class TCActorCallOnce
+	struct TCActorCallOnce
 	{
-	public:
 		TCActorCallOnce(TCActorFunctor<TCFuture<t_CResult> (tp_CParams...)> &&_fFunction, bool _bSupportRetry, NStr::CStr const &_ErrorOnRunning = NStr::CStr());
 		~TCActorCallOnce();
 

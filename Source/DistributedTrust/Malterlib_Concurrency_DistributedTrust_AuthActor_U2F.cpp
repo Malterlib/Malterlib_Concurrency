@@ -1000,9 +1000,8 @@ namespace NMib::NConcurrency
 	using namespace NContainer;
 	using namespace NStorage;
 
-	class CDistributedActorTrustManagerAuthenticationActorU2F : public ICDistributedActorTrustManagerAuthenticationActor
+	struct CDistributedActorTrustManagerAuthenticationActorU2F : public ICDistributedActorTrustManagerAuthenticationActor
 	{
-	public:
 		CDistributedActorTrustManagerAuthenticationActorU2F(TCWeakActor<CDistributedActorTrustManager> const &_TrustManager);
 		virtual ~CDistributedActorTrustManagerAuthenticationActorU2F();
 
@@ -1212,8 +1211,9 @@ namespace NMib::NConcurrency
 		;
 	}
 
-	class CDistributedActorTrustManagerAuthenticationActorFactoryU2F : public ICDistributedActorTrustManagerAuthenticationActorFactory
+	struct CDistributedActorTrustManagerAuthenticationActorFactoryU2F : public ICDistributedActorTrustManagerAuthenticationActorFactory
 	{
+	private:
 		CAuthenticationActorInfo operator () (TCActor<CDistributedActorTrustManager> const &_TrustManager) override;
 		static umint ms_MakeActive;
 	};

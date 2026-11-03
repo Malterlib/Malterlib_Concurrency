@@ -87,18 +87,16 @@ namespace
 	// 0b111111111111111111 	511
 	// 0b1111111111111111111	487
 
-	class CConstructorExceptionActor : public CActor
+	struct CConstructorExceptionActor : public CActor
 	{
-	public:
 		CConstructorExceptionActor()
 		{
 			DMibError("Test error");
 		}
 	};
 
-	class CConstructExceptionActor : public CActor
+	struct CConstructExceptionActor : public CActor
 	{
-	public:
 		TCActor<CConstructExceptionActor> m_SelfReference;
 
 		void fp_Construct() override
@@ -108,11 +106,8 @@ namespace
 		}
 	};
 
-	class CPerformanceTestActor : public CActor
+	struct CPerformanceTestActor : public CActor
 	{
-		uint32 m_Value = 0;
-
-	public:
 		enum
 		{
 			mc_bAllowInternalAccess = true
@@ -177,6 +172,9 @@ namespace
 		{
 			return fg_Exchange(m_Value, 0);
 		}
+
+	private:
+		uint32 m_Value = 0;
 	};
 
 	struct CDestructActorSeparateThread : public CActor
@@ -275,9 +273,8 @@ namespace
 		}
 	};
 
-	class CPerformanceTestActorEmul : public CPerformanceTestActor
+	struct CPerformanceTestActorEmul : public CPerformanceTestActor
 	{
-	public:
 		enum
 		{
 			mc_bAllowInternalAccess = true
@@ -307,9 +304,8 @@ namespace
 		CPerformanceTestActorEmul(CPerformanceTestActorEmul &&_Other) = default;
 	};
 
-	class CExceptionActor : public CActor
+	struct CExceptionActor : public CActor
 	{
-	public:
 		virtual TCFuture<uint32> f_GetError()
 		{
 			TCPromise<uint32> Promise{CPromiseConstructConsume()};
@@ -345,9 +341,8 @@ namespace
 		}
 	};
 
-	class CBaseActor : public CActor
+	struct CBaseActor : public CActor
 	{
-	public:
 		virtual uint32 f_GetValue()
 		{
 			return 1;
@@ -362,9 +357,8 @@ namespace
 		virtual TCFuture<uint32> f_UniquePointer(TCUniquePointer<CStr> _pValue) = 0;
 	};
 
-	class CDerivedActor : public CBaseActor
+	struct CDerivedActor : public CBaseActor
 	{
-	public:
 		virtual uint32 f_GetValue() override
 		{
 			return 2;
@@ -400,11 +394,8 @@ namespace
 		umint m_DummyMember1 = 1;
 	};
 
-	class CCallbackActor : public CActor
+	struct CCallbackActor : public CActor
 	{
-		TCActorFunctor<TCFuture<void> (int32)> m_fCallback;
-
-	public:
 		TCFuture<CActorSubscription> f_RegisterCallback(TCActorFunctor<TCFuture<void> (int32)> _fCallback)
 		{
 			m_fCallback = fg_Move(_fCallback);
@@ -421,6 +412,9 @@ namespace
 		{
 			m_fCallback.f_CallDiscard(_Value);
 		}
+
+	private:
+		TCActorFunctor<TCFuture<void> (int32)> m_fCallback;
 	};
 
 	TCFuture<umint> fg_ReturnCoroOne()
@@ -433,47 +427,8 @@ namespace
 		return 1;
 	}
 
-	class CActor_Tests : public NMib::NTest::CTest
+	struct CActor_Tests : public NMib::NTest::CTest
 	{
-		TCFunctionMovable<void ()> fp_GarbageCollectFunctor(bool _bGarbageCollect)
-		{
-			return [_bGarbageCollect]
-				{
-					(void)_bGarbageCollect;
-					auto Checkout = fg_GetSys()->f_MemoryManager_Checkout();
-#ifdef DDoGarbageCollection
-					if (_bGarbageCollect)
-						Checkout.f_GarbageCollectLocalArena(DDoGarbageCollection); // Garbage collect memory
-					else
-#endif
-#ifdef DDoCheckMessages
-						Checkout.f_CheckMessages();
-#else
-						;
-#endif
-				}
-			;
-		}
-
-		void fp_BlockOnAllThreads(TCFutureVector<void> &_Results, bool _bGarbageCollect)
-		{
-			umint nThreads = NSys::fg_Thread_GetVirtualCores();
-			for (umint i = 0; i < nThreads; ++i)
-				fg_ConcurrentDispatch(fp_GarbageCollectFunctor(_bGarbageCollect)) > _Results;
-		}
-
-		void fp_BlockOnAllThreads(bool _bGarbageCollect)
-		{
-			umint nThreads = NSys::fg_Thread_GetVirtualCores();
-			TCFutureVector<void> Results;
-			Results.f_SetLen(nThreads);
-
-			fp_BlockOnAllThreads(Results, _bGarbageCollect);
-			fg_AllDoneWrapped(Results).f_CallSync();
-			fp_GarbageCollectFunctor(_bGarbageCollect)();
-		}
-
-	public:
 		void f_ConstructionTests()
 		{
 			DMibTestSuite("Construction")
@@ -3243,6 +3198,45 @@ namespace
 			f_PerformanceTests();
 			f_PromiseLimits();
 			f_TestPromisePair();
+		}
+
+	private:
+		TCFunctionMovable<void ()> fp_GarbageCollectFunctor(bool _bGarbageCollect)
+		{
+			return [_bGarbageCollect]
+				{
+					(void)_bGarbageCollect;
+					auto Checkout = fg_GetSys()->f_MemoryManager_Checkout();
+#ifdef DDoGarbageCollection
+					if (_bGarbageCollect)
+						Checkout.f_GarbageCollectLocalArena(DDoGarbageCollection); // Garbage collect memory
+					else
+#endif
+#ifdef DDoCheckMessages
+						Checkout.f_CheckMessages();
+#else
+						;
+#endif
+				}
+			;
+		}
+
+		void fp_BlockOnAllThreads(TCFutureVector<void> &_Results, bool _bGarbageCollect)
+		{
+			umint nThreads = NSys::fg_Thread_GetVirtualCores();
+			for (umint i = 0; i < nThreads; ++i)
+				fg_ConcurrentDispatch(fp_GarbageCollectFunctor(_bGarbageCollect)) > _Results;
+		}
+
+		void fp_BlockOnAllThreads(bool _bGarbageCollect)
+		{
+			umint nThreads = NSys::fg_Thread_GetVirtualCores();
+			TCFutureVector<void> Results;
+			Results.f_SetLen(nThreads);
+
+			fp_BlockOnAllThreads(Results, _bGarbageCollect);
+			fg_AllDoneWrapped(Results).f_CallSync();
+			fp_GarbageCollectFunctor(_bGarbageCollect)();
 		}
 	};
 

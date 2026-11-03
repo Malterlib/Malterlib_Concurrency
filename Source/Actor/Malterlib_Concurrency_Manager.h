@@ -323,8 +323,8 @@ namespace NMib::NConcurrency
 		umint mp_ActorsOtherMask;
 
 #if DMibConfig_Concurrency_DebugBlockDestroy
-		NThread::CLowLevelLock m_ActorListLock;
-		DMibListLinkDS_List(CActorHolder, m_ActorLink) m_Actors;
+		NThread::CLowLevelLock mp_ActorListLock;
+		DMibListLinkDS_List(CActorHolder, mp_ActorLink) mp_Actors;
 #endif
 
 		umint mp_nThreads = 0;

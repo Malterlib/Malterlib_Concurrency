@@ -33,8 +33,8 @@ namespace NMib::NConcurrency
 		_pConcurrencyManager->fp_AddedActor();
 #if DMibConfig_Concurrency_DebugBlockDestroy
 		{
-			DMibLock(_pConcurrencyManager->m_ActorListLock);
-			_pConcurrencyManager->m_Actors.f_Insert(this);
+			DMibLock(_pConcurrencyManager->mp_ActorListLock);
+			_pConcurrencyManager->mp_Actors.f_Insert(this);
 		}
 #endif
 	}
@@ -44,8 +44,8 @@ namespace NMib::NConcurrency
 	CActorHolder::~CActorHolder()
 	{
 #if DMibConfig_Concurrency_DebugBlockDestroy
-		DMibLock(mp_pConcurrencyManager->m_ActorListLock);
-		m_ActorLink.f_Unlink();
+		DMibLock(mp_pConcurrencyManager->mp_ActorListLock);
+		mp_ActorLink.f_Unlink();
 #endif
 		mp_Working.f_Exchange(0);
 

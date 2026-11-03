@@ -211,7 +211,7 @@ namespace NMib::NConcurrency
 
 	private:
 #if DMibConfig_Concurrency_DebugBlockDestroy
-		DMibListLinkDS_Link(CActorHolder, m_ActorLink);
+		DMibListLinkDS_Link(CActorHolder, mp_ActorLink);
 
 	public:
 		NStr::CStr m_ActorTypeName;

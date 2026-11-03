@@ -1469,7 +1469,7 @@ namespace NMib::NConcurrency
 				}
 			;
 #if DMibConfig_Concurrency_DebugBlockDestroy
-			static bool volatile s_AbortLoop = false;
+			static bool volatile s_bAbortLoop = false;
 #endif
 			fCallTimerActors(&CTimerActor::f_FireAtExit);
 
@@ -1503,8 +1503,8 @@ namespace NMib::NConcurrency
 				{
 					DMibTrace("Shutting down of actors is taking a long time. Waiting for actors:{\n}", 0);
 					{
-						DMibLock(m_ActorListLock);
-						for (auto &Actor : this->m_Actors)
+						DMibLock(mp_ActorListLock);
+						for (auto &Actor : this->mp_Actors)
 						{
 							if
 							(
@@ -1586,7 +1586,7 @@ namespace NMib::NConcurrency
 #	endif
 					DebugBlockDestroyStopwatch.f_Start();
 				}
-				if (s_AbortLoop)
+				if (s_bAbortLoop)
 				{
 					bAborted = true;
 					break;

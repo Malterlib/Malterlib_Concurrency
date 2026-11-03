@@ -12,9 +12,7 @@ namespace NMib::NConcurrency
 
 	struct CDistributedTool
 	{
-		virtual ~CDistributedTool()
-		{
-		}
+		virtual ~CDistributedTool();
 
 		virtual void f_Register
 			(

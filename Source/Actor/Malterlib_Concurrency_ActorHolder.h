@@ -53,10 +53,7 @@ namespace NMib::NConcurrency
 	struct ICDistributedActorData
 	{
 		virtual ~ICDistributedActorData();
-		inline_always bool f_IsValidForCall() const
-		{
-			return !m_bRemote;
-		}
+		inline_always bool f_IsValidForCall() const;
 
 		virtual CDistributedActorHostInfo f_GetHostInfo() const = 0;
 
@@ -70,67 +67,6 @@ namespace NMib::NConcurrency
 	/// \brief Manages actor execution and lifetime
 	struct CActorHolder DWorkaroundVirtualLayout
 	{
-	private:
-		friend struct CConcurrencyManager;
-		friend struct CActor;
-		friend struct CDelegatedActorHolder;
-		friend struct CActorCommon;
-		friend struct CFutureCoroutineContext;
-
-		template <typename t_CImplementation>
-		friend struct TCDistributedActorInstance;
-
-		friend CFutureCoroutineContextOnResumeScopeAwaiter fg_CurrentActorCheckDestroyedOnResume(CConcurrencyThreadLocal &_ThreadLocal);
-
-		struct CDestroyHandler;
-
-		using FDestroyHolderOnDestroyed = NFunction::TCFunction
-			<
-				void (NFunction::CThisTag &_ThisTag)
-				, NFunction::CFunctionNoCopyTag
-				, NFunction::TCFunctionNoAllocOptions
-				<
-					false
-#ifdef DPlatformFamily_Windows
-					, sizeof(void *) * 3 // std::exception_ptr is two pointers on Windows
-#else
-					, sizeof(void *) * 2
-#endif
-					, sizeof(void *)
-					, false
-				>
-			>
-		;
-
-	protected:
-		bool fp_AddToQueue(FActorQueueDispatch &&_fFunctor, CConcurrencyThreadLocal &_ThreadLocal);
-		bool fp_AddToQueue(CConcurrentRunQueueEntryHolder &&_Entry, CConcurrencyThreadLocal &_ThreadLocal);
-		virtual void fp_StartQueueProcessing();
-
-		template <typename tf_CActor>
-		DMibSuppressUndefinedSanitizer TCActor<tf_CActor> fp_GetAsActor();
-
-		virtual void fp_DestroyThreaded();
-		virtual void fp_QueueProcessDestroy(FActorQueueDispatch &&_fFunctor, CConcurrencyThreadLocal &_ThreadLocal) = 0;
-		virtual void fp_QueueRunProcess(CConcurrencyThreadLocal &_ThreadLocal) = 0;
-		virtual void fp_QueueProcess(FActorQueueDispatch &&_fFunctor, CConcurrencyThreadLocal &_ThreadLocal) = 0;
-		virtual void fp_QueueProcessEntry(CConcurrentRunQueueEntryHolder &&_Entry, CConcurrencyThreadLocal &_ThreadLocal) = 0;
-		virtual void fp_Yield();
-
-		void fp_RunProcess(CConcurrencyThreadLocal &_ThreadLocal);
-		virtual DMibSuppressUndefinedSanitizer TCActorInternal<CActor> *fp_GetRealActor(NConcurrency::CActorHolder *_pActorInternal) const = 0;
-		static auto fsp_DestroyHandler(TCActorHolderSharedPointer<CActorHolder> &&_pActorHolder, TCPromise<void> &&_Promise);
-
-		void fp_DeleteActor();
-		virtual void fp_ActorDestroyed();
-		virtual void fp_SetDestroyResult(TCAsyncResult<void> const &_Result);
-		TCFuture<void> fp_DestroyDelegates();
-		void fp_DetachActor();
-		CActor *fp_GetActorRelaxed() const;
-
-		static bool fsp_ScheduleActorDestroy(CActorHolder *_pActorHolder, CConcurrencyThreadLocal &_ThreadLocal);
-
-	public:
 		CActorHolder(CConcurrencyManager *_pConcurrencyManager, bool _bImmediateDelete, EPriority _Priority, NStorage::TCSharedPointer<ICDistributedActorData> &&_pDistributedActorData);
 		virtual ~CActorHolder();
 
@@ -169,7 +105,66 @@ namespace NMib::NConcurrency
 
 		NStorage::CIntrusiveRefCountWithWeak m_RefCount;
 
+	protected:
+		bool fp_AddToQueue(FActorQueueDispatch &&_fFunctor, CConcurrencyThreadLocal &_ThreadLocal);
+		bool fp_AddToQueue(CConcurrentRunQueueEntryHolder &&_Entry, CConcurrencyThreadLocal &_ThreadLocal);
+		virtual void fp_StartQueueProcessing();
+
+		template <typename tf_CActor>
+		DMibSuppressUndefinedSanitizer TCActor<tf_CActor> fp_GetAsActor();
+
+		virtual void fp_DestroyThreaded();
+		virtual void fp_QueueProcessDestroy(FActorQueueDispatch &&_fFunctor, CConcurrencyThreadLocal &_ThreadLocal) = 0;
+		virtual void fp_QueueRunProcess(CConcurrencyThreadLocal &_ThreadLocal) = 0;
+		virtual void fp_QueueProcess(FActorQueueDispatch &&_fFunctor, CConcurrencyThreadLocal &_ThreadLocal) = 0;
+		virtual void fp_QueueProcessEntry(CConcurrentRunQueueEntryHolder &&_Entry, CConcurrencyThreadLocal &_ThreadLocal) = 0;
+		virtual void fp_Yield();
+
+		void fp_RunProcess(CConcurrencyThreadLocal &_ThreadLocal);
+		virtual DMibSuppressUndefinedSanitizer TCActorInternal<CActor> *fp_GetRealActor(NConcurrency::CActorHolder *_pActorInternal) const = 0;
+		static auto fsp_DestroyHandler(TCActorHolderSharedPointer<CActorHolder> &&_pActorHolder, TCPromise<void> &&_Promise);
+
+		void fp_DeleteActor();
+		virtual void fp_ActorDestroyed();
+		virtual void fp_SetDestroyResult(TCAsyncResult<void> const &_Result);
+		TCFuture<void> fp_DestroyDelegates();
+		void fp_DetachActor();
+		CActor *fp_GetActorRelaxed() const;
+
+		static bool fsp_ScheduleActorDestroy(CActorHolder *_pActorHolder, CConcurrencyThreadLocal &_ThreadLocal);
+
 	private:
+		friend struct CConcurrencyManager;
+		friend struct CActor;
+		friend struct CDelegatedActorHolder;
+		friend struct CActorCommon;
+		friend struct CFutureCoroutineContext;
+
+		template <typename t_CImplementation>
+		friend struct TCDistributedActorInstance;
+
+		friend CFutureCoroutineContextOnResumeScopeAwaiter fg_CurrentActorCheckDestroyedOnResume(CConcurrencyThreadLocal &_ThreadLocal);
+
+		struct CDestroyHandler;
+
+		using FDestroyHolderOnDestroyed = NFunction::TCFunction
+			<
+				void (NFunction::CThisTag &_ThisTag)
+				, NFunction::CFunctionNoCopyTag
+				, NFunction::TCFunctionNoAllocOptions
+				<
+					false
+#ifdef DPlatformFamily_Windows
+					, sizeof(void *) * 3 // std::exception_ptr is two pointers on Windows
+#else
+					, sizeof(void *) * 2
+#endif
+					, sizeof(void *)
+					, false
+				>
+			>
+		;
+
 		void fp_ConstructActor(NFunction::TCFunctionNoAllocMovable<void ()> &&_fConstruct, void *_pActorMemory);
 
 		void fp_DestroyActorHolder(FDestroyHolderOnDestroyed &&_fOnDestroyed, TCActorHolderSharedPointer<CActorHolder> &&_pSelfReference, CConcurrencyThreadLocal &_ThreadLocal);
@@ -186,10 +181,7 @@ namespace NMib::NConcurrency
 
 			NFunction::TCFunctionMutable<TCFuture<void> ()> m_fOnDestroy;
 
-			COrdering_Strong operator <=> (COnDestroy const &_Other) const noexcept
-			{
-				return this <=> &_Other;
-			}
+			COrdering_Strong operator <=> (COnDestroy const &_Other) const noexcept;
 		};
 
 		// Alignment zone 1 (Mostly immutable, shared by producers and the actor) = 8 + 8 * 4 + 4 * 2 + 1 = 49 => 64 bytes on x64

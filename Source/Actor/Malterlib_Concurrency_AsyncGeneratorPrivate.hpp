@@ -72,6 +72,12 @@ namespace NMib::NConcurrency::NPrivate
 	}
 
 	template <typename t_CReturnType>
+	TCAsyncGeneratorCoroutineContext<t_CReturnType>::CGeneratorRunState::CGeneratorRunState(TCWeakActor<> &&_AsyncGeneratorOwner)
+		: m_AsyncGeneratorOwner(fg_Move(_AsyncGeneratorOwner))
+	{
+	}
+
+	template <typename t_CReturnType>
 	void TCAsyncGeneratorCoroutineContext<t_CReturnType>::return_value(CEmpty _Empty)
 	{
 #ifndef DMibClangAnalyzerWorkaround
@@ -466,6 +472,30 @@ namespace NMib::NConcurrency::NPrivate
 	}
 
 	template <typename t_CReturnType>
+	inline_always void *TCAsyncGeneratorCoroutineContext<t_CReturnType>::operator new (std::size_t _Size, std::align_val_t _Alignment)
+	{
+		return NMib::NMemory::fg_AllocAligned(_Size, (umint)_Alignment);
+	}
+
+	template <typename t_CReturnType>
+	inline_always void TCAsyncGeneratorCoroutineContext<t_CReturnType>::operator delete (void *_pMemory, std::size_t _Size, std::align_val_t _Alignment)
+	{
+		NMib::NMemory::fg_Free(_pMemory, _Size);
+	}
+
+	template <typename t_CReturnType>
+	inline_always void *TCAsyncGeneratorCoroutineContext<t_CReturnType>::operator new (std::size_t _Size)
+	{
+		return NMib::NMemory::fg_Alloc(_Size);
+	}
+
+	template <typename t_CReturnType>
+	inline_always void TCAsyncGeneratorCoroutineContext<t_CReturnType>::operator delete (void *_pMemory, std::size_t _Size)
+	{
+		NMib::NMemory::fg_Free(_pMemory, _Size);
+	}
+
+	template <typename t_CReturnType>
 	TCAsyncGenerator<t_CReturnType> TCAsyncGeneratorCoroutineContext<t_CReturnType>::get_return_object()
 	{
 		auto &ConcurrencyThreadLocal = fg_ConcurrencyThreadLocal();
@@ -506,5 +536,11 @@ namespace NMib::NConcurrency::NPrivate
 				, true
 			}
 		;
+	}
+
+	template <typename t_CReturnType, ECoroutineFlag t_Flags>
+	TCAsyncGeneratorCoroutineContextWithFlags<t_CReturnType, t_Flags>::TCAsyncGeneratorCoroutineContextWithFlags() noexcept
+		: TCAsyncGeneratorCoroutineContext<t_CReturnType>(t_Flags)
+	{
 	}
 }

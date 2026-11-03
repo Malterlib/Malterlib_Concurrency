@@ -32,10 +32,7 @@ namespace NMib::NConcurrency::NPrivate
 		uint32 f_GetAutomaticNotRequiredSubscriptionID();
 
 #if DMibEnableSafeCheck > 0
-		bool f_CorrectMagic() const
-		{
-			return m_Magic == constant_uint64(0x5541e982e952851c);
-		}
+		bool f_CorrectMagic() const;
 
 		uint64 m_Magic = constant_uint64(0x5541e982e952851c);
 #endif

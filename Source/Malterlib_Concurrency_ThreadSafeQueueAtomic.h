@@ -126,6 +126,11 @@ namespace NMib::NContainer
 	template <typename t_CType, typename t_CAllocator = NMemory::CAllocator_Heap, int t_DefaultSize = DDefaultThreadSafeQueueSize>
 	struct TCThreadSafeQueueAtomic
 	{
+	private:
+		// Declared before the public section, which uses it.
+		using CReturnEntry = TCThreadSafeQueueAtomicEntry<t_CType, t_CAllocator>;
+
+	public:
 		TCThreadSafeQueueAtomic()
 		{
 		}
@@ -178,7 +183,6 @@ namespace NMib::NContainer
 
 	private:
 		using CListEntry = TCThreadSafeQueueAtomicListEntry<t_CType>;
-		using CReturnEntry = TCThreadSafeQueueAtomicEntry<t_CType, t_CAllocator>;
 
 		template <typename T>
 		struct CStdAllocator : public std::allocator<T>

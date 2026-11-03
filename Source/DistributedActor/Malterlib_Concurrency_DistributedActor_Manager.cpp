@@ -122,6 +122,14 @@ namespace NMib::NConcurrency
 		co_return {};
 	}
 
+	NActorDistributionManagerInternal::CConnection::~CConnection()
+	{
+		f_DiscardIdentifyPromise("Destroyed");
+
+		if (m_Connection)
+			fg_Move(m_Connection).f_Destroy().f_DiscardResult();
+	}
+
 	void CActorDistributionManagerInternal::CConnection::fs_LogClose
 		(
 			TCAsyncResult<NWeb::CWebSocketActor::CCloseInfo> const &_Result

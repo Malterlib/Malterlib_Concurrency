@@ -862,6 +862,11 @@ namespace NMib::NConcurrency
 		fp_QueueProcessDestroy(CDestroyHandler(fg_Move(_fOnDestroyed), this, fg_Move(_pSelfReference)), _ThreadLocal);
 	}
 
+	COrdering_Strong CActorHolder::COnDestroy::operator <=> (COnDestroy const &_Other) const noexcept
+	{
+		return this <=> &_Other;
+	}
+
 	TCFuture<void> CActorCommon::fp_DestroyUnused() &&
 	{
 		auto pActorInternal = (static_cast<TCActor<> &>(*this)).mp_pInternalActor;

@@ -169,14 +169,4 @@ namespace NMib::NConcurrency::NPrivate
 				this->m_Result.f_SetException(fg_Forward<tf_CReturnType>(_Value));
 		}
 	}
-
-	inline void TCWrappedCoroutinePromise<void>::return_value(CVoidTag &&_Void)
-	{
-		this->m_Result.f_SetResult();
-	}
-
-	inline void TCWrappedCoroutinePromise<void>::return_value(CVoidTag const &_Void)
-	{
-		this->m_Result.f_SetResult();
-	}
 }

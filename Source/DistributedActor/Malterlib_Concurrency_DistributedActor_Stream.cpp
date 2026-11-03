@@ -40,6 +40,13 @@ namespace NMib::NConcurrency::NPrivate
 		return State.m_CurrentAutomaticNotRequiredSubscriptionID++;
 	}
 
+#if DMibEnableSafeCheck > 0
+	bool CDistributedActorStreamContext::f_CorrectMagic() const
+	{
+		return m_Magic == constant_uint64(0x5541e982e952851c);
+	}
+#endif
+
 	uint32 fg_ActorProtocolVersion(void *_pStreamContext)
 	{
 		CDistributedActorStreamContext *pContext = (CDistributedActorStreamContext *)_pStreamContext;

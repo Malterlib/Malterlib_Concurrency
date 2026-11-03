@@ -24,10 +24,7 @@ namespace NMib::NConcurrency
 
 		struct CLogReporter
 		{
-			TCWeakDistributedActor<CActor> const &f_GetID() const
-			{
-				return TCMap<TCWeakDistributedActor<CActor>, CLogReporter>::fs_GetKey(*this);
-			}
+			TCWeakDistributedActor<CActor> const &f_GetID() const;
 
 			CLog *m_pLog = nullptr;
 			CRemoteLogReporterInterface *m_pInterface = nullptr;
@@ -40,15 +37,9 @@ namespace NMib::NConcurrency
 		struct CLog
 		{
 			CLog(CLog &&_Other) = default;
-			CLog(CDistributedAppLogReporter::CLogInfo &&_Info)
-				: m_Info(fg_Move(_Info))
-			{
-			}
+			CLog(CDistributedAppLogReporter::CLogInfo &&_Info);
 
-			CDistributedAppLogReporter::CLogInfoKey const &f_GetKey() const
-			{
-				return TCMap<CDistributedAppLogReporter::CLogInfoKey, CLog>::fs_GetKey(*this);
-			}
+			CDistributedAppLogReporter::CLogInfoKey const &f_GetKey() const;
 
 			CDistributedAppLogReporter::CLogInfo m_Info;
 			uint64 m_LastSeenUniqueSequence = 0;
@@ -98,12 +89,7 @@ namespace NMib::NConcurrency
 			NTime::CTime m_LastSeenTimestampLastSent;
 		};
 
-		CInternal(CDistributedAppLogStoreLocal *_pThis, TCActor<CActorDistributionManager> const &_DistributionManager, TCActor<CDistributedActorTrustManager> const &_TrustManager)
-			: m_pThis(_pThis)
-			, m_DistributionManager(_DistributionManager)
-			, m_TrustManager(_TrustManager)
-		{
-		}
+		CInternal(CDistributedAppLogStoreLocal *_pThis, TCActor<CActorDistributionManager> const &_DistributionManager, TCActor<CDistributedActorTrustManager> const &_TrustManager);
 
 		TCFuture<void> f_Start();
 

@@ -250,6 +250,21 @@ namespace NMib::NConcurrency
 		co_return {};
 	}
 
+	CDistributedActorIdentifier const &CDistributedActorTrustManager::CInternal::CTypedActor::f_GetIdentifier() const
+	{
+		return NContainer::TCMap<CDistributedActorIdentifier, CTypedActor>::fs_GetKey(*this);
+	}
+
+	NStr::CStr const &CDistributedActorTrustManager::CInternal::CTypedHost::f_GetHostID() const
+	{
+		return NContainer::TCMap<NStr::CStr, CTypedHost>::fs_GetKey(*this);
+	}
+
+	uint32 CDistributedActorTrustManager::CInternal::CNamespaceTypeState::f_GetTypeHash() const
+	{
+		return NContainer::TCMap<uint32, CNamespaceTypeState>::fs_GetKey(*this);
+	}
+
 	auto CDistributedActorTrustManager::CInternal::CNamespaceTypeState::f_GetAllowed(NPrivate::CTrustedActorSubscriptionState const &_State)
 		-> NContainer::TCMap<CDistributedActorIdentifier, TCTrustedActor<CActor>>
 	{

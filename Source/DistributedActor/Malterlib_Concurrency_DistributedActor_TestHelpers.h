@@ -46,10 +46,7 @@ namespace NMib::NConcurrency
 
 		struct CSubscription
 		{
-			~CSubscription()
-			{
-				m_pDeleted->f_Exchange(true);
-			}
+			~CSubscription();
 
 			NStorage::TCSharedPointer<NAtomic::TCAtomic<bool>> m_pDeleted = fg_Construct(false);
 			CActorSubscription m_Subscription;

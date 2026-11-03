@@ -24,10 +24,7 @@ namespace NMib::NConcurrency
 
 		struct CSensorReporter
 		{
-			auto f_GetID() const -> TCWeakDistributedActor<CActor> const &
-			{
-				return TCMap<TCWeakDistributedActor<CActor>, CSensorReporter>::fs_GetKey(*this);
-			}
+			auto f_GetID() const -> TCWeakDistributedActor<CActor> const &;
 
 			CSensor *m_pSensor = nullptr;
 			CRemoteSensorReporterInterface *m_pInterface = nullptr;
@@ -40,15 +37,9 @@ namespace NMib::NConcurrency
 		struct CSensor
 		{
 			CSensor(CSensor &&_Other) = default;
-			CSensor(CDistributedAppSensorReporter::CSensorInfo &&_Info)
-				: m_Info(fg_Move(_Info))
-			{
-			}
+			CSensor(CDistributedAppSensorReporter::CSensorInfo &&_Info);
 
-			CDistributedAppSensorReporter::CSensorInfoKey const &f_GetKey() const
-			{
-				return TCMap<CDistributedAppSensorReporter::CSensorInfoKey, CSensor>::fs_GetKey(*this);
-			}
+			CDistributedAppSensorReporter::CSensorInfoKey const &f_GetKey() const;
 
 			CDistributedAppSensorReporter::CSensorInfo m_Info;
 			uint64 m_LastSeenUniqueSequence = 0;
@@ -91,12 +82,7 @@ namespace NMib::NConcurrency
 			TCVector<CDistributedAppSensorReader_SensorStatusFilter> m_Filters;
 		};
 
-		CInternal(CDistributedAppSensorStoreLocal *_pThis, TCActor<CActorDistributionManager> const &_DistributionManager, TCActor<CDistributedActorTrustManager> const &_TrustManager)
-			: m_pThis(_pThis)
-			, m_DistributionManager(_DistributionManager)
-			, m_TrustManager(_TrustManager)
-		{
-		}
+		CInternal(CDistributedAppSensorStoreLocal *_pThis, TCActor<CActorDistributionManager> const &_DistributionManager, TCActor<CDistributedActorTrustManager> const &_TrustManager);
 
 		TCFuture<void> f_Start();
 

@@ -10,6 +10,33 @@ namespace NMib::NConcurrency
 {
 	using namespace NLogStoreLocalDatabase;
 
+	TCWeakDistributedActor<CActor> const &CDistributedAppLogStoreLocal::CInternal::CLogReporter::f_GetID() const
+	{
+		return TCMap<TCWeakDistributedActor<CActor>, CLogReporter>::fs_GetKey(*this);
+	}
+
+	CDistributedAppLogStoreLocal::CInternal::CLog::CLog(CDistributedAppLogReporter::CLogInfo &&_Info)
+		: m_Info(fg_Move(_Info))
+	{
+	}
+
+	CDistributedAppLogReporter::CLogInfoKey const &CDistributedAppLogStoreLocal::CInternal::CLog::f_GetKey() const
+	{
+		return TCMap<CDistributedAppLogReporter::CLogInfoKey, CLog>::fs_GetKey(*this);
+	}
+
+	CDistributedAppLogStoreLocal::CInternal::CInternal
+		(
+			CDistributedAppLogStoreLocal *_pThis
+			, TCActor<CActorDistributionManager> const &_DistributionManager
+			, TCActor<CDistributedActorTrustManager> const &_TrustManager
+		)
+		: m_pThis(_pThis)
+		, m_DistributionManager(_DistributionManager)
+		, m_TrustManager(_TrustManager)
+	{
+	}
+
 	CDistributedAppLogStoreLocal::CDistributedAppLogStoreLocal(TCActor<CActorDistributionManager> const &_DistributionManager, TCActor<CDistributedActorTrustManager> const &_TrustManager)
 		: mp_pInternal(fg_Construct(this, _DistributionManager, _TrustManager))
 	{

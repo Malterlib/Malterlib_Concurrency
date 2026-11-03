@@ -63,19 +63,14 @@ namespace NMib::NConcurrency::NPrivate
 		struct CYieldSuspender
 		{
 			bool await_ready() const noexcept;
-
 			template <typename tf_CPromise>
 			inline bool await_suspend(TCCoroutineHandle<tf_CPromise> _Producer) noexcept;
-
 			void await_resume() noexcept;
 		};
 
 		struct CGeneratorRunState
 		{
-			CGeneratorRunState(TCWeakActor<> &&_AsyncGeneratorOwner)
-				: m_AsyncGeneratorOwner(fg_Move(_AsyncGeneratorOwner))
-			{
-			}
+			CGeneratorRunState(TCWeakActor<> &&_AsyncGeneratorOwner);
 
 			void f_Destroy();
 			TCUnsafeFuture<NStorage::TCOptional<t_CReturnType>> f_GetGeneratorValue();
@@ -99,7 +94,6 @@ namespace NMib::NConcurrency::NPrivate
 		CSuspendAlways initial_suspend() noexcept;
 
 		void return_value(CEmpty _Empty);
-
 		template <typename tf_CReturnType>
 		void return_value(tf_CReturnType &&_Value);
 
@@ -107,25 +101,10 @@ namespace NMib::NConcurrency::NPrivate
 		CYieldSuspender yield_value(tf_CReturnType &&_Value);
 		CYieldSuspender yield_value(t_CReturnType &&_Value);
 
-		inline_always void *operator new (std::size_t _Size, std::align_val_t _Alignment)
-		{
-			return NMib::NMemory::fg_AllocAligned(_Size, (umint)_Alignment);
-		}
-
-		inline_always void operator delete (void *_pMemory, std::size_t _Size, std::align_val_t _Alignment)
-		{
-			NMib::NMemory::fg_Free(_pMemory, _Size);
-		}
-
-		inline_always void *operator new (std::size_t _Size)
-		{
-			return NMib::NMemory::fg_Alloc(_Size);
-		}
-
-		inline_always void operator delete (void *_pMemory, std::size_t _Size)
-		{
-			NMib::NMemory::fg_Free(_pMemory, _Size);
-		}
+		inline_always void *operator new (std::size_t _Size, std::align_val_t _Alignment);
+		inline_always void operator delete (void *_pMemory, std::size_t _Size, std::align_val_t _Alignment);
+		inline_always void *operator new (std::size_t _Size);
+		inline_always void operator delete (void *_pMemory, std::size_t _Size);
 
 		TCAsyncGenerator<t_CReturnType> get_return_object();
 
@@ -135,10 +114,7 @@ namespace NMib::NConcurrency::NPrivate
 	template <typename t_CReturnType, ECoroutineFlag t_Flags>
 	struct TCAsyncGeneratorCoroutineContextWithFlags : public TCAsyncGeneratorCoroutineContext<t_CReturnType>
 	{
-		TCAsyncGeneratorCoroutineContextWithFlags() noexcept
-			: TCAsyncGeneratorCoroutineContext<t_CReturnType>(t_Flags)
-		{
-		}
+		TCAsyncGeneratorCoroutineContextWithFlags() noexcept;
 
 		static constexpr ECoroutineFlag mc_InitialFlags = t_Flags;
 	};

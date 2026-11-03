@@ -11,17 +11,7 @@ namespace NMib::NConcurrency
 	{
 		struct CReferenceCount : NStorage::CIntrusiveRefCount
 		{
-			auto f_Decrease(DIfRefCountDebugging(NStorage::CRefCountDebugReference &_Reference)) const
-			{
-				// Keep the wake resources alive: another thread may release the last reference
-				// and destroy the run loop after the decrement below.
-				auto fWake = m_fWakeOnReferenceRelease;
-				auto Previous = NStorage::CIntrusiveRefCount::f_Decrease(DIfRefCountDebugging(_Reference));
-				if (Previous == 1 && fWake)
-					fWake();
-
-				return Previous;
-			}
+			auto f_Decrease(DIfRefCountDebugging(NStorage::CRefCountDebugReference &_Reference)) const;
 
 			// Set during subclass construction. Own the wake resources; do not capture the run loop.
 			NFunction::TCFunction<void ()> m_fWakeOnReferenceRelease;
@@ -84,3 +74,5 @@ namespace NMib::NConcurrency
 		NStorage::TCOptional<CCurrentActorScope> m_CurrentActor{fg_Construct(fg_ConcurrencyThreadLocal(), m_HelperActor)};
 	};
 }
+
+#include "Malterlib_Concurrency_RunLoop.hpp"

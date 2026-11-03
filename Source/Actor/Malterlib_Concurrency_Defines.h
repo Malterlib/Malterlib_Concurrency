@@ -227,12 +227,7 @@ namespace NMib::NConcurrency
 
 #ifdef DMibCanDetectVirtualMemberFunctions_Constexpr
 		template <EVirtualCall tf_Detected, EVirtualCall tf_Specified>
-		consteval EVirtualCall fg_CheckVirtualCallDetection()
-		{
-			static_assert(tf_Specified == EVirtualCall::mc_Dynamic || tf_Detected == tf_Specified);
-
-			return tf_Detected;
-		}
+		consteval EVirtualCall fg_CheckVirtualCallDetection();
 #endif
 
 		template <auto t_fMemberFunctionPointer, EVirtualCall t_ForceDetection>
@@ -323,10 +318,7 @@ namespace NMib::NConcurrency
 	struct CDirectResult
 	{
 		template <typename tf_FOnResult>
-		TCDirectResultFunctor<tf_FOnResult> operator / (tf_FOnResult &&_fOnResult)
-		{
-			return {.m_fOnResult = fg_Move(_fOnResult)};
-		}
+		TCDirectResultFunctor<tf_FOnResult> operator / (tf_FOnResult &&_fOnResult);
 	};
 
 	extern CDirectResult g_DirectResult;
@@ -334,30 +326,12 @@ namespace NMib::NConcurrency
 	struct CBindActorOptions
 	{
 		constexpr CBindActorOptions() = default;
+		constexpr CBindActorOptions(EVirtualCall _VirtualCall);
+		constexpr CBindActorOptions(EActorCallType _CallType);
+		constexpr CBindActorOptions(EVirtualCall _VirtualCall, EActorCallType _CallType);
+		constexpr CBindActorOptions(EActorCallType _CallType, EVirtualCall _VirtualCall);
 
-		constexpr CBindActorOptions(EVirtualCall _VirtualCall)
-			: m_VirtualCall(_VirtualCall)
-		{
-		}
-
-		constexpr CBindActorOptions(EActorCallType _CallType)
-			: m_CallType(_CallType)
-		{
-		}
-
-		constexpr CBindActorOptions(EVirtualCall _VirtualCall, EActorCallType _CallType)
-			: m_VirtualCall(_VirtualCall)
-			, m_CallType(_CallType)
-		{
-		}
-
-		constexpr CBindActorOptions(EActorCallType _CallType, EVirtualCall _VirtualCall)
-			: m_VirtualCall(_VirtualCall)
-			, m_CallType(_CallType)
-		{
-		}
-
-		static constexpr CBindActorOptions fs_Default()
+		static constexpr CBindActorOptions fs_Default() // NOLINT(malterlib-header-declarations-only): used in a template argument of TCActor::operator () below
 		{
 			return {};
 		}
@@ -752,3 +726,5 @@ struct NMib::NTraits::TCHasVirtualDestructorOverride<NMib::NConcurrency::TCActor
 #ifndef DMibPNoShortCuts
 using namespace NMib::NConcurrency;
 #endif
+
+#include "Malterlib_Concurrency_Defines.hpp"

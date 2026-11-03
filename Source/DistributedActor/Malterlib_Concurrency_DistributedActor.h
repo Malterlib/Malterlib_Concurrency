@@ -666,10 +666,7 @@ namespace NMib::NConcurrency
 			NContainer::TCVector<NContainer::CByteVector> m_CertificateChain;
 			CHostInfo m_HostInfo;
 
-			CConnectionResult(TCWeakActor<CActorDistributionManager> const &_DistributionManager, NStr::CStr const &_ConnectionID)
-				: m_ConnectionReference(_DistributionManager, _ConnectionID)
-			{
-			}
+			CConnectionResult(TCWeakActor<CActorDistributionManager> const &_DistributionManager, NStr::CStr const &_ConnectionID);
 		};
 
 		struct CHostState

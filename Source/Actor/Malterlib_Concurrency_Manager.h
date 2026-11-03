@@ -465,7 +465,7 @@ namespace NMib::NConcurrency
 	TCActor<tf_CActor> fg_ConstructActor(TCConstruct<tf_CHolderType, tfp_CHolderParams...> &&_HolderParams, tfp_CParams && ...p_Params);
 }
 
-#include "Malterlib_Concurrency_ActorHelpers.h"
+#include "Malterlib_Concurrency_ActorHelpers.hpp"
 #include "Malterlib_Concurrency_ActorCallHelpers.h"
 #include "Malterlib_Concurrency_Utils.h"
 

@@ -3,6 +3,8 @@
 
 #pragma once
 
+// fg_ThisActor and fg_ThisActorWeak are declared in Malterlib_Concurrency_Defines.h.
+
 namespace NMib::NConcurrency
 {
 	template <typename tf_CActor>

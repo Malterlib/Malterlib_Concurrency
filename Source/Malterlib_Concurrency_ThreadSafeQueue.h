@@ -32,94 +32,36 @@ namespace NMib::NContainer
 		template <typename t_CType0, typename t_CAllocator0>
 		friend struct TCThreadSafeQueueEntry;
 
-		t_CType m_Data;
+		t_CType mp_Data;
 
-		template <typename tf_Param0>
-		TCThreadSafeQueueListEntry(tf_Param0 &&_Param0)
-			: m_Data(fg_Forward<tf_Param0>(_Param0))
-		{
-		}
+		template <typename tf_CParam0>
+		TCThreadSafeQueueListEntry(tf_CParam0 &&_Param0);
 	};
 
 	template <typename t_CType, typename t_CAllocator = NMemory::CAllocator_Heap>
 	struct TCThreadSafeQueueEntry
 	{
-		TCThreadSafeQueueEntry(TCThreadSafeQueueEntry &&_Other)
-			: m_pEntry(_Other.m_pEntry)
-		{
-			_Other.m_pEntry = nullptr;
-		}
+		TCThreadSafeQueueEntry(TCThreadSafeQueueEntry &&_Other);
+		TCThreadSafeQueueEntry &operator = (TCThreadSafeQueueEntry &&_Other);
+		~TCThreadSafeQueueEntry();
 
-		TCThreadSafeQueueEntry &operator = (TCThreadSafeQueueEntry &&_Other)
-		{
-			if (m_pEntry)
-				fg_DeleteObjectDefiniteType(t_CAllocator(), m_pEntry);
+		bool f_IsValid() const;
 
-			m_pEntry = _Other.m_pEntry;
-			_Other.m_pEntry = nullptr;
+		t_CType &f_Get();
+		mark_nodebug t_CType &operator * ();
+		mark_nodebug t_CType *operator -> ();
 
-			return *this;
-		}
+		t_CType const &f_Get() const;
+		mark_nodebug t_CType const &operator * () const;
+		mark_nodebug t_CType const *operator -> () const;
 
-		~TCThreadSafeQueueEntry()
-		{
-			if (m_pEntry)
-			{
-				fg_DeleteObjectDefiniteType(t_CAllocator(), m_pEntry);
-				m_pEntry = nullptr;
-			}
-		}
-
-		bool f_IsValid() const
-		{
-			return m_pEntry != nullptr;
-		}
-
-		t_CType &f_Get()
-		{
-			DMibRequire(m_pEntry);
-			return m_pEntry->m_Data;
-		}
-
-		mark_nodebug t_CType &operator * ()
-		{
-			return f_Get();
-		}
-
-		mark_nodebug t_CType *operator -> ()
-		{
-			return &f_Get();
-		}
-
-		t_CType const &f_Get() const
-		{
-			DMibRequire(m_pEntry);
-			return m_pEntry->m_Data;
-		}
-
-		mark_nodebug t_CType const &operator * () const
-		{
-			return f_Get();
-		}
-
-		mark_nodebug t_CType const *operator -> () const
-		{
-			return &f_Get();
-		}
-
-		inline_small explicit operator bool () const
-		{
-			return f_IsValid();
-		}
+		inline_small explicit operator bool () const;
 
 	private:
-		TCThreadSafeQueueListEntry<t_CType> *m_pEntry;
+		TCThreadSafeQueueListEntry<t_CType> *mp_pEntry;
 		// template <typename t_CType, typename t_CAllocator>
 		friend struct TCThreadSafeQueue<t_CType, t_CAllocator>;
-		TCThreadSafeQueueEntry(TCThreadSafeQueueListEntry<t_CType> *_pEntry)
-			: m_pEntry(_pEntry)
-		{
-		}
+		TCThreadSafeQueueEntry(TCThreadSafeQueueListEntry<t_CType> *_pEntry);
 
 		// Disable copy
 		TCThreadSafeQueueEntry(TCThreadSafeQueueEntry const &_Other);
@@ -129,70 +71,34 @@ namespace NMib::NContainer
 	template <typename t_CType, typename t_CAllocator = NMemory::CAllocator_Heap>
 	struct TCThreadSafeQueue
 	{
-		TCThreadSafeQueue()
-		{
-		}
+	private:
+		// Declared before the public section, which uses it.
+		using CReturnEntry = TCThreadSafeQueueEntry<t_CType, t_CAllocator>;
 
-		~TCThreadSafeQueue()
-		{
-			fp_Clear();
-		}
+	public:
+		TCThreadSafeQueue();
+		~TCThreadSafeQueue();
 
-		void f_Clear()
-		{
-			fp_Clear();
-		}
+		void f_Clear();
 
-		CReturnEntry f_Pop()
-		{
-			CListEntry *pEntry;
-			if (m_Queue.pop(pEntry))
-				return CReturnEntry(pEntry);
-			return CReturnEntry(nullptr);
-		}
+		CReturnEntry f_Pop();
+		CReturnEntry f_PopLIFO();
 
-		CReturnEntry f_PopLIFO()
-		{
-			DMibPDebugBreak; // Not yet supported
-			return CReturnEntry();
-		}
+		template <typename tf_CParam0>
+		void f_Push(tf_CParam0 &&_Param0);
 
-		template <typename t_CParam0>
-		void f_Push(t_CParam0 &&_Param0)
-		{
-			CListEntry *pEntry = fg_ConstructObject<CListEntry>(t_CAllocator(), fg_Forward<t_CParam0>(_Param0));
-			m_Queue.push(pEntry);
-		}
+		void f_PopAllToVector(NContainer::TCVector<t_CType> &o_Items);
 
-		void f_PopAllToVector(NContainer::TCVector<t_CType> &o_Items)
-		{
-			CListEntry *pEntry = nullptr;
-			while (m_Queue.pop(pEntry))
-			{
-				o_Items.f_Insert(fg_Move(pEntry->m_Data));
-				fg_DeleteObjectDefiniteType(t_CAllocator(), pEntry);
-			}
-		}
-
-		bool f_IsEmpty() const
-		{
-			return fg_RemoveQualifiers(m_Queue).empty();
-		}
+		bool f_IsEmpty() const;
 
 	private:
 		using CListEntry = TCThreadSafeQueueListEntry<t_CType>;
-		using CReturnEntry = TCThreadSafeQueueEntry<t_CType, t_CAllocator>;
 
-		boost::lockfree::queue<CListEntry *> m_Queue;
+		boost::lockfree::queue<CListEntry *> mp_Queue;
 
 		using CAllocator = t_CAllocator;
 
-		void fp_Clear()
-		{
-			CListEntry *pEntry;
-			while (m_Queue.pop(pEntry))
-				fg_DeleteObjectDefiniteType(t_CAllocator(), pEntry);
-		}
+		void fp_Clear();
 
 		TCThreadSafeQueue(TCThreadSafeQueue const &_Other);
 		TCThreadSafeQueue(TCThreadSafeQueue &&_Other);
@@ -222,91 +128,33 @@ namespace NMib::NContainer
 		t_CType mp_Data;
 
 		template <typename ...tfp_CParams>
-		TCThreadSafeQueueListEntry(tfp_CParams && ...p_Params)
-			: mp_Data(fg_Forward<tfp_CParams>(p_Params)...)
-		{
-		}
+		TCThreadSafeQueueListEntry(tfp_CParams && ...p_Params);
 	};
 
 	template <typename t_CType, typename t_CAllocator = NMemory::CAllocator_Heap>
 	struct TCThreadSafeQueueEntry
 	{
-		TCThreadSafeQueueEntry(TCThreadSafeQueueEntry &&_Other)
-			: mp_pEntry(_Other.mp_pEntry)
-		{
-			_Other.mp_pEntry = nullptr;
-		}
+		TCThreadSafeQueueEntry(TCThreadSafeQueueEntry &&_Other);
+		TCThreadSafeQueueEntry &operator = (TCThreadSafeQueueEntry &&_Other);
+		~TCThreadSafeQueueEntry();
 
-		TCThreadSafeQueueEntry &operator = (TCThreadSafeQueueEntry &&_Other)
-		{
-			if (mp_pEntry)
-				fg_DeleteObjectDefiniteType(t_CAllocator(), mp_pEntry);
+		bool f_IsValid() const;
 
-			mp_pEntry = _Other.mp_pEntry;
-			_Other.mp_pEntry = nullptr;
+		t_CType &f_Get();
+		mark_nodebug t_CType &operator * ();
+		mark_nodebug t_CType *operator -> ();
 
-			return *this;
-		}
+		t_CType const &f_Get() const;
+		mark_nodebug t_CType const &operator * () const;
+		mark_nodebug t_CType const *operator -> () const;
 
-		~TCThreadSafeQueueEntry()
-		{
-			if (mp_pEntry)
-			{
-				fg_DeleteObjectDefiniteType(t_CAllocator(), mp_pEntry);
-				mp_pEntry = nullptr;
-			}
-		}
-
-		bool f_IsValid() const
-		{
-			return mp_pEntry != nullptr;
-		}
-
-		t_CType &f_Get()
-		{
-			DMibRequire(mp_pEntry);
-			return mp_pEntry->mp_Data;
-		}
-
-		mark_nodebug t_CType &operator * ()
-		{
-			return f_Get();
-		}
-
-		mark_nodebug t_CType *operator -> ()
-		{
-			return &f_Get();
-		}
-
-		t_CType const &f_Get() const
-		{
-			DMibRequire(mp_pEntry);
-			return mp_pEntry->mp_Data;
-		}
-
-		mark_nodebug t_CType const &operator * () const
-		{
-			return f_Get();
-		}
-
-		mark_nodebug t_CType const *operator -> () const
-		{
-			return &f_Get();
-		}
-
-		inline_small explicit operator bool () const
-		{
-			return f_IsValid();
-		}
+		inline_small explicit operator bool () const;
 
 	private:
 		TCThreadSafeQueueListEntry<t_CType> *mp_pEntry;
 		// template <typename t_CType, typename t_CAllocator>
 		friend struct TCThreadSafeQueue<t_CType, t_CAllocator>;
-		TCThreadSafeQueueEntry(TCThreadSafeQueueListEntry<t_CType> *_pEntry)
-			: mp_pEntry(_pEntry)
-		{
-		}
+		TCThreadSafeQueueEntry(TCThreadSafeQueueListEntry<t_CType> *_pEntry);
 
 		// Disable copy
 		TCThreadSafeQueueEntry(TCThreadSafeQueueEntry const &_Other);
@@ -317,109 +165,38 @@ namespace NMib::NContainer
 	struct TCThreadSafeQueue
 	{
 	private:
-		using CListEntry = TCThreadSafeQueueListEntry<t_CType>;
+		// Declared before the public section, which uses it.
 		using CReturnEntry = TCThreadSafeQueueEntry<t_CType, t_CAllocator>;
+
+	public:
+		TCThreadSafeQueue();
+		TCThreadSafeQueue(TCThreadSafeQueue const &_Other);
+		TCThreadSafeQueue(TCThreadSafeQueue &&_Other);
+		~TCThreadSafeQueue();
+
+		void f_Clear();
+
+		CReturnEntry f_Pop();
+		CReturnEntry f_PopLIFO();
+
+		template <typename ...tfp_CParams>
+		void f_Push(tfp_CParams && ...p_Params);
+
+		void f_PopAllToVector(NContainer::TCVector<t_CType> &o_Items);
+
+		bool f_IsEmpty() const;
+
+	private:
+		using CListEntry = TCThreadSafeQueueListEntry<t_CType>;
 
 		mutable NThread::CLowLevelLock mp_Lock;
 		DMibListLinkDS_List_FromTemplate(CListEntry, mp_Link) mp_Queue;
 
 		using CAllocator = t_CAllocator;
 
-		void fp_Clear()
-		{
-			CListEntry *pEntry = mp_Queue.f_Pop();
-			while (pEntry)
-			{
-				fg_DeleteObjectDefiniteType(t_CAllocator(), pEntry);
-				pEntry = mp_Queue.f_Pop();
-			}
-		}
-
-	public:
-		TCThreadSafeQueue()
-		{
-		}
-
-		TCThreadSafeQueue(TCThreadSafeQueue const &_Other)
-		{
-			DMibLock(_Other.mp_Lock);
-			auto Iter = _Other.mp_Queue.f_GetIterator();
-			while (Iter)
-			{
-				mp_Queue.f_InsertLast(fg_ConstructObject<CListEntry>(t_CAllocator(), Iter->mp_Data));
-				++Iter;
-			}
-		}
-
-		TCThreadSafeQueue(TCThreadSafeQueue &&_Other)
-		{
-			DMibLock(_Other.mp_Lock);
-			mp_Queue = fg_Move(_Other.mp_Queue);
-		}
-
-		~TCThreadSafeQueue()
-		{
-			fp_Clear();
-		}
-
-		void f_Clear()
-		{
-			DMibLock(mp_Lock);
-			fp_Clear();
-		}
-
-		CReturnEntry f_Pop()
-		{
-			CListEntry *pEntry;
-			{
-				DMibLock(mp_Lock);
-				pEntry = mp_Queue.f_Pop();
-			}
-
-			return CReturnEntry(pEntry);
-		}
-
-		CReturnEntry f_PopLIFO()
-		{
-			CListEntry *pEntry;
-			{
-				DMibLock(mp_Lock);
-				pEntry = mp_Queue.f_GetLast();
-				if (pEntry)
-					pEntry->mp_Link.f_Unlink();
-			}
-
-			return CReturnEntry(pEntry);
-		}
-
-		template <typename ...tfp_CParams>
-		void f_Push(tfp_CParams && ...p_Params)
-		{
-			CListEntry *pEntry = fg_ConstructObject<CListEntry>(t_CAllocator(), fg_Forward<tfp_CParams>(p_Params)...);
-			{
-				DMibLock(mp_Lock);
-				mp_Queue.f_InsertLast(pEntry);
-			}
-		}
-
-		void f_PopAllToVector(NContainer::TCVector<t_CType> &o_Items)
-		{
-			DMibLock(mp_Lock);
-
-			CListEntry *pEntry = mp_Queue.f_Pop();
-			while (pEntry)
-			{
-				o_Items.f_Insert(fg_Move(pEntry->mp_Data));
-				fg_DeleteObjectDefiniteType(t_CAllocator(), pEntry);
-				pEntry = mp_Queue.f_Pop();
-			}
-		}
-
-		bool f_IsEmpty() const
-		{
-			DMibLock(mp_Lock);
-			return mp_Queue.f_IsEmpty();
-		}
+		void fp_Clear();
 	};
 #endif
 }
+
+#include "Malterlib_Concurrency_ThreadSafeQueue.hpp"

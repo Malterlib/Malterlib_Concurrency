@@ -7,6 +7,10 @@ namespace NMib::NConcurrency
 {
 	DMibRuntimeClassBaseNamed(CDistributedTool, NMib::NConcurrency::CDistributedTool);
 
+	CDistributedTool::~CDistributedTool()
+	{
+	}
+
 	CDistributedToolSettings::CDistributedToolSettings(NStr::CStr const &_ToolName)
 		: CDistributedAppActor_Settings
 		{

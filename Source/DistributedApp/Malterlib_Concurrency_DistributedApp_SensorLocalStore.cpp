@@ -10,6 +10,33 @@ namespace NMib::NConcurrency
 {
 	using namespace NSensorStoreLocalDatabase;
 
+	auto CDistributedAppSensorStoreLocal::CInternal::CSensorReporter::f_GetID() const -> TCWeakDistributedActor<CActor> const &
+	{
+		return TCMap<TCWeakDistributedActor<CActor>, CSensorReporter>::fs_GetKey(*this);
+	}
+
+	CDistributedAppSensorStoreLocal::CInternal::CSensor::CSensor(CDistributedAppSensorReporter::CSensorInfo &&_Info)
+		: m_Info(fg_Move(_Info))
+	{
+	}
+
+	CDistributedAppSensorReporter::CSensorInfoKey const &CDistributedAppSensorStoreLocal::CInternal::CSensor::f_GetKey() const
+	{
+		return TCMap<CDistributedAppSensorReporter::CSensorInfoKey, CSensor>::fs_GetKey(*this);
+	}
+
+	CDistributedAppSensorStoreLocal::CInternal::CInternal
+		(
+			CDistributedAppSensorStoreLocal *_pThis
+			, TCActor<CActorDistributionManager> const &_DistributionManager
+			, TCActor<CDistributedActorTrustManager> const &_TrustManager
+		)
+		: m_pThis(_pThis)
+		, m_DistributionManager(_DistributionManager)
+		, m_TrustManager(_TrustManager)
+	{
+	}
+
 	CDistributedAppSensorStoreLocal::CDistributedAppSensorStoreLocal
 		(
 			TCActor<CActorDistributionManager> const &_DistributionManager

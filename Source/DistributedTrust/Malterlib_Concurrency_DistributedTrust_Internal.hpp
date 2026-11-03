@@ -15,6 +15,11 @@ namespace NMib::NConcurrency
 		return NContainer::TCMap<NStr::CStr, CHostState>::fs_GetKey(*this);
 	}
 
+	inline auto &CDistributedActorTrustManager::CInternal::CTypedActor::CCompareIdentifier::operator () (CTypedActor const &_Actor)
+	{
+		return _Actor.f_GetIdentifier();
+	}
+
 	NStr::CStr const &CDistributedActorTrustManager::CInternal::CNamespaceState::f_GetNamespaceName() const
 	{
 		return NContainer::TCMap<NStr::CStr, CNamespaceState>::fs_GetKey(*this);

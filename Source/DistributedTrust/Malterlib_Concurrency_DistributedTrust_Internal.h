@@ -66,10 +66,7 @@ namespace NMib::NConcurrency
 
 		struct CTypedActor
 		{
-			CDistributedActorIdentifier const &f_GetIdentifier() const
-			{
-				return NContainer::TCMap<CDistributedActorIdentifier, CTypedActor>::fs_GetKey(*this);
-			}
+			CDistributedActorIdentifier const &f_GetIdentifier() const;
 
 			CAbstractDistributedActor m_AbstractActor;
 			CTrustedActorInfo m_TrustedInfo;
@@ -80,30 +77,20 @@ namespace NMib::NConcurrency
 
 			struct CCompareIdentifier
 			{
-				auto &operator () (CTypedActor const &_Actor)
-				{
-					return _Actor.f_GetIdentifier();
-				}
+				auto &operator () (CTypedActor const &_Actor);
 			};
 		};
 
 		struct CTypedHost
 		{
-			NStr::CStr const &f_GetHostID() const
-			{
-				return NContainer::TCMap<NStr::CStr, CTypedHost>::fs_GetKey(*this);
-			}
+			NStr::CStr const &f_GetHostID() const;
 
 			NIntrusive::TCAVLTree<&CTypedActor::m_LinkHost, CTypedActor::CCompareIdentifier> m_Actors;
 		};
 
 		struct CNamespaceTypeState
 		{
-			uint32 f_GetTypeHash() const
-			{
-				return NContainer::TCMap<uint32, CNamespaceTypeState>::fs_GetKey(*this);
-			}
-
+			uint32 f_GetTypeHash() const;
 			NContainer::TCMap<CDistributedActorIdentifier, TCTrustedActor<CActor>> f_GetAllowed(NPrivate::CTrustedActorSubscriptionState const &_State);
 
 			NContainer::TCSet<NStorage::TCSharedPointer<NPrivate::CTrustedActorSubscriptionState>> m_Subscriptions;

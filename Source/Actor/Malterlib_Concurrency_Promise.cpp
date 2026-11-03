@@ -24,6 +24,11 @@ namespace NMib::NConcurrency
 		}
 	;
 
+	CAsyncDestroyHelperNoUnWrap CAsyncDestroyHelper::f_Wrap() const
+	{
+		return CAsyncDestroyHelperNoUnWrap();
+	}
+
 	CCoroutineOnSuspendScope::CCoroutineOnSuspendScope(NFunction::TCFunctionMovable<void ()> &&_fOnSuspend)
 		: mp_fOnSuspend(fg_Move(_fOnSuspend))
 	{
@@ -186,6 +191,14 @@ namespace NMib::NConcurrency
 	CFutureCoroutineContextOnResumeScopeAwaiter::CFutureCoroutineContextOnResumeScopeAwaiter(NFunction::TCFunctionMovable<NStorage::TCUniquePointer<ICOnResumeResult> ()> &&_fOnResume)
 		: mp_fOnResume(fg_Move(_fOnResume))
 	{
+	}
+
+	inline_always_lto CSuspendNever CFutureCoroutineContext::await_transform(ECoroutineFlag _Flags)
+	{
+#ifndef DMibClangAnalyzerWorkaround
+		m_Flags |= _Flags;
+#endif
+		return {};
 	}
 
 	CFutureCoroutineContext::CCaptureExceptionScopeAwaiter CFutureCoroutineContext::await_transform(CCaptureExceptionsHelper _Helper) noexcept
@@ -486,6 +499,120 @@ namespace NMib::NConcurrency::NPrivate
 		DMibDTrace("Unobserved exception in future: {}{}\n", NException::fg_ExceptionString(_pException), _CallStack);
 		DMibLog(Error, "Unobserved exception in future: {}{}", NException::fg_ExceptionString(_pException), _CallStack);
 	}
+
+	inline_always_lto int32 CPromiseDataBaseRefCount::fs_GetFutureCount(int32 _Value)
+	{
+		return (_Value & mc_FutureMask) >> mc_FutureOffset;
+	}
+
+	inline_always_lto int32 CPromiseDataBaseRefCount::f_GetFutureCount() const
+	{
+		return fs_GetFutureCount(m_RefCount.f_Load(NAtomic::gc_MemoryOrder_Relaxed));
+	}
+
+	inline_always_lto int32 CPromiseDataBaseRefCount::f_GetPromiseCount() const
+	{
+		int32 Value = (m_RefCount.f_Load(NAtomic::gc_MemoryOrder_Relaxed) & mc_PromiseMask) << 3;
+		Value = Value >> 3; // Sign extend
+		return Value;
+	}
+
+	inline_always_lto bool CPromiseDataBaseRefCount::f_PromiseToFuture()
+	{
+		auto OldValue = m_RefCount.f_FetchAdd(mc_FutureBit - 1, NAtomic::gc_MemoryOrder_Relaxed);
+		DMibSafeCheck(fs_GetFutureCount(OldValue) <= 2, "Maximum three futures");
+
+		return (OldValue & mc_PromiseMask) == 0;
+	}
+
+	inline_always_lto void CPromiseDataBaseRefCount::f_FutureToPromise()
+	{
+		m_RefCount.f_FetchSub(mc_FutureBit - 1, NAtomic::gc_MemoryOrder_Relaxed);
+	}
+
+	inline_always_lto void CPromiseDataBaseRefCount::f_IncreaseFuture()
+	{
+		[[maybe_unused]] int32 Return = m_RefCount.f_FetchAdd(mc_FutureBit, NAtomic::gc_MemoryOrder_Relaxed);
+		DMibFastCheck(Return >= 0);
+		DMibSafeCheck(fs_GetFutureCount(Return) <= 2, "Maximum three futures");
+	}
+
+	inline_always_lto bool CPromiseDataBaseRefCount::f_DecreaseFuture()
+	{
+		int32 Return = m_RefCount.f_FetchSub(mc_FutureBit, NAtomic::gc_MemoryOrder_Release);
+		DMibFastCheck(Return >= 0);
+		if ((Return - mc_FutureBit) < 0)
+		{
+#ifdef DMibSanitizerEnabled_Thread
+			m_RefCount.f_Load(NAtomic::gc_MemoryOrder_Acquire);
+#else
+			NAtomic::fg_MemoryFence(NAtomic::gc_MemoryOrder_Acquire);
+#endif
+			return true;
+		}
+
+		return false;
+	}
+
+	inline_always_lto bool CPromiseDataBaseRefCount::f_IsLastPromiseReference()
+	{
+		// A future cannot be converted into a promise, so this should be safe
+		return (m_RefCount.f_Load(NAtomic::gc_MemoryOrder_Acquire) & mc_PromiseMask) == 0;
+	}
+
+	inline_always_lto bool CPromiseDataBaseRefCount::f_PromiseDecrease()
+	{
+		auto OldValue = m_RefCount.f_FetchSub(1, NAtomic::gc_MemoryOrder_Release);
+		if (OldValue == 0)
+		{
+#ifdef DMibSanitizerEnabled_Thread
+			m_RefCount.f_Load(NAtomic::gc_MemoryOrder_Acquire);
+#else
+			NAtomic::fg_MemoryFence(NAtomic::gc_MemoryOrder_Acquire);
+#endif
+			return true;
+		}
+
+		return false;
+	}
+
+#if DMibConfig_RefCountDebugging
+	inline_always_lto int32 CPromiseDataBaseRefCount::f_Increase
+		(
+			NStorage::CRefCountDebugReference &o_Reference
+#	if DMibEnableSafeCheck > 0
+			, bool _bAllowRevive
+#	endif
+		)
+		const
+	{
+		auto Return = NStorage::TCIntrusiveRefCount<NStorage::ESharedPointerOption_None, int32>::f_Increase
+			(
+				o_Reference
+#	if DMibEnableSafeCheck > 0
+				, _bAllowRevive
+#	endif
+			)
+		;
+
+		DMibSafeCheck((Return & mc_PromiseMask) == mc_PromiseMask || (Return & mc_PromiseMask) < (mc_PromiseMask - 1), "Promise reference overflow");
+		return Return;
+	}
+#else
+	inline_always_lto int32 CPromiseDataBaseRefCount::f_Increase
+		(
+#	if DMibEnableSafeCheck > 0
+			bool _bAllowRevive
+#	endif
+		)
+		const
+	{
+		int32 Return = m_RefCount.f_FetchAdd(1, NAtomic::gc_MemoryOrder_Relaxed);
+		DMibFastCheck(Return >= 0 || _bAllowRevive && Return == -1);
+		DMibSafeCheck((Return & mc_PromiseMask) == mc_PromiseMask || (Return & mc_PromiseMask) < (mc_PromiseMask - 1), "Promise reference overflow");
+		return Return;
+	}
+#endif
 
 	CPromiseDataBase::CPromiseDataBase
 		(

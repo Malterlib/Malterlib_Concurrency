@@ -7,6 +7,11 @@
 
 namespace NMib::NConcurrency
 {
+	inline_always bool ICDistributedActorData::f_IsValidForCall() const
+	{
+		return !m_bRemote;
+	}
+
 	template <typename tf_CActor>
 	TCActor<tf_CActor> CActorHolder::fp_GetAsActor()
 	{

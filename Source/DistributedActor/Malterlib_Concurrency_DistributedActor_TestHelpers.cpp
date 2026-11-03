@@ -438,6 +438,11 @@ namespace NMib::NConcurrency
 		return mp_HostID;
 	}
 
+	CDistributedActorTestHelper::CSubscription::~CSubscription()
+	{
+		m_pDeleted->f_Exchange(true);
+	}
+
 	CDistributedActorTestHelper &CDistributedActorTestHelperCombined::f_GetServer()
 	{
 		return *mp_pServer;

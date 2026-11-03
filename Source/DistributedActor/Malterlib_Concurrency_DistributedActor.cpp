@@ -406,6 +406,11 @@ namespace NMib::NConcurrency
 		return NPrivate::fg_DistributedActorSubSystem().m_ThreadLocal->m_CurrentPriority;
 	}
 
+	CActorDistributionManager::CConnectionResult::CConnectionResult(TCWeakActor<CActorDistributionManager> const &_DistributionManager, NStr::CStr const &_ConnectionID)
+		: m_ConnectionReference(_DistributionManager, _ConnectionID)
+	{
+	}
+
 	CCallingHostInfo const &fg_GetCallingHostInfo()
 	{
 		return CActorDistributionManager::fs_GetCallingHostInfo();
@@ -860,6 +865,15 @@ namespace NMib::NConcurrency
 	NPrivate::ICHost::ICHost(CDistributedActorHostInfo &&_Info)
 		: m_HostInfo(fg_Move(_Info))
 	{
+	}
+
+	CDistributedActorHostInfo NPrivate::CDistributedActorData::f_GetHostInfo() const
+	{
+		auto pHost = m_pHost.f_Lock();
+		if (!pHost)
+			return {};
+
+		return pHost->m_HostInfo;
 	}
 
 	bool CActorDistributionManager::fs_IsValidNamespaceName(NStr::CStr const &_String)

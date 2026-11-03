@@ -6,6 +6,11 @@
 
 namespace NMib::NConcurrency::NPrivate
 {
+	inline_always_lto TCFutureCoroutineContext<void>::TCFutureCoroutineContext(ECoroutineFlag _Flags) noexcept
+		: TCFutureCoroutineContextAllocation<void>(_Flags)
+	{
+	}
+
 	void TCFutureCoroutineContext<void>::return_value(CVoidTag &&_Value)
 	{
 		auto *pPromiseData = static_cast<TCPromiseData<void> *>(m_pPromiseData);
@@ -21,6 +26,11 @@ namespace NMib::NConcurrency::NPrivate
 
 namespace NMib::NConcurrency
 {
+	CFutureCoroutineContext::CRuntimeState::CRuntimeState(CCoroutineHandler *_pPreviousCoroutineHandler)
+		: m_pPreviousCoroutineHandler(_pPreviousCoroutineHandler)
+	{
+	}
+
 	inline_always_lto auto CFutureCoroutineContext::initial_suspend() noexcept -> CInitialSuspend
 	{
 		auto &ThreadLocal = fg_SystemThreadLocal();

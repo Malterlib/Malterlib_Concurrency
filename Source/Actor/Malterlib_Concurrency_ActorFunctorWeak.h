@@ -70,17 +70,7 @@ namespace NMib::NConcurrency
 	};
 
 	template <bool tf_bCoalesced = false, typename tf_FFunctor>
-	auto fg_ActorFunctorWeak(TCActor<> const &_Actor, tf_FFunctor &&_fFunctor)
-	{
-		using FFunction = NPrivate::TCRemoveReferencesFromFunctor
-			<
-				typename NTraits::TCMemberFunctionPointerTraits<decltype(&NTraits::TCRemoveReferenceAndQualifiers<tf_FFunctor>::operator ())>::FFunctionType
-			>
-			::FType
-		;
-
-		return TCActorFunctorWeak<FFunction, tf_bCoalesced>{fg_TempCopy(_Actor), fg_Forward<tf_FFunctor>(_fFunctor)};
-	}
+	auto fg_ActorFunctorWeak(TCActor<> const &_Actor, tf_FFunctor &&_fFunctor);
 
 	template <bool t_bCoalesced>
 	struct TCActorFunctorWeakHelperWithProperties

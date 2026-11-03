@@ -33,13 +33,7 @@ namespace NMib::NConcurrency::NActorDistributionManagerInternal
 {
 	struct CConnection
 	{
-		virtual ~CConnection()
-		{
-			f_DiscardIdentifyPromise("Destroyed");
-
-			if (m_Connection)
-				fg_Move(m_Connection).f_Destroy().f_DiscardResult();
-		}
+		virtual ~CConnection();
 
 		void f_Reset(bool _bResetHost, CActorDistributionManagerInternal &_This, NStr::CStr const &_Message, TCPromise<void> *_pPromise);
 		void f_Destroy(NStr::CStr const &_Message, CActorDistributionManagerInternal &_This, TCPromise<void> *_pPromise);
@@ -131,37 +125,18 @@ namespace NMib::NConcurrency::NActorDistributionManagerInternal
 		-> NCryptography::CCertificateVerifyOptions
 	;
 
-	// Pack priority (8 bits) and packetID (56 bits) into a single uint64 for efficient lookup
-	// Format: [priority:8][packetID:56] - priority in high bits for correct sort order
-	inline_always uint64 fg_MakePriorityPacketKey(uint8 _Priority, uint64 _PacketID)
-	{
-		return (uint64(_Priority) << 56) | (_PacketID & 0x00FFFFFFFFFFFFFF);
-	}
-
-	// Validate that a packet ID from the network fits in 56 bits
-	// Returns false if the ID has upper bits set (potential malicious client)
-	inline_always bool fg_IsValidPacketID(uint64 _PacketID)
-	{
-		return (_PacketID & 0xFF00000000000000) == 0;
-	}
+	inline_always uint64 fg_MakePriorityPacketKey(uint8 _Priority, uint64 _PacketID);
+	inline_always bool fg_IsValidPacketID(uint64 _PacketID);
 
 	struct CPacket final
 	{
 		// Sort by (priority, packetID) packed into uint64 for efficient lookup during resend
 		struct CSortPriorityPacketID
 		{
-			inline_always_debug uint64 operator () (CPacket const &_Entry)
-			{
-				return fg_MakePriorityPacketKey(_Entry.m_Priority, _Entry.m_PacketID);
-			}
+			inline_always_debug uint64 operator () (CPacket const &_Entry);
 		};
 
-		CPacket(NStorage::TCSharedPointer<NStream::CBinaryStorage const> const &_pData, uint8 _Priority, uint64 _PacketID)
-			: m_pData(_pData)
-			, m_PacketID(_PacketID)
-			, m_Priority(_Priority)
-		{
-		}
+		CPacket(NStorage::TCSharedPointer<NStream::CBinaryStorage const> const &_pData, uint8 _Priority, uint64 _PacketID);
 
 		NStorage::TCSharedPointer<NStream::CBinaryStorage const> m_pData; // Retained for retransmission.
 		NIntrusive::TCAVLLink<> m_TreeLink;
@@ -179,17 +154,11 @@ namespace NMib::NConcurrency::NActorDistributionManagerInternal
 		CHost *m_pHost = nullptr;
 		CDistributedActorProtocolVersions m_ProtocolVersions;
 
-		NStr::CStr const &f_GetActorID() const
-		{
-			return NContainer::TCMap<NStr::CStr, CRemoteActor>::fs_GetKey(this);
-		}
+		NStr::CStr const &f_GetActorID() const;
 
 		DMibListLinkDS_Link(CRemoteActor, m_Link);
 
-		~CRemoteActor()
-		{
-			DMibFastCheck(!m_Link.f_IsInList());
-		}
+		~CRemoteActor();
 	};
 
 	struct CRemoteNamespace
@@ -233,11 +202,7 @@ namespace NMib::NConcurrency::NActorDistributionManagerInternal
 		NStorage::TCSharedPointer<NPrivate::CDistributedActorStreamContextState> m_pState;
 	};
 
-	// Composite key for outstanding calls: encodes priority in upper 8 bits, packet ID in lower 56 bits
-	inline_always uint64 fg_MakeOutstandingCallKey(uint8 _Priority, uint64 _PacketID)
-	{
-		return (uint64(_Priority) << 56) | (_PacketID & 0x00FFFFFFFFFFFFFFull);
-	}
+	inline_always uint64 fg_MakeOutstandingCallKey(uint8 _Priority, uint64 _PacketID);
 
 	struct CWaitingForPublication
 	{
@@ -353,19 +318,13 @@ namespace NMib::NConcurrency::NActorDistributionManagerInternal
 	{
 		CLocalNamespace *m_pNamespace = nullptr;
 
-		NStr::CStr const &f_GetActorID() const
-		{
-			return NContainer::TCMap<NStr::CStr, CPublishedActor>::fs_GetKey(this);
-		}
+		NStr::CStr const &f_GetActorID() const;
 
 		NIntrusive::TCAVLLink<> m_TreeLink;
 
 		struct CSortActorID
 		{
-			inline_always_debug auto &operator () (CPublishedActor const &_Entry)
-			{
-				return _Entry.f_GetActorID();
-			}
+			inline_always_debug auto &operator () (CPublishedActor const &_Entry);
 		};
 	};
 
@@ -373,18 +332,12 @@ namespace NMib::NConcurrency::NActorDistributionManagerInternal
 	{
 		NContainer::TCMap<NStr::CStr, CPublishedActor> m_Actors;
 
-		NStr::CStr const &f_GetNamespace() const
-		{
-			return NContainer::TCMap<NStr::CStr, CLocalNamespace>::fs_GetKey(this);
-		}
+		NStr::CStr const &f_GetNamespace() const;
 	};
 
 	struct CActorPublicationSubscriptionInstance
 	{
-		umint f_GetID() const
-		{
-			return NContainer::TCMap<umint, CActorPublicationSubscriptionInstance>::fs_GetKey(this);
-		}
+		umint f_GetID() const;
 
 		TCActor<CActor> m_DispatchActor;
 		NStorage::TCSharedPointer<NFunction::TCFunctionMovable<TCFuture<void> (CAbstractDistributedActor &&_NewActor)>> m_pOnNewActor;
@@ -406,10 +359,7 @@ namespace NMib::NConcurrency::NActorDistributionManagerInternal
 		NStr::CStr m_LastReportedError;
 		NContainer::TCVector<NWeb::NHTTP::CURL> m_ListenAddresses;
 
-		NStr::CStr const &f_GetID() const
-		{
-			return NContainer::TCMap<NStr::CStr, CListen>::fs_GetKey(*this);
-		}
+		NStr::CStr const &f_GetID() const;
 	};
 
 	struct CDecodedClientConnectionSetting
@@ -421,10 +371,7 @@ namespace NMib::NConcurrency::NActorDistributionManagerInternal
 
 	struct CWebsocketHandler
 	{
-		NStr::CStr const &f_GetWebPath() const
-		{
-			return NContainer::TCMap<NStr::CStr, CWebsocketHandler>::fs_GetKey(*this);
-		}
+		NStr::CStr const &f_GetWebPath() const;
 
 		TCWeakActor<> m_Actor;
 		NFunction::TCFunctionMutable<TCFuture<void> (NStorage::TCSharedPointer<NWeb::CWebSocketNewServerConnection> const &_pNewServerConnection, NStr::CStr const &_RealHostID)>
@@ -638,3 +585,5 @@ namespace NMib::NConcurrency
 		void fp_DestroyRemoteSubscriptionReset(CHost &_Host, NStr::CStr const &_SubscriptionID);
 	};
 }
+
+#include "Malterlib_Concurrency_DistributedActor_Internal.hpp"

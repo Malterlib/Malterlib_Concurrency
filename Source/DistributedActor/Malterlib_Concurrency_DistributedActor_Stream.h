@@ -149,14 +149,7 @@ namespace NMib::NConcurrency
 	>
 	auto fg_CallActor(TCDistributedActorInterface<tf_CActor> &&_Actor, tfp_CParams && ...p_Params) -> NPrivate::TCFutureReturn<decltype(tf_fMemberFunction)>
 		requires cActorCallableWithFunctor<tf_fMemberFunction, tf_CActor, tfp_CParams...>
-	{
-		return fg_CallActor<tf_fMemberFunction DMibIfNotSupportMemberNameFromMemberPointer(, tf_NameHash), tf_VirtualCall>
-			(
-				fg_Move(_Actor.f_GetActor())
-				, fg_Forward<tfp_CParams>(p_Params)...
-			)
-		;
-	}
+	;
 
 	template
 	<
@@ -169,14 +162,7 @@ namespace NMib::NConcurrency
 	>
 	auto fg_CallActor(TCDistributedActorInterfaceWithID<tf_CInterface, tf_SubscriptionID> &&_Actor, tfp_CParams && ...p_Params) -> NPrivate::TCFutureReturn<decltype(tf_fMemberFunction)>
 		requires cActorCallableWithFunctor<tf_fMemberFunction, tf_CInterface, tfp_CParams...>
-	{
-		return fg_CallActor<tf_fMemberFunction DMibIfNotSupportMemberNameFromMemberPointer(, tf_NameHash), tf_VirtualCall>
-			(
-				fg_Move(_Actor.f_GetActor())
-				, fg_Forward<tfp_CParams>(p_Params)...
-			)
-		;
-	}
+	;
 
 #define DMibDistributedStreamDeclare(d_Class) DMibStreamDeclare(d_Class, NConcurrency::CDistributedActorWriteStream, Feed); \
 	DMibStreamDeclare(d_Class, NConcurrency::CDistributedActorReadStream, Consume);

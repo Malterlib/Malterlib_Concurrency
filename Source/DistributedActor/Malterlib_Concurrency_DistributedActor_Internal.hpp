@@ -5,6 +5,13 @@
 
 namespace NMib::NConcurrency::NActorDistributionManagerInternal
 {
+#if !DMibConfig_IoDebug_Enable
+	constexpr umint fg_TransportFragmentationOverride()
+	{
+		return 0;
+	}
+
+#endif
 	// Pack priority (8 bits) and packetID (56 bits) into a single uint64 for efficient lookup
 	// Format: [priority:8][packetID:56] - priority in high bits for correct sort order
 	inline_always uint64 fg_MakePriorityPacketKey(uint8 _Priority, uint64 _PacketID)

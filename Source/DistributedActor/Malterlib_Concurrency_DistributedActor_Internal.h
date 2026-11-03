@@ -114,10 +114,7 @@ namespace NMib::NConcurrency::NActorDistributionManagerInternal
 #if DMibConfig_IoDebug_Enable
 	umint fg_TransportFragmentationOverride();
 #else
-	constexpr umint fg_TransportFragmentationOverride()
-	{
-		return 0;
-	}
+	constexpr umint fg_TransportFragmentationOverride();
 #endif
 
 	bool fg_IsAuthenticatedUnixScheme(NStr::CStr const &_Scheme);

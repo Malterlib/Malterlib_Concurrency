@@ -95,7 +95,7 @@ namespace NTestAuthentication
 	{
 		static constexpr ch8 const *mc_pDefaultNamespace = "com.malterlib/Concurrency/DistributedAppAuthenticationTestsServer";
 
-		enum : uint32
+		enum EProtocolVersion : uint32
 		{
 			EProtocolVersion_Min       = 0x101
 			, EProtocolVersion_Current = 0x101
@@ -239,7 +239,7 @@ namespace NTestAuthentication
 	{
 		static constexpr ch8 const *mc_pDefaultNamespace = "com.malterlib/Concurrency/DistributedAppAuthenticationTestsManyServer";
 
-		enum : uint32
+		enum EProtocolVersion : uint32
 		{
 			EProtocolVersion_Min       = 0x101
 			, EProtocolVersion_Current = 0x101
@@ -419,7 +419,7 @@ namespace NTestAuthentication
 	{
 		static constexpr ch8 const *mc_pDefaultNamespace = "com.malterlib/Concurrency/DistributedAppAuthenticationTestsSlowServer";
 
-		enum : uint32
+		enum EProtocolVersion : uint32
 		{
 			EProtocolVersion_Min       = 0x101
 			, EProtocolVersion_Current = 0x101

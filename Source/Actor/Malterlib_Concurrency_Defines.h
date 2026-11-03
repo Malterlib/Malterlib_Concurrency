@@ -126,7 +126,7 @@ namespace NMib::NConcurrency
 		(
 			NTraits::cIsCallableWith
 			<
-				NTraits::TCAddPointer<typename NTraits::TCMemberFunctionPointerTraits<NTraits::TCRemoveReference<t_CMemberFunction>>::CFunctionType>
+				NTraits::TCAddPointer<typename NTraits::TCMemberFunctionPointerTraits<NTraits::TCRemoveReference<t_CMemberFunction>>::FFunctionType>
 				, void (NTraits::TCRemoveQualifiersAndAddRValueReference<tp_CCallParams>...)
 			>
 			&& NTraits::cIsBaseOfOrSame<t_CActor, typename NTraits::TCMemberFunctionPointerTraits<NTraits::TCRemoveReference<t_CMemberFunction>>::CClass>
@@ -170,10 +170,7 @@ namespace NMib::NConcurrency
 
 	struct CInternalActorAllocator : public NMemory::CAllocator_Heap
 	{
-		enum
-		{
-			mc_bIsDefault = false
-		};
+		static constexpr bool mc_bIsDefault = false;
 	};
 
 	enum class EVirtualCall : uint8

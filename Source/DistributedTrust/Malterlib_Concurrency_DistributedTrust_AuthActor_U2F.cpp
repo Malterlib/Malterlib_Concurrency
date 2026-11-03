@@ -197,26 +197,26 @@ namespace NMib::NConcurrency::NPrivate
 	{
 		umint f_SetInitial(uint32 _ChannelID, uint8 _Command, uint16 _ByteCount, uint8 const *_pData, uint32 _Length)
 		{
-			_Length = fg_Min(_Length, uint32(CHumanInterfaceDevicesActor::EReportSize - 7));
+			_Length = fg_Min(_Length, uint32(CHumanInterfaceDevicesActor::mc_ReportSize - 7));
 			m_ChannelID = _ChannelID;
 			m_InitialFrame.m_Command = _Command;
 			m_InitialFrame.m_ByteCountHigh = _ByteCount >> 8;
 			m_InitialFrame.m_ByteCountLow = _ByteCount;
 			NMemory::fg_MemCopy(m_InitialFrame.m_Data, _pData, _Length);
-			if (_Length < CHumanInterfaceDevicesActor::EReportSize - 7)
-				NMemory::fg_SecureMemClear(m_InitialFrame.m_Data + _Length, (CHumanInterfaceDevicesActor::EReportSize - 7) - _Length);
+			if (_Length < CHumanInterfaceDevicesActor::mc_ReportSize - 7)
+				NMemory::fg_SecureMemClear(m_InitialFrame.m_Data + _Length, (CHumanInterfaceDevicesActor::mc_ReportSize - 7) - _Length);
 
 			return _Length;
 		}
 
 		umint f_SetContinuation(uint32 _ChannelID, uint8 _SequenceNumber, uint8 const *_pData, uint32 _Length)
 		{
-			_Length = fg_Min(_Length, uint32(CHumanInterfaceDevicesActor::EReportSize - 5));
+			_Length = fg_Min(_Length, uint32(CHumanInterfaceDevicesActor::mc_ReportSize - 5));
 			m_ChannelID = _ChannelID;
 			m_ContinuationFrame.m_SequenceNumber = _SequenceNumber;
 			NMemory::fg_MemCopy(m_ContinuationFrame.m_Data, _pData, _Length);
-			if (_Length < CHumanInterfaceDevicesActor::EReportSize - 5)
-				NMemory::fg_SecureMemClear(m_ContinuationFrame.m_Data + _Length, (CHumanInterfaceDevicesActor::EReportSize - 5) - _Length);
+			if (_Length < CHumanInterfaceDevicesActor::mc_ReportSize - 5)
+				NMemory::fg_SecureMemClear(m_ContinuationFrame.m_Data + _Length, (CHumanInterfaceDevicesActor::mc_ReportSize - 5) - _Length);
 
 			return _Length;
 		}
@@ -229,12 +229,12 @@ namespace NMib::NConcurrency::NPrivate
 				uint8 m_Command;
 				uint8 m_ByteCountHigh;
 				uint8 m_ByteCountLow;
-				uint8 m_Data[CHumanInterfaceDevicesActor::EReportSize - 7];
+				uint8 m_Data[CHumanInterfaceDevicesActor::mc_ReportSize - 7];
 			} m_InitialFrame;
 			struct
 			{
 				uint8 m_SequenceNumber;
-				uint8 m_Data[CHumanInterfaceDevicesActor::EReportSize - 5];
+				uint8 m_Data[CHumanInterfaceDevicesActor::mc_ReportSize - 5];
 			} m_ContinuationFrame;
 		};
 	};
@@ -292,7 +292,7 @@ namespace NMib::NConcurrency::NPrivate
 
 			while (true)
 			{
-				auto Result = co_await _Device(&CHumanInterfaceDeviceActor::f_ReadTimeout, CHumanInterfaceDevicesActor::EReportSize, Timeout);
+				auto Result = co_await _Device(&CHumanInterfaceDeviceActor::f_ReadTimeout, CHumanInterfaceDevicesActor::mc_ReportSize, Timeout);
 
 				if (!Result.f_IsEmpty())
 				{
@@ -806,7 +806,7 @@ namespace NMib::NConcurrency::NPrivate
 			if (_RegistrationData.f_GetLen() < 1 + 65 + 1 + 64)
 				co_return DMibErrorInstance("Registration data too short");
 
-			NStream::CBinaryStreamMemoryPtr<NStream::CBinaryStreamBigEndian> Stream;
+			NStream::TCBinaryStreamMemoryPtr<NStream::CBinaryStreamBigEndian> Stream;
 			Stream.f_OpenRead(_RegistrationData);
 
 			{

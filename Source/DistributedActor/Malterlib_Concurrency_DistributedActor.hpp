@@ -15,19 +15,13 @@ namespace NMib::NStorage::NPrivate
 	template <typename t_CActor0, typename t_CActor1, typename t_CAllocator0, typename t_CAllocator1>
 	struct TCIsValidConversion<NConcurrency::TCDistributedActorWrapper<t_CActor0>, NConcurrency::TCDistributedActorWrapper<t_CActor1>, t_CAllocator0, t_CAllocator1>
 	{
-		enum
-		{
-			mc_Value = TCIsValidConversion<t_CActor0, t_CActor1, t_CAllocator0, t_CAllocator1>::mc_Value
-		};
+		static constexpr aint mc_Value = TCIsValidConversion<t_CActor0, t_CActor1, t_CAllocator0, t_CAllocator1>::mc_Value;
 	};
 
 	template <typename t_CActor0, typename t_CActor1, typename t_CAllocator0, typename t_CAllocator1>
 	struct TCIsValidConversion<t_CActor0, NConcurrency::TCDistributedActorWrapper<t_CActor1>, t_CAllocator0, t_CAllocator1>
 	{
-		enum
-		{
-			mc_Value = TCIsValidConversion<t_CActor0, t_CActor1, t_CAllocator0, t_CAllocator1>::mc_Value
-		};
+		static constexpr aint mc_Value = TCIsValidConversion<t_CActor0, t_CActor1, t_CAllocator0, t_CAllocator1>::mc_Value;
 	};
 }
 
@@ -38,19 +32,13 @@ namespace NMib::NConcurrency
 		template <typename t_CActor>
 		struct TCIsDistributedActor
 		{
-			enum
-			{
-				mc_Value = false
-			};
+			static constexpr aint mc_Value = false;
 		};
 
 		template <typename t_CActor>
 		struct TCIsDistributedActor<NConcurrency::TCDistributedActorWrapper<t_CActor>>
 		{
-			enum
-			{
-				mc_Value = true
-			};
+			static constexpr aint mc_Value = true;
 		};
 
 		struct CDistributedActorInterfaceInfo

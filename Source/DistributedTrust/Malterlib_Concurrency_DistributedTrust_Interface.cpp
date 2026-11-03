@@ -200,8 +200,8 @@ namespace NMib::NConcurrency
 		_Stream % m_Metadata;
 	}
 	DMibDistributedStreamImplement(CDistributedActorTrustManagerInterface::CUserInfo);
-	DMibStreamImplement(CDistributedActorTrustManagerInterface::CUserInfo, NStream::CBinaryStreamMemory<>, Feed);
-	DMibStreamImplement(CDistributedActorTrustManagerInterface::CUserInfo, NStream::CBinaryStreamMemoryPtr<>, Consume);
+	DMibStreamImplement(CDistributedActorTrustManagerInterface::CUserInfo, NStream::TCBinaryStreamMemory<>, Feed);
+	DMibStreamImplement(CDistributedActorTrustManagerInterface::CUserInfo, NStream::TCBinaryStreamMemoryPtr<>, Consume);
 
 	template <typename tf_CStream>
 	void CDistributedActorTrustManagerInterface::CLocalCallingHostInfo::f_Stream(tf_CStream &_Stream)
@@ -228,8 +228,8 @@ namespace NMib::NConcurrency
 		_Stream % m_PrivateData;
 	}
 	DMibDistributedStreamImplement(CDistributedActorTrustManagerInterface::CLocalAuthenticationData);
-	DMibStreamImplement(CDistributedActorTrustManagerInterface::CLocalAuthenticationData, NStream::CBinaryStreamMemory<>, Feed);
-	DMibStreamImplement(CDistributedActorTrustManagerInterface::CLocalAuthenticationData, NStream::CBinaryStreamMemoryPtr<>, Consume);
+	DMibStreamImplement(CDistributedActorTrustManagerInterface::CLocalAuthenticationData, NStream::TCBinaryStreamMemory<>, Feed);
+	DMibStreamImplement(CDistributedActorTrustManagerInterface::CLocalAuthenticationData, NStream::TCBinaryStreamMemoryPtr<>, Consume);
 
 	CPermissionIdentifiers const &CDistributedActorTrustManagerInterface::CPermissionInfo::f_GetIdentifiers() const
 	{

@@ -16,7 +16,7 @@ namespace NMib::NConcurrency
 
 	NContainer::CSecureByteVector ICDistributedActorAuthenticationHandler::CSignedProperties::f_GetSignatureBytes() const
 	{
-		NStream::CBinaryStreamMemory<NStream::CBinaryStreamDefault, NContainer::CSecureByteVector> DigestStream;
+		NStream::TCBinaryStreamMemory<NStream::CBinaryStreamDefault, NContainer::CSecureByteVector> DigestStream;
 		DigestStream << m_Permissions;
 		DigestStream << m_Challenges;
 		DigestStream << m_ExpirationTime;

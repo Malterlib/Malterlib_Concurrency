@@ -97,7 +97,7 @@ namespace NMib::NConcurrency
 
 		static constexpr ch8 const *mc_pDefaultNamespace = "com.malterlib/Concurrency/DistributedAppLogReader";
 
-		enum : uint32
+		enum EProtocolVersion : uint32
 		{
 			EProtocolVersion_Min       = CDistributedAppLogReporter::EProtocolVersion_Min
 			, EProtocolVersion_Current = CDistributedAppLogReporter::EProtocolVersion_Current

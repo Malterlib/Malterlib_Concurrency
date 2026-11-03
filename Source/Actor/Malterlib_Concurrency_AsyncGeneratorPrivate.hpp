@@ -294,7 +294,7 @@ namespace NMib::NConcurrency::NPrivate
 						CoroutineContext.m_bAwaitingInitialResume = false;
 
 						{
-							FRestoreScopesState RestoreScopes;
+							CRestoreScopesState RestoreScopes;
 							CoroutineContext.f_ResumeInitialSuspend(ThreadLocal, RestoreScopes);
 
 							CoroutineHandle.resume();

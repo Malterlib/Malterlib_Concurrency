@@ -107,7 +107,7 @@ namespace NDistributedActorPriorityTests
 		// Test actor that can report the priority of incoming calls
 		struct CPriorityTestActor : public CActor
 		{
-			enum : uint32
+			enum EProtocolVersion : uint32
 			{
 				EProtocolVersion_Min       = 0x10B // Priority support version
 				, EProtocolVersion_Current = 0x10B

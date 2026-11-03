@@ -108,10 +108,7 @@ namespace
 
 	struct CPerformanceTestActor : public CActor
 	{
-		enum
-		{
-			mc_bAllowInternalAccess = true
-		};
+		static constexpr bool mc_bAllowInternalAccess = true;
 
 		CPerformanceTestActor(int _Dummy = 0)
 		{
@@ -275,10 +272,7 @@ namespace
 
 	struct CPerformanceTestActorEmul : public CPerformanceTestActor
 	{
-		enum
-		{
-			mc_bAllowInternalAccess = true
-		};
+		static constexpr bool mc_bAllowInternalAccess = true;
 
 		static int fs_Setup(CPerformanceTestActorEmul *_pThis)
 		{

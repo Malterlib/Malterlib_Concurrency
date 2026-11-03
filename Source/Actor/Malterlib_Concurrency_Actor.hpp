@@ -413,11 +413,11 @@ namespace NMib::NConcurrency
 			static constexpr bool c_bIsMemberPointer = NTraits::cIsMemberFunctionPointer<tf_CFunctor>;
 
 			using CMemberPointerTraits = NTraits::TCMemberFunctionPointerTraits<tf_CFunctor>;
-			using CFunctionType = TCConditional<c_bIsMemberPointer, typename CMemberPointerTraits::CFunctionType, NTraits::TCRemovePointer<tf_CFunctor>>;
+			using FFunctionType = TCConditional<c_bIsMemberPointer, typename CMemberPointerTraits::FFunctionType, NTraits::TCRemovePointer<tf_CFunctor>>;
 
-			static_assert(c_bIsMemberPointer || NTraits::cIsFunction<CFunctionType>);
+			static_assert(c_bIsMemberPointer || NTraits::cIsFunction<FFunctionType>);
 
-			using CFunctionTraits = NTraits::TCFunctionTraits<CFunctionType>;
+			using CFunctionTraits = NTraits::TCFunctionTraits<FFunctionType>;
 			using CReturn = typename NPrivate::TCGetReturnType<typename CFunctionTraits::CReturn>::CType;
 			using CFullActor = NTraits::TCRemoveReferenceAndQualifiers<tf_CActor>;
 			using CContainedActor = typename CFullActor::CContainedActor;
@@ -473,7 +473,7 @@ namespace NMib::NConcurrency
 				}
 			;
 
-			using CBoundFunctor = TCActorCallWithParams<TCConditional<c_bIsMemberPointer, tf_CFunctor, CFunctionType>>;
+			using CBoundFunctor = TCActorCallWithParams<TCConditional<c_bIsMemberPointer, tf_CFunctor, FFunctionType>>;
 
 			using CReportLocalFuture = TCReportLocalFuture<CContainedActor, CReturn, CBoundFunctor>;
 

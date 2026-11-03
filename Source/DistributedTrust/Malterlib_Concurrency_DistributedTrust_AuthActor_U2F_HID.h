@@ -53,10 +53,7 @@ namespace NMib::NConcurrency
 	{
 		using CActorHolder = CSeparateThreadActorHolder;
 
-		enum
-		{
-			EReportSize = 64 // Default size of raw HID report
-		};
+		static constexpr aint mc_ReportSize = 64;
 
 		struct CDeviceInfo
 		{

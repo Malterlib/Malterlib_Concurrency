@@ -14,7 +14,7 @@ namespace NMib::NConcurrency
 	struct TCActorFunctorWeak
 	{
 		using CReturn = typename NTraits::TCFunctionTraits<t_CFunction>::CReturn;
-		using CFunction = NFunction::TCFunctionMovable<typename NPrivate::TCAddRValueReferencesToFunctor<t_CFunction>::CType>;
+		using CFunction = NFunction::TCFunctionMovable<typename NPrivate::TCAddRValueReferencesToFunctor<t_CFunction>::FType>;
 		using CStorage = typename NPrivate::TCActorFunctorStorage<t_CFunction, t_bCoalesced>::CType;
 		static_assert(NPrivate::TCIsFuture<CReturn>::mc_Value || NPrivate::TCIsAsyncGenerator<CReturn>::mc_Value, "You need to return a future or async generator");
 		static_assert(!t_bCoalesced || NPrivate::cIsCoalescableActorFunction<t_CFunction>, "Only TCFuture<void> () functors can be coalesced");
@@ -72,14 +72,14 @@ namespace NMib::NConcurrency
 	template <bool t_bCoalesced = false, typename tf_CFunctor>
 	auto fg_ActorFunctorWeak(TCActor<> const &_Actor, tf_CFunctor &&_fFunctor)
 	{
-		using CFunction = NPrivate::TCRemoveReferencesFromFunctor
+		using FFunction = NPrivate::TCRemoveReferencesFromFunctor
 			<
-				typename NTraits::TCMemberFunctionPointerTraits<decltype(&NTraits::TCRemoveReferenceAndQualifiers<tf_CFunctor>::operator ())>::CFunctionType
+				typename NTraits::TCMemberFunctionPointerTraits<decltype(&NTraits::TCRemoveReferenceAndQualifiers<tf_CFunctor>::operator ())>::FFunctionType
 			>
-			::CType
+			::FType
 		;
 
-		return TCActorFunctorWeak<CFunction, t_bCoalesced>{fg_TempCopy(_Actor), fg_Forward<tf_CFunctor>(_fFunctor)};
+		return TCActorFunctorWeak<FFunction, t_bCoalesced>{fg_TempCopy(_Actor), fg_Forward<tf_CFunctor>(_fFunctor)};
 	}
 
 	template <bool t_bCoalesced>

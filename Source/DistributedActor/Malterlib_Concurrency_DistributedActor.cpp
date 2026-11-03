@@ -119,7 +119,7 @@ namespace NMib::NConcurrency
 
 	NCryptography::CPublicKeySetting CActorDistributionCryptographySettings::fs_DefaultKeySetting()
 	{
-		return NCryptography::CPublicKeySettings_EC_secp521r1{};
+		return NCryptography::CPublicKeySettings_EC_Secp521r1{};
 	}
 
 	void fg_InitDistributedActorSystem()

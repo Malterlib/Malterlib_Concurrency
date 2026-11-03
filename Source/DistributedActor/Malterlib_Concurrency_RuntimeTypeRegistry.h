@@ -18,10 +18,10 @@ namespace NMib::NStream
 	struct CBinaryStreamDefault;
 
 	template <typename t_CStreamType>
-	struct CBinaryStreamMemoryPtr;
+	struct TCBinaryStreamMemoryPtr;
 
 	template <typename t_CStreamType, typename t_CVector>
-	struct CBinaryStreamMemory;
+	struct TCBinaryStreamMemory;
 
 	template <typename t_CStreamType>
 	struct TCBinaryStreamNull;

@@ -34,7 +34,7 @@ namespace NMib::NConcurrency
 		f_ConsumeActor(Actor, SequenceID);
 
 		using CFunction = typename TCActorFunctorWithID<tf_CFunction, tf_SubscriptionID>::CFunction;
-		using FFunctionSignature = typename NFunction::TCFunctionInfo<CFunction>::template TCCallType<0>;
+		using FFunctionSignature = typename NFunction::TCFunctionInfo<CFunction>::template TFCallType<0>;
 
 		NStr::CStr FunctionID;
 		*this >> FunctionID;

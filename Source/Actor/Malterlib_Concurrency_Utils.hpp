@@ -643,11 +643,11 @@ namespace NMib::NConcurrency
 	template <typename tf_CActor, typename tf_FToDispatch, typename ...tfp_CParams>
 	inline_always auto fg_Dispatch(TCActor<tf_CActor> const &_Actor, tf_FToDispatch &&_fDispatch, tfp_CParams && ...p_Params)
 	{
-		using CFunctionType = NTraits::TCRemoveReference<tf_FToDispatch>;
+		using FFunctionType = NTraits::TCRemoveReference<tf_FToDispatch>;
 
 		return NPrivate::fg_DispatchGenericImpl<false>
 			(
-				typename NTraits::TCMemberFunctionPointerTraits<decltype(&CFunctionType::operator ())>::CParams()
+				typename NTraits::TCMemberFunctionPointerTraits<decltype(&FFunctionType::operator ())>::CParams()
 				, _Actor
 				, fg_Forward<tf_FToDispatch>(_fDispatch)
 				, fg_Forward<tfp_CParams>(p_Params)...
@@ -658,11 +658,11 @@ namespace NMib::NConcurrency
 	template <typename tf_CActor, typename tf_FToDispatch, typename ...tfp_CParams>
 	inline_always auto fg_Dispatch(TCActor<tf_CActor> &&_Actor, tf_FToDispatch &&_fDispatch, tfp_CParams && ...p_Params)
 	{
-		using CFunctionType = NTraits::TCRemoveReference<tf_FToDispatch>;
+		using FFunctionType = NTraits::TCRemoveReference<tf_FToDispatch>;
 
 		return NPrivate::fg_DispatchGenericImpl<false>
 			(
-				typename NTraits::TCMemberFunctionPointerTraits<decltype(&CFunctionType::operator ())>::CParams()
+				typename NTraits::TCMemberFunctionPointerTraits<decltype(&FFunctionType::operator ())>::CParams()
 				, fg_Move(_Actor)
 				, fg_Forward<tf_FToDispatch>(_fDispatch)
 				, fg_Forward<tfp_CParams>(p_Params)...
@@ -673,11 +673,11 @@ namespace NMib::NConcurrency
 	template <typename tf_FToDispatch, typename ...tfp_CParams>
 	inline_always auto fg_DirectDispatch(tf_FToDispatch &&_fDispatch, tfp_CParams && ...p_Params)
 	{
-		using CFunctionType = NTraits::TCRemoveReference<tf_FToDispatch>;
+		using FFunctionType = NTraits::TCRemoveReference<tf_FToDispatch>;
 
 		return NPrivate::fg_DispatchGenericImpl<true>
 			(
-				typename NTraits::TCMemberFunctionPointerTraits<decltype(&CFunctionType::operator ())>::CParams()
+				typename NTraits::TCMemberFunctionPointerTraits<decltype(&FFunctionType::operator ())>::CParams()
 				, fg_CurrentActor()
 				, fg_Forward<tf_FToDispatch>(_fDispatch)
 				, fg_Forward<tfp_CParams>(p_Params)...
@@ -708,11 +708,11 @@ namespace NMib::NConcurrency
 		template <typename tf_FFunction, typename ...tfp_CCallParams>
 		inline_always auto CThisActor::f_Invoke(tf_FFunction &&_fFunction, tfp_CCallParams && ...p_CallParams) const
 		{
-			using CFunctionType = NTraits::TCRemoveReference<tf_FFunction>;
+			using FFunctionType = NTraits::TCRemoveReference<tf_FFunction>;
 
 			return NPrivate::fg_DispatchGenericImpl<true>
 				(
-					typename NTraits::TCMemberFunctionPointerTraits<decltype(&CFunctionType::operator ())>::CParams()
+					typename NTraits::TCMemberFunctionPointerTraits<decltype(&FFunctionType::operator ())>::CParams()
 					, fg_CurrentActor()
 					, fg_Forward<tf_FFunction>(_fFunction)
 					, fg_Forward<tfp_CCallParams>(p_CallParams)...

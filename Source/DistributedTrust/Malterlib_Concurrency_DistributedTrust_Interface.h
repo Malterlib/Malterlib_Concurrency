@@ -15,7 +15,7 @@ namespace NMib::NConcurrency
 	struct ICDistributedActorTrustManagerAuthenticationActor;
 	struct CDistributedActorTrustManagerInterface : public NConcurrency::CActor
 	{
-		enum : uint32
+		enum EProtocolVersion : uint32
 		{
 			EProtocolVersion_Min                                = 0x102
 			, EProtocolVersion_SupportOrderingFlags             = 0x103
@@ -31,10 +31,7 @@ namespace NMib::NConcurrency
 
 		struct CTrustTicket
 		{
-			enum
-			{
-				EVersion = 0x101
-			};
+			static constexpr uint32 mc_Version = 0x101;
 
 			template <typename tf_CStream>
 			void f_Feed(tf_CStream &_Stream) const;

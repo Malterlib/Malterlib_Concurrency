@@ -14,11 +14,8 @@ namespace NMib::NConcurrency::NDistributedActorTrustManagerDatabase
 {
 	struct CBasicConfig
 	{
-		enum
-		{
-			EVersion             = 0x102
-			, EConversionVersion = 0x102
-		};
+		static constexpr uint32 mc_Version = 0x102;
+		static constexpr uint32 mc_ConversionVersion = 0x102;
 
 		template <typename tf_CStream>
 		void f_Feed(tf_CStream &_Stream) const;
@@ -29,15 +26,12 @@ namespace NMib::NConcurrency::NDistributedActorTrustManagerDatabase
 		NContainer::CSecureByteVector m_CAPrivateKey;
 		NContainer::CByteVector m_CACertificate;
 
-		uint32 m_Version = EConversionVersion;
+		uint32 m_Version = mc_ConversionVersion;
 	};
 
 	struct CServerCertificate
 	{
-		enum
-		{
-			EVersion = 0x101
-		};
+		static constexpr uint32 mc_Version = 0x101;
 
 		template <typename tf_CStream>
 		void f_Feed(tf_CStream &_Stream) const;
@@ -50,10 +44,7 @@ namespace NMib::NConcurrency::NDistributedActorTrustManagerDatabase
 
 	struct CListenConfig
 	{
-		enum
-		{
-			EVersion = 0x102
-		};
+		static constexpr uint32 mc_Version = 0x102;
 
 		template <typename tf_CStream>
 		void f_Feed(tf_CStream &_Stream) const;
@@ -66,10 +57,7 @@ namespace NMib::NConcurrency::NDistributedActorTrustManagerDatabase
 
 	struct CClient
 	{
-		enum
-		{
-			EVersion = 0x102
-		};
+		static constexpr uint32 mc_Version = 0x102;
 
 		template <typename tf_CStream>
 		void f_Feed(tf_CStream &_Stream) const;
@@ -82,10 +70,7 @@ namespace NMib::NConcurrency::NDistributedActorTrustManagerDatabase
 
 	struct CClientConnection
 	{
-		enum
-		{
-			EVersion = 0x104
-		};
+		static constexpr uint32 mc_Version = 0x104;
 
 		template <typename tf_CStream>
 		void f_Feed(tf_CStream &_Stream) const;
@@ -104,10 +89,7 @@ namespace NMib::NConcurrency::NDistributedActorTrustManagerDatabase
 
 	struct CNamespace
 	{
-		enum
-		{
-			EVersion = 0x101
-		};
+		static constexpr uint32 mc_Version = 0x101;
 
 		template <typename tf_CStream>
 		void f_Feed(tf_CStream &_Stream) const;
@@ -119,10 +101,7 @@ namespace NMib::NConcurrency::NDistributedActorTrustManagerDatabase
 
 	struct CPermissions
 	{
-		enum
-		{
-			EVersion = 0x102
-		};
+		static constexpr uint32 mc_Version = 0x102;
 
 		template <typename tf_CStream>
 		void f_Feed(tf_CStream &_Stream) const;
@@ -134,10 +113,7 @@ namespace NMib::NConcurrency::NDistributedActorTrustManagerDatabase
 
 	struct CUserInfo
 	{
-		enum
-		{
-			EVersion = 0x101
-		};
+		static constexpr uint32 mc_Version = 0x101;
 
 		template <typename tf_CStream>
 		void f_Feed(tf_CStream &_Stream) const;
@@ -150,10 +126,7 @@ namespace NMib::NConcurrency::NDistributedActorTrustManagerDatabase
 
 	struct CDefaultUser
 	{
-		enum
-		{
-			EVersion = 0x101
-		};
+		static constexpr uint32 mc_Version = 0x101;
 
 		template <typename tf_CStream>
 		void f_Feed(tf_CStream &_Stream) const;
@@ -165,10 +138,7 @@ namespace NMib::NConcurrency::NDistributedActorTrustManagerDatabase
 
 	struct CUserAuthenticationFactor
 	{
-		enum
-		{
-			EVersion = 0x101
-		};
+		static constexpr uint32 mc_Version = 0x101;
 
 		template <typename tf_CStream>
 		void f_Feed(tf_CStream &_Stream) const;

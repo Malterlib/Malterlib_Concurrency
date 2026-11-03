@@ -28,7 +28,7 @@ namespace NMib::NConcurrency
 							CCommandLineClientInfo Info;
 							Info.m_UTCOffsetSeconds = _Offset;
 							Info.m_bClipboardSupported = true;
-							NStream::CBinaryStreamMemory<> Stream;
+							NStream::TCBinaryStreamMemory<> Stream;
 							NStream::CScopeBinaryStreamVersion StreamVersion(Stream, Version);
 							Stream << Info;
 							Stream.f_SetPosition(0);

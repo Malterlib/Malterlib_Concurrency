@@ -15,7 +15,7 @@ namespace NMib::NConcurrency
 			(
 				NPrivate::TCIsFuture
 				<
-					typename NTraits::TCFunctionTraits<typename NFunction::TCFunctionInfo<NFunction::TCFunction<tf_CFunctionOptions...>>::template TCCallType<0>>::CReturn
+					typename NTraits::TCFunctionTraits<typename NFunction::TCFunctionInfo<NFunction::TCFunction<tf_CFunctionOptions...>>::template TFCallType<0>>::CReturn
 				>
 				::mc_Value
 				, "Only functions that return a future are supported"
@@ -32,7 +32,7 @@ namespace NMib::NConcurrency
 			(
 				NPrivate::TCIsFuture
 				<
-					typename NTraits::TCFunctionTraits<typename NFunction::TCFunctionInfo<NFunction::TCFunctionMutable<tf_CSignature>>::template TCCallType<0>>::CReturn
+					typename NTraits::TCFunctionTraits<typename NFunction::TCFunctionInfo<NFunction::TCFunctionMutable<tf_CSignature>>::template TFCallType<0>>::CReturn
 				>
 				::mc_Value
 				, "Only functions that return a future are supported"
@@ -50,7 +50,7 @@ namespace NMib::NConcurrency
 			(
 				NPrivate::TCIsFuture
 				<
-					typename NTraits::TCFunctionTraits<typename NFunction::TCFunctionInfo<NFunction::TCFunction<tf_CFunctionOptions...>>::template TCCallType<0>>::CReturn
+					typename NTraits::TCFunctionTraits<typename NFunction::TCFunctionInfo<NFunction::TCFunction<tf_CFunctionOptions...>>::template TFCallType<0>>::CReturn
 				>
 				::mc_Value
 				, "Only functions that return a future are supported"
@@ -67,7 +67,7 @@ namespace NMib::NConcurrency
 			(
 				NPrivate::TCIsFuture
 				<
-					typename NTraits::TCFunctionTraits<typename NFunction::TCFunctionInfo<NFunction::TCFunctionMovable<tf_CSignature>>::template TCCallType<0>>::CReturn
+					typename NTraits::TCFunctionTraits<typename NFunction::TCFunctionInfo<NFunction::TCFunctionMovable<tf_CSignature>>::template TFCallType<0>>::CReturn
 				>
 				::mc_Value
 				, "Only functions that return a future are supported"
@@ -84,7 +84,7 @@ namespace NMib::NConcurrency
 			(
 				NPrivate::TCIsFuture
 				<
-					typename NTraits::TCFunctionTraits<typename NFunction::TCFunctionInfo<NFunction::TCFunctionMutable<tf_CSignature>>::template TCCallType<0>>::CReturn
+					typename NTraits::TCFunctionTraits<typename NFunction::TCFunctionInfo<NFunction::TCFunctionMutable<tf_CSignature>>::template TFCallType<0>>::CReturn
 				>
 				::mc_Value
 				, "Only functions that return a future are supported"
@@ -425,13 +425,13 @@ namespace NMib::NConcurrency
 			(
 				NPrivate::TCIsFuture
 				<
-					typename NTraits::TCFunctionTraits<typename NFunction::TCFunctionInfo<NFunction::TCFunction<tf_CFunctionOptions...>>::template TCCallType<0>>::CReturn
+					typename NTraits::TCFunctionTraits<typename NFunction::TCFunctionInfo<NFunction::TCFunction<tf_CFunctionOptions...>>::template TFCallType<0>>::CReturn
 				>
 				::mc_Value
 				, "Only functions that return a future are supported"
 			)
 		;
-		using FFunctionSignature = typename NFunction::TCFunctionInfo<NFunction::TCFunction<tf_CFunctionOptions...>>::template TCCallType<0>;
+		using FFunctionSignature = typename NFunction::TCFunctionInfo<NFunction::TCFunction<tf_CFunctionOptions...>>::template TFCallType<0>;
 
 		NStr::CStr FunctionID;
 		*this >> FunctionID;
@@ -445,13 +445,13 @@ namespace NMib::NConcurrency
 			(
 				NPrivate::TCIsFuture
 				<
-					typename NTraits::TCFunctionTraits<typename NFunction::TCFunctionInfo<NFunction::TCFunctionMovable<tf_CSignature>>::template TCCallType<0>>::CReturn
+					typename NTraits::TCFunctionTraits<typename NFunction::TCFunctionInfo<NFunction::TCFunctionMovable<tf_CSignature>>::template TFCallType<0>>::CReturn
 				>
 				::mc_Value
 				, "Only functions that return a future are supported"
 			)
 		;
-		using FFunctionSignature = typename NFunction::TCFunctionInfo<NFunction::TCFunctionMovable<tf_CSignature>>::template TCCallType<0>;
+		using FFunctionSignature = typename NFunction::TCFunctionInfo<NFunction::TCFunctionMovable<tf_CSignature>>::template TFCallType<0>;
 
 		NStr::CStr FunctionID;
 		*this >> FunctionID;
@@ -465,13 +465,13 @@ namespace NMib::NConcurrency
 			(
 				NPrivate::TCIsFuture
 				<
-					typename NTraits::TCFunctionTraits<typename NFunction::TCFunctionInfo<NFunction::TCFunctionMutable<tf_CSignature>>::template TCCallType<0>>::CReturn
+					typename NTraits::TCFunctionTraits<typename NFunction::TCFunctionInfo<NFunction::TCFunctionMutable<tf_CSignature>>::template TFCallType<0>>::CReturn
 				>
 				::mc_Value
 				, "Only functions that return a future are supported"
 			)
 		;
-		using FFunctionSignature = typename NFunction::TCFunctionInfo<NFunction::TCFunctionMutable<tf_CSignature>>::template TCCallType<0>;
+		using FFunctionSignature = typename NFunction::TCFunctionInfo<NFunction::TCFunctionMutable<tf_CSignature>>::template TFCallType<0>;
 
 		NStr::CStr FunctionID;
 		*this >> FunctionID;

@@ -196,7 +196,7 @@ namespace NTestTrustManager
 	{
 		struct CTestActor : public CActor
 		{
-			enum : uint32
+			enum EProtocolVersion : uint32
 			{
 				EProtocolVersion_Min       = 0x101
 				, EProtocolVersion_Current = 0x101
@@ -227,7 +227,7 @@ namespace NTestTrustManager
 
 		struct CTestActor2 : public CActor
 		{
-			enum : uint32
+			enum EProtocolVersion : uint32
 			{
 				EProtocolVersion_Min       = 0x101
 				, EProtocolVersion_Current = 0x101
@@ -246,7 +246,7 @@ namespace NTestTrustManager
 
 		struct CTestActor3 : public CActor
 		{
-			enum : uint32
+			enum EProtocolVersion : uint32
 			{
 				EProtocolVersion_Min       = 0x101
 				, EProtocolVersion_Current = 0x101
@@ -3222,7 +3222,7 @@ namespace NTestTrustManager
 					//
 					// In one call we can do multiple permission queries. Each query can have multiple permissions where having either one of them is enough.
 					// For example (CommandAll or Command/ThisCommand) and (ReadAll or Read/ThisData).
-					using VQ = TCVector<CPermissionQuery>;
+					using CQueryList = TCVector<CPermissionQuery>;
 					{
 						DMibTestPath("Test ID1 f_HasPermissions (1)");
 						auto HostInfo = fHostInfo(ID1);
@@ -3230,39 +3230,39 @@ namespace NTestTrustManager
 						// This test should behave exactly as f_HasPermission if there is only one query, so we repeat those tests
 
 						// These should all be true if we have permission for one or more of the permissions in the vector
-						DMibAssertTrue(TrustedSubscription.f_HasPermissions("Setup", VQ{{"com.malterlib/Host"}}, HostInfo).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout));
-						DMibAssertTrue(TrustedSubscription.f_HasPermissions("Setup", VQ{{"com.malterlib/User1"}}, HostInfo).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout));
+						DMibAssertTrue(TrustedSubscription.f_HasPermissions("Setup", CQueryList{{"com.malterlib/Host"}}, HostInfo).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout));
+						DMibAssertTrue(TrustedSubscription.f_HasPermissions("Setup", CQueryList{{"com.malterlib/User1"}}, HostInfo).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout));
 						DMibAssertTrue
 							(
-								TrustedSubscription.f_HasPermissions("Setup", VQ{{"com.malterlib/Host", "com.malterlib/User1"}}, HostInfo).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
+								TrustedSubscription.f_HasPermissions("Setup", CQueryList{{"com.malterlib/Host", "com.malterlib/User1"}}, HostInfo).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
 							)
 						;
 						DMibAssertTrue
 							(
-								TrustedSubscription.f_HasPermissions("Setup", VQ{{"com.malterlib/Host", "com.malterlib/User2"}}, HostInfo).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
+								TrustedSubscription.f_HasPermissions("Setup", CQueryList{{"com.malterlib/Host", "com.malterlib/User2"}}, HostInfo).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
 							)
 						;
 						DMibAssertTrue
 							(
-								TrustedSubscription.f_HasPermissions("Setup", VQ{{"com.malterlib/User1", "com.malterlib/User2"}}, HostInfo).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
+								TrustedSubscription.f_HasPermissions("Setup", CQueryList{{"com.malterlib/User1", "com.malterlib/User2"}}, HostInfo).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
 							)
 						;
 						DMibAssertTrue
 							(
-								TrustedSubscription.f_HasPermissions("Setup", VQ{{"com.malterlib/User1", "com.malterlib/Nomatch"}}, HostInfo).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
+								TrustedSubscription.f_HasPermissions("Setup", CQueryList{{"com.malterlib/User1", "com.malterlib/Nomatch"}}, HostInfo).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
 							)
 						;
 						DMibAssertTrue
 							(
-								TrustedSubscription.f_HasPermissions("Setup", VQ{{"com.malterlib/Nomatch", "com.malterlib/User1"}}, HostInfo).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
+								TrustedSubscription.f_HasPermissions("Setup", CQueryList{{"com.malterlib/Nomatch", "com.malterlib/User1"}}, HostInfo).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
 							)
 						;
 						// But we must have permission for at least one
-						DMibAssertFalse(TrustedSubscription.f_HasPermissions("Setup", VQ{{"com.malterlib/User2"}}, HostInfo).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout));
-						DMibAssertFalse(TrustedSubscription.f_HasPermissions("Setup", VQ{{"com.malterlib/Nomatch"}}, HostInfo).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout));
+						DMibAssertFalse(TrustedSubscription.f_HasPermissions("Setup", CQueryList{{"com.malterlib/User2"}}, HostInfo).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout));
+						DMibAssertFalse(TrustedSubscription.f_HasPermissions("Setup", CQueryList{{"com.malterlib/Nomatch"}}, HostInfo).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout));
 						DMibAssertFalse
 							(
-								TrustedSubscription.f_HasPermissions("Setup", VQ{{"com.malterlib/User2", "com.malterlib/HostUser3"}}, HostInfo)
+								TrustedSubscription.f_HasPermissions("Setup", CQueryList{{"com.malterlib/User2", "com.malterlib/HostUser3"}}, HostInfo)
 								.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
 							)
 						;
@@ -3271,21 +3271,21 @@ namespace NTestTrustManager
 						DMibTestPath("Test ID3 f_HasPermissions (1)");
 						auto HostInfo = fHostInfo(ID3);
 
-						DMibAssertTrue(TrustedSubscription.f_HasPermissions("Setup", VQ{{"com.malterlib/Host"}}, HostInfo).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout));
-						DMibAssertTrue(TrustedSubscription.f_HasPermissions("Setup", VQ{{"com.malterlib/HostUser3"}}, HostInfo).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout));
+						DMibAssertTrue(TrustedSubscription.f_HasPermissions("Setup", CQueryList{{"com.malterlib/Host"}}, HostInfo).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout));
+						DMibAssertTrue(TrustedSubscription.f_HasPermissions("Setup", CQueryList{{"com.malterlib/HostUser3"}}, HostInfo).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout));
 						DMibAssertTrue
 							(
-								TrustedSubscription.f_HasPermissions("Setup", VQ{{"com.malterlib/User1", "com.malterlib/Host"}}, HostInfo).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
+								TrustedSubscription.f_HasPermissions("Setup", CQueryList{{"com.malterlib/User1", "com.malterlib/Host"}}, HostInfo).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
 							)
 						;
 						DMibAssertTrue
 							(
-								TrustedSubscription.f_HasPermissions("Setup", VQ{{"com.malterlib/User1", "com.malterlib/HostUser3"}}, HostInfo)
+								TrustedSubscription.f_HasPermissions("Setup", CQueryList{{"com.malterlib/User1", "com.malterlib/HostUser3"}}, HostInfo)
 								.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
 							)
 						;
 
-						DMibAssertFalse(TrustedSubscription.f_HasPermissions("Setup", VQ{{"com.malterlib/HostUser4"}}, HostInfo).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout));
+						DMibAssertFalse(TrustedSubscription.f_HasPermissions("Setup", CQueryList{{"com.malterlib/HostUser4"}}, HostInfo).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout));
 					}
 
 					{
@@ -3293,39 +3293,39 @@ namespace NTestTrustManager
 						auto HostInfo = fHostInfo(ID1, ID5);
 
 						// We no longer have the host based permissions
-						DMibAssertTrue(TrustedSubscription.f_HasPermissions("Setup", VQ{{"com.malterlib/User1"}}, HostInfo).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout));
+						DMibAssertTrue(TrustedSubscription.f_HasPermissions("Setup", CQueryList{{"com.malterlib/User1"}}, HostInfo).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout));
 						DMibAssertTrue
 							(
-								TrustedSubscription.f_HasPermissions("Setup", VQ{{"com.malterlib/Host", "com.malterlib/User1"}}, HostInfo).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
+								TrustedSubscription.f_HasPermissions("Setup", CQueryList{{"com.malterlib/Host", "com.malterlib/User1"}}, HostInfo).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
 							)
 						;
 						DMibAssertTrue
 							(
-								TrustedSubscription.f_HasPermissions("Setup", VQ{{"com.malterlib/User1", "com.malterlib/User2"}}, HostInfo).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
+								TrustedSubscription.f_HasPermissions("Setup", CQueryList{{"com.malterlib/User1", "com.malterlib/User2"}}, HostInfo).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
 							)
 						;
 						DMibAssertTrue
 							(
-								TrustedSubscription.f_HasPermissions("Setup", VQ{{"com.malterlib/User1", "com.malterlib/Nomatch"}}, HostInfo).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
+								TrustedSubscription.f_HasPermissions("Setup", CQueryList{{"com.malterlib/User1", "com.malterlib/Nomatch"}}, HostInfo).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
 							)
 						;
 						DMibAssertTrue
 							(
-								TrustedSubscription.f_HasPermissions("Setup", VQ{{"com.malterlib/Nomatch", "com.malterlib/User1"}}, HostInfo).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
+								TrustedSubscription.f_HasPermissions("Setup", CQueryList{{"com.malterlib/Nomatch", "com.malterlib/User1"}}, HostInfo).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
 							)
 						;
 						// But we must have permission for at least one
-						DMibAssertFalse(TrustedSubscription.f_HasPermissions("Setup", VQ{{"com.malterlib/Host"}}, HostInfo).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout));
+						DMibAssertFalse(TrustedSubscription.f_HasPermissions("Setup", CQueryList{{"com.malterlib/Host"}}, HostInfo).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout));
 						DMibAssertFalse
 							(
-								TrustedSubscription.f_HasPermissions("Setup", VQ{{"com.malterlib/Host", "com.malterlib/User2"}}, HostInfo).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
+								TrustedSubscription.f_HasPermissions("Setup", CQueryList{{"com.malterlib/Host", "com.malterlib/User2"}}, HostInfo).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
 							)
 						;
-						DMibAssertFalse(TrustedSubscription.f_HasPermissions("Setup", VQ{{"com.malterlib/User2"}}, HostInfo).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout));
-						DMibAssertFalse(TrustedSubscription.f_HasPermissions("Setup", VQ{{"com.malterlib/Nomatch"}}, HostInfo).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout));
+						DMibAssertFalse(TrustedSubscription.f_HasPermissions("Setup", CQueryList{{"com.malterlib/User2"}}, HostInfo).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout));
+						DMibAssertFalse(TrustedSubscription.f_HasPermissions("Setup", CQueryList{{"com.malterlib/Nomatch"}}, HostInfo).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout));
 						DMibAssertFalse
 							(
-								TrustedSubscription.f_HasPermissions("Setup", VQ{{"com.malterlib/User2", "com.malterlib/HostUser3"}}, HostInfo)
+								TrustedSubscription.f_HasPermissions("Setup", CQueryList{{"com.malterlib/User2", "com.malterlib/HostUser3"}}, HostInfo)
 								.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
 							)
 						;
@@ -3334,20 +3334,20 @@ namespace NTestTrustManager
 						DMibTestPath("Test ID3 f_HasPermissions (1), other host");
 						auto HostInfo = fHostInfo(ID3, ID5);
 
-						DMibAssertFalse(TrustedSubscription.f_HasPermissions("Setup", VQ{{"com.malterlib/Host"}}, HostInfo).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout));
-						DMibAssertFalse(TrustedSubscription.f_HasPermissions("Setup", VQ{{"com.malterlib/HostUser3"}}, HostInfo).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout));
+						DMibAssertFalse(TrustedSubscription.f_HasPermissions("Setup", CQueryList{{"com.malterlib/Host"}}, HostInfo).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout));
+						DMibAssertFalse(TrustedSubscription.f_HasPermissions("Setup", CQueryList{{"com.malterlib/HostUser3"}}, HostInfo).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout));
 						DMibAssertFalse
 							(
-								TrustedSubscription.f_HasPermissions("Setup", VQ{{"com.malterlib/User1", "com.malterlib/Host"}}, HostInfo).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
+								TrustedSubscription.f_HasPermissions("Setup", CQueryList{{"com.malterlib/User1", "com.malterlib/Host"}}, HostInfo).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
 							)
 						;
 						DMibAssertFalse
 							(
-								TrustedSubscription.f_HasPermissions("Setup", VQ{{"com.malterlib/User1", "com.malterlib/HostUser3"}}, HostInfo)
+								TrustedSubscription.f_HasPermissions("Setup", CQueryList{{"com.malterlib/User1", "com.malterlib/HostUser3"}}, HostInfo)
 								.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
 							)
 						;
-						DMibAssertFalse(TrustedSubscription.f_HasPermissions("Setup", VQ{{"com.malterlib/HostUser4"}}, HostInfo).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout));
+						DMibAssertFalse(TrustedSubscription.f_HasPermissions("Setup", CQueryList{{"com.malterlib/HostUser4"}}, HostInfo).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout));
 					}
 
 					{
@@ -3356,12 +3356,12 @@ namespace NTestTrustManager
 
 						DMibAssertTrue
 							(
-								TrustedSubscription.f_HasPermissions("Setup", VQ{{"com.malterlib/Host"}, {"com.malterlib/User1"}}, HostInfo).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
+								TrustedSubscription.f_HasPermissions("Setup", CQueryList{{"com.malterlib/Host"}, {"com.malterlib/User1"}}, HostInfo).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
 							)
 						;
 						DMibAssertTrue
 							(
-								TrustedSubscription.f_HasPermissions("Setup", VQ{{"com.malterlib/Host"}, {"com.malterlib/Host"}}, HostInfo).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
+								TrustedSubscription.f_HasPermissions("Setup", CQueryList{{"com.malterlib/Host"}, {"com.malterlib/Host"}}, HostInfo).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
 							)
 						;
 
@@ -3370,7 +3370,7 @@ namespace NTestTrustManager
 								TrustedSubscription.f_HasPermissions
 								(
 									"Setup"
-									, VQ{{"com.malterlib/NoMatch", "com.malterlib/User1"}, {"com.malterlib/Host", "com.malterlib/User2"}, {"com.malterlib/User12"}}
+									, CQueryList{{"com.malterlib/NoMatch", "com.malterlib/User1"}, {"com.malterlib/Host", "com.malterlib/User2"}, {"com.malterlib/User12"}}
 									, HostInfo
 								)
 								.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
@@ -3382,7 +3382,7 @@ namespace NTestTrustManager
 								TrustedSubscription.f_HasPermissions
 								(
 									"Setup"
-									, VQ{{"com.malterlib/NoMatch", "com.malterlib/User2"}, {"com.malterlib/Host", "com.malterlib/User2"}, {"com.malterlib/User12"}}
+									, CQueryList{{"com.malterlib/NoMatch", "com.malterlib/User2"}, {"com.malterlib/Host", "com.malterlib/User2"}, {"com.malterlib/User12"}}
 									, HostInfo
 								)
 								.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
@@ -3393,7 +3393,7 @@ namespace NTestTrustManager
 								TrustedSubscription.f_HasPermissions
 								(
 									"Setup"
-									, VQ{{"com.malterlib/NoMatch", "com.malterlib/User1"}, {"com.malterlib/NoMatch", "com.malterlib/User2"}, {"com.malterlib/User12"}}
+									, CQueryList{{"com.malterlib/NoMatch", "com.malterlib/User1"}, {"com.malterlib/NoMatch", "com.malterlib/User2"}, {"com.malterlib/User12"}}
 									, HostInfo
 								)
 								.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
@@ -3404,7 +3404,7 @@ namespace NTestTrustManager
 								TrustedSubscription.f_HasPermissions
 								(
 									"Setup"
-									, VQ{{"com.malterlib/NoMatch", "com.malterlib/User1"}, {"com.malterlib/Host", "com.malterlib/User2"}, {"com.malterlib/User34"}}
+									, CQueryList{{"com.malterlib/NoMatch", "com.malterlib/User1"}, {"com.malterlib/Host", "com.malterlib/User2"}, {"com.malterlib/User34"}}
 									, HostInfo
 								)
 								.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
@@ -3417,14 +3417,14 @@ namespace NTestTrustManager
 					// As above we can pose multiple queries in one call and each query can have multiple forms of the permission. As in the  (CommandAll or Command/ThisCommand) and
 					// (ReadAll or Read/ThisData) example, but in this case it is possible to combine several such query vectors in one call. Each query is tagged,
 					// so the caller can tell which query that failed.
-					auto fMQ1 = [](CStr const &_Tag, VQ &&_Query) -> TCMap<CStr, TCVector<CPermissionQuery>>
+					auto fMQ1 = [](CStr const &_Tag, CQueryList &&_Query) -> TCMap<CStr, TCVector<CPermissionQuery>>
 						{
 							TCMap<CStr, TCVector<CPermissionQuery>> Result;
 							Result[_Tag] = fg_Move(_Query);
 							return Result;
 						}
 					;
-					auto fMQ2 = [](CStr const &_Tag1, VQ &&_Query1, CStr const &_Tag2, VQ &&_Query2) -> TCMap<CStr, TCVector<CPermissionQuery>>
+					auto fMQ2 = [](CStr const &_Tag1, CQueryList &&_Query1, CStr const &_Tag2, CQueryList &&_Query2) -> TCMap<CStr, TCVector<CPermissionQuery>>
 						{
 							TCMap<CStr, TCVector<CPermissionQuery>> Result;
 							Result[_Tag1] = fg_Move(_Query1);
@@ -3432,7 +3432,8 @@ namespace NTestTrustManager
 							return Result;
 						}
 					;
-					auto fMQ3 = [](CStr const &_Tag1, VQ &&_Query1, CStr const &_Tag2, VQ &&_Query2, CStr const &_Tag3, VQ &&_Query3) -> TCMap<CStr, TCVector<CPermissionQuery>>
+					auto fMQ3 = []
+						(CStr const &_Tag1, CQueryList &&_Query1, CStr const &_Tag2, CQueryList &&_Query2, CStr const &_Tag3, CQueryList &&_Query3) -> TCMap<CStr, TCVector<CPermissionQuery>>
 						{
 							TCMap<CStr, TCVector<CPermissionQuery>> Result;
 							Result[_Tag1] = fg_Move(_Query1);
@@ -3450,45 +3451,45 @@ namespace NTestTrustManager
 						// These should all be true if we have permission for one or more of the permissions in the vector
 						DMibAssertTrue
 							(
-								TrustedSubscription.f_HasPermissions("Setup", fMQ1("Tag", VQ{{"com.malterlib/Host"}}), HostInfo).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)["Tag"]
+								TrustedSubscription.f_HasPermissions("Setup", fMQ1("Tag", CQueryList{{"com.malterlib/Host"}}), HostInfo).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)["Tag"]
 							)
 						;
 						DMibAssertTrue
 							(
-								TrustedSubscription.f_HasPermissions("Setup", fMQ1("Tag", VQ{{"com.malterlib/User1"}}), HostInfo).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)["Tag"]
+								TrustedSubscription.f_HasPermissions("Setup", fMQ1("Tag", CQueryList{{"com.malterlib/User1"}}), HostInfo).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)["Tag"]
 							)
 						;
 						DMibAssertTrue
 							(
-								TrustedSubscription.f_HasPermissions("Setup", fMQ1("Tag", VQ{{"com.malterlib/Host", "com.malterlib/User1"}}), HostInfo)
+								TrustedSubscription.f_HasPermissions("Setup", fMQ1("Tag", CQueryList{{"com.malterlib/Host", "com.malterlib/User1"}}), HostInfo)
 								.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
 								["Tag"]
 							)
 						;
 						DMibAssertTrue
 							(
-								TrustedSubscription.f_HasPermissions("Setup", fMQ1("Tag", VQ{{"com.malterlib/Host", "com.malterlib/User2"}}), HostInfo)
+								TrustedSubscription.f_HasPermissions("Setup", fMQ1("Tag", CQueryList{{"com.malterlib/Host", "com.malterlib/User2"}}), HostInfo)
 								.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
 								["Tag"]
 							)
 						;
 						DMibAssertTrue
 							(
-								TrustedSubscription.f_HasPermissions("Setup", fMQ1("Tag", VQ{{"com.malterlib/User1", "com.malterlib/User2"}}), HostInfo)
+								TrustedSubscription.f_HasPermissions("Setup", fMQ1("Tag", CQueryList{{"com.malterlib/User1", "com.malterlib/User2"}}), HostInfo)
 								.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
 								["Tag"]
 							)
 						;
 						DMibAssertTrue
 							(
-								TrustedSubscription.f_HasPermissions("Setup", fMQ1("Tag", VQ{{"com.malterlib/User1", "com.malterlib/Nomatch"}}), HostInfo)
+								TrustedSubscription.f_HasPermissions("Setup", fMQ1("Tag", CQueryList{{"com.malterlib/User1", "com.malterlib/Nomatch"}}), HostInfo)
 								.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
 								["Tag"]
 							)
 						;
 						DMibAssertTrue
 							(
-								TrustedSubscription.f_HasPermissions("Setup", fMQ1("Tag", VQ{{"com.malterlib/Nomatch", "com.malterlib/User1"}}), HostInfo)
+								TrustedSubscription.f_HasPermissions("Setup", fMQ1("Tag", CQueryList{{"com.malterlib/Nomatch", "com.malterlib/User1"}}), HostInfo)
 								.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
 								["Tag"]
 							)
@@ -3496,17 +3497,17 @@ namespace NTestTrustManager
 						// But we must have permission for at least one
 						DMibAssertFalse
 							(
-								TrustedSubscription.f_HasPermissions("Setup", fMQ1("Tag", VQ{{"com.malterlib/User2"}}), HostInfo).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)["Tag"]
+								TrustedSubscription.f_HasPermissions("Setup", fMQ1("Tag", CQueryList{{"com.malterlib/User2"}}), HostInfo).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)["Tag"]
 							)
 						;
 						DMibAssertFalse
 							(
-								TrustedSubscription.f_HasPermissions("Setup", fMQ1("Tag", VQ{{"com.malterlib/Nomatch"}}), HostInfo).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)["Tag"]
+								TrustedSubscription.f_HasPermissions("Setup", fMQ1("Tag", CQueryList{{"com.malterlib/Nomatch"}}), HostInfo).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)["Tag"]
 							)
 						;
 						DMibAssertFalse
 							(
-								TrustedSubscription.f_HasPermissions("Setup", fMQ1("Tag", VQ{{"com.malterlib/User2", "com.malterlib/HostUser3"}}), HostInfo)
+								TrustedSubscription.f_HasPermissions("Setup", fMQ1("Tag", CQueryList{{"com.malterlib/User2", "com.malterlib/HostUser3"}}), HostInfo)
 								.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
 								["Tag"]
 							)
@@ -3518,24 +3519,24 @@ namespace NTestTrustManager
 
 						DMibAssertTrue
 							(
-								TrustedSubscription.f_HasPermissions("Setup", fMQ1("Tag", VQ{{"com.malterlib/Host"}}), HostInfo).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)["Tag"]
+								TrustedSubscription.f_HasPermissions("Setup", fMQ1("Tag", CQueryList{{"com.malterlib/Host"}}), HostInfo).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)["Tag"]
 							)
 						;
 						DMibAssertTrue
 							(
-								TrustedSubscription.f_HasPermissions("Setup", fMQ1("Tag", VQ{{"com.malterlib/HostUser3"}}), HostInfo).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)["Tag"]
+								TrustedSubscription.f_HasPermissions("Setup", fMQ1("Tag", CQueryList{{"com.malterlib/HostUser3"}}), HostInfo).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)["Tag"]
 							)
 						;
 						DMibAssertTrue
 							(
-								TrustedSubscription.f_HasPermissions("Setup", fMQ1("Tag", VQ{{"com.malterlib/User1", "com.malterlib/Host"}}), HostInfo)
+								TrustedSubscription.f_HasPermissions("Setup", fMQ1("Tag", CQueryList{{"com.malterlib/User1", "com.malterlib/Host"}}), HostInfo)
 								.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
 								["Tag"]
 							)
 						;
 						DMibAssertTrue
 							(
-								TrustedSubscription.f_HasPermissions("Setup", fMQ1("Tag", VQ{{"com.malterlib/User1", "com.malterlib/HostUser3"}}), HostInfo)
+								TrustedSubscription.f_HasPermissions("Setup", fMQ1("Tag", CQueryList{{"com.malterlib/User1", "com.malterlib/HostUser3"}}), HostInfo)
 								.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
 								["Tag"]
 							)
@@ -3543,7 +3544,7 @@ namespace NTestTrustManager
 
 						DMibAssertFalse
 							(
-								TrustedSubscription.f_HasPermissions("Setup", fMQ1("Tag", VQ{{"com.malterlib/HostUser4"}}), HostInfo).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)["Tag"]
+								TrustedSubscription.f_HasPermissions("Setup", fMQ1("Tag", CQueryList{{"com.malterlib/HostUser4"}}), HostInfo).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)["Tag"]
 							)
 						;
 					}
@@ -3555,33 +3556,33 @@ namespace NTestTrustManager
 						// We no longer have the host based permissions
 						DMibAssertTrue
 							(
-								TrustedSubscription.f_HasPermissions("Setup", fMQ1("Tag", VQ{{"com.malterlib/User1"}}), HostInfo).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)["Tag"]
+								TrustedSubscription.f_HasPermissions("Setup", fMQ1("Tag", CQueryList{{"com.malterlib/User1"}}), HostInfo).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)["Tag"]
 							)
 						;
 						DMibAssertTrue
 							(
-								TrustedSubscription.f_HasPermissions("Setup", fMQ1("Tag", VQ{{"com.malterlib/Host", "com.malterlib/User1"}}), HostInfo)
+								TrustedSubscription.f_HasPermissions("Setup", fMQ1("Tag", CQueryList{{"com.malterlib/Host", "com.malterlib/User1"}}), HostInfo)
 								.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
 								["Tag"]
 							)
 						;
 						DMibAssertTrue
 							(
-								TrustedSubscription.f_HasPermissions("Setup", fMQ1("Tag", VQ{{"com.malterlib/User1", "com.malterlib/User2"}}), HostInfo)
+								TrustedSubscription.f_HasPermissions("Setup", fMQ1("Tag", CQueryList{{"com.malterlib/User1", "com.malterlib/User2"}}), HostInfo)
 								.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
 								["Tag"]
 							)
 						;
 						DMibAssertTrue
 							(
-								TrustedSubscription.f_HasPermissions("Setup", fMQ1("Tag", VQ{{"com.malterlib/User1", "com.malterlib/Nomatch"}}), HostInfo)
+								TrustedSubscription.f_HasPermissions("Setup", fMQ1("Tag", CQueryList{{"com.malterlib/User1", "com.malterlib/Nomatch"}}), HostInfo)
 								.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
 								["Tag"]
 							)
 						;
 						DMibAssertTrue
 							(
-								TrustedSubscription.f_HasPermissions("Setup", fMQ1("Tag", VQ{{"com.malterlib/Nomatch", "com.malterlib/User1"}}), HostInfo)
+								TrustedSubscription.f_HasPermissions("Setup", fMQ1("Tag", CQueryList{{"com.malterlib/Nomatch", "com.malterlib/User1"}}), HostInfo)
 								.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
 								["Tag"]
 							)
@@ -3589,29 +3590,29 @@ namespace NTestTrustManager
 						// But we must have permission for at least one
 						DMibAssertFalse
 							(
-								TrustedSubscription.f_HasPermissions("Setup", fMQ1("Tag", VQ{{"com.malterlib/Host"}}), HostInfo).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)["Tag"]
+								TrustedSubscription.f_HasPermissions("Setup", fMQ1("Tag", CQueryList{{"com.malterlib/Host"}}), HostInfo).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)["Tag"]
 							)
 						;
 						DMibAssertFalse
 							(
-								TrustedSubscription.f_HasPermissions("Setup", fMQ1("Tag", VQ{{"com.malterlib/Host", "com.malterlib/User2"}}), HostInfo)
+								TrustedSubscription.f_HasPermissions("Setup", fMQ1("Tag", CQueryList{{"com.malterlib/Host", "com.malterlib/User2"}}), HostInfo)
 								.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
 								["Tag"]
 							)
 						;
 						DMibAssertFalse
 							(
-								TrustedSubscription.f_HasPermissions("Setup", fMQ1("Tag", VQ{{"com.malterlib/User2"}}), HostInfo).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)["Tag"]
+								TrustedSubscription.f_HasPermissions("Setup", fMQ1("Tag", CQueryList{{"com.malterlib/User2"}}), HostInfo).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)["Tag"]
 							)
 						;
 						DMibAssertFalse
 							(
-								TrustedSubscription.f_HasPermissions("Setup", fMQ1("Tag", VQ{{"com.malterlib/Nomatch"}}), HostInfo).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)["Tag"]
+								TrustedSubscription.f_HasPermissions("Setup", fMQ1("Tag", CQueryList{{"com.malterlib/Nomatch"}}), HostInfo).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)["Tag"]
 							)
 						;
 						DMibAssertFalse
 							(
-								TrustedSubscription.f_HasPermissions("Setup", fMQ1("Tag", VQ{{"com.malterlib/User2", "com.malterlib/HostUser3"}}), HostInfo)
+								TrustedSubscription.f_HasPermissions("Setup", fMQ1("Tag", CQueryList{{"com.malterlib/User2", "com.malterlib/HostUser3"}}), HostInfo)
 								.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
 								["Tag"]
 							)
@@ -3623,31 +3624,31 @@ namespace NTestTrustManager
 
 						DMibAssertFalse
 							(
-								TrustedSubscription.f_HasPermissions("Setup", fMQ1("Tag", VQ{{"com.malterlib/Host"}}), HostInfo).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)["Tag"]
+								TrustedSubscription.f_HasPermissions("Setup", fMQ1("Tag", CQueryList{{"com.malterlib/Host"}}), HostInfo).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)["Tag"]
 							)
 						;
 						DMibAssertFalse
 							(
-								TrustedSubscription.f_HasPermissions("Setup", fMQ1("Tag", VQ{{"com.malterlib/HostUser3"}}), HostInfo).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)["Tag"]
+								TrustedSubscription.f_HasPermissions("Setup", fMQ1("Tag", CQueryList{{"com.malterlib/HostUser3"}}), HostInfo).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)["Tag"]
 							)
 						;
 						DMibAssertFalse
 							(
-								TrustedSubscription.f_HasPermissions("Setup", fMQ1("Tag", VQ{{"com.malterlib/User1", "com.malterlib/Host"}}), HostInfo)
+								TrustedSubscription.f_HasPermissions("Setup", fMQ1("Tag", CQueryList{{"com.malterlib/User1", "com.malterlib/Host"}}), HostInfo)
 								.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
 								["Tag"]
 							)
 						;
 						DMibAssertFalse
 							(
-								TrustedSubscription.f_HasPermissions("Setup", fMQ1("Tag", VQ{{"com.malterlib/User1", "com.malterlib/HostUser3"}}), HostInfo)
+								TrustedSubscription.f_HasPermissions("Setup", fMQ1("Tag", CQueryList{{"com.malterlib/User1", "com.malterlib/HostUser3"}}), HostInfo)
 								.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
 								["Tag"]
 							)
 						;
 						DMibAssertFalse
 							(
-								TrustedSubscription.f_HasPermissions("Setup", fMQ1("Tag", VQ{{"com.malterlib/HostUser4"}}), HostInfo).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)["Tag"]
+								TrustedSubscription.f_HasPermissions("Setup", fMQ1("Tag", CQueryList{{"com.malterlib/HostUser4"}}), HostInfo).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)["Tag"]
 							)
 						;
 					}
@@ -3658,14 +3659,14 @@ namespace NTestTrustManager
 
 						DMibAssertTrue
 							(
-								TrustedSubscription.f_HasPermissions("Setup", fMQ1("Tag", VQ{{"com.malterlib/Host"}, {"com.malterlib/User1"}}), HostInfo)
+								TrustedSubscription.f_HasPermissions("Setup", fMQ1("Tag", CQueryList{{"com.malterlib/Host"}, {"com.malterlib/User1"}}), HostInfo)
 								.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
 								["Tag"]
 							)
 						;
 						DMibAssertTrue
 							(
-								TrustedSubscription.f_HasPermissions("Setup", fMQ1("Tag", VQ{{"com.malterlib/Host"}, {"com.malterlib/Host"}}), HostInfo)
+								TrustedSubscription.f_HasPermissions("Setup", fMQ1("Tag", CQueryList{{"com.malterlib/Host"}, {"com.malterlib/Host"}}), HostInfo)
 								.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
 								["Tag"]
 							)
@@ -3676,7 +3677,7 @@ namespace NTestTrustManager
 								TrustedSubscription.f_HasPermissions
 								(
 									"Setup"
-									, fMQ1("Tag", VQ{{"com.malterlib/NoMatch", "com.malterlib/User1"}, {"com.malterlib/Host", "com.malterlib/User2"}, {"com.malterlib/User12"}})
+									, fMQ1("Tag", CQueryList{{"com.malterlib/NoMatch", "com.malterlib/User1"}, {"com.malterlib/Host", "com.malterlib/User2"}, {"com.malterlib/User12"}})
 									, HostInfo
 								)
 								.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)["Tag"]
@@ -3688,7 +3689,7 @@ namespace NTestTrustManager
 								TrustedSubscription.f_HasPermissions
 								(
 									"Setup"
-									, fMQ1("Tag", VQ{{"com.malterlib/NoMatch", "com.malterlib/User2"}, {"com.malterlib/Host", "com.malterlib/User2"}, {"com.malterlib/User12"}})
+									, fMQ1("Tag", CQueryList{{"com.malterlib/NoMatch", "com.malterlib/User2"}, {"com.malterlib/Host", "com.malterlib/User2"}, {"com.malterlib/User12"}})
 									, HostInfo
 								)
 								.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)["Tag"]
@@ -3699,7 +3700,7 @@ namespace NTestTrustManager
 								TrustedSubscription.f_HasPermissions
 								(
 									"Setup"
-									, fMQ1("Tag", VQ{{"com.malterlib/NoMatch", "com.malterlib/User1"}, {"com.malterlib/NoMatch", "com.malterlib/User2"}, {"com.malterlib/User12"}})
+									, fMQ1("Tag", CQueryList{{"com.malterlib/NoMatch", "com.malterlib/User1"}, {"com.malterlib/NoMatch", "com.malterlib/User2"}, {"com.malterlib/User12"}})
 									, HostInfo
 								)
 								.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)["Tag"]
@@ -3710,7 +3711,7 @@ namespace NTestTrustManager
 								TrustedSubscription.f_HasPermissions
 								(
 									"Setup"
-									, fMQ1("Tag", VQ{{"com.malterlib/NoMatch", "com.malterlib/User1"}, {"com.malterlib/Host", "com.malterlib/User2"}, {"com.malterlib/User34"}})
+									, fMQ1("Tag", CQueryList{{"com.malterlib/NoMatch", "com.malterlib/User1"}, {"com.malterlib/Host", "com.malterlib/User2"}, {"com.malterlib/User34"}})
 									, HostInfo
 								)
 								.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)["Tag"]
@@ -3721,7 +3722,7 @@ namespace NTestTrustManager
 						DMibTestPath("Test ID1 f_HasPermissions (2), multiple named queries");
 						auto HostInfo = fHostInfo(ID1);
 
-						auto Res1 = TrustedSubscription.f_HasPermissions("Setup", fMQ2("Tag1", VQ{{"com.malterlib/User1"}}, "Tag2", VQ{{"com.malterlib/Host"}}), HostInfo)
+						auto Res1 = TrustedSubscription.f_HasPermissions("Setup", fMQ2("Tag1", CQueryList{{"com.malterlib/User1"}}, "Tag2", CQueryList{{"com.malterlib/Host"}}), HostInfo)
 							.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
 						;
 						DMibAssertTrue(Res1["Tag1"]);
@@ -3730,7 +3731,15 @@ namespace NTestTrustManager
 						auto Res2 = TrustedSubscription.f_HasPermissions
 							(
 								"Setup"
-								, fMQ3("Tag1", VQ{{"com.malterlib/User2", "com.malterlib/User1"}}, "Tag2", VQ{{"com.malterlib/Host"}}, "Tag3", VQ{{"com.malterlib/User12"}})
+								, fMQ3
+								(
+									"Tag1"
+									, CQueryList{{"com.malterlib/User2", "com.malterlib/User1"}}
+									, "Tag2"
+									, CQueryList{{"com.malterlib/Host"}}
+									, "Tag3"
+									, CQueryList{{"com.malterlib/User12"}}
+								)
 								, HostInfo
 							)
 							.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
@@ -3745,7 +3754,7 @@ namespace NTestTrustManager
 						auto Res3 = TrustedSubscription.f_HasPermissions
 							(
 								"Setup"
-								, fMQ3("Tag1", VQ{{"com.malterlib/NoMatch"}}, "Tag2", VQ{{"com.malterlib/Host"}}, "Tag3", VQ{{"com.malterlib/User12"}})
+								, fMQ3("Tag1", CQueryList{{"com.malterlib/NoMatch"}}, "Tag2", CQueryList{{"com.malterlib/Host"}}, "Tag3", CQueryList{{"com.malterlib/User12"}})
 								, HostInfo
 							)
 							.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
@@ -3755,7 +3764,7 @@ namespace NTestTrustManager
 						auto Res4 = TrustedSubscription.f_HasPermissions
 							(
 								"Setup"
-								, fMQ3("Tag1", VQ{{"com.malterlib/User1"}}, "Tag2", VQ{{"com.malterlib/NoMatch"}}, "Tag3", VQ{{"com.malterlib/User12"}})
+								, fMQ3("Tag1", CQueryList{{"com.malterlib/User1"}}, "Tag2", CQueryList{{"com.malterlib/NoMatch"}}, "Tag3", CQueryList{{"com.malterlib/User12"}})
 								, HostInfo
 							)
 							.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
@@ -3765,7 +3774,7 @@ namespace NTestTrustManager
 						auto Res5 = TrustedSubscription.f_HasPermissions
 							(
 								"Setup"
-								, fMQ3("Tag1", VQ{{"com.malterlib/User1"}}, "Tag2", VQ{{"com.malterlib/Host"}}, "Tag3", VQ{{"com.malterlib/NoMatch"}})
+								, fMQ3("Tag1", CQueryList{{"com.malterlib/User1"}}, "Tag2", CQueryList{{"com.malterlib/Host"}}, "Tag3", CQueryList{{"com.malterlib/NoMatch"}})
 								, HostInfo
 							)
 							.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)

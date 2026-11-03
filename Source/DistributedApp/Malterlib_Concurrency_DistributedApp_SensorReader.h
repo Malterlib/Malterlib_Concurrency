@@ -92,7 +92,7 @@ namespace NMib::NConcurrency
 
 		static constexpr ch8 const *mc_pDefaultNamespace = "com.malterlib/Concurrency/DistributedAppSensorReader";
 
-		enum : uint32
+		enum EProtocolVersion : uint32
 		{
 			EProtocolVersion_Min       = CDistributedAppSensorReporter::EProtocolVersion_Min
 			, EProtocolVersion_Current = CDistributedAppSensorReporter::EProtocolVersion_Current

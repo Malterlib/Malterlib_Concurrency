@@ -553,10 +553,7 @@ namespace NMib::NConcurrency
 		template <bool t_bUnwrapTuple, typename t_CHandler, typename t_CActor, typename ...tp_CResultTypes, umint ...tp_ResultIndices>
 		struct TCCallMutipleActorStorage<t_bUnwrapTuple, t_CHandler, t_CActor, NMeta::TCTypeList<tp_CResultTypes...>, NMeta::TCIndices<tp_ResultIndices...>>
 		{
-			enum
-			{
-				mc_nResults = sizeof...(tp_CResultTypes)
-			};
+			static constexpr aint mc_nResults = sizeof...(tp_CResultTypes);
 
 			NStorage::CIntrusiveRefCount m_RefCount;
 			NStorage::TCTuple<TCAsyncResult<tp_CResultTypes>...> m_Results;
@@ -608,10 +605,7 @@ namespace NMib::NConcurrency
 		template <typename ...tp_CResultTypes, umint ...tp_ResultIndices>
 		struct TCCallMutipleFutureStorage<NMeta::TCTypeList<tp_CResultTypes...>, NMeta::TCIndices<tp_ResultIndices...>>
 		{
-			enum
-			{
-				mc_nResults = sizeof...(tp_CResultTypes)
-			};
+			static constexpr aint mc_nResults = sizeof...(tp_CResultTypes);
 
 			NStorage::CIntrusiveRefCount m_RefCount;
 			NStorage::TCTuple<TCAsyncResult<tp_CResultTypes>...> m_Results;
@@ -950,7 +944,7 @@ namespace NMib::NConcurrency
 		CoroutineContext.m_bAwaitingInitialResume = false;
 
 		{
-			FRestoreScopesState RestoreScopes;
+			CRestoreScopesState RestoreScopes;
 			CoroutineContext.f_ResumeInitialSuspend(_ThreadLocal.m_SystemThreadLocal, RestoreScopes);
 
 			Handle.resume();

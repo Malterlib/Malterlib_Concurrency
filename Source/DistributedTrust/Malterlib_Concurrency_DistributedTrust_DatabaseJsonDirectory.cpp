@@ -224,12 +224,12 @@ namespace NMib::NConcurrency
 						Store.f_Read(BasicConfig, "BasicConfig");
 					}
 
-					if (BasicConfig.m_Version > CBasicConfig::EConversionVersion)
-						DMibError("Invalid conversion version 0x{nfh} > 0x{nfh}"_f << BasicConfig.m_Version << CBasicConfig::EConversionVersion);
-					else if (BasicConfig.m_Version < CBasicConfig::EConversionVersion)
+					if (BasicConfig.m_Version > CBasicConfig::mc_ConversionVersion)
+						DMibError("Invalid conversion version 0x{nfh} > 0x{nfh}"_f << BasicConfig.m_Version << CBasicConfig::mc_ConversionVersion);
+					else if (BasicConfig.m_Version < CBasicConfig::mc_ConversionVersion)
 					{
 						Store.f_DoConversion(BasicConfig.m_Version);
-						BasicConfig.m_Version = CBasicConfig::EConversionVersion;
+						BasicConfig.m_Version = CBasicConfig::mc_ConversionVersion;
 						Store.f_Write(BasicConfig, "BasicConfig");
 					}
 					return BasicConfig;

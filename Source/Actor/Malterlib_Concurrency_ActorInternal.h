@@ -40,10 +40,7 @@ namespace NMib::NConcurrency
 		~TCActorInternal();
 
 	public:
-		enum
-		{
-			mc_bAllowInternalAccess = t_CActor::mc_bAllowInternalAccess
-		};
+		static constexpr bool mc_bAllowInternalAccess = t_CActor::mc_bAllowInternalAccess;
 
 		inline_always t_CActor &f_AccessInternal();
 		inline_always t_CActor const &f_AccessInternal() const;

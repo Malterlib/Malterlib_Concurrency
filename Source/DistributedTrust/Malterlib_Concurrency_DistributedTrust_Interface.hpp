@@ -8,7 +8,7 @@ namespace NMib::NConcurrency
 	template <typename tf_CStream>
 	void CDistributedActorTrustManagerInterface::CTrustTicket::f_Feed(tf_CStream &_Stream) const
 	{
-		_Stream << EVersion;
+		_Stream << mc_Version;
 		_Stream << m_ServerAddress;
 		_Stream << m_ServerPublicCert;
 		_Stream << m_Token;
@@ -19,7 +19,7 @@ namespace NMib::NConcurrency
 	{
 		uint32 Version;
 		_Stream >> Version;
-		if (Version > EVersion)
+		if (Version > mc_Version)
 			DMibError("Invalid trust ticket version");
 		_Stream >> m_ServerAddress;
 		_Stream >> m_ServerPublicCert;

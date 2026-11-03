@@ -319,7 +319,7 @@ namespace NMib::NConcurrency
 		}
 	}
 
-	void CFutureCoroutineContext::f_ResumeInitialSuspend(CSystemThreadLocal &_ThreadLocal, FRestoreScopesState &o_RestoreScopes)
+	void CFutureCoroutineContext::f_ResumeInitialSuspend(CSystemThreadLocal &_ThreadLocal, CRestoreScopesState &o_RestoreScopes)
 	{
 		DMibFastCheck(_ThreadLocal.m_pCurrentCoroutineHandler != &m_CoroutineHandlers);
 		DMibFastCheck(!m_bRuntimeStateConstructed);
@@ -341,7 +341,7 @@ namespace NMib::NConcurrency
 		}
 	}
 
-	FRestoreScopesState CFutureCoroutineContext::f_Resume(CSystemThreadLocal &_ThreadLocal, FKeepaliveSetResult *_fSetResult, bool &o_bAborted)
+	CRestoreScopesState CFutureCoroutineContext::f_Resume(CSystemThreadLocal &_ThreadLocal, FKeepaliveSetResult *_fSetResult, bool &o_bAborted)
 	{
 		auto &ConcurrencyThreadLocal = fg_ConcurrencyThreadLocal();
 		auto &ThreadLocal = ConcurrencyThreadLocal.m_SystemThreadLocal;

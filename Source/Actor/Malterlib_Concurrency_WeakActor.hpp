@@ -468,11 +468,11 @@ namespace NMib::NConcurrency
 	template <typename tf_FToDispatch, typename ...tfp_CParams>
 	inline_always auto fg_Dispatch(TCWeakActor<> const &_Actor, tf_FToDispatch &&_fDispatch, tfp_CParams && ...p_Params)
 	{
-		using CFunctionType = NTraits::TCRemoveReference<tf_FToDispatch>;
+		using FFunctionType = NTraits::TCRemoveReference<tf_FToDispatch>;
 
 		return NPrivate::fg_DispatchGenericImpl<false>
 			(
-				typename NTraits::TCMemberFunctionPointerTraits<decltype(&CFunctionType::operator ())>::CParams()
+				typename NTraits::TCMemberFunctionPointerTraits<decltype(&FFunctionType::operator ())>::CParams()
 				, _Actor
 				, fg_Forward<tf_FToDispatch>(_fDispatch)
 			)

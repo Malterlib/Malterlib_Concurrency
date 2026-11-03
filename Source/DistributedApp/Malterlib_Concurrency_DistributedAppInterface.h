@@ -17,7 +17,7 @@ namespace NMib::NConcurrency
 {
 	struct CDistributedAppInterfaceBackup : public CActor
 	{
-		enum : uint32
+		enum EProtocolVersion : uint32
 		{
 			EProtocolVersion_Min                                          = 0x101
 			, EProtocolVersion_SupportManifestConfigFlagsAndMaxDigestSize = 0x102
@@ -40,7 +40,7 @@ namespace NMib::NConcurrency
 
 	struct CDistributedAppInterfaceClient : public CActor
 	{
-		enum : uint32
+		enum EProtocolVersion : uint32
 		{
 			EProtocolVersion_Min                  = 0x102
 			, EProtocolVersion_SupportPreStop     = 0x103
@@ -63,7 +63,7 @@ namespace NMib::NConcurrency
 	{
 		static constexpr ch8 const *mc_pDefaultNamespace = "com.malterlib/Concurrency/DistributedAppInterfaceServer";
 
-		enum : uint32
+		enum EProtocolVersion : uint32
 		{
 			EProtocolVersion_Min = 0x102
 

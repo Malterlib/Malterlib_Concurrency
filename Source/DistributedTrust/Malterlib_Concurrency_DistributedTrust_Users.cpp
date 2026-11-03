@@ -208,7 +208,7 @@ namespace NMib::NConcurrency
 		{
 			auto CaptureScope = co_await g_CaptureExceptions;
 
-			NStream::CBinaryStreamMemory<> Stream;
+			NStream::TCBinaryStreamMemory<> Stream;
 			uint32 Version = CDistributedActorTrustManagerInterface::EProtocolVersion_SupportPrimaryListen;
 			DMibBinaryStreamVersion(Stream, Version);
 			Stream << Version;
@@ -247,7 +247,7 @@ namespace NMib::NConcurrency
 			NContainer::CByteVector Data;
 
 			NEncoding::fg_Base64Decode(_UserData, Data);
-			NStream::CBinaryStreamMemoryPtr<> Stream;
+			NStream::TCBinaryStreamMemoryPtr<> Stream;
 			Stream.f_OpenRead(Data);
 
 			uint32 Version;

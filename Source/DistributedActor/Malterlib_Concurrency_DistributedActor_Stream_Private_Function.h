@@ -17,7 +17,7 @@ namespace NMib::NConcurrency::NPrivate
 		NStorage::CIntrusiveRefCount m_RefCount;
 	};
 
-	template <typename t_FFunction, typename t_FFunctionSignature = typename NFunction::TCFunctionInfo<t_FFunction>::template TCCallType<0>>
+	template <typename t_FFunction, typename t_FFunctionSignature = typename NFunction::TCFunctionInfo<t_FFunction>::template TFCallType<0>>
 	struct TCStreamingFunction : public CStreamingFunction
 	{
 		TCStreamingFunction(t_FFunction const &_fFunction);

@@ -39,7 +39,7 @@ namespace NMib::NConcurrency::NPrivate
 	{
 		static constexpr bool mc_bAnyReference = ((... || NTraits::cIsReference<tp_CParams>));
 
-		using CType = t_CReturn (NTraits::TCRemoveQualifiersAndAddRValueReference<tp_CParams> ...p_Params);
+		using FType = t_CReturn (NTraits::TCRemoveQualifiersAndAddRValueReference<tp_CParams> ...p_Params);
 	};
 
 	template <typename t_CFunction>
@@ -50,7 +50,7 @@ namespace NMib::NConcurrency::NPrivate
 	template <typename t_CReturn, typename ...tp_CParams>
 	struct TCRemoveReferencesFromFunctor<t_CReturn (tp_CParams ...p_Parems)>
 	{
-		using CType = t_CReturn (NTraits::TCDecay<tp_CParams> ...p_Params);
+		using FType = t_CReturn (NTraits::TCDecay<tp_CParams> ...p_Params);
 	};
 
 	template <typename t_CFunction>
@@ -70,7 +70,7 @@ namespace NMib::NConcurrency::NPrivate
 	};
 
 	template <typename t_CFunction>
-	struct TCActorFunctorCoalescedStorage : NFunction::TCFunctionMovable<typename TCAddRValueReferencesToFunctor<t_CFunction>::CType>
+	struct TCActorFunctorCoalescedStorage : NFunction::TCFunctionMovable<typename TCAddRValueReferencesToFunctor<t_CFunction>::FType>
 	{
 		CActorFunctorCoalescedGate m_Gate;
 	};
@@ -78,7 +78,7 @@ namespace NMib::NConcurrency::NPrivate
 	template <typename t_CFunction, bool t_bCoalesced>
 	struct TCActorFunctorStorage
 	{
-		using CType = NFunction::TCFunctionMovable<typename TCAddRValueReferencesToFunctor<t_CFunction>::CType>;
+		using CType = NFunction::TCFunctionMovable<typename TCAddRValueReferencesToFunctor<t_CFunction>::FType>;
 	};
 
 	template <typename t_CFunction>
@@ -88,7 +88,7 @@ namespace NMib::NConcurrency::NPrivate
 	};
 
 	template <typename t_CFunction, bool t_bCoalesced>
-	auto fg_ConstructActorFunctorStorage(NFunction::TCFunctionMovable<typename TCAddRValueReferencesToFunctor<t_CFunction>::CType> &&_fFunctor)
+	auto fg_ConstructActorFunctorStorage(NFunction::TCFunctionMovable<typename TCAddRValueReferencesToFunctor<t_CFunction>::FType> &&_fFunctor)
 		-> NStorage::TCSharedPointer<typename TCActorFunctorStorage<t_CFunction, t_bCoalesced>::CType>
 	;
 
@@ -110,7 +110,7 @@ namespace NMib::NConcurrency
 namespace NMib::NConcurrency::NPrivate
 {
 	template <typename t_CFunction, bool t_bCoalesced>
-	auto fg_ConstructActorFunctorStorage(NFunction::TCFunctionMovable<typename TCAddRValueReferencesToFunctor<t_CFunction>::CType> &&_fFunctor)
+	auto fg_ConstructActorFunctorStorage(NFunction::TCFunctionMovable<typename TCAddRValueReferencesToFunctor<t_CFunction>::FType> &&_fFunctor)
 		-> NStorage::TCSharedPointer<typename TCActorFunctorStorage<t_CFunction, t_bCoalesced>::CType>
 	{
 		using CStorage = typename TCActorFunctorStorage<t_CFunction, t_bCoalesced>::CType;
@@ -128,7 +128,7 @@ namespace NMib::NConcurrency::NPrivate
 			// delivery and not on the caller when the delivery is queued
 			NStorage::TCSharedPointer<CStorage> pStorage = fg_Construct();
 			// NOLINTNEXTLINE(malterlib-coroutine-lambda-call): the storage keeps the function, which only the actor functor calls
-			static_cast<NFunction::TCFunctionMovable<typename TCAddRValueReferencesToFunctor<t_CFunction>::CType> &>(*pStorage)
+			static_cast<NFunction::TCFunctionMovable<typename TCAddRValueReferencesToFunctor<t_CFunction>::FType> &>(*pStorage)
 				= [pGate = &pStorage->m_Gate, fFunctor = fg_Move(_fFunctor)]
 				() mutable -> TCFuture<void>
 				{

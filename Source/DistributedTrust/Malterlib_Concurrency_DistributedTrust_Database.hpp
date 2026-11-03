@@ -8,7 +8,7 @@ namespace NMib::NConcurrency::NDistributedActorTrustManagerDatabase
 	template <typename tf_CStream>
 	void CBasicConfig::f_Feed(tf_CStream &_Stream) const
 	{
-		_Stream << EVersion;
+		_Stream << mc_Version;
 		_Stream << m_Version;
 		_Stream << m_HostID;
 		_Stream << m_CAPrivateKey;
@@ -20,7 +20,7 @@ namespace NMib::NConcurrency::NDistributedActorTrustManagerDatabase
 	{
 		uint32 Version;
 		_Stream >> Version;
-		if (Version > EVersion)
+		if (Version > mc_Version)
 			DMibError("Invalid basic config version");
 		if (Version >= 0x102)
 			_Stream >> m_Version;
@@ -32,7 +32,7 @@ namespace NMib::NConcurrency::NDistributedActorTrustManagerDatabase
 	template <typename tf_CStream>
 	void CServerCertificate::f_Feed(tf_CStream &_Stream) const
 	{
-		_Stream << EVersion;
+		_Stream << mc_Version;
 		_Stream << m_PrivateKey;
 		_Stream << m_PublicCertificate;
 	}
@@ -42,7 +42,7 @@ namespace NMib::NConcurrency::NDistributedActorTrustManagerDatabase
 	{
 		uint32 Version;
 		_Stream >> Version;
-		if (Version > EVersion)
+		if (Version > mc_Version)
 			DMibError("Invalid server certificate version");
 		_Stream >> m_PrivateKey;
 		_Stream >> m_PublicCertificate;
@@ -51,7 +51,7 @@ namespace NMib::NConcurrency::NDistributedActorTrustManagerDatabase
 	template <typename tf_CStream>
 	void CListenConfig::f_Feed(tf_CStream &_Stream) const
 	{
-		_Stream << EVersion;
+		_Stream << mc_Version;
 		_Stream << m_SendWindowBytes;
 	}
 
@@ -61,7 +61,7 @@ namespace NMib::NConcurrency::NDistributedActorTrustManagerDatabase
 		uint32 Version;
 		_Stream >> Version;
 		// Version 0x101 stored the address inside the record; this schema uses it as the key.
-		if (Version < 0x102 || Version > EVersion)
+		if (Version < 0x102 || Version > mc_Version)
 			DMibError("Invalid listen config version");
 		_Stream >> m_SendWindowBytes;
 	}
@@ -69,7 +69,7 @@ namespace NMib::NConcurrency::NDistributedActorTrustManagerDatabase
 	template <typename tf_CStream>
 	void CClient::f_Feed(tf_CStream &_Stream) const
 	{
-		_Stream << EVersion;
+		_Stream << mc_Version;
 		_Stream << m_PublicCertificate;
 		_Stream << m_LastFriendlyName;
 	}
@@ -79,7 +79,7 @@ namespace NMib::NConcurrency::NDistributedActorTrustManagerDatabase
 	{
 		uint32 Version;
 		_Stream >> Version;
-		if (Version > EVersion)
+		if (Version > mc_Version)
 			DMibError("Invalid client version");
 		_Stream >> m_PublicCertificate;
 		if (Version >= 0x102)
@@ -89,7 +89,7 @@ namespace NMib::NConcurrency::NDistributedActorTrustManagerDatabase
 	template <typename tf_CStream>
 	void CClientConnection::f_Feed(tf_CStream &_Stream) const
 	{
-		_Stream << EVersion;
+		_Stream << mc_Version;
 		_Stream << m_PublicServerCertificate;
 		_Stream << m_PublicClientCertificate;
 		_Stream << m_LastFriendlyName;
@@ -102,7 +102,7 @@ namespace NMib::NConcurrency::NDistributedActorTrustManagerDatabase
 	{
 		uint32 Version;
 		_Stream >> Version;
-		if (Version > EVersion)
+		if (Version > mc_Version)
 			DMibError("Invalid client connection version");
 		_Stream >> m_PublicServerCertificate;
 		_Stream >> m_PublicClientCertificate;
@@ -117,7 +117,7 @@ namespace NMib::NConcurrency::NDistributedActorTrustManagerDatabase
 	template <typename tf_CStream>
 	void CNamespace::f_Feed(tf_CStream &_Stream) const
 	{
-		_Stream << EVersion;
+		_Stream << mc_Version;
 		_Stream << m_AllowedHosts;
 	}
 
@@ -126,7 +126,7 @@ namespace NMib::NConcurrency::NDistributedActorTrustManagerDatabase
 	{
 		uint32 Version;
 		_Stream >> Version;
-		if (Version > EVersion)
+		if (Version > mc_Version)
 			DMibError("Invalid namespace version");
 		_Stream >> m_AllowedHosts;
 	}
@@ -134,7 +134,7 @@ namespace NMib::NConcurrency::NDistributedActorTrustManagerDatabase
 	template <typename tf_CStream>
 	void CPermissions::f_Feed(tf_CStream &_Stream) const
 	{
-		_Stream << EVersion;
+		_Stream << mc_Version;
 		_Stream << m_Permissions;
 	}
 
@@ -143,7 +143,7 @@ namespace NMib::NConcurrency::NDistributedActorTrustManagerDatabase
 	{
 		uint32 Version;
 		_Stream >> Version;
-		if (Version > EVersion)
+		if (Version > mc_Version)
 			DMibError("Invalid host permissions version");
 		if (Version == 0x101)
 		{
@@ -158,7 +158,7 @@ namespace NMib::NConcurrency::NDistributedActorTrustManagerDatabase
 	template <typename tf_CStream>
 	void CUserInfo::f_Feed(tf_CStream &_Stream) const
 	{
-		_Stream << EVersion;
+		_Stream << mc_Version;
 		_Stream << m_UserName;
 		_Stream << m_Metadata;
 	}
@@ -168,7 +168,7 @@ namespace NMib::NConcurrency::NDistributedActorTrustManagerDatabase
 	{
 		uint32 Version;
 		_Stream >> Version;
-		if (Version > EVersion)
+		if (Version > mc_Version)
 			DMibError("Invalid user info version");
 		_Stream >> m_UserName;
 		_Stream >> m_Metadata;
@@ -177,7 +177,7 @@ namespace NMib::NConcurrency::NDistributedActorTrustManagerDatabase
 	template <typename tf_CStream>
 	void CDefaultUser::f_Feed(tf_CStream &_Stream) const
 	{
-		_Stream << EVersion;
+		_Stream << mc_Version;
 		_Stream << m_UserID;
 	}
 
@@ -186,7 +186,7 @@ namespace NMib::NConcurrency::NDistributedActorTrustManagerDatabase
 	{
 		uint32 Version;
 		_Stream >> Version;
-		if (Version > EVersion)
+		if (Version > mc_Version)
 			DMibError("Invalid user info version");
 		_Stream >> m_UserID;
 	}
@@ -194,7 +194,7 @@ namespace NMib::NConcurrency::NDistributedActorTrustManagerDatabase
 	template <typename tf_CStream>
 	void CUserAuthenticationFactor::f_Feed(tf_CStream &_Stream) const
 	{
-		_Stream << EVersion;
+		_Stream << mc_Version;
 		_Stream << m_Category;
 		_Stream << m_Name;
 		_Stream << m_PublicData;
@@ -206,7 +206,7 @@ namespace NMib::NConcurrency::NDistributedActorTrustManagerDatabase
 	{
 		uint32 Version;
 		_Stream >> Version;
-		if (Version > EVersion)
+		if (Version > mc_Version)
 			DMibError("Invalid authentication factor info version");
 		_Stream >> m_Category;
 		_Stream >> m_Name;

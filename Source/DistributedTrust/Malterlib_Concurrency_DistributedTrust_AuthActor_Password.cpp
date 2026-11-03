@@ -85,7 +85,7 @@ namespace NMib::NConcurrency
 					NSys::fg_Security_GenerateHighEntropyData(ExpansionSalt.f_GetArray(8), 8);
 					CKeyExpansion KeyExpansion{NewPassword2, PasswordSalt, CKeyDerivationSettings_Scrypt{}, ExpansionSalt};
 
-					CBinaryStreamMemory<CBinaryStreamDefault, CSecureByteVector> Stream;
+					TCBinaryStreamMemory<CBinaryStreamDefault, CSecureByteVector> Stream;
 					{
 						TCBinaryStream_Encrypted<CBinaryStream *> EncryptedStream{KeyExpansion.f_GetKeyIV(), EDigestType_SHA512, KeyExpansion.f_GetHMACKey()};
 						EncryptedStream.f_Open(&Stream, NFile::EFileOpen_Write);
@@ -150,7 +150,7 @@ namespace NMib::NConcurrency
 					CSecureByteVector ExpansionSalt = pExpansionSalt->f_Binary().f_ToSecure();
 					CSecureByteVector EncyptedPrivateKey = pKey->f_Binary().f_ToSecure();
 
-					CBinaryStreamMemoryPtr<> Stream;
+					TCBinaryStreamMemoryPtr<> Stream;
 					Stream.f_OpenRead(EncyptedPrivateKey.f_GetArray(), EncyptedPrivateKey.f_GetLen());
 
 					CKeyExpansion KeyExpansion{Password, PasswordSalt, CKeyDerivationSettings_Scrypt{}, ExpansionSalt};

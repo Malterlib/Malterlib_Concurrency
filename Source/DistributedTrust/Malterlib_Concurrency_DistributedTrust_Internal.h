@@ -157,7 +157,7 @@ namespace NMib::NConcurrency
 
 		struct CTicketInterface : public CActor
 		{
-			enum : uint32
+			enum EProtocolVersion : uint32
 			{
 				EProtocolVersion_Min       = 0x101
 				, EProtocolVersion_Current = 0x101

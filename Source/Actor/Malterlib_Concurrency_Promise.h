@@ -166,7 +166,7 @@ namespace NMib::NConcurrency
 	template <typename t_CReturnType, bool t_bUnwrap, typename t_FExceptionTransform>
 	struct TCFutureAwaiter;
 
-	using FRestoreScopesState = NContainer::TCVector<NFunction::TCFunctionMovable<void () noexcept>>;
+	using CRestoreScopesState = NContainer::TCVector<NFunction::TCFunctionMovable<void () noexcept>>;
 
 	struct CFutureCoroutineContextOnResumeScopeAwaiter;
 
@@ -285,10 +285,10 @@ namespace NMib::NConcurrency
 			noexcept
 #endif
 		;
-		FRestoreScopesState f_Resume(CSystemThreadLocal &_ThreadLocal, FKeepaliveSetResult *_fSetResult, bool &o_bAborted);
+		CRestoreScopesState f_Resume(CSystemThreadLocal &_ThreadLocal, FKeepaliveSetResult *_fSetResult, bool &o_bAborted);
 
 		void f_InitialSuspend(CSystemThreadLocal &_ThreadLocal);
-		void f_ResumeInitialSuspend(CSystemThreadLocal &_ThreadLocal, FRestoreScopesState &o_RestoreScopes);
+		void f_ResumeInitialSuspend(CSystemThreadLocal &_ThreadLocal, CRestoreScopesState &o_RestoreScopes);
 		void f_Abort();
 
 #if DMibEnableSafeCheck > 0
@@ -300,7 +300,7 @@ namespace NMib::NConcurrency
 
 		// Needed always: 5 pointers
 		NPrivate::CPromiseDataBase *m_pPromiseData = nullptr;
-		FRestoreScopesState m_RestoreScopes;
+		CRestoreScopesState m_RestoreScopes;
 		CCoroutineHandler m_CoroutineHandlers;
 		NStorage::TCUniquePointer<CPromiseKeepAlive> m_pKeepAlive;
 		ECoroutineFlag m_Flags = ECoroutineFlag_None;
@@ -342,10 +342,7 @@ namespace NMib::NConcurrency
 			template <typename t_CClass>
 			struct TCOffset
 			{
-				enum
-				{
-					mc_Offset = DMibPOffsetOf(t_CClass, m_State.m_Link)
-				};
+				static constexpr aint mc_Offset = DMibPOffsetOf(t_CClass, m_State.m_Link);
 			};
 		};
 
@@ -845,7 +842,7 @@ namespace NMib::NConcurrency::NPrivate
 #if DMibConfig_Concurrency_DebugFutures
 		~CPromiseDataBase();
 #endif
-		inline_always NAtomic::CMemoryOrder f_MemoryOrder(NAtomic::CMemoryOrder _Default) const;
+		inline_always NAtomic::EMemoryOrder f_MemoryOrder(NAtomic::EMemoryOrder _Default) const;
 
 		inline_always bool f_CanUseRelaxedAtomicsForRead() const
 		{

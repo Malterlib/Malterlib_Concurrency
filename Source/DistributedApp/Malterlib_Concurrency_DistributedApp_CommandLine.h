@@ -49,7 +49,7 @@ namespace NMib::NConcurrency
 
 	struct ICCommandLineControl : public CActor
 	{
-		enum : uint32
+		enum EProtocolVersion : uint32
 		{
 			EProtocolVersion_Min = 0x107
 
@@ -221,7 +221,7 @@ namespace NMib::NConcurrency
 
 	struct ICCommandLine : public CActor
 	{
-		enum : uint32
+		enum EProtocolVersion : uint32
 		{
 			EProtocolVersion_Min = 0x103
 

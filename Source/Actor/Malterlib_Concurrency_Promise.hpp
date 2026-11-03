@@ -568,28 +568,13 @@ namespace NMib::NConcurrency
 		template <typename ...tp_CParam>
 		struct TCAllAsyncResultsAreVoidHelper<NMeta::TCTypeList<tp_CParam...>>
 		{
-			enum
-			{
-				mc_Value = NMeta::cAllIsTrue
-				<
-					NTraits::cIsVoid<tp_CParam>...
-				>
-			};
+			static constexpr aint mc_Value = NMeta::cAllIsTrue<NTraits::cIsVoid<tp_CParam>...>;
 		};
 
 		template <typename t_FFunctor>
 		struct TCAllAsyncResultsAreVoid
 		{
-			enum
-			{
-				mc_Value = TCAllAsyncResultsAreVoidHelper
-				<
-					typename NTraits::TCMemberFunctionPointerTraits
-					<
-						decltype(&t_FFunctor::operator ())
-					>::CParams
-				>::mc_Value
-			};
+			static constexpr aint mc_Value = TCAllAsyncResultsAreVoidHelper<typename NTraits::TCMemberFunctionPointerTraits<decltype(&t_FFunctor::operator ())>::CParams>::mc_Value;
 		};
 	}
 
@@ -1453,7 +1438,7 @@ namespace NMib::NConcurrency::NPrivate
 		return (m_OnResultSet.f_Load(NAtomic::gc_MemoryOrder_Relaxed) & EFutureResultFlag_DiscardResult) != EFutureResultFlag_None;
 	}
 
-	inline_always NAtomic::CMemoryOrder CPromiseDataBase::f_MemoryOrder(NAtomic::CMemoryOrder _Default) const
+	inline_always NAtomic::EMemoryOrder CPromiseDataBase::f_MemoryOrder(NAtomic::EMemoryOrder _Default) const
 	{
 		return m_BeforeSuspend.m_bOnResultSetAtInit ? NAtomic::gc_MemoryOrder_Relaxed : _Default;
 	}

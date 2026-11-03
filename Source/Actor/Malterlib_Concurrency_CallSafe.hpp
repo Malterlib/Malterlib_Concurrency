@@ -119,8 +119,8 @@ namespace NMib::NConcurrency
 	mark_artificial inline_always auto fg_CallSafeGenericImpl(NMeta::TCTypeList<tfp_CStorageParams...> _TypeList, tf_CFunctor &&_fFunction, tfp_CParams && ...p_Params)
 		requires NTraits::cIsCallableWith<TCSafeCallParamsToFunctionPointer<NMeta::TCTypeList<tfp_CStorageParams...>>, void (tfp_CParams...)>
 	{
-		using CFunctionType = NTraits::TCRemoveReference<tf_CFunction>;
-		using CReturn = NTraits::TCCallableReturnTypeFor<CFunctionType, void (tfp_CParams...)>;
+		using FFunctionType = NTraits::TCRemoveReference<tf_CFunction>;
+		using CReturn = NTraits::TCCallableReturnTypeFor<FFunctionType, void (tfp_CParams...)>;
 		return fg_CallSafeImpl<CReturn, tfp_CStorageParams...>
 			(
 				fg_Forward<tf_CFunctor>(_fFunction)
@@ -134,16 +134,16 @@ namespace NMib::NConcurrency
 	mark_artificial inline_always auto fg_CallSafe(tf_CFunction &&_fFunction, tfp_CParams && ...p_Params)
 		requires (NPrivate::TCCallSafeIsValidFunction<NTraits::TCRemoveReferenceAndQualifiers<tf_CFunction>, tfp_CParams...>::mc_Value)
 	{
-		using CFunctionType = NTraits::TCRemoveReferenceAndQualifiers<tf_CFunction>;
-		return fg_CallSafeGenericImpl<tf_CFunction>(typename NPrivate::TCCallSafeFunctionParams<CFunctionType>(), fg_Forward<tf_CFunction>(_fFunction), fg_Forward<tfp_CParams>(p_Params)...);
+		using FFunctionType = NTraits::TCRemoveReferenceAndQualifiers<tf_CFunction>;
+		return fg_CallSafeGenericImpl<tf_CFunction>(typename NPrivate::TCCallSafeFunctionParams<FFunctionType>(), fg_Forward<tf_CFunction>(_fFunction), fg_Forward<tfp_CParams>(p_Params)...);
 	}
 
 	template <typename tf_CFunction, typename ...tfp_CParams>
 	mark_artificial inline_always auto fg_CallSafe(NStorage::TCSharedPointer<tf_CFunction> const &_fFunction, tfp_CParams && ...p_Params)
 		requires (NPrivate::TCCallSafeIsValidFunction<NTraits::TCRemoveReferenceAndQualifiers<tf_CFunction>, tfp_CParams...>::mc_Value)
 	{
-		using CFunctionType = NTraits::TCRemoveReferenceAndQualifiers<tf_CFunction>;
-		return fg_CallSafeGenericImpl<tf_CFunction>(typename NPrivate::TCCallSafeFunctionParams<CFunctionType>(), _fFunction, fg_Forward<tfp_CParams>(p_Params)...);
+		using FFunctionType = NTraits::TCRemoveReferenceAndQualifiers<tf_CFunction>;
+		return fg_CallSafeGenericImpl<tf_CFunction>(typename NPrivate::TCCallSafeFunctionParams<FFunctionType>(), _fFunction, fg_Forward<tfp_CParams>(p_Params)...);
 	}
 
 	template <typename tf_CFunction, typename ...tfp_CParams>

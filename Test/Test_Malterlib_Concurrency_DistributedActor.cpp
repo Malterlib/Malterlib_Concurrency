@@ -128,7 +128,7 @@ struct CTestiii2 : public CTestiii
 
 struct CDistributedActorBase : public CActor
 {
-	enum : uint32
+	enum EProtocolVersion : uint32
 	{
 		EProtocolVersion_Min       = 0x101
 		, EProtocolVersion_Current = 0x101
@@ -166,7 +166,7 @@ struct CDistributedActorNonPublished : public CDistributedActorBase
 
 struct CDistributedActorInterface : public CActor
 {
-	enum : uint32
+	enum EProtocolVersion : uint32
 	{
 		EProtocolVersion_Min       = 0x101
 		, EProtocolVersion_Current = 0x101
@@ -963,7 +963,7 @@ struct CDistributedActor_Tests : public NMib::NTest::CTest
 		{
 			auto Exception = DMibErrorInstance("The real failure message");
 
-			NStream::CBinaryStreamMemory<NStream::CBinaryStreamDefault, NContainer::CIOByteVector> FeedStream;
+			NStream::TCBinaryStreamMemory<NStream::CBinaryStreamDefault, NContainer::CIOByteVector> FeedStream;
 			NConcurrency::NPrivate::fg_FeedException(FeedStream, Exception, false);
 			NContainer::CIOByteVector Data = FeedStream.f_MoveVector();
 
@@ -974,7 +974,7 @@ struct CDistributedActor_Tests : public NMib::NTest::CTest
 			Data[3] = uint8(0x0b);
 
 			{
-				NStream::CBinaryStreamMemoryPtr<NStream::CBinaryStreamDefault> ConsumeStream;
+				NStream::TCBinaryStreamMemoryPtr<NStream::CBinaryStreamDefault> ConsumeStream;
 				ConsumeStream.f_OpenRead(Data);
 
 				NException::CExceptionPointer pException = NConcurrency::NPrivate::fg_ConsumeException(ConsumeStream, false);
@@ -985,14 +985,14 @@ struct CDistributedActor_Tests : public NMib::NTest::CTest
 			}
 
 			{
-				NStream::CBinaryStreamMemory<NStream::CBinaryStreamDefault, NContainer::CIOByteVector> GarbageStream;
+				NStream::TCBinaryStreamMemory<NStream::CBinaryStreamDefault, NContainer::CIOByteVector> GarbageStream;
 				GarbageStream << uint32(0x0badc0de);
 				uint64 PayloadSize = 4;
 				NStream::fg_FeedLenToStream(GarbageStream, PayloadSize);
 				GarbageStream << uint32(0xffffffff);
 				NContainer::CIOByteVector GarbageData = GarbageStream.f_MoveVector();
 
-				NStream::CBinaryStreamMemoryPtr<NStream::CBinaryStreamDefault> ConsumeStream;
+				NStream::TCBinaryStreamMemoryPtr<NStream::CBinaryStreamDefault> ConsumeStream;
 				ConsumeStream.f_OpenRead(GarbageData);
 
 				NException::CExceptionPointer pException = NConcurrency::NPrivate::fg_ConsumeException(ConsumeStream, false);
@@ -1003,11 +1003,11 @@ struct CDistributedActor_Tests : public NMib::NTest::CTest
 			{
 				DMibTestPath("Size shorter than the payload");
 
-				NStream::CBinaryStreamMemory<NStream::CBinaryStreamDefault, NContainer::CIOByteVector> ValidStream;
+				NStream::TCBinaryStreamMemory<NStream::CBinaryStreamDefault, NContainer::CIOByteVector> ValidStream;
 				NConcurrency::NPrivate::fg_FeedException(ValidStream, Exception, false);
 				NContainer::CIOByteVector ValidData = ValidStream.f_MoveVector();
 
-				NStream::CBinaryStreamMemoryPtr<NStream::CBinaryStreamDefault> HeaderStream;
+				NStream::TCBinaryStreamMemoryPtr<NStream::CBinaryStreamDefault> HeaderStream;
 				HeaderStream.f_OpenRead(ValidData);
 				uint32 TypeHash = 0;
 				HeaderStream >> TypeHash;
@@ -1015,13 +1015,13 @@ struct CDistributedActor_Tests : public NMib::NTest::CTest
 				NStream::fg_ConsumeLenFromStream(HeaderStream, PayloadSize);
 				umint PayloadStart = umint(HeaderStream.f_GetPosition());
 
-				NStream::CBinaryStreamMemory<NStream::CBinaryStreamDefault, NContainer::CIOByteVector> ShortStream;
+				NStream::TCBinaryStreamMemory<NStream::CBinaryStreamDefault, NContainer::CIOByteVector> ShortStream;
 				ShortStream << TypeHash;
 				NStream::fg_FeedLenToStream(ShortStream, uint64(1));
 				ShortStream.f_FeedBytes(ValidData.f_GetArray() + PayloadStart, ValidData.f_GetLen() - PayloadStart);
 				NContainer::CIOByteVector ShortData = ShortStream.f_MoveVector();
 
-				NStream::CBinaryStreamMemoryPtr<NStream::CBinaryStreamDefault> ConsumeStream;
+				NStream::TCBinaryStreamMemoryPtr<NStream::CBinaryStreamDefault> ConsumeStream;
 				ConsumeStream.f_OpenRead(ShortData);
 				DMibExpectException
 					(
@@ -1246,12 +1246,12 @@ struct CDistributedActor_Tests : public NMib::NTest::CTest
 			// Feeds an exception, then a sentinel that shows the reader ended up after the exception
 			auto fStreamed = [&](auto &&_fFeed, auto &&_fConsume) -> TCOptional<CVersionedData>
 				{
-					NStream::CBinaryStreamMemory<NStream::CBinaryStreamDefault, NContainer::CIOByteVector> FeedStream;
+					NStream::TCBinaryStreamMemory<NStream::CBinaryStreamDefault, NContainer::CIOByteVector> FeedStream;
 					_fFeed(FeedStream);
 					FeedStream << c_Sentinel;
 					NContainer::CIOByteVector Bytes = FeedStream.f_MoveVector();
 
-					NStream::CBinaryStreamMemoryPtr<NStream::CBinaryStreamDefault> ConsumeStream;
+					NStream::TCBinaryStreamMemoryPtr<NStream::CBinaryStreamDefault> ConsumeStream;
 					ConsumeStream.f_OpenRead(Bytes);
 					NMib::NException::CExceptionPointer pConsumed = _fConsume(ConsumeStream);
 					uint32 Sentinel = 0;

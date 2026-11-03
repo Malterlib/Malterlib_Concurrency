@@ -994,12 +994,12 @@ namespace NMib::NConcurrency
 					(
 						[ResultCall = fg_Move(_ResultCall)](TCAsyncResult<t_CReturnValue> &&_Result) mutable
 						{
-							auto Actor = fg_Move(ResultCall.mp_Actor);
+							auto Actor = fg_Move(ResultCall.m_Actor);
 							auto pActor = Actor.f_GetRealActor();
 							pActor->f_QueueProcess
 								(
 									[
-										Functor = fg_Move(ResultCall.mp_Functor)
+										Functor = fg_Move(ResultCall.m_Functor)
 										, Result = fg_Move(_Result)
 #	if DMibEnableSafeCheck > 0
 										, pActor
@@ -1024,12 +1024,12 @@ namespace NMib::NConcurrency
 				(
 					[ResultCall = fg_Move(_ResultCall)](TCAsyncResult<t_CReturnValue> &&_Result) mutable
 					{
-						auto Actor = fg_Move(ResultCall.mp_Actor);
+						auto Actor = fg_Move(ResultCall.m_Actor);
 						auto pActor = Actor.f_GetRealActor();
 						pActor->f_QueueProcess
 							(
 								[
-									Functor = fg_Move(ResultCall.mp_Functor)
+									Functor = fg_Move(ResultCall.m_Functor)
 									, Result = fg_Move(_Result)
 #if DMibEnableSafeCheck > 0
 									, pActor

@@ -20,10 +20,10 @@ namespace NMib::NConcurrency
 		bool f_IsSingleThreaded() const;
 
 	private:
-		NContainer::TCVector<NStorage::TCUniquePointer<NThread::CThreadObject>> m_Threads;
-		NContainer::TCThreadSafeQueue<NFunction::TCFunction<void ()>> m_DispatchQueue;
+		NContainer::TCVector<NStorage::TCUniquePointer<NThread::CThreadObject>> mp_Threads;
+		NContainer::TCThreadSafeQueue<NFunction::TCFunction<void ()>> mp_DispatchQueue;
 
-		NThread::CSemaphore m_Semaphore;
+		NThread::CSemaphore mp_Semaphore;
 	};
 
 	extern NStorage::TCAggregate<CThreadPool> g_ThreadPool;

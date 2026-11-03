@@ -546,7 +546,7 @@ namespace NMib::NConcurrency
 
 	TCFuture<void> CActorCommon::f_Destroy() &&
 	{
-		auto pActorInternal = (static_cast<TCActor<> &>(*this)).m_pInternalActor;
+		auto pActorInternal = (static_cast<TCActor<> &>(*this)).mp_pInternalActor;
 		if (!pActorInternal)
 			return g_Void;
 
@@ -864,7 +864,7 @@ namespace NMib::NConcurrency
 
 	TCFuture<void> CActorCommon::fp_DestroyUnused() &&
 	{
-		auto pActorInternal = (static_cast<TCActor<> &>(*this)).m_pInternalActor;
+		auto pActorInternal = (static_cast<TCActor<> &>(*this)).mp_pInternalActor;
 		if (!pActorInternal)
 			return g_Void;
 
@@ -1286,14 +1286,14 @@ namespace NMib::NConcurrency
 		)
 		: CDefaultActorHolder(_pConcurrencyManager, _bImmediateDelete, _Priority, fg_Move(_pDistributedActorData))
 		, mp_pDestroyState(fg_Construct())
-		, mp_pDelegateTo(_DelegateToActor.m_pInternalActor)
+		, mp_pDelegateTo(_DelegateToActor.mp_pInternalActor)
 	{
 		if (mp_pDelegateTo->mp_DestroyInitiated.f_Load())
 			throw DMibImpExceptionInstance(CExceptionActorIsBeingDestroyed, "Cannot register a delegated actor while its parent is being destroyed");
 
-		_DelegateToActor.m_pInternalActor->f_QueueProcess
+		_DelegateToActor.mp_pInternalActor->f_QueueProcess
 			(
-				[pDelegateTo = _DelegateToActor.m_pInternalActor, pThis = TCActorHolderSharedPointer<CDelegatedActorHolder>{this}](CConcurrencyThreadLocal &_ThreadLocal)
+				[pDelegateTo = _DelegateToActor.mp_pInternalActor, pThis = TCActorHolderSharedPointer<CDelegatedActorHolder>{this}](CConcurrencyThreadLocal &_ThreadLocal)
 				{
 					DMibFastCheck(!pDelegateTo->f_IsHolderDestroyed());
 					DMibFastCheck(!pDelegateTo->fp_GetActorRelaxed()->f_IsDestroyed());

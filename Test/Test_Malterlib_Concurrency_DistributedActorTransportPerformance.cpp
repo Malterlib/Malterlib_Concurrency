@@ -50,7 +50,7 @@ namespace
 
 namespace NTestTransportPerformance
 {
-	static fp64 g_Timeout = 60.0 * gc_TimeoutMultiplier;
+	static fp64 gs_Timeout = 60.0 * gc_TimeoutMultiplier;
 
 	static constexpr bool gc_bSerialGeneration = true;
 
@@ -192,7 +192,7 @@ namespace NTestTransportPerformance
 		TCFuture<uint64> f_RunPing(TCDistributedActor<CTransportBenchActor> _Actor, umint _nRoundTrips)
 		{
 			uint64 Value = 0;
-			for (umint i = 0; i < _nRoundTrips; ++i)
+			for (umint iRoundTrip = 0; iRoundTrip < _nRoundTrips; ++iRoundTrip)
 				Value = co_await _Actor.f_CallActor(&CTransportBenchActor::f_Ping)(Value + 1);
 
 			co_return Value;
@@ -251,11 +251,11 @@ namespace NTestTransportPerformance
 					ServerAddress.m_URL = "{}://127.0.0.1:0/"_f << _Scheme; // Any port: the suites run as parallel processes, and the ticket carries the one the socket was given
 				else
 					ServerAddress.m_URL = "{}://[UNIX(666):{}]/"_f << _Scheme << fg_GetSafeUnixSocketPath("{}/{}_{}.sock"_f << RootDirectory << _SuiteTag << _Scheme);
-				m_ServerTrustManager(&CDistributedActorTrustManager::f_AddListen, ServerAddress, 0).f_CallSync(mp_pRunLoop, g_Timeout);
+				m_ServerTrustManager(&CDistributedActorTrustManager::f_AddListen, ServerAddress, 0).f_CallSync(mp_pRunLoop, gs_Timeout);
 
 				if (bTcp)
 				{
-					auto BoundAddress = m_ServerTrustManager(&CDistributedActorTrustManager::f_GetListenAddress, ServerAddress).f_CallSync(mp_pRunLoop, g_Timeout);
+					auto BoundAddress = m_ServerTrustManager(&CDistributedActorTrustManager::f_GetListenAddress, ServerAddress).f_CallSync(mp_pRunLoop, gs_Timeout);
 					DMibExpect(BoundAddress.m_URL.f_GetPort(), !=, 0);
 				}
 
@@ -275,9 +275,9 @@ namespace NTestTransportPerformance
 				mp_ClientState.m_DefaultSendWindowBytes = fg_BenchSendWindowBytes();
 				m_ClientTrustManager = mp_ClientState.f_TrustManager("Client");
 
-				auto TrustTicket = m_ServerTrustManager(&CDistributedActorTrustManager::f_GenerateConnectionTicket, ServerAddress, nullptr, nullptr).f_CallSync(mp_pRunLoop, g_Timeout);
-				m_ClientTrustManager(&CDistributedActorTrustManager::f_AddClientConnection, TrustTicket.m_Ticket, g_Timeout / 2, _ConnectionConcurrency, 0)
-					.f_CallSync(mp_pRunLoop, g_Timeout)
+				auto TrustTicket = m_ServerTrustManager(&CDistributedActorTrustManager::f_GenerateConnectionTicket, ServerAddress, nullptr, nullptr).f_CallSync(mp_pRunLoop, gs_Timeout);
+				m_ClientTrustManager(&CDistributedActorTrustManager::f_AddClientConnection, TrustTicket.m_Ticket, gs_Timeout / 2, _ConnectionConcurrency, 0)
+					.f_CallSync(mp_pRunLoop, gs_Timeout)
 				;
 
 				mp_pClientHelper = fg_Construct(m_ClientTrustManager, mp_pRunLoop);
@@ -292,13 +292,24 @@ namespace NTestTransportPerformance
 				m_ServerTrustManager->f_BlockDestroy(mp_pRunLoop->f_ActorDestroyLoop());
 			}
 
+		private:
 			TCSharedPointer<CDefaultRunLoop> mp_pRunLoop;
 			CTrustManagerTestHelper mp_ServerState;
+
+		public:
 			TCActor<CDistributedActorTrustManager> m_ServerTrustManager;
+
+		private:
 			TCUniquePointer<CDistributedActorTestHelper> mp_pServerHelper;
 			CTrustManagerTestHelper mp_ClientState;
+
+		public:
 			TCActor<CDistributedActorTrustManager> m_ClientTrustManager;
+
+		private:
 			TCUniquePointer<CDistributedActorTestHelper> mp_pClientHelper;
+
+		public:
 			TCDistributedActor<CTransportBenchActor> m_RemoteActor;
 		};
 
@@ -333,13 +344,13 @@ namespace NTestTransportPerformance
 			CTransportBenchState State(_RunLoopHelper, _Scheme, _SuiteTag, 1, _bHighCPUServerActor);
 			TCActor<tf_CClientActor> ClientActor = fg_ConstructActor<tf_CClientActor>();
 
-			ClientActor(&CTransportBenchClientActor::f_RunPing, State.m_RemoteActor, mc_nPingRoundTrips / 8).f_CallSync(_RunLoopHelper.m_pRunLoop, g_Timeout);
+			ClientActor(&CTransportBenchClientActor::f_RunPing, State.m_RemoteActor, mc_nPingRoundTrips / 8).f_CallSync(_RunLoopHelper.m_pRunLoop, gs_Timeout);
 
 			CTestPerformanceMeasure Time("{}_{}"_f << _SuiteTag << _Scheme);
 			for (umint iRepetition = 0; iRepetition < mc_nRepetitions; ++iRepetition)
 			{
 				Time.f_Start();
-				ClientActor(&CTransportBenchClientActor::f_RunPing, State.m_RemoteActor, mc_nPingRoundTrips).f_CallSync(_RunLoopHelper.m_pRunLoop, g_Timeout);
+				ClientActor(&CTransportBenchClientActor::f_RunPing, State.m_RemoteActor, mc_nPingRoundTrips).f_CallSync(_RunLoopHelper.m_pRunLoop, gs_Timeout);
 				Time.f_Stop(mc_nPingRoundTrips);
 			}
 			_PerfTest.f_Add(Time);
@@ -392,7 +403,7 @@ namespace NTestTransportPerformance
 
 			CTransportBenchState State(_RunLoopHelper, _Scheme, _SuiteTag, _ConnectionConcurrency);
 
-			fs_MeasureThroughputOnActor(_PerfTest, _RunLoopHelper, State.m_RemoteActor, "{}_{}"_f << _SuiteTag << _Scheme, _ConnectionConcurrency, g_Timeout);
+			fs_MeasureThroughputOnActor(_PerfTest, _RunLoopHelper, State.m_RemoteActor, "{}_{}"_f << _SuiteTag << _Scheme, _ConnectionConcurrency, gs_Timeout);
 		}
 
 		void f_DoTests()
@@ -472,13 +483,13 @@ namespace NTestTransportPerformance
 
 					CDistributedActorTrustManager_Address ServerAddress;
 					ServerAddress.m_URL = "{}://{}:{}/"_f << Scheme << Host << Port;
-					ServerTrustManager(&CDistributedActorTrustManager::f_AddListen, ServerAddress, 0).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
+					ServerTrustManager(&CDistributedActorTrustManager::f_AddListen, ServerAddress, 0).f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout);
 
 					TCUniquePointer<CDistributedActorTestHelper> pServerHelper = fg_Construct(ServerTrustManager, RunLoopHelper.m_pRunLoop);
 					pServerHelper->f_Publish<CTransportBenchActor>(pServerHelper->f_GetManager()->f_ConstructActor<CTransportBenchActor>(), CTransportBenchActor::mc_pDefaultNamespace);
 
 					auto TrustTicket = ServerTrustManager(&CDistributedActorTrustManager::f_GenerateConnectionTicket, ServerAddress, nullptr, nullptr)
-						.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
+						.f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout)
 					;
 					NFile::CFile::fs_WriteStringToFile(TicketFile, CStr(TrustTicket.m_Ticket.f_ToStringTicket()), false);
 
@@ -515,8 +526,8 @@ namespace NTestTransportPerformance
 					CTrustManagerTestHelper ClientState;
 					ClientState.m_DefaultSendWindowBytes = fg_BenchSendWindowBytes();
 					TCActor<CDistributedActorTrustManager> ClientTrustManager = ClientState.f_TrustManager("Client");
-					ClientTrustManager(&CDistributedActorTrustManager::f_AddClientConnection, Ticket, g_Timeout / 2, ConnectionConcurrency, 0)
-						.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
+					ClientTrustManager(&CDistributedActorTrustManager::f_AddClientConnection, Ticket, gs_Timeout / 2, ConnectionConcurrency, 0)
+						.f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout)
 					;
 
 					TCUniquePointer<CDistributedActorTestHelper> pClientHelper = fg_Construct(ClientTrustManager, RunLoopHelper.m_pRunLoop);

@@ -29,8 +29,8 @@ namespace NMib::NConcurrency::NTest
 	using namespace NMib::NFunction;
 	using namespace NMib::NMemory;
 
-	static thread_local umint g_ThreadLocalCpp;
-	static thread_local umint g_ThreadLocalCpp2;
+	static thread_local umint gs_ThreadLocalCpp;
+	static thread_local umint gs_ThreadLocalCpp2;
 
 	struct CPingPongActor : public CActor
 	{
@@ -54,7 +54,7 @@ namespace NMib::NConcurrency::NTest
 		TCFuture<uint32> f_Run(TCActor<CPingPongActor> _Target, umint _nRoundTrips)
 		{
 			uint32 Value = 0;
-			for (umint i = 0; i < _nRoundTrips; ++i)
+			for (umint iRoundTrip = 0; iRoundTrip < _nRoundTrips; ++iRoundTrip)
 				Value = co_await _Target(&CPingPongActor::f_Echo, Value);
 
 			co_return Value;
@@ -63,7 +63,7 @@ namespace NMib::NConcurrency::NTest
 		TCFuture<uint32> f_Work(umint _nIterations)
 		{
 			uint32 volatile Value = 1;
-			for (umint i = 0; i < _nIterations; ++i)
+			for (umint iIteration = 0; iIteration < _nIterations; ++iIteration)
 				Value = Value * 3 + 1;
 
 			co_return Value;
@@ -88,9 +88,9 @@ namespace NMib::NConcurrency::NTest
 	{
 	private:
 #if defined(DMibDebug) || defined(DMibSanitizerEnabled)
-		static constexpr umint mc_nLoops = 16384;
+		static constexpr umint mcp_nLoops = 16384;
 #else
-		static constexpr umint mc_nLoops = 16384 * 128 * 10;
+		static constexpr umint mcp_nLoops = 16384 * 128 * 10;
 #endif
 
 		static inline_never uint32 fsp_TestRecursive(uint32 _Value)
@@ -102,7 +102,7 @@ namespace NMib::NConcurrency::NTest
 		static inline_never uint32 fsp_TestFunction(uint32 _Value)
 		{
 			uint32 volatile Return = 0;
-			for (umint i = 0; i < mc_nLoops; ++i)
+			for (umint iLoop = 0; iLoop < mcp_nLoops; ++iLoop)
 				Return = Return + fsp_TestRecursive(_Value);
 			return Return;
 		}
@@ -115,7 +115,7 @@ namespace NMib::NConcurrency::NTest
 		static inline_never TCFuture<uint32> fsp_TestFunctionCoro(uint32 _Value)
 		{
 			uint32 Return = 0;
-			for (umint i = 0; i < mc_nLoops; ++i)
+			for (umint iLoop = 0; iLoop < mcp_nLoops; ++iLoop)
 				Return += co_await fsp_TestRecursiveCoro(_Value);
 			co_return Return;
 		}
@@ -129,7 +129,7 @@ namespace NMib::NConcurrency::NTest
 		static inline_never cppcoro::task<uint32> fsp_TestFunctionCppCoro(uint32 _Value)
 		{
 			uint32 Return = 0;
-			for (umint i = 0; i < mc_nLoops; ++i)
+			for (umint iLoop = 0; iLoop < mcp_nLoops; ++iLoop)
 				Return += co_await fsp_TestRecursiveCppCoro(_Value);
 			co_return Return;
 		}
@@ -145,18 +145,18 @@ namespace NMib::NConcurrency::NTest
 				CTestPerformanceMeasure NormalTime("Normal");
 				uint32 volatile ReturnNormal;
 				{
-					for (umint j = 0; j < nTests; ++j)
+					for (umint iTest = 0; iTest < nTests; ++iTest)
 					{
 						NormalTime.f_Start();
 						[&ReturnNormal]() inline_never
 						{
 							auto Return = ReturnNormal;
-							for (umint i = 0; i < mc_nLoops; ++i)
+							for (umint iLoop = 0; iLoop < mcp_nLoops; ++iLoop)
 								Return += NMib::NSys::fg_Thread_GetCurrentUID();
 							ReturnNormal = Return;
 						}
 						();
-						NormalTime.f_Stop(mc_nLoops);
+						NormalTime.f_Stop(mcp_nLoops);
 					}
 					PerfTest.f_Add(NormalTime);
 				}
@@ -182,19 +182,19 @@ namespace NMib::NConcurrency::NTest
 				CTestPerformanceMeasure NormalTime("Normal");
 				uint32 volatile ReturnNormal;
 				{
-					for (umint j = 0; j < nTests; ++j)
+					for (umint iTest = 0; iTest < nTests; ++iTest)
 					{
 						NormalTime.f_Start();
 						[&ReturnNormal, ThreadLocal]() inline_never
 						{
 							auto ThreadLocal2 = ThreadLocal;
 							auto Return = ReturnNormal;
-							for (umint i = 0; i < mc_nLoops; ++i)
+							for (umint iLoop = 0; iLoop < mcp_nLoops; ++iLoop)
 								Return += (umint)NMib::NSys::fg_Thread_GetLocal(ThreadLocal2);
 							ReturnNormal = Return;
 						}
 						();
-						NormalTime.f_Stop(mc_nLoops);
+						NormalTime.f_Stop(mcp_nLoops);
 					}
 					PerfTest.f_Add(NormalTime);
 				}
@@ -208,22 +208,22 @@ namespace NMib::NConcurrency::NTest
 			{
 				umint nTests = 9;
 
-				g_ThreadLocalCpp = 0;
+				gs_ThreadLocalCpp = 0;
 
 				CTestPerformance PerfTest(0.015);
 				CTestPerformanceMeasure NormalTime("Normal");
 				uint32 volatile ReturnNormal;
 				{
-					for (umint j = 0; j < nTests; ++j)
+					for (umint iTest = 0; iTest < nTests; ++iTest)
 					{
 						NormalTime.f_Start();
 						[&ReturnNormal]() inline_never
 						{
-							for (umint i = 0; i < mc_nLoops; ++i)
-								ReturnNormal += (umint)g_ThreadLocalCpp;
+							for (umint iLoop = 0; iLoop < mcp_nLoops; ++iLoop)
+								ReturnNormal += (umint)gs_ThreadLocalCpp;
 						}
 						();
-						NormalTime.f_Stop(mc_nLoops);
+						NormalTime.f_Stop(mcp_nLoops);
 					}
 					PerfTest.f_Add(NormalTime);
 				}
@@ -237,22 +237,22 @@ namespace NMib::NConcurrency::NTest
 			{
 				umint nTests = 9;
 
-				g_ThreadLocalCpp2 = 0;
+				gs_ThreadLocalCpp2 = 0;
 
 				CTestPerformance PerfTest(0.015);
 				CTestPerformanceMeasure NormalTime("Normal");
 				uint32 volatile ReturnNormal;
 				{
-					for (umint j = 0; j < nTests; ++j)
+					for (umint iTest = 0; iTest < nTests; ++iTest)
 					{
 						NormalTime.f_Start();
 						[&ReturnNormal]() inline_never
 						{
-							for (umint i = 0; i < mc_nLoops; ++i)
-								ReturnNormal += (umint)g_ThreadLocalCpp2;
+							for (umint iLoop = 0; iLoop < mcp_nLoops; ++iLoop)
+								ReturnNormal += (umint)gs_ThreadLocalCpp2;
 						}
 						();
-						NormalTime.f_Stop(mc_nLoops);
+						NormalTime.f_Stop(mcp_nLoops);
 					}
 					PerfTest.f_Add(NormalTime);
 				}
@@ -278,20 +278,20 @@ namespace NMib::NConcurrency::NTest
 				CTestPerformanceMeasure NormalTime("Normal");
 				uint32 volatile ReturnNormal;
 				{
-					for (umint j = 0; j < nTests; ++j)
+					for (umint iTest = 0; iTest < nTests; ++iTest)
 					{
 						NormalTime.f_Start();
 						[&ReturnNormal, ThreadLocal]() inline_never
 						{
 							auto ThreadLocal2 = ThreadLocal;
 							auto Return = ReturnNormal;
-							for (umint i = 0; i < mc_nLoops; ++i)
+							for (umint iLoop = 0; iLoop < mcp_nLoops; ++iLoop)
 								Return += (umint)NMib::NSys::fg_Thread_GetLocalAlwaysSet(ThreadLocal2);
 
 							ReturnNormal = Return;
 						}
 						();
-						NormalTime.f_Stop(mc_nLoops);
+						NormalTime.f_Stop(mcp_nLoops);
 					}
 					PerfTest.f_Add(NormalTime);
 				}
@@ -317,19 +317,19 @@ namespace NMib::NConcurrency::NTest
 				CTestPerformanceMeasure NormalTime("Normal");
 				uint32 volatile ReturnNormal;
 				{
-					for (umint j = 0; j < nTests; ++j)
+					for (umint iTest = 0; iTest < nTests; ++iTest)
 					{
 						NormalTime.f_Start();
 						[&ReturnNormal, ThreadLocal]() inline_never
 						{
 							auto ThreadLocal2 = ThreadLocal;
 							auto Return = ReturnNormal;
-							for (umint i = 0; i < mc_nLoops; ++i)
+							for (umint iLoop = 0; iLoop < mcp_nLoops; ++iLoop)
 								Return += (umint)NMib::NSys::fg_Thread_GetLocalFast(ThreadLocal2);
 							ReturnNormal = Return;
 						}
 						();
-						NormalTime.f_Stop(mc_nLoops);
+						NormalTime.f_Stop(mcp_nLoops);
 					}
 					PerfTest.f_Add(NormalTime);
 				}
@@ -355,19 +355,19 @@ namespace NMib::NConcurrency::NTest
 				CTestPerformanceMeasure NormalTime("Normal");
 				uint32 volatile ReturnNormal;
 				{
-					for (umint j = 0; j < nTests; ++j)
+					for (umint iTest = 0; iTest < nTests; ++iTest)
 					{
 						NormalTime.f_Start();
 						[&ReturnNormal, ThreadLocal]() inline_never
 						{
 							auto ThreadLocal2 = ThreadLocal;
 							auto Return = ReturnNormal;
-							for (umint i = 0; i < mc_nLoops; ++i)
+							for (umint iLoop = 0; iLoop < mcp_nLoops; ++iLoop)
 								Return += (umint)NMib::NSys::fg_Thread_GetLocalAlwaysSetFast(ThreadLocal2);
 							ReturnNormal = Return;
 						}
 						();
-						NormalTime.f_Stop(mc_nLoops);
+						NormalTime.f_Stop(mcp_nLoops);
 					}
 					PerfTest.f_Add(NormalTime);
 				}
@@ -393,19 +393,19 @@ namespace NMib::NConcurrency::NTest
 				CTestPerformanceMeasure NormalTime("Normal");
 				uint32 volatile ReturnNormal;
 				{
-					for (umint j = 0; j < nTests; ++j)
+					for (umint iTest = 0; iTest < nTests; ++iTest)
 					{
 						NormalTime.f_Start();
 						[&ReturnNormal, ThreadLocal]() inline_never
 						{
 							auto ThreadLocal2 = ThreadLocal;
 							auto Return = ReturnNormal;
-							for (umint i = 0; i < mc_nLoops; ++i)
+							for (umint iLoop = 0; iLoop < mcp_nLoops; ++iLoop)
 								Return += NMib::NSys::fg_Thread_GetCurrentUID() + (umint)NMib::NSys::fg_Thread_GetLocal(ThreadLocal2);
 							ReturnNormal = Return;
 						}
 						();
-						NormalTime.f_Stop(mc_nLoops);
+						NormalTime.f_Stop(mcp_nLoops);
 					}
 					PerfTest.f_Add(NormalTime);
 				}
@@ -434,7 +434,7 @@ namespace NMib::NConcurrency::NTest
 				CTestPerformanceMeasure NormalTime("Normal");
 				uint32 ReturnNormal;
 				{
-					for (umint j = 0; j < nTests; ++j)
+					for (umint iTest = 0; iTest < nTests; ++iTest)
 					{
 						NormalTime.f_Start();
 						[&ReturnNormal, ThreadLocal0, ThreadLocal1]() inline_never
@@ -442,7 +442,7 @@ namespace NMib::NConcurrency::NTest
 							auto ThreadLocalCopy0 = ThreadLocal0;
 							auto ThreadLocalCopy1 = ThreadLocal1;
 							auto Return = ReturnNormal;
-							for (umint i = 0; i < mc_nLoops; ++i)
+							for (umint iLoop = 0; iLoop < mcp_nLoops; ++iLoop)
 							{
 								Return
 									+= NMib::NSys::fg_Thread_GetCurrentUID()
@@ -453,7 +453,7 @@ namespace NMib::NConcurrency::NTest
 							ReturnNormal = Return;
 						}
 						();
-						NormalTime.f_Stop(mc_nLoops);
+						NormalTime.f_Stop(mcp_nLoops);
 					}
 					PerfTest.f_Add(NormalTime);
 				}
@@ -474,7 +474,7 @@ namespace NMib::NConcurrency::NTest
 				uint32 ReturnNormal;
 				DDoSleep;
 				{
-					for (umint j = 0; j < nTests; ++j)
+					for (umint iTest = 0; iTest < nTests; ++iTest)
 					{
 						NormalTime.f_Start();
 						uint32 Multiplier = 2;
@@ -483,7 +483,7 @@ namespace NMib::NConcurrency::NTest
 							ReturnNormal = fsp_TestFunction(Multiplier);
 						}
 						();
-						NormalTime.f_Stop(mc_nLoops);
+						NormalTime.f_Stop(mcp_nLoops);
 					}
 					PerfTest.f_AddBaseline(NormalTime);
 				}
@@ -491,7 +491,7 @@ namespace NMib::NConcurrency::NTest
 				DDoSleep;
 				uint32 ReturnCoro;
 				{
-					for (umint j = 0; j < nTests; ++j)
+					for (umint iTest = 0; iTest < nTests; ++iTest)
 					{
 						CoroutineTime.f_Start();
 						uint32 Multiplier = 2;
@@ -500,7 +500,7 @@ namespace NMib::NConcurrency::NTest
 							ReturnCoro = fsp_TestFunctionCoro(Multiplier).f_CallSync();
 						}
 						();
-						CoroutineTime.f_Stop(mc_nLoops);
+						CoroutineTime.f_Stop(mcp_nLoops);
 					}
 					PerfTest.f_Add(CoroutineTime);
 					DMibExpect(ReturnCoro, ==, ReturnNormal);
@@ -510,7 +510,7 @@ namespace NMib::NConcurrency::NTest
 #if defined(DMalterlibEnableThirdPartyComparisonTests)
 				uint32 ReturnCppCoro;
 				{
-					for (umint j = 0; j < nTests; ++j)
+					for (umint iTest = 0; iTest < nTests; ++iTest)
 					{
 						CppCoroTime.f_Start();
 						uint32 Multiplier = 2;
@@ -519,7 +519,7 @@ namespace NMib::NConcurrency::NTest
 							ReturnCppCoro = cppcoro::sync_wait(fsp_TestFunctionCppCoro(Multiplier));
 						}
 						();
-						CppCoroTime.f_Stop(mc_nLoops);
+						CppCoroTime.f_Stop(mcp_nLoops);
 					}
 					PerfTest.f_AddReference(CppCoroTime);
 					DMibExpect(ReturnCppCoro, ==, ReturnNormal);
@@ -543,7 +543,7 @@ namespace NMib::NConcurrency::NTest
 				CTestPerformanceMeasure MalterlibTime("Malterlib5");
 				TCActor<CSeparateThreadActor> LaunchActor{fg_Construct(), "Test"};
 				{
-					for (umint j = 0; j < nTests; ++j)
+					for (umint iTest = 0; iTest < nTests; ++iTest)
 					{
 						MalterlibTime.f_Start();
 						TCVector<TCPromise<void>> Promises;
@@ -631,7 +631,7 @@ namespace NMib::NConcurrency::NTest
 					TCActor<CPingPongActor> Pong = fg_ConstructActor<CPingPongActor>();
 
 					DPingPongStatsReset();
-					for (umint j = 0; j < nTests; ++j)
+					for (umint iTest = 0; iTest < nTests; ++iTest)
 					{
 						PairTime.f_Start();
 						co_await Ping(&CPingPongActor::f_Run, Pong, c_nRoundTrips);
@@ -648,7 +648,7 @@ namespace NMib::NConcurrency::NTest
 					TCActor<CPingPongActor> Pong = fg_ConstructActor<CPingPongActor>();
 
 					DPingPongStatsReset();
-					for (umint j = 0; j < nTests; ++j)
+					for (umint iTest = 0; iTest < nTests; ++iTest)
 					{
 						OffPoolTime.f_Start();
 						co_await
@@ -658,7 +658,7 @@ namespace NMib::NConcurrency::NTest
 									TCActor<CPingPongActor> Target = Pong;
 
 									uint32 Value = 0;
-									for (umint i = 0; i < c_nRoundTrips; ++i)
+									for (umint iRoundTrip = 0; iRoundTrip < c_nRoundTrips; ++iRoundTrip)
 										Value = co_await Target(&CPingPongActor::f_Echo, Value);
 
 									co_return Value;
@@ -680,7 +680,7 @@ namespace NMib::NConcurrency::NTest
 					TCActor<CPingPongActor> Ping = fg_ConstructActor<CPingPongActor>();
 
 					DPingPongStatsReset();
-					for (umint j = 0; j < nTests; ++j)
+					for (umint iTest = 0; iTest < nTests; ++iTest)
 					{
 						ChainTime.f_Start();
 						co_await Ping(&CPingPongActor::f_Run, Head, c_nRoundTrips);
@@ -696,19 +696,19 @@ namespace NMib::NConcurrency::NTest
 					umint nPairs = fg_ConcurrencyManager().f_GetConcurrency();
 					TCVector<TCActor<CPingPongActor>> Pings;
 					TCVector<TCActor<CPingPongActor>> Pongs;
-					for (umint i = 0; i < nPairs; ++i)
+					for (umint iPair = 0; iPair < nPairs; ++iPair)
 					{
 						Pings.f_InsertLast(fg_ConstructActor<CPingPongActor>());
 						Pongs.f_InsertLast(fg_ConstructActor<CPingPongActor>());
 					}
 
 					DPingPongStatsReset();
-					for (umint j = 0; j < nTests; ++j)
+					for (umint iTest = 0; iTest < nTests; ++iTest)
 					{
 						PairsTime.f_Start();
 						TCFutureVector<uint32> Results;
-						for (umint i = 0; i < nPairs; ++i)
-							Pings[i](&CPingPongActor::f_Run, Pongs[i], c_nRoundTrips) > Results;
+						for (umint iPair = 0; iPair < nPairs; ++iPair)
+							Pings[iPair](&CPingPongActor::f_Run, Pongs[iPair], c_nRoundTrips) > Results;
 
 						co_await fg_AllDoneWrapped(Results);
 						PairsTime.f_Stop(c_nRoundTrips * nPairs);
@@ -730,11 +730,11 @@ namespace NMib::NConcurrency::NTest
 					umint nWorkers = fg_ConcurrencyManager().f_GetConcurrency();
 					TCActor<CPingPongActor> Driver = fg_ConstructActor<CPingPongActor>();
 					TCVector<TCActor<CPingPongActor>> Workers;
-					for (umint i = 0; i < nWorkers; ++i)
+					for (umint iWorker = 0; iWorker < nWorkers; ++iWorker)
 						Workers.f_InsertLast(fg_ConstructActor<CPingPongActor>());
 
 					DPingPongStatsReset();
-					for (umint j = 0; j < nTests; ++j)
+					for (umint iTest = 0; iTest < nTests; ++iTest)
 					{
 						FanOutTime.f_Start();
 						co_await Driver(&CPingPongActor::f_FanOut, Workers, c_nWorkIterations);

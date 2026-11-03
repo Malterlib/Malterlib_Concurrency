@@ -94,7 +94,7 @@ namespace NMib::NConcurrency
 		{
 			CDefaultActorHolder::fp_QueueProcess
 				(
-					[this, _Entry = fg_Move(_Entry)](CConcurrencyThreadLocal &_ThreadLocal) mutable
+					[this, Entry = fg_Move(_Entry)](CConcurrencyThreadLocal &_ThreadLocal) mutable
 					{
 						// this is referenced by shared pointer in CDefaultActorHolder::fp_QueueProcess
 
@@ -106,7 +106,7 @@ namespace NMib::NConcurrency
 								ThreadLocal.m_pCurrentRemoteDispatchActorData = pOldDispatchData;
 							}
 						;
-						_Entry.f_Detach()->f_Call(_ThreadLocal);
+						Entry.f_Detach()->f_Call(_ThreadLocal);
 					}
 					, _ThreadLocal
 				)

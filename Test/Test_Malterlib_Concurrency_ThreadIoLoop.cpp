@@ -102,7 +102,7 @@ namespace
 				;
 
 				pLoop->f_RequestReadiness(pRegistration, NSys::EIoLoopEvent::mc_Read);
-				for (umint i = 0; i < 5000 && !Reports; ++i)
+				for (umint iPoll = 0; iPoll < 5000 && !Reports; ++iPoll)
 				{
 					pLoop->f_PollAndDispatch();
 					if (!Reports)

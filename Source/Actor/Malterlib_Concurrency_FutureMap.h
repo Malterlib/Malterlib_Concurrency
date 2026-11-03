@@ -76,9 +76,11 @@ namespace NMib::NConcurrency
 
 			TCFuture<NContainer::TCMap<t_CKey, TCAsyncResult<t_CValue>>> f_GetResults();
 
+		private:
 			NContainer::TCMap<t_CKey, TCAsyncResult<t_CValue>> mp_Results;
 			TCPromise<NContainer::TCMap<t_CKey, TCAsyncResult<t_CValue>>> mp_GetResultsPromise;
 
+		public:
 			align_cacheline NStorage::CIntrusiveRefCount m_RefCount;
 
 		private:

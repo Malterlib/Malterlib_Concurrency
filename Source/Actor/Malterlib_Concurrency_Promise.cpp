@@ -25,7 +25,7 @@ namespace NMib::NConcurrency
 	;
 
 	CCoroutineOnSuspendScope::CCoroutineOnSuspendScope(NFunction::TCFunctionMovable<void ()> &&_fOnSuspend)
-		: m_fOnSuspend(fg_Move(_fOnSuspend))
+		: mp_fOnSuspend(fg_Move(_fOnSuspend))
 	{
 	}
 
@@ -35,7 +35,7 @@ namespace NMib::NConcurrency
 
 	void CCoroutineOnSuspendScope::f_Suspend() noexcept
 	{
-		m_fOnSuspend();
+		mp_fOnSuspend();
 	}
 
 	void CCoroutineOnSuspendScope::f_ResumeNoExcept() noexcept
@@ -44,7 +44,7 @@ namespace NMib::NConcurrency
 
 	void CCoroutineOnSuspendScope::operator () ()
 	{
-		m_fOnSuspend();
+		mp_fOnSuspend();
 	}
 
 	CCoroutineOnResumeScope::CCoroutineOnResumeScope(NFunction::TCFunctionMovable<NStorage::TCUniquePointer<ICOnResumeResult> ()> &&_fOnResume)
@@ -534,9 +534,9 @@ namespace NMib::NConcurrency::NPrivate
 
 	inline_always_lto CAsyncResult &CPromiseDataBase::f_GetAsyncResult()
 	{
-		static constexpr umint gc_DefaultAlignment = fg_GetHighestBitSet(sizeof(void *));
+		static constexpr umint c_DefaultAlignment = fg_GetHighestBitSet(sizeof(void *));
 		uint8 *pNextClass = (uint8 *)(void *)(this + 1) + sizeof(TCFutureOnResult<void>);
-		uint8 *pAlignedStart = fg_AlignUp(pNextClass, umint(1) << (m_BeforeSuspend.m_OverAlignment + gc_DefaultAlignment));
+		uint8 *pAlignedStart = fg_AlignUp(pNextClass, umint(1) << (m_BeforeSuspend.m_OverAlignment + c_DefaultAlignment));
 
 		return *((CAsyncResult *)pAlignedStart);
 	}

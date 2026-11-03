@@ -20,6 +20,7 @@ namespace NMib::NConcurrency
 			mp_pPriority->f_Store(self.m_pThis->f_GetPriority());
 		}
 
+	private:
 		NAtomic::TCAtomic<umint> *mp_pPriority = nullptr;
 	};
 

@@ -207,9 +207,9 @@ namespace NMib::NConcurrency
 		uint8 mp_bIsAlwaysAlive:1 = false;
 		uint8 mp_bHasOverriddenDestroy:1 = false;
 
-		static constexpr umint mc_AligmentZone1Size = sizeof(void *) + sizeof(void *) * 4 + sizeof(uint32) * 2 + sizeof(uint8);
+		static constexpr umint mcp_AlignmentZone1Size = sizeof(void *) + sizeof(void *) * 4 + sizeof(uint32) * 2 + sizeof(uint8);
 
-		uint8 mp_PaddingZone1[fg_AlignUpConstExpr(mc_AligmentZone1Size, DMibPMemoryCacheLineSize) - mc_AligmentZone1Size];
+		uint8 mp_PaddingZone1[fg_AlignUpConstExpr(mcp_AlignmentZone1Size, DMibPMemoryCacheLineSize) - mcp_AlignmentZone1Size];
 
 		// Alignment zone 2 (Changed from other threads) = 8 + 8 + 4 = 20 => 64 bytes
 		CConcurrentRunQueue mp_ConcurrentRunQueue;
@@ -223,11 +223,13 @@ namespace NMib::NConcurrency
 
 	public:
 		NStr::CStr m_ActorTypeName;
+
+	private:
 #endif
-		DIfRefCountDebugging(NStorage::CRefCountDebugReference m_DebugSelfRef);
+		DIfRefCountDebugging(NStorage::CRefCountDebugReference mp_DebugSelfRef);
 
 	protected:
-		static constexpr umint mc_AligmentZone2Size
+		static constexpr umint mcp_AlignmentZone2Size
 			= sizeof(void *) * 2
 			+ sizeof(uint32)
 #if DMibConfig_RefCountDebugging || DMibConfig_Concurrency_DebugBlockDestroy
@@ -241,7 +243,7 @@ namespace NMib::NConcurrency
 #endif
 		;
 
-		uint8 mp_PaddingZone2[fg_AlignUpConstExpr(mc_AligmentZone2Size, DMibPMemoryCacheLineSize) - mc_AligmentZone2Size];
+		uint8 mp_PaddingZone2[fg_AlignUpConstExpr(mcp_AlignmentZone2Size, DMibPMemoryCacheLineSize) - mcp_AlignmentZone2Size];
 
 		// Alignment zone 3 (Only changed and read from local thread) = 8 * 2 + 1 * 2 = 18 => 64 bytes
 		CConcurrentRunQueue::CLocalQueueData mp_ConcurrentRunQueueLocal;

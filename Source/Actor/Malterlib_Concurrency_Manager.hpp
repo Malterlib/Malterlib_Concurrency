@@ -7,7 +7,7 @@ namespace NMib::NConcurrency
 {
 	inline_always EPriority CConcurrencyManager::f_ClampPriority(EPriority _Priority) const
 	{
-		return _Priority < m_PriorityClamp ? m_PriorityClamp : _Priority;
+		return _Priority < mp_PriorityClamp ? mp_PriorityClamp : _Priority;
 	}
 
 	template <typename tf_CActor>
@@ -70,23 +70,23 @@ namespace NMib::NConcurrency
 	{
 		umint iSingleton = NPrivate::fg_GetSingletonIndex<tf_CActor>();
 
-		DMibLockTyped(NThread::CMutual, m_SingletonLock);
+		DMibLockTyped(NThread::CMutual, mp_SingletonLock);
 
-		if (m_bSingletonsDestroyed)
+		if (mp_bSingletonsDestroyed)
 			return DMibErrorInstance("The concurrency manager is being destroyed and no longer creates singletons");
 
-		if (iSingleton >= m_Singletons.f_GetLen())
-			m_Singletons.f_SetLen(iSingleton + 1);
+		if (iSingleton >= mp_Singletons.f_GetLen())
+			mp_Singletons.f_SetLen(iSingleton + 1);
 
-		if (m_Singletons[iSingleton].f_IsEmpty())
+		if (mp_Singletons[iSingleton].f_IsEmpty())
 		{
-			// A singleton that _fCreate asks for can grow m_Singletons, so the slot is only indexed once it has returned
+			// A singleton that _fCreate asks for can grow mp_Singletons, so the slot is only indexed once it has returned
 			NStorage::TCUniquePointer<CSingleton> pSingleton = fg_Construct<TCSingleton<tf_CActor>>(_fCreate());
-			m_Singletons[iSingleton] = fg_Move(pSingleton);
-			m_SingletonCreationOrder.f_InsertLast(iSingleton);
+			mp_Singletons[iSingleton] = fg_Move(pSingleton);
+			mp_SingletonCreationOrder.f_InsertLast(iSingleton);
 		}
 
-		return ((TCSingleton<tf_CActor> *)m_Singletons[iSingleton].f_Get())->m_Actor;
+		return ((TCSingleton<tf_CActor> *)mp_Singletons[iSingleton].f_Get())->m_Actor;
 	}
 
 	template <typename tf_CType, typename ...tfp_CParams>
@@ -105,13 +105,13 @@ namespace NMib::NConcurrency
 			(
 				[&]
 				{
-					NMemory::TCAllocator_Placement<sizeof(tf_CType)> Allocator(InternalActor.m_ActorMemory);
+					NMemory::TCAllocator_Placement<sizeof(tf_CType)> Allocator(InternalActor.mp_ActorMemory);
 					NStorage::TCUniquePointer<tf_CType, NMemory::TCAllocator_Placement<sizeof(tf_CType)>> pActorPlacement{fg_Move(_ConstructParams), fg_Move(Allocator)};
 
 					// Construction was successful
 					pActorPlacement.f_Detach();
 				}
-				, InternalActor.m_ActorMemory
+				, InternalActor.mp_ActorMemory
 			)
 		;
 

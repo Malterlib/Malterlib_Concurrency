@@ -36,11 +36,11 @@ namespace NMib::NConcurrency
 		void fp_ProcessSequence();
 		TCFuture<void> fp_Destroy() override;
 
-		NContainer::TCLinkedList<CToSequenceEntry> m_ToSequence;
-		NStorage::TCOptional<TCPromise<void>> m_AbortPromise;
-		NStr::CStr m_Name;
-		umint m_MaxConcurrency = 1;
-		umint m_nRunning = 0;
+		NContainer::TCLinkedList<CToSequenceEntry> mp_ToSequence;
+		NStorage::TCOptional<TCPromise<void>> mp_AbortPromise;
+		NStr::CStr mp_Name;
+		umint mp_MaxConcurrency = 1;
+		umint mp_nRunning = 0;
 	};
 
 	template <typename t_CReturnType>

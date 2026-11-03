@@ -114,7 +114,7 @@ namespace NMib::NConcurrency
 		TCFuture<umint> f_DrainBeforePendingTimerWork()
 		{
 			auto pCount = TCSharedPointer<NAtomic::TCAtomic<umint>>(fg_Construct(umint(0)));
-			for (umint i = 0; i < 256; ++i)
+			for (umint iDispatch = 0; iDispatch < 256; ++iDispatch)
 			{
 				fg_Dispatch
 					(
@@ -360,7 +360,7 @@ namespace NMib::NConcurrency
 					auto Actor = fg_ConstructActor<CQueueTimerTarget>();
 					auto DestroyActor = co_await fg_AsyncDestroy(Actor);
 					TCFutureVector<TCActor<CTimerActor>> Results;
-					for (umint i = 0; i < 64; ++i)
+					for (umint iDispatch = 0; iDispatch < 64; ++iDispatch)
 					{
 						fg_Dispatch
 							(
@@ -376,10 +376,10 @@ namespace NMib::NConcurrency
 
 					auto Owners = co_await fg_AllDone(Results);
 					auto Timer = fg_TimerActor(Actor);
-					for (umint i = 0; i < Owners.f_GetLen(); ++i)
+					for (umint iOwner = 0; iOwner < Owners.f_GetLen(); ++iOwner)
 					{
-						DMibTestPath("Registration {}"_f << i);
-						DMibExpectTrue(Owners[i].f_Get() == Timer.f_Get());
+						DMibTestPath("Registration {}"_f << iOwner);
+						DMibExpectTrue(Owners[iOwner].f_Get() == Timer.f_Get());
 					}
 
 					auto FromActor = co_await Actor.f_Bind<&CQueueTimerTarget::f_TimerOwner>();

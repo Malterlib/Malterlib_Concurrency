@@ -212,14 +212,14 @@ namespace NMib::NConcurrency
 		return NPrivate::CPromiseReceiveAnyUnwrapFunctor{fg_Move(*this)};
 	}
 
-	constexpr CDispatchHelper g_DispatchInit{};
-	CDispatchHelper const &g_Dispatch = g_DispatchInit;
+	constexpr CDispatchHelper gc_DispatchInit{};
+	CDispatchHelper const &g_Dispatch = gc_DispatchInit;
 
-	constexpr CConcurrentDispatchHelper g_ConcurrentDispatchInit{};
-	CConcurrentDispatchHelper const &g_ConcurrentDispatch = g_ConcurrentDispatchInit;
+	constexpr CConcurrentDispatchHelper gc_ConcurrentDispatchInit{};
+	CConcurrentDispatchHelper const &g_ConcurrentDispatch = gc_ConcurrentDispatchInit;
 
-	constexpr CDirectDispatchHelper g_DirectDispatchInit{};
-	CDirectDispatchHelper const &g_DirectDispatch = g_DirectDispatchInit;
+	constexpr CDirectDispatchHelper gc_DirectDispatchInit{};
+	CDirectDispatchHelper const &g_DirectDispatch = gc_DirectDispatchInit;
 
 	CCoroutineTransferOwnership fg_ContinueRunningOnActor(TCActor<> const &_Actor)
 	{

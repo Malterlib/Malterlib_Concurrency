@@ -69,15 +69,19 @@ namespace NMib::NConcurrency
 
 			TCFuture<NContainer::TCVector<TCAsyncResult<t_CType>>> f_GetResults();
 
+		private:
 			NContainer::TCVector<TCAsyncResult<t_CType>> mp_Results;
 			TCPromise<NContainer::TCVector<TCAsyncResult<t_CType>>> mp_GetResultsPromise;
 			NAtomic::TCAtomic<bool> mp_bLazyResultsGotten = false;
 			bool mp_bDefinedSize = false;
 			align_cacheline umint mp_nAdded = 0;
+
+		public:
 			align_cacheline NStorage::CIntrusiveRefCount m_RefCount;
-			NAtomic::TCAtomic<CQueuedResult *> mp_pFirstResult;
 
 		private:
+			NAtomic::TCAtomic<CQueuedResult *> mp_pFirstResult;
+
 			void fp_TransferResults();
 			void fp_DestroyResults();
 		};

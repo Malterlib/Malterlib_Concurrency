@@ -115,7 +115,7 @@ namespace NMib::NConcurrency::NPrivate
 
 	template <typename t_CException>
 	TCRuntimeTypeRegistryEntry_Exception<t_CException>::TCRuntimeTypeRegistryEntry_Exception()
-		: CRuntimeTypeRegistryEntry_Exception(c_NameHash)
+		: CRuntimeTypeRegistryEntry_Exception(mc_NameHash)
 	{
 	}
 

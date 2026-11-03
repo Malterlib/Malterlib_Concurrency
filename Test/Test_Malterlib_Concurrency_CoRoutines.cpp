@@ -947,7 +947,7 @@ namespace NMib::NConcurrency::NTest
 			auto fResultContainer = [&]
 				{
 					TCFutureVector<uint32> Results;
-					for (umint i = 0; i < 10; ++i)
+					for (umint iCall = 0; iCall < 10; ++iCall)
 						m_TestActor(&CTestActor2::f_Test) > Results;
 					return Results;
 				}
@@ -969,7 +969,7 @@ namespace NMib::NConcurrency::NTest
 			auto fResultContainer = [&]
 				{
 					TCFutureVector<void> Results;
-					for (umint i = 0; i < 10; ++i)
+					for (umint iCall = 0; iCall < 10; ++iCall)
 						m_TestActor(&CTestActor2::f_TestVoid) > Results;
 					return Results;
 				}
@@ -986,8 +986,8 @@ namespace NMib::NConcurrency::NTest
 			auto fResultContainer = [&]
 				{
 					TCFutureMap<int, uint32> Results;
-					for (int i = 0; i < 10; ++i)
-						m_TestActor(&CTestActor2::f_Test) > Results[i];
+					for (int iResult = 0; iResult < 10; ++iResult)
+						m_TestActor(&CTestActor2::f_Test) > Results[iResult];
 					return Results;
 				}
 			;
@@ -1008,8 +1008,8 @@ namespace NMib::NConcurrency::NTest
 			auto fResultContainer = [&]
 				{
 					TCFutureMap<int, void> Results;
-					for (int i = 0; i < 10; ++i)
-						m_TestActor(&CTestActor2::f_TestVoid) > Results[i];
+					for (int iResult = 0; iResult < 10; ++iResult)
+						m_TestActor(&CTestActor2::f_TestVoid) > Results[iResult];
 					return Results;
 				}
 			;
@@ -1581,7 +1581,7 @@ namespace NMib::NConcurrency::NTest
 
 			TCFutureVector<void> Results;
 
-			for (umint i = 0; i < nThreads; ++i)
+			for (umint iThread = 0; iThread < nThreads; ++iThread)
 			{
 				fg_ConcurrentDispatch
 					(
@@ -2771,7 +2771,7 @@ namespace NMib::NConcurrency::NTest
 						(
 							[pTestState]() -> TCFuture<void>
 							{
-								for (umint i = 0; i < 10; ++i)
+								for (umint iIteration = 0; iIteration < 10; ++iIteration)
 								{
 									CToAsyncDestroy Variable(pTestState);
 									auto AsyncDestroy = co_await fg_AsyncDestroy(Variable);
@@ -2803,7 +2803,7 @@ namespace NMib::NConcurrency::NTest
 						(
 							[pTestState]() -> TCFuture<void>
 							{
-								for (umint i = 0; i < 10; ++i)
+								for (umint iIteration = 0; iIteration < 10; ++iIteration)
 								{
 									{
 										CToAsyncDestroy Variable(pTestState);

@@ -152,12 +152,12 @@ namespace NMib::NConcurrency
 	{
 		using CReturn = NTraits::TCDecay<decltype(fg_CallSafe(fg_Forward<tf_CFunction>(_fFunction), fg_Forward<tfp_CParams>(p_Params)...))>;
 		using CStrippedReturn = typename NPrivate::TCIsFuture<CReturn>::CType;
-		return g_Dispatch(_Actor) / [fFunction = fg_Forward<tf_CFunction>(_fFunction), ...p_Params = fg_Forward<tfp_CParams>(p_Params)]() mutable -> TCFuture<CStrippedReturn>
+		return g_Dispatch(_Actor) / [fFunction = fg_Forward<tf_CFunction>(_fFunction), ...Params = fg_Forward<tfp_CParams>(p_Params)]() mutable -> TCFuture<CStrippedReturn>
 			{
 				if constexpr (NPrivate::TCIsFuture<CReturn>::mc_Value)
-					co_return co_await fg_CallSafe(fg_Move(fFunction), fg_Move(p_Params)...);
+					co_return co_await fg_CallSafe(fg_Move(fFunction), fg_Move(Params)...);
 				else
-					co_return fg_CallSafe(fg_Move(fFunction), fg_Move(p_Params)...);
+					co_return fg_CallSafe(fg_Move(fFunction), fg_Move(Params)...);
 			}
 		;
 	}

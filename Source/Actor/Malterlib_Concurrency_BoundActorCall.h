@@ -79,9 +79,9 @@ namespace NMib::NConcurrency
 
 		operator TCFuture<t_CReturn> () &&;
 
-		t_FFunctionPointer mp_pMemberFunction;
-		t_CActor mp_Actor;
-		CParamsType mp_Params;
+		t_FFunctionPointer m_pMemberFunction;
+		t_CActor m_Actor;
+		CParamsType m_Params;
 
 	private:
 		template <umint ...tfp_Indices>

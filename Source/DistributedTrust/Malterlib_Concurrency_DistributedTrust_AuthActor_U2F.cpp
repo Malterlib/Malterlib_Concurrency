@@ -255,7 +255,7 @@ namespace NMib::NConcurrency::NPrivate
 
 		static TCFuture<CU2FDevice> DMibWorkaroundUBSanSectionErrorsDisable fs_Init(TCActor<CHumanInterfaceDeviceActor> _Device, CStr _Path)
 		{
-			static umint const c_InitNonceSize = 8;
+			static constexpr umint c_InitNonceSize = 8;
 
 			struct CInitResponse
 			{
@@ -478,14 +478,14 @@ namespace NMib::NConcurrency::NPrivate
 
 		static int fs_GetUsage(uint8 *_pReportDescriptor, size_t _Size, CUsageResult &_Result)
 		{
-			size_t i = 0;
+			size_t iItem = 0;
 			int KeySize;
 			bool bFoundUsage = false;
 			bool bFoundUsagePage = false;
 
-			while (i < _Size)
+			while (iItem < _Size)
 			{
-				int Key = _pReportDescriptor[i];
+				int Key = _pReportDescriptor[iItem];
 				int KeyCommand = Key & 0xfc;
 
 				if ((Key & 0xf0) == 0xf0)
@@ -508,19 +508,19 @@ namespace NMib::NConcurrency::NPrivate
 
 				if (KeyCommand == 0x4)
 				{
-					_Result.m_UsagePage = fs_GetBytes(_pReportDescriptor, _Size, DataLength, i);
+					_Result.m_UsagePage = fs_GetBytes(_pReportDescriptor, _Size, DataLength, iItem);
 					bFoundUsagePage = 1;
 				}
 				if (KeyCommand == 0x8)
 				{
-					_Result.m_Usage = fs_GetBytes(_pReportDescriptor, _Size, DataLength, i);
+					_Result.m_Usage = fs_GetBytes(_pReportDescriptor, _Size, DataLength, iItem);
 					bFoundUsage = 1;
 				}
 
 				if (bFoundUsagePage && bFoundUsage)
 					return 0; // success
 
-				i += DataLength + KeySize;
+				iItem += DataLength + KeySize;
 			}
 			return -1;
 		}
@@ -1215,10 +1215,10 @@ namespace NMib::NConcurrency
 	{
 	private:
 		CAuthenticationActorInfo operator () (TCActor<CDistributedActorTrustManager> const &_TrustManager) override;
-		static umint ms_MakeActive;
+		static umint msp_MakeActive;
 	};
 
-	umint CDistributedActorTrustManagerAuthenticationActorFactoryU2F::ms_MakeActive;
+	umint CDistributedActorTrustManagerAuthenticationActorFactoryU2F::msp_MakeActive;
 
 	CAuthenticationActorInfo CDistributedActorTrustManagerAuthenticationActorFactoryU2F::operator () (TCActor<CDistributedActorTrustManager> const &_TrustManager)
 	{
@@ -1313,9 +1313,6 @@ namespace NMib::NConcurrency
 						co_return DMibErrorInstance("Invalid index in U2F authentication USB device communication (fs_SendAPDUs)");
 
 					auto const &SuccessfulAttempt = _Params.m_Attempts[AuthenticationData.m_Index];
-
-					NCryptography::CHashDigest_SHA256 m_AppDigest;
-					NContainer::CSecureByteVector m_Signature;
 
 					co_return
 						{

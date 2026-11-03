@@ -390,7 +390,7 @@ namespace NMib::NConcurrency
 
 	CTimerActor::CInternal::CInternal(CTimerActor *_pThis)
 		: m_pThis(_pThis)
-		, m_Stopwatch(_pThis->f_ConcurrencyManager().m_TimerStopwatch)
+		, m_Stopwatch(_pThis->f_ConcurrencyManager().mp_TimerStopwatch)
 	{
 	}
 

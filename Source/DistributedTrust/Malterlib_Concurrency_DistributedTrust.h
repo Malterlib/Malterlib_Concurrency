@@ -96,6 +96,7 @@ namespace NMib::NConcurrency
 			TCTrustedActorSubscription *m_pSubscription;
 		};
 
+	private:
 		NStorage::TCSharedPointer<CState> mp_pState;
 	};
 

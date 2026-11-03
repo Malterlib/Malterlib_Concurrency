@@ -240,10 +240,10 @@ namespace NMib::NConcurrency
 	{
 	private:
 		CAuthenticationActorInfo operator () (TCActor<CDistributedActorTrustManager> const &_TrustManager) override;
-		static umint ms_MakeActive;
+		static umint msp_MakeActive;
 	};
 
-	umint CDistributedActorTrustManagerAuthenticationActorFactoryPassword::ms_MakeActive;
+	umint CDistributedActorTrustManagerAuthenticationActorFactoryPassword::msp_MakeActive;
 
 	CAuthenticationActorInfo CDistributedActorTrustManagerAuthenticationActorFactoryPassword::operator () (TCActor<CDistributedActorTrustManager> const &_TrustManager)
 	{

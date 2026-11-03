@@ -51,7 +51,7 @@ namespace NMib::NConcurrency::NPrivate
 
 		uint32 f_StreamVersion() const override;
 
-		static constexpr uint32 c_NameHash = DMibConstantTypeHash(t_CException);
+		static constexpr uint32 mc_NameHash = DMibConstantTypeHash(t_CException);
 	};
 
 	template <typename t_CException>

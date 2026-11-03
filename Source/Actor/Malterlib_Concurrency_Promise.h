@@ -1440,7 +1440,7 @@ namespace NMib::NConcurrency
 		void operator () ();
 
 	private:
-		NFunction::TCFunctionMovable<void ()> m_fOnSuspend;
+		NFunction::TCFunctionMovable<void ()> mp_fOnSuspend;
 	};
 
 	struct [[nodiscard("You should store the on resume scope")]] CCoroutineOnResumeScope final : public CCoroutineThreadLocalHandler

@@ -932,7 +932,7 @@ namespace NMib::NConcurrency
 #ifdef DMibDebug
 #	define DMibDelegatedActorImplementation(d_ThisType) \
 		d_ThisType *m_pThis; \
-		CEmpty self;
+		CEmpty self; /* NOLINT(malterlib-variable-naming): hides the actor's self, the name the actor call syntax uses */
 #else
 #	define DMibDelegatedActorImplementation(d_ThisType) \
 		d_ThisType *m_pThis;

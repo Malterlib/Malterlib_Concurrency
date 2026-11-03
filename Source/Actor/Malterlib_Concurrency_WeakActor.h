@@ -20,8 +20,8 @@ namespace NMib::NConcurrency
 		using CPointerType = TCConditional<mc_bIsAlwaysAlive, CActorInternal *, TCActorHolderWeakPointer<CActorInternal>>;
 		union
 		{
-			CPointerType m_pInternalActor = nullptr;
-			uint8 m_Dummy[sizeof(TCActorHolderWeakPointer<CActorInternal>)];
+			CPointerType mp_pInternalActor = nullptr;
+			uint8 mp_Dummy[sizeof(TCActorHolderWeakPointer<CActorInternal>)];
 		};
 
 		CActorInternal *fp_Get() const;

@@ -18,7 +18,7 @@ namespace NMib::NConcurrency::NSensorStoreLocalDatabase
 
 		auto operator <=> (CSensorGlobalStateKey const &_Right) const noexcept = default;
 
-		static NStr::CStr const mc_Prefix;
+		static NStr::CStr const mc_Prefix; // NOLINT(malterlib-variable-naming): defined constexpr in the .cpp, which the check doesn't see from here
 
 		NStr::CStr m_DbPrefix;
 		NStr::CStr m_Prefix = mc_Prefix;
@@ -41,7 +41,7 @@ namespace NMib::NConcurrency::NSensorStoreLocalDatabase
 
 		auto operator <=> (CKnownHostKey const &_Right) const noexcept = default;
 
-		static NStr::CStr const mc_Prefix;
+		static NStr::CStr const mc_Prefix; // NOLINT(malterlib-variable-naming): defined constexpr in the .cpp, which the check doesn't see from here
 
 		NStr::CStr m_DbPrefix;
 		NStr::CStr m_Prefix = mc_Prefix;
@@ -74,7 +74,7 @@ namespace NMib::NConcurrency::NSensorStoreLocalDatabase
 		CDistributedAppSensorReporter::CSensorInfoKey f_SensorInfoKey() const &;
 		CDistributedAppSensorReporter::CSensorInfoKey f_SensorInfoKey() &&;
 
-		static NStr::CStr const mc_Prefix;
+		static NStr::CStr const mc_Prefix; // NOLINT(malterlib-variable-naming): defined constexpr in the .cpp, which the check doesn't see from here
 
 		NStr::CStr m_DbPrefix;
 		NStr::CStr m_Prefix = mc_Prefix;
@@ -107,7 +107,7 @@ namespace NMib::NConcurrency::NSensorStoreLocalDatabase
 		CSensorKey f_SensorKey() const &;
 		CSensorKey f_SensorKey() &&;
 
-		static NStr::CStr const mc_Prefix;
+		static NStr::CStr const mc_Prefix; // NOLINT(malterlib-variable-naming): defined constexpr in the .cpp, which the check doesn't see from here
 
 		uint64 m_UniqueSequence = 0;
 	};
@@ -122,7 +122,7 @@ namespace NMib::NConcurrency::NSensorStoreLocalDatabase
 		template <typename tf_CStream>
 		void f_ConsumeLexicographic(tf_CStream &_Stream);
 
-		static NStr::CStr const mc_Prefix;
+		static NStr::CStr const mc_Prefix; // NOLINT(malterlib-variable-naming): defined constexpr in the .cpp, which the check doesn't see from here
 
 		NStr::CStr m_DbPrefix;
 		NStr::CStr m_Prefix = mc_Prefix;

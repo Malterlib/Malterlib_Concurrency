@@ -391,8 +391,8 @@ namespace NMib::NConcurrency
 		using CPointerType = TCConditional<TCIsActorAlwaysAlive<t_CActor>::mc_bImpl, CActorInternal *, TCActorHolderSharedPointer<CActorInternal>>;
 		union
 		{
-			CPointerType m_pInternalActor = nullptr;
-			uint8 m_Dummy[sizeof(TCActorHolderWeakPointer<CActorInternal>)];
+			CPointerType mp_pInternalActor = nullptr;
+			uint8 mp_Dummy[sizeof(TCActorHolderWeakPointer<CActorInternal>)];
 		};
 
 		template <typename tf_CType, typename ...tfp_CParams, typename ...tfp_CHolderParams, umint ...tfp_Indidies>

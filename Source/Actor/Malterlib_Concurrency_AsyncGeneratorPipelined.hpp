@@ -177,7 +177,7 @@ namespace NMib::NConcurrency
 		{
 			DMibLock(pData->m_Lock);
 
-			for (uint32 i = 0; i < _PipelineLength; ++i)
+			for (uint32 iQueued = 0; iQueued < _PipelineLength; ++iQueued)
 				pData->f_QueueNext();
 
 			FirstResultFuture = pData->m_QueuedResults.f_PopFirst();

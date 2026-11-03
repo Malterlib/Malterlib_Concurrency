@@ -8,9 +8,9 @@
 
 namespace NMib::NConcurrency
 {
-	constexpr CActorFunctorWeakHelper g_ActorFunctorWeakInit{};
-	CActorFunctorWeakHelper const &g_ActorFunctorWeak = g_ActorFunctorWeakInit;
+	constexpr CActorFunctorWeakHelper gc_ActorFunctorWeakInit{};
+	CActorFunctorWeakHelper const &g_ActorFunctorWeak = gc_ActorFunctorWeakInit;
 
-	constexpr TCActorFunctorWeakHelper<true> g_ActorFunctorWeakCoalescedInit{};
-	TCActorFunctorWeakHelper<true> const &g_ActorFunctorWeakCoalesced = g_ActorFunctorWeakCoalescedInit;
+	constexpr TCActorFunctorWeakHelper<true> gc_ActorFunctorWeakCoalescedInit{};
+	TCActorFunctorWeakHelper<true> const &g_ActorFunctorWeakCoalesced = gc_ActorFunctorWeakCoalescedInit;
 }

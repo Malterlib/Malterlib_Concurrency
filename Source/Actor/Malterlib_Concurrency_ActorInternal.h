@@ -96,7 +96,7 @@ namespace NMib::NConcurrency
 		TCActorInternal *fp_GetThis();
 		TCActorInternal<CActor> *fp_GetRealActor(NConcurrency::CActorHolder *_pActorInternal) const override;
 
-		alignas(t_CActor) uint8 m_ActorMemory[sizeof(t_CActor)];
+		alignas(t_CActor) uint8 mp_ActorMemory[sizeof(t_CActor)];
 	};
 
 	template <typename tf_CToDelete>

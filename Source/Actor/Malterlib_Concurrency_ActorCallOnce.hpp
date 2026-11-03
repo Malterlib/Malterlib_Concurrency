@@ -12,22 +12,22 @@ namespace NMib::NConcurrency
 			, bool _bSupportRetry
 			, NStr::CStr const &_ErrorOnRunning
 		)
-		: m_CallState(fg_ConstructActor<CCallState>(fg_Construct(_fFunction.f_GetActor()), fg_Move(_fFunction), _ErrorOnRunning, _bSupportRetry))
+		: mp_CallState(fg_ConstructActor<CCallState>(fg_Construct(_fFunction.f_GetActor()), fg_Move(_fFunction), _ErrorOnRunning, _bSupportRetry))
 	{
 	}
 
 	template <typename t_CResult, typename ...tp_CParams>
 	TCActorCallOnce<t_CResult, tp_CParams...>::~TCActorCallOnce()
 	{
-		if (m_CallState)
-			fg_Move(m_CallState).f_Destroy().f_DiscardResult();
+		if (mp_CallState)
+			fg_Move(mp_CallState).f_Destroy().f_DiscardResult();
 	}
 
 	template <typename t_CResult, typename ...tp_CParams>
 	TCFuture<void> TCActorCallOnce<t_CResult, tp_CParams...>::f_Destroy()
 	{
-		if (m_CallState)
-			return fg_Move(m_CallState).f_Destroy();
+		if (mp_CallState)
+			return fg_Move(mp_CallState).f_Destroy();
 
 		return g_Void;
 	}
@@ -35,7 +35,7 @@ namespace NMib::NConcurrency
 	template <typename t_CResult, typename ...tp_CParams>
 	TCFuture<t_CResult> TCActorCallOnce<t_CResult, tp_CParams...>::operator () (tp_CParams ...p_Params)
 	{
-		return m_CallState.template f_Bind<&CCallState::f_Call, EVirtualCall::mc_NotVirtual>(fg_Forward<tp_CParams>(p_Params)...).f_Call();
+		return mp_CallState.template f_Bind<&CCallState::f_Call, EVirtualCall::mc_NotVirtual>(fg_Forward<tp_CParams>(p_Params)...).f_Call();
 	}
 
 	template <typename t_CResult, typename ...tp_CParams>

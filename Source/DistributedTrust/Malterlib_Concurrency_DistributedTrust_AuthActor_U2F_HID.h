@@ -46,7 +46,7 @@ namespace NMib::NConcurrency
 
 	private:
 		NStr::CStr fp_Error(NStr::CStr const &_Description) const;
-		hid_device *m_pDevice = nullptr;
+		hid_device *mp_pDevice = nullptr;
 	};
 
 	struct CHumanInterfaceDevicesActor : public CActor

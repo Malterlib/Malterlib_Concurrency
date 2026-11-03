@@ -317,21 +317,21 @@ namespace NMib::NConcurrency
 			NAtomic::TCAtomic<smint> m_nActors = 0;
 		};
 
-		NContainer::TCVector<CNumActorsPerQueue> m_nActorsPerQueue[EPriority_Max];
-		CNumActorsPerQueue *m_nActorsPerQueueArray[EPriority_Max];
-		NContainer::TCVector<CNumActorsOther> m_nActorsOther;
-		umint m_ActorsOtherMask;
+		NContainer::TCVector<CNumActorsPerQueue> mp_nActorsPerQueue[EPriority_Max];
+		CNumActorsPerQueue *mp_nActorsPerQueueArray[EPriority_Max];
+		NContainer::TCVector<CNumActorsOther> mp_nActorsOther;
+		umint mp_ActorsOtherMask;
 
 #if DMibConfig_Concurrency_DebugBlockDestroy
 		NThread::CLowLevelLock m_ActorListLock;
 		DMibListLinkDS_List(CActorHolder, m_ActorLink) m_Actors;
 #endif
 
-		umint m_nThreads = 0;
-		NContainer::TCVector<CQueue> m_Queues[EPriority_Max];
-		umint m_nIoLoopQueues[EPriority_Max] = {}; // Queues [0, count) own loops; fixed at startup.
-		NAtomic::TCAtomic<umint> m_iNextIoLoopBinding[EPriority_Max] = {};
-		NAtomic::TCAtomic<bool> m_bIoLoopsEnabled[EPriority_Max] = {};
+		umint mp_nThreads = 0;
+		NContainer::TCVector<CQueue> mp_Queues[EPriority_Max];
+		umint mp_nIoLoopQueues[EPriority_Max] = {}; // Queues [0, count) own loops; fixed at startup.
+		NAtomic::TCAtomic<umint> mp_iNextIoLoopBinding[EPriority_Max] = {};
+		NAtomic::TCAtomic<bool> mp_bIoLoopsEnabled[EPriority_Max] = {};
 
 #if DMibConfig_Concurrency_LocalFirstScheduler
 		/// \brief One chunk of the advisory idle-queue bitmask; a set bit marks a queue whose thread
@@ -341,60 +341,60 @@ namespace NMib::NConcurrency
 			NAtomic::TCAtomic<umint> m_Mask = 0;
 		};
 
-		NContainer::TCVector<CIdleQueueMask> m_IdleQueueMasks[EPriority_Max];
+		NContainer::TCVector<CIdleQueueMask> mp_IdleQueueMasks[EPriority_Max];
 #endif
 
-		NThread::CMutual m_SingletonLock;                                         // Recursive, as creating a singleton can ask for another one
-		NContainer::TCVector<NStorage::TCUniquePointer<CSingleton>> m_Singletons; // Indexed by the singleton index of the type
-		NContainer::TCVector<umint> m_SingletonCreationOrder;                     // Singletons are released in reverse creation order
-		bool m_bSingletonsDestroyed = false;
+		NThread::CMutual mp_SingletonLock;                                         // Recursive, as creating a singleton can ask for another one
+		NContainer::TCVector<NStorage::TCUniquePointer<CSingleton>> mp_Singletons; // Indexed by the singleton index of the type
+		NContainer::TCVector<umint> mp_SingletonCreationOrder;                     // Singletons are released in reverse creation order
+		bool mp_bSingletonsDestroyed = false;
 
-		bool m_bDestroyed = false;
-		bool m_bFinishedDestroying = false;
-		bool m_bStopped = false;
-		bool m_bShutdownLogging = false;
+		bool mp_bDestroyed = false;
+		bool mp_bFinishedDestroying = false;
+		bool mp_bStopped = false;
+		bool mp_bShutdownLogging = false;
 
-		align_cacheline NAtomic::TCAtomic<umint> m_nConcurrentActors;
-		NThread::CLowLevelLock m_pConcurrentActorLock;
+		align_cacheline NAtomic::TCAtomic<umint> mp_nConcurrentActors;
+		NThread::CLowLevelLock mp_pConcurrentActorLock;
 
-		NContainer::TCVector<TCActor<CConcurrentActorImpl>> m_ConcurrentActors[EPriority_Max];
-		NContainer::TCVector<TCActor<CConcurrentActor>> m_ConcurrentActorsRef[EPriority_Max];
+		NContainer::TCVector<TCActor<CConcurrentActorImpl>> mp_ConcurrentActors[EPriority_Max];
+		NContainer::TCVector<TCActor<CConcurrentActor>> mp_ConcurrentActorsRef[EPriority_Max];
 
-		NThread::CLowLevelLock m_BlockingActorsLock;
-		NContainer::TCVector<NStorage::TCSharedPointer<CBlockingActorStorage>> m_BlockingActors;
-		DMibListLinkDS_List(CBlockingActorStorage, m_Link) m_FreeBlockingActors;
-		umint m_nBlockingActors = 0;
+		NThread::CLowLevelLock mp_BlockingActorsLock;
+		NContainer::TCVector<NStorage::TCSharedPointer<CBlockingActorStorage>> mp_BlockingActors;
+		DMibListLinkDS_List(CBlockingActorStorage, m_Link) mp_FreeBlockingActors;
+		umint mp_nBlockingActors = 0;
 
-		NTime::CStopwatch m_TimerStopwatch;
-		NAtomic::TCAtomic<umint> m_iNextTimerQueue[EPriority_Max] = {};
+		NTime::CStopwatch mp_TimerStopwatch;
+		NAtomic::TCAtomic<umint> mp_iNextTimerQueue[EPriority_Max] = {};
 
-		NThread::CLowLevelLock m_ThreadCreateLock;
+		NThread::CLowLevelLock mp_ThreadCreateLock;
 
-		TCActor<CDirectCallActorImpl> m_DirectCallActor;
-		TCActor<CThisConcurrentActorImpl> m_ThisConcurrentActor;
-		TCActor<CThisConcurrentActorLowPrioImpl> m_ThisConcurrentActorLowPrio;
-		TCActor<CThisConcurrentActorHighCPUImpl> m_ThisConcurrentActorHighCPU;
-		TCActor<COtherConcurrentActorImpl> m_OtherConcurrentActor;
-		TCActor<COtherConcurrentActorLowPrioImpl> m_OtherConcurrentActorLowPrio;
-		TCActor<COtherConcurrentActorHighCPUImpl> m_OtherConcurrentActorHighCPU;
-		TCActor<CDynamicConcurrentActorImpl> m_DynamicConcurrentActor;
-		TCActor<CDynamicConcurrentActorLowPrioImpl> m_DynamicConcurrentActorLowPrio;
-		TCActor<CDynamicConcurrentActorHighCPUImpl> m_DynamicConcurrentActorHighCPU;
+		TCActor<CDirectCallActorImpl> mp_DirectCallActor;
+		TCActor<CThisConcurrentActorImpl> mp_ThisConcurrentActor;
+		TCActor<CThisConcurrentActorLowPrioImpl> mp_ThisConcurrentActorLowPrio;
+		TCActor<CThisConcurrentActorHighCPUImpl> mp_ThisConcurrentActorHighCPU;
+		TCActor<COtherConcurrentActorImpl> mp_OtherConcurrentActor;
+		TCActor<COtherConcurrentActorLowPrioImpl> mp_OtherConcurrentActorLowPrio;
+		TCActor<COtherConcurrentActorHighCPUImpl> mp_OtherConcurrentActorHighCPU;
+		TCActor<CDynamicConcurrentActorImpl> mp_DynamicConcurrentActor;
+		TCActor<CDynamicConcurrentActorLowPrioImpl> mp_DynamicConcurrentActorLowPrio;
+		TCActor<CDynamicConcurrentActorHighCPUImpl> mp_DynamicConcurrentActorHighCPU;
 
-		TCActor<CDirectCallActor> m_DirectCallActorRef;
-		TCActor<CThisConcurrentActor> m_ThisConcurrentActorRef;
-		TCActor<CThisConcurrentActorLowPrio> m_ThisConcurrentActorLowPrioRef;
-		TCActor<CThisConcurrentActorHighCPU> m_ThisConcurrentActorHighCPURef;
-		TCActor<COtherConcurrentActor> m_OtherConcurrentActorRef;
-		TCActor<COtherConcurrentActorLowPrio> m_OtherConcurrentActorLowPrioRef;
-		TCActor<COtherConcurrentActorHighCPU> m_OtherConcurrentActorHighCPURef;
-		TCActor<CDynamicConcurrentActor> m_DynamicConcurrentActorRef;
-		TCActor<CDynamicConcurrentActorLowPrio> m_DynamicConcurrentActorLowPrioRef;
-		TCActor<CDynamicConcurrentActorHighCPU> m_DynamicConcurrentActorHighCPURef;
+		TCActor<CDirectCallActor> mp_DirectCallActorRef;
+		TCActor<CThisConcurrentActor> mp_ThisConcurrentActorRef;
+		TCActor<CThisConcurrentActorLowPrio> mp_ThisConcurrentActorLowPrioRef;
+		TCActor<CThisConcurrentActorHighCPU> mp_ThisConcurrentActorHighCPURef;
+		TCActor<COtherConcurrentActor> mp_OtherConcurrentActorRef;
+		TCActor<COtherConcurrentActorLowPrio> mp_OtherConcurrentActorLowPrioRef;
+		TCActor<COtherConcurrentActorHighCPU> mp_OtherConcurrentActorHighCPURef;
+		TCActor<CDynamicConcurrentActor> mp_DynamicConcurrentActorRef;
+		TCActor<CDynamicConcurrentActorLowPrio> mp_DynamicConcurrentActorLowPrioRef;
+		TCActor<CDynamicConcurrentActorHighCPU> mp_DynamicConcurrentActorHighCPURef;
 
-		EPriority m_PriorityClamp = EPriority_Low; // Bands below this are raised to it, so a clamped band never gets a worker thread.
-		NAtomic::TCAtomic<bool> m_bDestroyingAlwaysAliveActors = false;
-		EExecutionPriority m_ExecutionPriority[EPriority_Max] = {EExecutionPriority_Low, EExecutionPriority_Normal, EExecutionPriority_Normal};
+		EPriority mp_PriorityClamp = EPriority_Low; // Bands below this are raised to it, so a clamped band never gets a worker thread.
+		NAtomic::TCAtomic<bool> mp_bDestroyingAlwaysAliveActors = false;
+		EExecutionPriority mp_ExecutionPriority[EPriority_Max] = {EExecutionPriority_Low, EExecutionPriority_Normal, EExecutionPriority_Normal};
 	};
 
 	struct CCaptureExceptionSettings

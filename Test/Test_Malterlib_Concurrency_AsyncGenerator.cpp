@@ -383,7 +383,7 @@ namespace
 
 				TCFunctionMovable<TCAsyncGenerator<int32> ()> fTestEager = [pState]() -> TCAsyncGenerator<int32>
 					{
-						for (umint i = 0; i < 8; ++i)
+						for (umint iYield = 0; iYield < 8; ++iYield)
 						{
 							++pState->m_nYielded;
 							co_yield 1;
@@ -406,7 +406,7 @@ namespace
 
 				DMibExpect(pState->m_nYielded, ==, 1);
 
-				for (umint i = 0; i < 8; ++i)
+				for (umint iValue = 0; iValue < 8; ++iValue)
 				{
 					DMibExpect(*iIterator, ==, 1)(ETestFlag_Aggregated);
 					co_await (++iIterator).f_Timeout(g_Timeout, "Timeout");
@@ -426,7 +426,7 @@ namespace
 
 				TCFunctionMovable<TCAsyncGenerator<int32> ()> fTestEager = [pState]() -> TCAsyncGenerator<int32>
 					{
-						for (umint i = 0; i < 8; ++i)
+						for (umint iYield = 0; iYield < 8; ++iYield)
 						{
 							++pState->m_nYielded;
 							co_yield 1;
@@ -449,7 +449,7 @@ namespace
 
 				DMibExpect(pState->m_nYielded, ==, 2);
 
-				for (umint i = 0; i < 8; ++i)
+				for (umint iValue = 0; iValue < 8; ++iValue)
 				{
 					DMibExpect(*iIterator, ==, 1)(ETestFlag_Aggregated);
 					co_await (++iIterator).f_Timeout(g_Timeout, "Timeout");
@@ -469,7 +469,7 @@ namespace
 
 				TCFunctionMovable<TCAsyncGenerator<int32> ()> fTestEager = [pState]() -> TCAsyncGenerator<int32>
 					{
-						for (umint i = 0; i < 8; ++i)
+						for (umint iYield = 0; iYield < 8; ++iYield)
 						{
 							++pState->m_nYielded;
 							co_yield 1;
@@ -492,7 +492,7 @@ namespace
 
 				DMibExpect(pState->m_nYielded, ==, 4);
 
-				for (umint i = 0; i < 8; ++i)
+				for (umint iValue = 0; iValue < 8; ++iValue)
 				{
 					DMibExpect(*iIterator, ==, 1)(ETestFlag_Aggregated);
 					co_await (++iIterator).f_Timeout(g_Timeout, "Timeout");
@@ -503,10 +503,10 @@ namespace
 			};
 			DMibTestSuite("Destruction of locals when destructed early on actor")
 			{
-				for (umint i = 0; i < 100; ++i)
+				for (umint iRun = 0; iRun < 100; ++iRun)
 				{
 					using namespace NStr;
-					DMibTestPath("{}"_f << i);
+					DMibTestPath("{}"_f << iRun);
 
 					TCActor<> ProcessingActor = fg_Construct();
 					CCurrentActorScope ActorScope(fg_ConcurrencyThreadLocal(), ProcessingActor);
@@ -575,10 +575,10 @@ namespace
 			};
 			DMibTestSuite("Destruction of locals when destructed early on main")
 			{
-				for (umint i = 0; i < 100; ++i)
+				for (umint iRun = 0; iRun < 100; ++iRun)
 				{
 					using namespace NStr;
-					DMibTestPath("{}"_f << i);
+					DMibTestPath("{}"_f << iRun);
 
 					TCActor<> ProcessingActor = fg_Construct();
 					CCurrentActorScope ActorScope(fg_ConcurrencyThreadLocal(), ProcessingActor);
@@ -766,15 +766,15 @@ namespace
 							auto RunOnActor1 = TestOtherActor;
 							auto RunOnActor2 = TestActor;
 
-							for (umint i = 0; i < 100; ++i)
+							for (umint iValue = 0; iValue < 100; ++iValue)
 							{
-								if ((i % 10) == 0)
+								if ((iValue % 10) == 0)
 								{
 									fg_Swap(RunOnActor1, RunOnActor2);
 									co_await NConcurrency::fg_ContinueRunningOnActor(RunOnActor1);
 								}
 
-								co_yield i;
+								co_yield iValue;
 
 								DMibFastCheck(fg_CurrentActor() == RunOnActor1);
 							}
@@ -788,10 +788,10 @@ namespace
 
 				TCVector<umint> ExpectedResults;
 				TCVector<umint> Results;
-				for (umint i = 0; i < 100; ++i)
+				for (umint iValue = 0; iValue < 100; ++iValue)
 				{
 					Results.f_Insert(*iIterator);
-					ExpectedResults.f_Insert(i);
+					ExpectedResults.f_Insert(iValue);
 					(++iIterator).f_CallSync(g_Timeout);
 				}
 				DMibExpect(Results, ==, ExpectedResults);
@@ -805,7 +805,7 @@ namespace
 						TestActor
 						, []() -> TCAsyncGenerator<int32>
 						{
-							for (umint i = 0; i < 300; ++i)
+							for (umint iWait = 0; iWait < 300; ++iWait)
 							{
 								if (co_await g_bShouldAbort)
 									break;
@@ -833,7 +833,7 @@ namespace
 						, []() -> TCAsyncGenerator<int32>
 						{
 							co_yield 1;
-							for (umint i = 0; i < 300; ++i)
+							for (umint iWait = 0; iWait < 300; ++iWait)
 							{
 								if (co_await g_bShouldAbort)
 									break;
@@ -864,7 +864,7 @@ namespace
 						, []() -> TCAsyncGenerator<int32>
 						{
 							co_yield 1;
-							for (umint i = 0; i < 300; ++i)
+							for (umint iWait = 0; iWait < 300; ++iWait)
 							{
 								if (co_await g_bShouldAbort)
 									break;
@@ -902,7 +902,7 @@ namespace
 
 							pStartedEvent->f_SetSignaled();
 
-							for (umint i = 0; i < 300; ++i)
+							for (umint iWait = 0; iWait < 300; ++iWait)
 							{
 								if (co_await g_bShouldAbort)
 								{
@@ -952,7 +952,7 @@ namespace
 
 							pStartedEvent->f_SetSignaled();
 
-							for (umint i = 0; i < 300; ++i)
+							for (umint iWait = 0; iWait < 300; ++iWait)
 							{
 								if (co_await g_bShouldAbort)
 								{
@@ -1012,7 +1012,7 @@ namespace
 
 							co_await fg_Timeout(0.1);
 
-							for (umint i = 0; i < 100; ++i)
+							for (umint iWait = 0; iWait < 100; ++iWait)
 							{
 								if (co_await g_bShouldAbort)
 									co_await fg_Timeout(0.001);
@@ -1072,7 +1072,7 @@ namespace
 
 							co_await fg_Timeout(0.1);
 
-							for (umint i = 0; i < 100; ++i)
+							for (umint iWait = 0; iWait < 100; ++iWait)
 							{
 								if (co_await g_bShouldAbort)
 									co_await fg_Timeout(0.001);

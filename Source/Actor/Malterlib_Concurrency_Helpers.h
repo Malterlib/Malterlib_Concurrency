@@ -101,6 +101,8 @@ namespace NMib::NConcurrency
 			CAsyncCallstacks *m_pOld;
 			CAsyncCallstacks *m_pThis;
 			bool m_bValid = true;
+
+		private:
 			DMibThreadLocalScopeDebugMember;
 		};
 #endif

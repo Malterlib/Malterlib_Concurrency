@@ -308,7 +308,7 @@ namespace NMib::NConcurrency
 	{
 		// Init time before starting any threads
 		NTime::CSystem_Time::fs_TimeInitDone();
-		m_TimerStopwatch.f_Start();
+		mp_TimerStopwatch.f_Start();
 
 		umint nThreads = NPrivate::fg_DefaultThreadCount();
 		{
@@ -319,20 +319,20 @@ namespace NMib::NConcurrency
 				nThreads = umint(fg_Clamp(ThreadOverride.f_ToIntExact(smint(nThreads)), smint(1), MaxThreads));
 			}
 		}
-		m_nThreads = nThreads;
-		m_PriorityClamp = _PriorityClamp;
+		mp_nThreads = nThreads;
+		mp_PriorityClamp = _PriorityClamp;
 
 		// Constructor failure skips the destructor. No workers exist yet, so raw loop handles can be destroyed directly.
 		auto LoopCleanup = g_OnScopeExit / [&]
 			{
 				for (EPriority Priority = EPriority_Low; Priority < EPriority_Max; Priority = static_cast<EPriority>(Priority + 1))
 				{
-					for (auto &Queue : m_Queues[Priority])
+					for (auto &Queue : mp_Queues[Priority])
 					{
 						if (Queue.m_TimerActor)
 						{
 							// Unpublished actors have no jobs or timers; dispose directly without starting workers.
-							m_bDestroyingAlwaysAliveActors.f_Store(true);
+							mp_bDestroyingAlwaysAliveActors.f_Store(true);
 							Queue.m_TimerActor->mp_Destroyed.f_Store(2);
 							Queue.m_TimerActor.f_Clear();
 							Queue.m_TimerActorRef.f_Clear();
@@ -351,8 +351,8 @@ namespace NMib::NConcurrency
 
 		for (EPriority Priority = EPriority_Low; Priority < EPriority_Max; Priority = static_cast<EPriority>(Priority + 1))
 		{
-			m_ExecutionPriority[Priority] = _ExecutionPriority[Priority];
-			auto &Queues = m_Queues[Priority];
+			mp_ExecutionPriority[Priority] = _ExecutionPriority[Priority];
+			auto &Queues = mp_Queues[Priority];
 			Queues.f_SetLen(nThreads);
 
 			// Publish loop pointers before starting workers; readers rely on them being startup constants.
@@ -364,28 +364,28 @@ namespace NMib::NConcurrency
 #endif
 				umint nLoopQueues = nLoops < 0 ? nThreads : fg_Min(umint(nLoops), nThreads);
 
-				for (umint i = 0; i < nLoopQueues; ++i)
+				for (umint iQueue = 0; iQueue < nLoopQueues; ++iQueue)
 				{
 					NSys::ICIoLoop *pLoop = NSys::fg_CreateIoLoop();
 					if (!pLoop)
 						break; // This platform has no loops of its own
 
-					auto &Queue = Queues[i];
+					auto &Queue = Queues[iQueue];
 					Queue.m_pIoLoop = pLoop;
 					Queue.m_pIoLoop->f_SetParkEvent(&Queue.m_Event);
 					Queue.m_bIoLoopParksOnEvent = Queue.m_pIoLoop->f_ParksOnQueueEvent();
-					m_nIoLoopQueues[Priority] = i + 1;
+					mp_nIoLoopQueues[Priority] = iQueue + 1;
 				}
 			}
 
-			auto &nActors = (m_nActorsPerQueue[Priority] = NContainer::TCVector<CNumActorsPerQueue>(nThreads));
-			m_nActorsPerQueueArray[Priority] = nActors.f_GetArray();
+			auto &nActors = (mp_nActorsPerQueue[Priority] = NContainer::TCVector<CNumActorsPerQueue>(nThreads));
+			mp_nActorsPerQueueArray[Priority] = nActors.f_GetArray();
 
 #if DMibConfig_Concurrency_LocalFirstScheduler
 			{
 				// A queue whose thread was never created counts as idle so distribution can expand the pool
 				constexpr umint c_BitsPerChunk = sizeof(umint) * 8;
-				auto &Masks = (m_IdleQueueMasks[Priority] = NContainer::TCVector<CIdleQueueMask>((nThreads + c_BitsPerChunk - 1) / c_BitsPerChunk));
+				auto &Masks = (mp_IdleQueueMasks[Priority] = NContainer::TCVector<CIdleQueueMask>((nThreads + c_BitsPerChunk - 1) / c_BitsPerChunk));
 				umint nChunks = Masks.f_GetLen();
 				for (umint iChunk = 0; iChunk < nChunks; ++iChunk)
 				{
@@ -396,18 +396,18 @@ namespace NMib::NConcurrency
 			}
 #endif
 
-			for (umint i = 0; i < nThreads; ++i)
+			for (umint iThread = 0; iThread < nThreads; ++iThread)
 			{
-				auto *pQueue = &Queues[i];
-				pQueue->m_iQueue = i;
+				auto *pQueue = &Queues[iThread];
+				pQueue->m_iQueue = iThread;
 				pQueue->m_Priority = Priority;
 			}
 		}
 
-		m_ActorsOtherMask = fg_RoundPowerOfTwoUp(nThreads) - 1;
-		m_nActorsOther = NContainer::TCVector<CNumActorsOther>(m_ActorsOtherMask + 1);
+		mp_ActorsOtherMask = fg_RoundPowerOfTwoUp(nThreads) - 1;
+		mp_nActorsOther = NContainer::TCVector<CNumActorsOther>(mp_ActorsOtherMask + 1);
 
-		for (auto &Queues : m_Queues)
+		for (auto &Queues : mp_Queues)
 		{
 			for (auto &Queue : Queues)
 			{
@@ -427,30 +427,30 @@ namespace NMib::NConcurrency
 		LoopCleanup.f_Clear();
 
 		// Signalling may start workers, so all loops and queues must exist first.
-		for (auto &Queue : m_Queues[EPriority_Normal])
+		for (auto &Queue : mp_Queues[EPriority_Normal])
 			Queue.f_Signal(this);
 
-		m_DirectCallActor = f_ConstructActor(fg_Construct<CDirectCallActorImpl>());
-		m_ThisConcurrentActor = f_ConstructActor(fg_Construct<CThisConcurrentActorImpl>());
-		m_ThisConcurrentActorLowPrio = f_ConstructActor(fg_Construct<CThisConcurrentActorLowPrioImpl>());
-		m_ThisConcurrentActorHighCPU = f_ConstructActor(fg_Construct<CThisConcurrentActorHighCPUImpl>());
-		m_OtherConcurrentActor = f_ConstructActor(fg_Construct<COtherConcurrentActorImpl>());
-		m_OtherConcurrentActorLowPrio = f_ConstructActor(fg_Construct<COtherConcurrentActorLowPrioImpl>());
-		m_OtherConcurrentActorHighCPU = f_ConstructActor(fg_Construct<COtherConcurrentActorHighCPUImpl>());
-		m_DynamicConcurrentActor = f_ConstructActor(fg_Construct<CDynamicConcurrentActorImpl>());
-		m_DynamicConcurrentActorLowPrio = f_ConstructActor(fg_Construct<CDynamicConcurrentActorLowPrioImpl>());
-		m_DynamicConcurrentActorHighCPU = f_ConstructActor(fg_Construct<CDynamicConcurrentActorHighCPUImpl>());
+		mp_DirectCallActor = f_ConstructActor(fg_Construct<CDirectCallActorImpl>());
+		mp_ThisConcurrentActor = f_ConstructActor(fg_Construct<CThisConcurrentActorImpl>());
+		mp_ThisConcurrentActorLowPrio = f_ConstructActor(fg_Construct<CThisConcurrentActorLowPrioImpl>());
+		mp_ThisConcurrentActorHighCPU = f_ConstructActor(fg_Construct<CThisConcurrentActorHighCPUImpl>());
+		mp_OtherConcurrentActor = f_ConstructActor(fg_Construct<COtherConcurrentActorImpl>());
+		mp_OtherConcurrentActorLowPrio = f_ConstructActor(fg_Construct<COtherConcurrentActorLowPrioImpl>());
+		mp_OtherConcurrentActorHighCPU = f_ConstructActor(fg_Construct<COtherConcurrentActorHighCPUImpl>());
+		mp_DynamicConcurrentActor = f_ConstructActor(fg_Construct<CDynamicConcurrentActorImpl>());
+		mp_DynamicConcurrentActorLowPrio = f_ConstructActor(fg_Construct<CDynamicConcurrentActorLowPrioImpl>());
+		mp_DynamicConcurrentActorHighCPU = f_ConstructActor(fg_Construct<CDynamicConcurrentActorHighCPUImpl>());
 
-		m_DirectCallActorRef = m_DirectCallActor;
-		m_ThisConcurrentActorRef = m_ThisConcurrentActor;
-		m_ThisConcurrentActorLowPrioRef = m_ThisConcurrentActorLowPrio;
-		m_ThisConcurrentActorHighCPURef = m_ThisConcurrentActorHighCPU;
-		m_OtherConcurrentActorRef = m_OtherConcurrentActor;
-		m_OtherConcurrentActorLowPrioRef = m_OtherConcurrentActorLowPrio;
-		m_OtherConcurrentActorHighCPURef = m_OtherConcurrentActorHighCPU;
-		m_DynamicConcurrentActorRef = m_DynamicConcurrentActor;
-		m_DynamicConcurrentActorLowPrioRef = m_DynamicConcurrentActorLowPrio;
-		m_DynamicConcurrentActorHighCPURef = m_DynamicConcurrentActorHighCPU;
+		mp_DirectCallActorRef = mp_DirectCallActor;
+		mp_ThisConcurrentActorRef = mp_ThisConcurrentActor;
+		mp_ThisConcurrentActorLowPrioRef = mp_ThisConcurrentActorLowPrio;
+		mp_ThisConcurrentActorHighCPURef = mp_ThisConcurrentActorHighCPU;
+		mp_OtherConcurrentActorRef = mp_OtherConcurrentActor;
+		mp_OtherConcurrentActorLowPrioRef = mp_OtherConcurrentActorLowPrio;
+		mp_OtherConcurrentActorHighCPURef = mp_OtherConcurrentActorHighCPU;
+		mp_DynamicConcurrentActorRef = mp_DynamicConcurrentActor;
+		mp_DynamicConcurrentActorLowPrioRef = mp_DynamicConcurrentActorLowPrio;
+		mp_DynamicConcurrentActorHighCPURef = mp_DynamicConcurrentActorHighCPU;
 	}
 
 #if DMibEnableSafeCheck > 0
@@ -492,18 +492,18 @@ namespace NMib::NConcurrency
 		f_BlockOnDestroy();
 
 #if DMibConfig_Concurrency_SchedulerStats
-		if (m_bShutdownLogging)
+		if (mp_bShutdownLogging)
 			fp_DumpSchedulerStats();
 #endif
 
-		m_bStopped = true;
+		mp_bStopped = true;
 
 #if DMibConfig_Concurrency_LocalFirstScheduler
 		// Stop cooperative distribution from targeting quitting threads; any handoff that races
 		// this is drained by fProcessQueues below
 		for (umint Prio = 0; Prio < EPriority_Max; ++Prio)
 		{
-			for (auto &MaskChunk : m_IdleQueueMasks[Prio])
+			for (auto &MaskChunk : mp_IdleQueueMasks[Prio])
 				MaskChunk.m_Mask.f_Store(0);
 		}
 #endif
@@ -511,7 +511,7 @@ namespace NMib::NConcurrency
 		// Signal thread quit
 		for (umint Prio = 0; Prio < EPriority_Max; ++Prio)
 		{
-			auto &Queue = m_Queues[Prio];
+			auto &Queue = mp_Queues[Prio];
 			for (auto &Queue : Queue)
 			{
 				if (Queue.m_pThread)
@@ -529,7 +529,7 @@ namespace NMib::NConcurrency
 
 		for (umint Prio = 0; Prio < EPriority_Max; ++Prio)
 		{
-			auto &Queue = m_Queues[Prio];
+			auto &Queue = mp_Queues[Prio];
 			for (auto &Queue : Queue)
 			{
 				if (Queue.m_pThread)
@@ -550,7 +550,7 @@ namespace NMib::NConcurrency
 					bDoneSomething = false;
 					for (umint Prio = 0; Prio < EPriority_Max; ++Prio)
 					{
-						auto &Queue = m_Queues[Prio];
+						auto &Queue = mp_Queues[Prio];
 						for (auto &Queue : Queue)
 						{
 							Queue.m_JobQueue.f_TransferThreadSafeQueue(Queue.m_JobQueueLocal);
@@ -569,16 +569,16 @@ namespace NMib::NConcurrency
 
 		// Finally delete the concurrent actor
 		{
-			DMibLock(m_pConcurrentActorLock);
+			DMibLock(mp_pConcurrentActorLock);
 			for (umint Prio = EPriority_Low; Prio < EPriority_Max; ++Prio)
 			{
-				for (auto &Actor : m_ConcurrentActors[Prio])
+				for (auto &Actor : mp_ConcurrentActors[Prio])
 					Actor->fp_Terminate();
 			}
 			for (umint Prio = EPriority_Low; Prio < EPriority_Max; ++Prio)
-				m_ConcurrentActors[Prio].f_Clear();
+				mp_ConcurrentActors[Prio].f_Clear();
 
-			m_nThreads = 0;
+			mp_nThreads = 0;
 		}
 
 		fProcessQueues();
@@ -587,7 +587,7 @@ namespace NMib::NConcurrency
 		// Unclaimed loops must have no registrations before their handles are destroyed.
 		for (umint Prio = 0; Prio < EPriority_Max; ++Prio)
 		{
-			for (auto &Queue : m_Queues[Prio])
+			for (auto &Queue : mp_Queues[Prio])
 			{
 				if (!Queue.m_pIoLoop)
 					continue;
@@ -601,12 +601,12 @@ namespace NMib::NConcurrency
 
 	CConcurrencyManager::~CConcurrencyManager()
 	{
-		if (!m_bStopped)
+		if (!mp_bStopped)
 			f_Stop();
 
-		for (umint i = 0; i < EPriority_Max; ++i)
+		for (umint iPriority = 0; iPriority < EPriority_Max; ++iPriority)
 		{
-			for (auto &Queue : m_Queues[i])
+			for (auto &Queue : mp_Queues[iPriority])
 			{
 				(void)Queue;
 				DMibCheck(Queue.m_pThread.f_IsEmpty());
@@ -653,12 +653,12 @@ namespace NMib::NConcurrency
 
 	inline_never void CConcurrencyManager::CQueue::fp_CreateThread(CConcurrencyManager *_pThis)
 	{
-		DMibLock(_pThis->m_ThreadCreateLock);
+		DMibLock(_pThis->mp_ThreadCreateLock);
 		if (m_pThread)
 			return;
 
 		NStr::CStr Name;
-		EExecutionPriority ThreadPrio = _pThis->m_ExecutionPriority[m_Priority];
+		EExecutionPriority ThreadPrio = _pThis->mp_ExecutionPriority[m_Priority];
 		switch (m_Priority)
 		{
 		case EPriority_Low: Name = NStr::gc_Str<"LP">; break;
@@ -700,11 +700,11 @@ namespace NMib::NConcurrency
 
 	void CConcurrencyManager::f_SetExecutionPriority(EPriority _Priority, EExecutionPriority _ExecutionPriority)
 	{
-		m_ExecutionPriority[_Priority] = _ExecutionPriority;
+		mp_ExecutionPriority[_Priority] = _ExecutionPriority;
 
 		bool bLoggedRefusal = false;
 
-		for (auto &Queue : m_Queues[_Priority])
+		for (auto &Queue : mp_Queues[_Priority])
 		{
 			// Unprivileged processes cannot raise thread priority on most systems, and the queues then keep the priority they have
 			if (Queue.m_pThread && !Queue.m_pThread->f_TrySetPriority(_ExecutionPriority) && !bLoggedRefusal)
@@ -717,7 +717,7 @@ namespace NMib::NConcurrency
 
 	EExecutionPriority CConcurrencyManager::f_GetExecutionPriority(EPriority _Priority)
 	{
-		return m_ExecutionPriority[_Priority];
+		return mp_ExecutionPriority[_Priority];
 	}
 
 	void CConcurrencyManager::fp_DispatchOnCurrentThreadOrConcurrentFirst(EPriority _Priority, FActorQueueDispatchNoAlloc &&_ToQueue, CConcurrencyThreadLocal &_ThreadLocal)
@@ -728,13 +728,13 @@ namespace NMib::NConcurrency
 			return;
 		}
 
-		umint nActors = m_nConcurrentActors.f_Load(NAtomic::gc_MemoryOrder_Acquire);
+		umint nActors = mp_nConcurrentActors.f_Load(NAtomic::gc_MemoryOrder_Acquire);
 		if (!nActors)
 			nActors = fp_InitConcurrentActors();
 
 		if (_ThreadLocal.m_iConcurrentActor[_Priority] >= nActors)
 			_ThreadLocal.m_iConcurrentActor[_Priority] = 0;
-		auto &Queue = m_Queues[_Priority].f_GetArray()[_ThreadLocal.m_iConcurrentActor[_Priority]];
+		auto &Queue = mp_Queues[_Priority].f_GetArray()[_ThreadLocal.m_iConcurrentActor[_Priority]];
 		++_ThreadLocal.m_iConcurrentActor[_Priority];
 
 		if (fp_AddToQueue(Queue, fg_Move(_ToQueue), _ThreadLocal))
@@ -754,13 +754,13 @@ namespace NMib::NConcurrency
 			return;
 		}
 
-		umint nActors = m_nConcurrentActors.f_Load(NAtomic::gc_MemoryOrder_Acquire);
+		umint nActors = mp_nConcurrentActors.f_Load(NAtomic::gc_MemoryOrder_Acquire);
 		if (!nActors)
 			nActors = fp_InitConcurrentActors();
 
 		if (_ThreadLocal.m_iConcurrentActor[_Priority] >= nActors)
 			_ThreadLocal.m_iConcurrentActor[_Priority] = 0;
-		auto &Queue = m_Queues[_Priority].f_GetArray()[_ThreadLocal.m_iConcurrentActor[_Priority]];
+		auto &Queue = mp_Queues[_Priority].f_GetArray()[_ThreadLocal.m_iConcurrentActor[_Priority]];
 		++_ThreadLocal.m_iConcurrentActor[_Priority];
 
 		if (fp_AddToQueue(Queue, fg_Move(_ToQueue), _ThreadLocal))
@@ -776,14 +776,14 @@ namespace NMib::NConcurrency
 	{
 		auto pQueueEntry = CConcurrentRunQueueNonVirtualNoAlloc::fs_QueueEntry(fg_Move(_ToQueue));
 #if DMibConfig_Concurrency_LocalFirstScheduler && DMibConfig_Concurrency_LocalFirstDistribution
-		pQueueEntry->m_bMigratable = _iFixedQueue >= m_nThreads;
+		pQueueEntry->m_bMigratable = _iFixedQueue >= mp_nThreads;
 #endif
 
 		umint iJobQueue;
-		if (_iFixedQueue < m_nThreads)
+		if (_iFixedQueue < mp_nThreads)
 		{
 			iJobQueue = _iFixedQueue;
-			DSchedulerStat(m_Queues[_Priority].f_GetArray()[iJobQueue], m_nFixedSelections);
+			DSchedulerStat(mp_Queues[_Priority].f_GetArray()[iJobQueue], m_nFixedSelections);
 		}
 		else
 		{
@@ -809,7 +809,7 @@ namespace NMib::NConcurrency
 							if (iIdleQueue != gc_InvalidQueue)
 							{
 								iJobQueue = iIdleQueue;
-								DSchedulerStat(m_Queues[_Priority].f_GetArray()[iJobQueue], m_nIdleClaims);
+								DSchedulerStat(mp_Queues[_Priority].f_GetArray()[iJobQueue], m_nIdleClaims);
 								break;
 							}
 						}
@@ -846,18 +846,18 @@ namespace NMib::NConcurrency
 				if (_ThreadLocal.m_pCurrentlyProcessingActorHolder && _ThreadLocal.m_bCurrentlyProcessingInActorHolder)
 				{
 					umint iCurrentQueue = _ThreadLocal.m_pCurrentlyProcessingActorHolder->mp_iFixedQueue;
-					if (iCurrentQueue < m_nThreads)
+					if (iCurrentQueue < mp_nThreads)
 					{
 						iJobQueue = iCurrentQueue;
-						DSchedulerStat(m_Queues[_Priority].f_GetArray()[iJobQueue], m_nFixedSelections);
+						DSchedulerStat(mp_Queues[_Priority].f_GetArray()[iJobQueue], m_nFixedSelections);
 						break;
 					}
 				}
 
 #if !(DMibConfig_Concurrency_LocalFirstScheduler && DMibConfig_Concurrency_LocalFirstDistribution)
-				if (_iLastQueue < m_nThreads)
+				if (_iLastQueue < mp_nThreads)
 				{
-					auto &Queue = m_Queues[_Priority].f_GetArray()[_iLastQueue];
+					auto &Queue = mp_Queues[_Priority].f_GetArray()[_iLastQueue];
 					if (Queue.m_JobQueue.f_AddToQueueIfEmpty(fg_Move(pQueueEntry)))
 					{
 						DSchedulerStat(Queue, m_nLastQueueSelections);
@@ -870,9 +870,9 @@ namespace NMib::NConcurrency
 					}
 				}
 #else
-				if (_iLastQueue < m_nThreads)
+				if (_iLastQueue < mp_nThreads)
 				{
-					auto &Queue = m_Queues[_Priority].f_GetArray()[_iLastQueue];
+					auto &Queue = mp_Queues[_Priority].f_GetArray()[_iLastQueue];
 					DSchedulerStat(Queue, m_nLastQueueSelections);
 
 					if (fp_AddToQueue(Queue, fg_Move(pQueueEntry), _ThreadLocal))
@@ -885,7 +885,7 @@ namespace NMib::NConcurrency
 					if (iIdleQueue != gc_InvalidQueue)
 					{
 						iJobQueue = iIdleQueue;
-						DSchedulerStat(m_Queues[_Priority].f_GetArray()[iJobQueue], m_nIdleClaims);
+						DSchedulerStat(mp_Queues[_Priority].f_GetArray()[iJobQueue], m_nIdleClaims);
 						break;
 					}
 				}
@@ -894,17 +894,17 @@ namespace NMib::NConcurrency
 				auto &iJobQueueNew = _ThreadLocal.m_JobQueueIndex[_Priority];
 				if (iJobQueueNew == iThisQueue) // Don't queue new actors on the same queue
 					++iJobQueueNew;
-				if (iJobQueueNew >= m_nThreads)
+				if (iJobQueueNew >= mp_nThreads)
 					iJobQueueNew = 0;
 				iJobQueue = iJobQueueNew;
 				++iJobQueueNew;
-				DSchedulerStat(m_Queues[_Priority].f_GetArray()[iJobQueue], m_nRoundRobinSelections);
+				DSchedulerStat(mp_Queues[_Priority].f_GetArray()[iJobQueue], m_nRoundRobinSelections);
 			}
 			while (false)
 				;
 		}
 
-		auto &Queue = m_Queues[_Priority].f_GetArray()[iJobQueue];
+		auto &Queue = mp_Queues[_Priority].f_GetArray()[iJobQueue];
 		if (fp_AddToQueue(Queue, fg_Move(pQueueEntry), _ThreadLocal))
 			Queue.f_Signal(this);
 	}
@@ -974,7 +974,7 @@ namespace NMib::NConcurrency
 
 		auto *pTimer = _Queue.m_TimerActorRef.f_Get();
 		auto &Owner = pTimer->f_ConcurrencyManager();
-		if (_Queue.m_TimerDeadline >= 0.0 && _Queue.m_TimerDeadline <= Owner.m_TimerStopwatch.f_GetTime())
+		if (_Queue.m_TimerDeadline >= 0.0 && _Queue.m_TimerDeadline <= Owner.mp_TimerStopwatch.f_GetTime())
 		{
 			_Queue.m_TimerDeadline = -1.0;
 			_Queue.m_TimerActorRef.f_Bind<&CTimerActor::fp_ProcessTimers>().f_DiscardResult();
@@ -1009,14 +1009,14 @@ namespace NMib::NConcurrency
 
 	umint CConcurrencyManager::fp_ClaimIdleQueue(EPriority _Priority, umint _iExclude)
 	{
-		auto &Masks = m_IdleQueueMasks[_Priority];
+		auto &Masks = mp_IdleQueueMasks[_Priority];
 		umint nChunks = Masks.f_GetLen();
 		if (!nChunks)
 			return gc_InvalidQueue;
 
 		// Start scanning after the excluded queue so concurrent claimers spread across cores
 		// instead of converging on the lowest indices
-		umint iStart = _iExclude < m_nThreads ? _iExclude + 1 : 0;
+		umint iStart = _iExclude < mp_nThreads ? _iExclude + 1 : 0;
 		umint iStartChunk = (iStart / gc_IdleMaskBitsPerChunk) % nChunks;
 		umint StartBit = iStart % gc_IdleMaskBitsPerChunk;
 
@@ -1049,13 +1049,13 @@ namespace NMib::NConcurrency
 
 	void CConcurrencyManager::fp_SetQueueIdle(CQueue &_Queue)
 	{
-		auto &Chunk = m_IdleQueueMasks[_Queue.m_Priority].f_GetArray()[_Queue.m_iQueue / gc_IdleMaskBitsPerChunk].m_Mask;
+		auto &Chunk = mp_IdleQueueMasks[_Queue.m_Priority].f_GetArray()[_Queue.m_iQueue / gc_IdleMaskBitsPerChunk].m_Mask;
 		Chunk.f_FetchOr(umint(1) << (_Queue.m_iQueue % gc_IdleMaskBitsPerChunk));
 	}
 
 	void CConcurrencyManager::fp_ClearQueueIdle(CQueue &_Queue)
 	{
-		auto &Chunk = m_IdleQueueMasks[_Queue.m_Priority].f_GetArray()[_Queue.m_iQueue / gc_IdleMaskBitsPerChunk].m_Mask;
+		auto &Chunk = mp_IdleQueueMasks[_Queue.m_Priority].f_GetArray()[_Queue.m_iQueue / gc_IdleMaskBitsPerChunk].m_Mask;
 		Chunk.f_FetchAnd(~(umint(1) << (_Queue.m_iQueue % gc_IdleMaskBitsPerChunk)));
 	}
 
@@ -1078,7 +1078,7 @@ namespace NMib::NConcurrency
 		umint nSpreadTargets = 1;
 		if (_TargetSize == 0)
 		{
-			for (auto &MaskChunk : m_IdleQueueMasks[_Queue.m_Priority])
+			for (auto &MaskChunk : mp_IdleQueueMasks[_Queue.m_Priority])
 				nSpreadTargets += fg_NumBitsSet(MaskChunk.m_Mask.f_Load(NAtomic::gc_MemoryOrder_Relaxed));
 		}
 
@@ -1124,7 +1124,7 @@ namespace NMib::NConcurrency
 				++nPopped;
 			}
 
-			auto &Target = m_Queues[_Queue.m_Priority].f_GetArray()[iTarget];
+			auto &Target = mp_Queues[_Queue.m_Priority].f_GetArray()[iTarget];
 			DSchedulerStatAdd(_Queue, m_nHandoffs, nPopped);
 			DSchedulerStatAdd(Target, m_nAtomicEnqueues, nPopped);
 			DSchedulerStat(Target, m_nIdleClaims);
@@ -1268,12 +1268,12 @@ namespace NMib::NConcurrency
 				if (_Queue.m_TimerDeadline < 0.0)
 					pIoLoop->f_WaitAndDispatch();
 				else
-					pIoLoop->f_WaitAndDispatchTimeout(fg_Max(fp64(0.0), _Queue.m_TimerDeadline - m_TimerStopwatch.f_GetTime()).f_Get());
+					pIoLoop->f_WaitAndDispatchTimeout(fg_Max(fp64(0.0), _Queue.m_TimerDeadline - mp_TimerStopwatch.f_GetTime()).f_Get());
 			}
 			else if (_Queue.m_TimerDeadline < 0.0)
 				_Queue.m_Event.f_Wait();
 			else
-				_Queue.m_Event.f_WaitTimeout(fg_Max(fp64(0.0), _Queue.m_TimerDeadline - m_TimerStopwatch.f_GetTime()));
+				_Queue.m_Event.f_WaitTimeout(fg_Max(fp64(0.0), _Queue.m_TimerDeadline - mp_TimerStopwatch.f_GetTime()));
 		}
 
 		// Drain to quiescence before the owner exits; multistage cancellation and deferred destruction need further iterations.
@@ -1302,17 +1302,17 @@ namespace NMib::NConcurrency
 
 	void CConcurrencyManager::fp_AddedActor()
 	{
-		DMibFastCheck(!m_bFinishedDestroying);
+		DMibFastCheck(!mp_bFinishedDestroying);
 
 		auto &ThreadLocal = fg_ConcurrencyThreadLocal();
 		if (ThreadLocal.m_pThisQueue)
 		{
 			auto &Queue = *ThreadLocal.m_pThisQueue;
-			m_nActorsPerQueueArray[Queue.m_Priority][Queue.m_iQueue].m_nActors.f_FetchAdd(1, NAtomic::gc_MemoryOrder_Relaxed);
+			mp_nActorsPerQueueArray[Queue.m_Priority][Queue.m_iQueue].m_nActors.f_FetchAdd(1, NAtomic::gc_MemoryOrder_Relaxed);
 			return;
 		}
 
-		m_nActorsOther[(ThreadLocal.m_nActorsIndex & m_ActorsOtherMask)].m_nActors.f_FetchAdd(1, NAtomic::gc_MemoryOrder_Relaxed);
+		mp_nActorsOther[(ThreadLocal.m_nActorsIndex & mp_ActorsOtherMask)].m_nActors.f_FetchAdd(1, NAtomic::gc_MemoryOrder_Relaxed);
 	}
 
 	void CConcurrencyManager::fp_RemovedActor()
@@ -1321,20 +1321,20 @@ namespace NMib::NConcurrency
 		if (ThreadLocal.m_pThisQueue)
 		{
 			auto &Queue = *ThreadLocal.m_pThisQueue;
-			m_nActorsPerQueueArray[Queue.m_Priority][Queue.m_iQueue].m_nActors.f_FetchSub(1, NAtomic::gc_MemoryOrder_Release);
+			mp_nActorsPerQueueArray[Queue.m_Priority][Queue.m_iQueue].m_nActors.f_FetchSub(1, NAtomic::gc_MemoryOrder_Release);
 			return;
 		}
 
-		m_nActorsOther[(ThreadLocal.m_nActorsIndex & m_ActorsOtherMask)].m_nActors.f_FetchSub(1, NAtomic::gc_MemoryOrder_Release);
+		mp_nActorsOther[(ThreadLocal.m_nActorsIndex & mp_ActorsOtherMask)].m_nActors.f_FetchSub(1, NAtomic::gc_MemoryOrder_Release);
 	}
 
 	umint CConcurrencyManager::fp_NumActors()
 	{
 		smint nActorsSum = 0;
-		for (auto &nActors : m_nActorsOther)
+		for (auto &nActors : mp_nActorsOther)
 			nActorsSum += nActors.m_nActors.f_Load();
 
-		for (auto &nActorsPerQueue : m_nActorsPerQueue)
+		for (auto &nActorsPerQueue : mp_nActorsPerQueue)
 		{
 			for (auto &nActors : nActorsPerQueue)
 				nActorsSum += nActors.m_nActors.f_Load();
@@ -1345,7 +1345,7 @@ namespace NMib::NConcurrency
 
 	void CConcurrencyManager::f_EnableShutdownLogging(bool _bEnabled)
 	{
-		m_bShutdownLogging = _bEnabled;
+		mp_bShutdownLogging = _bEnabled;
 	}
 
 	CConcurrencyManager::CSingleton::~CSingleton()
@@ -1376,7 +1376,7 @@ namespace NMib::NConcurrency
 
 	void CConcurrencyManager::f_BlockOnDestroy()
 	{
-		if (m_bDestroyed)
+		if (mp_bDestroyed)
 			return;
 		fp_InitConcurrentActors(); // Make sure concurrent actors are created
 
@@ -1387,11 +1387,11 @@ namespace NMib::NConcurrency
 			NContainer::TCVector<umint> CreationOrder;
 
 			{
-				DMibLockTyped(NThread::CMutual, m_SingletonLock);
+				DMibLockTyped(NThread::CMutual, mp_SingletonLock);
 
-				m_bSingletonsDestroyed = true;
-				Singletons = fg_Move(m_Singletons);
-				CreationOrder = fg_Move(m_SingletonCreationOrder);
+				mp_bSingletonsDestroyed = true;
+				Singletons = fg_Move(mp_Singletons);
+				CreationOrder = fg_Move(mp_SingletonCreationOrder);
 			}
 
 			// On a concurrent actor, as this thread is not an actor and a coroutine has nothing to suspend
@@ -1409,7 +1409,7 @@ namespace NMib::NConcurrency
 		auto fCallTimerActors = [this](void (CTimerActor:: *_fMember)())
 			{
 				TCFutureVector<void> Results;
-				for (auto &Queues : m_Queues)
+				for (auto &Queues : mp_Queues)
 				{
 					for (auto &Queue : Queues)
 					{
@@ -1421,7 +1421,7 @@ namespace NMib::NConcurrency
 			}
 		;
 
-		m_bDestroyed = true;
+		mp_bDestroyed = true;
 
 		NTime::CStopwatch FireTimersStopwatch{true};
 		NTime::CStopwatch TimerCheckStopwatch{true};
@@ -1430,22 +1430,22 @@ namespace NMib::NConcurrency
 #endif
 
 		static constexpr umint c_nShutdownYields = 4000;
-		umint nTimerActors = m_nThreads * EPriority_Max;
+		umint nTimerActors = mp_nThreads * EPriority_Max;
 
 		static constexpr umint c_nDirectDeleteActors
-			= sizeof(m_DirectCallActor) / sizeof(m_DirectCallActor) // NOLINT
-			+ sizeof(m_ThisConcurrentActor) / sizeof(m_ThisConcurrentActor) // NOLINT
-			+ sizeof(m_ThisConcurrentActorLowPrio) / sizeof(m_ThisConcurrentActorLowPrio) // NOLINT
-			+ sizeof(m_ThisConcurrentActorHighCPU) / sizeof(m_ThisConcurrentActorHighCPU) // NOLINT
-			+ sizeof(m_OtherConcurrentActor) / sizeof(m_OtherConcurrentActor) // NOLINT
-			+ sizeof(m_OtherConcurrentActorLowPrio) / sizeof(m_OtherConcurrentActorLowPrio) // NOLINT
-			+ sizeof(m_OtherConcurrentActorHighCPU) / sizeof(m_OtherConcurrentActorHighCPU) // NOLINT
-			+ sizeof(m_DynamicConcurrentActor) / sizeof(m_DynamicConcurrentActor) // NOLINT
-			+ sizeof(m_DynamicConcurrentActorLowPrio) / sizeof(m_DynamicConcurrentActorLowPrio) // NOLINT
-			+ sizeof(m_DynamicConcurrentActorHighCPU) / sizeof(m_DynamicConcurrentActorHighCPU) // NOLINT
+			= sizeof(mp_DirectCallActor) / sizeof(mp_DirectCallActor) // NOLINT
+			+ sizeof(mp_ThisConcurrentActor) / sizeof(mp_ThisConcurrentActor) // NOLINT
+			+ sizeof(mp_ThisConcurrentActorLowPrio) / sizeof(mp_ThisConcurrentActorLowPrio) // NOLINT
+			+ sizeof(mp_ThisConcurrentActorHighCPU) / sizeof(mp_ThisConcurrentActorHighCPU) // NOLINT
+			+ sizeof(mp_OtherConcurrentActor) / sizeof(mp_OtherConcurrentActor) // NOLINT
+			+ sizeof(mp_OtherConcurrentActorLowPrio) / sizeof(mp_OtherConcurrentActorLowPrio) // NOLINT
+			+ sizeof(mp_OtherConcurrentActorHighCPU) / sizeof(mp_OtherConcurrentActorHighCPU) // NOLINT
+			+ sizeof(mp_DynamicConcurrentActor) / sizeof(mp_DynamicConcurrentActor) // NOLINT
+			+ sizeof(mp_DynamicConcurrentActorLowPrio) / sizeof(mp_DynamicConcurrentActorLowPrio) // NOLINT
+			+ sizeof(mp_DynamicConcurrentActorHighCPU) / sizeof(mp_DynamicConcurrentActorHighCPU) // NOLINT
 		;
 
-		if (m_bShutdownLogging)
+		if (mp_bShutdownLogging)
 			DMibLog(Info, "Shutting down concurrency manager: Waiting for actors to dissapear");
 
 #if DMibConfig_Concurrency_DebugBlockDestroy
@@ -1455,14 +1455,14 @@ namespace NMib::NConcurrency
 			// Disregard concurrent actors, timer actor and direct delete actors from destroy
 			auto fHasUserActors = [&]
 				{
-					DMibLock(m_BlockingActorsLock);
+					DMibLock(mp_BlockingActorsLock);
 					umint nExpectedActors
-						= m_ConcurrentActors[EPriority_Normal].f_GetLen()
-						+ m_ConcurrentActors[EPriority_NormalHighCPU].f_GetLen()
-						+ m_ConcurrentActors[EPriority_Low].f_GetLen()
+						= mp_ConcurrentActors[EPriority_Normal].f_GetLen()
+						+ mp_ConcurrentActors[EPriority_NormalHighCPU].f_GetLen()
+						+ mp_ConcurrentActors[EPriority_Low].f_GetLen()
 						+ nTimerActors
 						+ c_nDirectDeleteActors
-						+ m_nBlockingActors
+						+ mp_nBlockingActors
 					;
 
 					return fp_NumActors() > nExpectedActors;
@@ -1485,7 +1485,7 @@ namespace NMib::NConcurrency
 					if (FireTimersStopwatch.f_GetTime() > 10.0)
 					{
 						fCallTimerActors(&CTimerActor::f_FireAllTimeouts);
-						if (m_bShutdownLogging && !bLoggedLongTimeShutdown)
+						if (mp_bShutdownLogging && !bLoggedLongTimeShutdown)
 						{
 							bLoggedLongTimeShutdown = true;
 							DMibLog(Info, "Shutting down concurrency manager: Shutdown is taking a long time, firing all timeouts", bLoggedLongTimeShutdown);
@@ -1602,18 +1602,18 @@ namespace NMib::NConcurrency
 
 		auto fDestroyFreeBlockingActors = [&]()
 			{
-				DMibLock(m_BlockingActorsLock);
+				DMibLock(mp_BlockingActorsLock);
 				NContainer::TCVector<umint> ToRemove;
-				for (auto &pActor : m_BlockingActors)
+				for (auto &pActor : mp_BlockingActors)
 				{
 					if (pActor->m_Link.f_IsInList())
-						ToRemove.f_Insert(&pActor - m_BlockingActors.f_GetArray());
+						ToRemove.f_Insert(&pActor - mp_BlockingActors.f_GetArray());
 				}
 
 				for (auto &iRemove : ToRemove.f_Reverse())
 				{
-					m_BlockingActors.f_Remove(iRemove);
-					--m_nBlockingActors;
+					mp_BlockingActors.f_Remove(iRemove);
+					--mp_nBlockingActors;
 				}
 			}
 		;
@@ -1625,7 +1625,7 @@ namespace NMib::NConcurrency
 				for (bool bAllDone = false; !bAllDone;)
 				{
 					TCFutureVector<bool> ConcurrentActorSyncs;
-					for (auto &Queues : m_Queues)
+					for (auto &Queues : mp_Queues)
 					{
 						for (auto &Queue : Queues)
 						{
@@ -1643,13 +1643,13 @@ namespace NMib::NConcurrency
 					}
 
 					{
-						DMibLock(m_ThreadCreateLock);
+						DMibLock(mp_ThreadCreateLock);
 						for (umint Prio = EPriority_Low; Prio < EPriority_Max; ++Prio)
 						{
-							for (auto &Actor : m_ConcurrentActors[Prio])
+							for (auto &Actor : mp_ConcurrentActors[Prio])
 							{
 								DMibFastCheck(Actor->mp_iFixedQueue != gc_InvalidQueue);
-								if (!m_Queues[Prio][Actor->mp_iFixedQueue].m_bThreadCreated.f_Load())
+								if (!mp_Queues[Prio][Actor->mp_iFixedQueue].m_bThreadCreated.f_Load())
 									continue;
 
 								g_Dispatch(Actor) / []() -> bool
@@ -1677,16 +1677,16 @@ namespace NMib::NConcurrency
 			}
 		;
 
-		if (m_bShutdownLogging)
+		if (mp_bShutdownLogging)
 			DMibLog(Info, "Shutting down concurrency manager: Waiting for built in actors to exit");
 		fWaitForAllDone();
 
 		// Blocking actors can still depend on timers while releasing their checkouts.
 		{
 			umint nExpectedActors
-				= m_ConcurrentActors[EPriority_Normal].f_GetLen()
-				+ m_ConcurrentActors[EPriority_NormalHighCPU].f_GetLen()
-				+ m_ConcurrentActors[EPriority_Low].f_GetLen()
+				= mp_ConcurrentActors[EPriority_Normal].f_GetLen()
+				+ mp_ConcurrentActors[EPriority_NormalHighCPU].f_GetLen()
+				+ mp_ConcurrentActors[EPriority_Low].f_GetLen()
 				+ nTimerActors
 				+ c_nDirectDeleteActors
 			;
@@ -1700,14 +1700,14 @@ namespace NMib::NConcurrency
 					SpinWaiter.f_Wait();
 					if (TimerCheckStopwatch.f_GetTime() > 10.0)
 					{
-						if (m_bShutdownLogging && !bLoggedBlockingActorShutdown)
+						if (mp_bShutdownLogging && !bLoggedBlockingActorShutdown)
 						{
 							bLoggedBlockingActorShutdown = true;
 							DMibLog(Info, "Shutting down concurrency manager: Waiting for blocking actor checkouts to be released");
 						}
 #if DMibConfig_Concurrency_DebugBlockDestroy
-						DMibLock(m_BlockingActorsLock);
-						for (auto &pActor : m_BlockingActors)
+						DMibLock(mp_BlockingActorsLock);
+						for (auto &pActor : mp_BlockingActors)
 						{
 							if (!pActor->m_Link.f_IsInList())
 							{
@@ -1723,7 +1723,7 @@ namespace NMib::NConcurrency
 			}
 		}
 
-		if (m_bShutdownLogging)
+		if (mp_bShutdownLogging)
 			DMibLog(Info, "Shutting down concurrency manager: Waiting for blocking actors to exit");
 		fWaitForAllDone(); // Sync up to make sure nothing is still waiting to process on actors
 
@@ -1731,12 +1731,12 @@ namespace NMib::NConcurrency
 		fCallTimerActors(&CTimerActor::fp_PrepareShutdown);
 		fWaitForAllDone();
 
-		m_bFinishedDestroying = true;
+		mp_bFinishedDestroying = true;
 
-		m_bDestroyingAlwaysAliveActors = true;
+		mp_bDestroyingAlwaysAliveActors = true;
 		auto Cleanup = g_OnScopeExit / [&]
 			{
-				m_bDestroyingAlwaysAliveActors = false;
+				mp_bDestroyingAlwaysAliveActors = false;
 			}
 		;
 
@@ -1744,14 +1744,14 @@ namespace NMib::NConcurrency
 		{
 			TCFutureVector<void> Destroys;
 			{
-				DMibLock(m_pConcurrentActorLock);
+				DMibLock(mp_pConcurrentActorLock);
 				for (umint Prio = EPriority_Low; Prio < EPriority_Max; ++Prio)
 				{
-					for (auto &Actor : m_ConcurrentActors[Prio])
+					for (auto &Actor : mp_ConcurrentActors[Prio])
 					{
 						DMibFastCheck(Actor->mp_iFixedQueue != gc_InvalidQueue);
-						DMibLock(m_ThreadCreateLock);
-						if (!m_Queues[Prio][Actor->mp_iFixedQueue].m_bThreadCreated.f_Load())
+						DMibLock(mp_ThreadCreateLock);
+						if (!mp_Queues[Prio][Actor->mp_iFixedQueue].m_bThreadCreated.f_Load())
 							fg_Move(Actor).fp_DestroyUnused() > Destroys;
 						else
 							fg_Move(Actor).f_Destroy() > Destroys;
@@ -1759,7 +1759,7 @@ namespace NMib::NConcurrency
 				}
 
 				for (umint Prio = EPriority_Low; Prio < EPriority_Max; ++Prio)
-					m_ConcurrentActors[Prio].f_Clear();
+					mp_ConcurrentActors[Prio].f_Clear();
 			}
 			fg_AllDoneWrapped(Destroys).f_CallSync();
 
@@ -1771,11 +1771,11 @@ namespace NMib::NConcurrency
 		// Concurrent-actor destruction can still use timers; their queues have now drained.
 		{
 			TCFutureVector<void> Results;
-			for (auto &Queues : m_Queues)
+			for (auto &Queues : mp_Queues)
 			{
 				for (auto &Queue : Queues)
 				{
-					DMibLock(m_ThreadCreateLock);
+					DMibLock(mp_ThreadCreateLock);
 					if (Queue.m_bThreadCreated.f_Load())
 						fg_Move(Queue.m_TimerActor).f_Destroy() > Results;
 					else
@@ -1786,7 +1786,7 @@ namespace NMib::NConcurrency
 				}
 			}
 			fg_AllDoneWrapped(Results).f_CallSync();
-			for (auto &Queues : m_Queues)
+			for (auto &Queues : mp_Queues)
 			{
 				for (auto &Queue : Queues)
 				{
@@ -1796,7 +1796,7 @@ namespace NMib::NConcurrency
 			}
 		}
 
-		m_nThreads = 0;
+		mp_nThreads = 0;
 		{
 			NThread::CThreadSpinWaiter SpinWaiter(c_nShutdownYields);
 			while (fp_NumActors() > c_nDirectDeleteActors)
@@ -1806,47 +1806,47 @@ namespace NMib::NConcurrency
 		// Finally delete the direct call actor
 
 		{
-			m_ThisConcurrentActor->fp_Terminate();
-			m_ThisConcurrentActor.f_Clear();
-			m_ThisConcurrentActorLowPrio->fp_Terminate();
-			m_ThisConcurrentActorLowPrio.f_Clear();
-			m_ThisConcurrentActorHighCPU->fp_Terminate();
-			m_ThisConcurrentActorHighCPU.f_Clear();
-			m_OtherConcurrentActor->fp_Terminate();
-			m_OtherConcurrentActor.f_Clear();
-			m_OtherConcurrentActorLowPrio->fp_Terminate();
-			m_OtherConcurrentActorLowPrio.f_Clear();
-			m_OtherConcurrentActorHighCPU->fp_Terminate();
-			m_OtherConcurrentActorHighCPU.f_Clear();
-			m_DynamicConcurrentActor->fp_Terminate();
-			m_DynamicConcurrentActor.f_Clear();
-			m_DynamicConcurrentActorLowPrio->fp_Terminate();
-			m_DynamicConcurrentActorLowPrio.f_Clear();
-			m_DynamicConcurrentActorHighCPU->fp_Terminate();
-			m_DynamicConcurrentActorHighCPU.f_Clear();
-			m_DirectCallActor->fp_Terminate();
-			m_DirectCallActor.f_Clear();
+			mp_ThisConcurrentActor->fp_Terminate();
+			mp_ThisConcurrentActor.f_Clear();
+			mp_ThisConcurrentActorLowPrio->fp_Terminate();
+			mp_ThisConcurrentActorLowPrio.f_Clear();
+			mp_ThisConcurrentActorHighCPU->fp_Terminate();
+			mp_ThisConcurrentActorHighCPU.f_Clear();
+			mp_OtherConcurrentActor->fp_Terminate();
+			mp_OtherConcurrentActor.f_Clear();
+			mp_OtherConcurrentActorLowPrio->fp_Terminate();
+			mp_OtherConcurrentActorLowPrio.f_Clear();
+			mp_OtherConcurrentActorHighCPU->fp_Terminate();
+			mp_OtherConcurrentActorHighCPU.f_Clear();
+			mp_DynamicConcurrentActor->fp_Terminate();
+			mp_DynamicConcurrentActor.f_Clear();
+			mp_DynamicConcurrentActorLowPrio->fp_Terminate();
+			mp_DynamicConcurrentActorLowPrio.f_Clear();
+			mp_DynamicConcurrentActorHighCPU->fp_Terminate();
+			mp_DynamicConcurrentActorHighCPU.f_Clear();
+			mp_DirectCallActor->fp_Terminate();
+			mp_DirectCallActor.f_Clear();
 		}
 
-		if (m_bShutdownLogging)
+		if (mp_bShutdownLogging)
 			DMibLog(Info, "Shutting down concurrency manager: Waiting for low level actors to disappear");
 
 		NThread::CThreadSpinWaiter SpinWaiter(c_nShutdownYields);
 		while (fp_NumActors() > 0)
 			SpinWaiter.f_Wait();
 
-		if (m_bShutdownLogging)
+		if (mp_bShutdownLogging)
 			DMibLog(Info, "Shutting down concurrency manager: Done");
 	}
 
 	bool CConcurrencyManager::f_DestroyingAlwaysAliveActors() const
 	{
-		return m_bDestroyingAlwaysAliveActors.f_Load();
+		return mp_bDestroyingAlwaysAliveActors.f_Load();
 	}
 
 	umint CConcurrencyManager::f_GetConcurrency() const
 	{
-		return m_nThreads;
+		return mp_nThreads;
 	}
 
 	umint CConcurrencyManager::f_GetQueue() const
@@ -1870,15 +1870,15 @@ namespace NMib::NConcurrency
 
 	umint CConcurrencyManager::f_GetNumQueues(EPriority _Priority) const
 	{
-		return m_Queues[_Priority].f_GetLen();
+		return mp_Queues[_Priority].f_GetLen();
 	}
 
 	void CConcurrencyManager::f_DispatchToQueue(EPriority _Priority, umint _iQueue, FActorQueueDispatchNoAlloc &&_ToQueue)
 	{
-		DMibSafeCheck(_iQueue < m_Queues[_Priority].f_GetLen(), "Dispatching to a pool queue that does not exist");
+		DMibSafeCheck(_iQueue < mp_Queues[_Priority].f_GetLen(), "Dispatching to a pool queue that does not exist");
 
 		auto &ThreadLocal = fg_ConcurrencyThreadLocal();
-		auto &Queue = m_Queues[_Priority].f_GetArray()[_iQueue];
+		auto &Queue = mp_Queues[_Priority].f_GetArray()[_iQueue];
 
 		if (fp_AddToQueue(Queue, fg_Move(_ToQueue), ThreadLocal))
 			Queue.f_Signal(this);
@@ -1888,13 +1888,13 @@ namespace NMib::NConcurrency
 	void CConcurrencyManager::f_EnableQueueIoLoop(EPriority _Priority, umint _iQueue)
 	{
 		_Priority = f_ClampPriority(_Priority);
-		DMibSafeCheck(m_Queues[_Priority][_iQueue].m_pIoLoop, "Enabling a queue that has no io loop");
+		DMibSafeCheck(mp_Queues[_Priority][_iQueue].m_pIoLoop, "Enabling a queue that has no io loop");
 
 		f_DispatchToQueue
 			(
 				_Priority
 				, _iQueue
-				, [pTargetQueue = &m_Queues[_Priority].f_GetArray()[_iQueue]](CConcurrencyThreadLocal &_ThreadLocal)
+				, [pTargetQueue = &mp_Queues[_Priority].f_GetArray()[_iQueue]](CConcurrencyThreadLocal &_ThreadLocal)
 				{
 					// Stop may drain this message on another thread; only the target queue's owner may claim the loop.
 					if (_ThreadLocal.m_pThisQueue != pTargetQueue)
@@ -1913,27 +1913,27 @@ namespace NMib::NConcurrency
 
 	NSys::ICIoLoop *CConcurrencyManager::f_GetQueueIoLoop(EPriority _Priority, umint _iQueue) const
 	{
-		return m_Queues[_Priority][_iQueue].m_pIoLoop;
+		return mp_Queues[_Priority][_iQueue].m_pIoLoop;
 	}
 
 	// Distributes bindings across this priority's loop-owning queues. Empty if loops are unavailable or disabled.
 	auto CConcurrencyManager::f_PickIoLoopBinding(EPriority _Priority) -> CIoLoopBinding
 	{
 		_Priority = f_ClampPriority(_Priority);
-		umint nLoopQueues = m_nIoLoopQueues[_Priority];
+		umint nLoopQueues = mp_nIoLoopQueues[_Priority];
 		if (!nLoopQueues)
 			return CIoLoopBinding();
 
 		// Bindings can precede their enable messages because loop-bound sockets deregister asynchronously.
-		if (!m_bIoLoopsEnabled[_Priority].f_Load(NAtomic::gc_MemoryOrder_Relaxed) && !m_bIoLoopsEnabled[_Priority].f_Exchange(true, NAtomic::gc_MemoryOrder_AcquireRelease))
+		if (!mp_bIoLoopsEnabled[_Priority].f_Load(NAtomic::gc_MemoryOrder_Relaxed) && !mp_bIoLoopsEnabled[_Priority].f_Exchange(true, NAtomic::gc_MemoryOrder_AcquireRelease))
 		{
 			for (umint iQueue = 0; iQueue < nLoopQueues; ++iQueue)
 				f_EnableQueueIoLoop(_Priority, iQueue);
 		}
 
-		umint iQueue = m_iNextIoLoopBinding[_Priority].f_FetchAdd(1, NAtomic::gc_MemoryOrder_Relaxed) % nLoopQueues;
+		umint iQueue = mp_iNextIoLoopBinding[_Priority].f_FetchAdd(1, NAtomic::gc_MemoryOrder_Relaxed) % nLoopQueues;
 
-		return CIoLoopBinding{.m_pLoop = m_Queues[_Priority][iQueue].m_pIoLoop, .m_iQueue = iQueue, .m_Priority = _Priority};
+		return CIoLoopBinding{.m_pLoop = mp_Queues[_Priority][iQueue].m_pIoLoop, .m_iQueue = iQueue, .m_Priority = _Priority};
 	}
 
 	CIoLoopBinding::operator bool () const
@@ -1970,7 +1970,7 @@ namespace NMib::NConcurrency
 	auto CConcurrencyManager::f_GetSchedulerStats(EPriority _Priority) -> CSchedulerStats
 	{
 		CSchedulerStats Stats;
-		for (auto &Queue : m_Queues[_Priority])
+		for (auto &Queue : mp_Queues[_Priority])
 		{
 			auto &QueueStats = Queue.m_SchedulerStats;
 			Stats.m_nSignals += QueueStats.m_nSignals.f_Load(NAtomic::gc_MemoryOrder_Relaxed);
@@ -2025,7 +2025,7 @@ namespace NMib::NConcurrency
 	{
 		for (umint Priority = EPriority_Low; Priority < EPriority_Max; ++Priority)
 		{
-			for (auto &Queue : m_Queues[Priority])
+			for (auto &Queue : mp_Queues[Priority])
 			{
 				auto &QueueStats = Queue.m_SchedulerStats;
 				QueueStats.m_nSignals.f_Store(0, NAtomic::gc_MemoryOrder_Relaxed);
@@ -2082,7 +2082,7 @@ namespace NMib::NConcurrency
 				)
 			;
 
-			for (auto &Queue : m_Queues[Priority])
+			for (auto &Queue : mp_Queues[Priority])
 			{
 				auto &QueueStats = Queue.m_SchedulerStats;
 				umint nRunProcess = QueueStats.m_nRunProcess.f_Load(NAtomic::gc_MemoryOrder_Relaxed);
@@ -2110,23 +2110,23 @@ namespace NMib::NConcurrency
 
 	inline_never umint CConcurrencyManager::fp_InitConcurrentActors()
 	{
-		DMibLock(m_pConcurrentActorLock);
-		umint nActors = m_nConcurrentActors.f_Load();
+		DMibLock(mp_pConcurrentActorLock);
+		umint nActors = mp_nConcurrentActors.f_Load();
 		if (nActors)
 			return nActors;
 
-		nActors = m_nThreads;
+		nActors = mp_nThreads;
 
 		for (umint Prio = EPriority_Low; Prio < EPriority_Max; ++Prio)
 		{
-			m_ConcurrentActors[Prio].f_SetLen(nActors);
-			m_ConcurrentActorsRef[Prio].f_SetLen(nActors);
+			mp_ConcurrentActors[Prio].f_SetLen(nActors);
+			mp_ConcurrentActorsRef[Prio].f_SetLen(nActors);
 		}
 
 		for (umint Prio = EPriority_Low; Prio < EPriority_Max; ++Prio)
 		{
 			umint iActor = 0;
-			for (auto &Actor : m_ConcurrentActors[Prio])
+			for (auto &Actor : mp_ConcurrentActors[Prio])
 			{
 				if (Prio == EPriority_Normal)
 					Actor = f_ConstructActor(fg_Construct<CConcurrentActorImpl>());
@@ -2135,32 +2135,32 @@ namespace NMib::NConcurrency
 				else if (Prio == EPriority_Low)
 					Actor = f_ConstructActor(fg_Construct<CConcurrentActorLowPrioImpl>());
 				Actor->f_SetFixedQueue(iActor);
-				m_ConcurrentActorsRef[Prio][iActor] = Actor;
+				mp_ConcurrentActorsRef[Prio][iActor] = Actor;
 				++iActor;
 			}
 		}
 
-		m_nConcurrentActors.f_Store(nActors, NAtomic::gc_MemoryOrder_Release);
+		mp_nConcurrentActors.f_Store(nActors, NAtomic::gc_MemoryOrder_Release);
 		return nActors;
 	}
 
 	TCActor<CConcurrentActor> const &CConcurrencyManager::f_GetConcurrentActorForThisThread(EPriority _Priority)
 	{
 		_Priority = f_ClampPriority(_Priority);
-		umint nActors = m_nConcurrentActors.f_Load(NAtomic::gc_MemoryOrder_Acquire);
+		umint nActors = mp_nConcurrentActors.f_Load(NAtomic::gc_MemoryOrder_Acquire);
 		if (!nActors)
 			nActors = fp_InitConcurrentActors();
 
 		auto &ThreadLocal = fg_ConcurrencyThreadLocal();
 		if (ThreadLocal.m_pThisQueue && ThreadLocal.m_pThisQueue->m_Priority == _Priority)
 		{
-			auto &ToReturn = m_ConcurrentActorsRef[_Priority].f_GetArray()[ThreadLocal.m_pThisQueue->m_iQueue];
+			auto &ToReturn = mp_ConcurrentActorsRef[_Priority].f_GetArray()[ThreadLocal.m_pThisQueue->m_iQueue];
 			return ToReturn;
 		}
 		auto &iConcurrentActor = ThreadLocal.m_iConcurrentActor[_Priority];
 		if (iConcurrentActor >= nActors)
 			iConcurrentActor = 0;
-		auto &ToReturn = m_ConcurrentActorsRef[_Priority].f_GetArray()[iConcurrentActor];
+		auto &ToReturn = mp_ConcurrentActorsRef[_Priority].f_GetArray()[iConcurrentActor];
 		++iConcurrentActor;
 		return ToReturn;
 	}
@@ -2168,7 +2168,7 @@ namespace NMib::NConcurrency
 	TCActor<CConcurrentActor> const &CConcurrencyManager::f_GetConcurrentActorForOtherThread(EPriority _Priority)
 	{
 		_Priority = f_ClampPriority(_Priority);
-		umint nActors = m_nConcurrentActors.f_Load(NAtomic::gc_MemoryOrder_Acquire);
+		umint nActors = mp_nConcurrentActors.f_Load(NAtomic::gc_MemoryOrder_Acquire);
 		if (!nActors)
 			nActors = fp_InitConcurrentActors();
 
@@ -2190,7 +2190,7 @@ namespace NMib::NConcurrency
 					iConcurrentActor = 0;
 			}
 		}
-		auto &ToReturn = m_ConcurrentActorsRef[_Priority].f_GetArray()[iConcurrentActor];
+		auto &ToReturn = mp_ConcurrentActorsRef[_Priority].f_GetArray()[iConcurrentActor];
 		++iConcurrentActor;
 		return ToReturn;
 	}
@@ -2199,7 +2199,7 @@ namespace NMib::NConcurrency
 	{
 		// Returns a actor that is consistent based on weak pointer
 
-		umint nActors = m_nConcurrentActors.f_Load(NAtomic::gc_MemoryOrder_Acquire);
+		umint nActors = mp_nConcurrentActors.f_Load(NAtomic::gc_MemoryOrder_Acquire);
 		if (!nActors)
 			nActors = fp_InitConcurrentActors();
 
@@ -2209,48 +2209,48 @@ namespace NMib::NConcurrency
 
 		umint iActor = fg_JenkinsHash((ch8 const *)&HashData, sizeof(HashData), 0) % nActors;
 
-		auto &ToReturn = m_ConcurrentActorsRef[EPriority_Normal].f_GetArray()[iActor];
+		auto &ToReturn = mp_ConcurrentActorsRef[EPriority_Normal].f_GetArray()[iActor];
 		return ToReturn;
 	}
 
 	TCActor<CConcurrentActor> const &CConcurrencyManager::f_GetConcurrentActor()
 	{
-		umint nActors = m_nConcurrentActors.f_Load(NAtomic::gc_MemoryOrder_Acquire);
+		umint nActors = mp_nConcurrentActors.f_Load(NAtomic::gc_MemoryOrder_Acquire);
 		if (!nActors)
 			nActors = fp_InitConcurrentActors();
 
 		auto &ThreadLocal = fg_ConcurrencyThreadLocal();
 		if (ThreadLocal.m_iConcurrentActor[EPriority_Normal] >= nActors)
 			ThreadLocal.m_iConcurrentActor[EPriority_Normal] = 0;
-		auto &ToReturn = m_ConcurrentActorsRef[EPriority_Normal].f_GetArray()[ThreadLocal.m_iConcurrentActor[EPriority_Normal]];
+		auto &ToReturn = mp_ConcurrentActorsRef[EPriority_Normal].f_GetArray()[ThreadLocal.m_iConcurrentActor[EPriority_Normal]];
 		++ThreadLocal.m_iConcurrentActor[EPriority_Normal];
 		return ToReturn;
 	}
 
 	TCActor<CConcurrentActor> const &CConcurrencyManager::f_GetConcurrentActorLowPrio()
 	{
-		umint nActors = m_nConcurrentActors.f_Load(NAtomic::gc_MemoryOrder_Acquire);
+		umint nActors = mp_nConcurrentActors.f_Load(NAtomic::gc_MemoryOrder_Acquire);
 		if (!nActors)
 			nActors = fp_InitConcurrentActors();
 
 		auto &ThreadLocal = fg_ConcurrencyThreadLocal();
 		if (ThreadLocal.m_iConcurrentActor[EPriority_Low] >= nActors)
 			ThreadLocal.m_iConcurrentActor[EPriority_Low] = 0;
-		auto &ToReturn = m_ConcurrentActorsRef[EPriority_Low].f_GetArray()[ThreadLocal.m_iConcurrentActor[EPriority_Low]];
+		auto &ToReturn = mp_ConcurrentActorsRef[EPriority_Low].f_GetArray()[ThreadLocal.m_iConcurrentActor[EPriority_Low]];
 		++ThreadLocal.m_iConcurrentActor[EPriority_Low];
 		return ToReturn;
 	}
 
 	TCActor<CConcurrentActor> const &CConcurrencyManager::f_GetConcurrentActorHighCPU()
 	{
-		umint nActors = m_nConcurrentActors.f_Load(NAtomic::gc_MemoryOrder_Acquire);
+		umint nActors = mp_nConcurrentActors.f_Load(NAtomic::gc_MemoryOrder_Acquire);
 		if (!nActors)
 			nActors = fp_InitConcurrentActors();
 
 		auto &ThreadLocal = fg_ConcurrencyThreadLocal();
 		if (ThreadLocal.m_iConcurrentActor[EPriority_NormalHighCPU] >= nActors)
 			ThreadLocal.m_iConcurrentActor[EPriority_NormalHighCPU] = 0;
-		auto &ToReturn = m_ConcurrentActorsRef[EPriority_NormalHighCPU].f_GetArray()[ThreadLocal.m_iConcurrentActor[EPriority_NormalHighCPU]];
+		auto &ToReturn = mp_ConcurrentActorsRef[EPriority_NormalHighCPU].f_GetArray()[ThreadLocal.m_iConcurrentActor[EPriority_NormalHighCPU]];
 		++ThreadLocal.m_iConcurrentActor[EPriority_NormalHighCPU];
 		return ToReturn;
 	}
@@ -2315,8 +2315,8 @@ namespace NMib::NConcurrency
 		if (!mp_pConcurrencyManager || !mp_pBlockingActorStorage)
 			return;
 
-		DMibLock(mp_pConcurrencyManager->m_BlockingActorsLock);
-		mp_pConcurrencyManager->m_FreeBlockingActors.f_Insert(*mp_pBlockingActorStorage);
+		DMibLock(mp_pConcurrencyManager->mp_BlockingActorsLock);
+		mp_pConcurrencyManager->mp_FreeBlockingActors.f_Insert(*mp_pBlockingActorStorage);
 	}
 
 	void CBlockingActorCheckout::f_Clear()
@@ -2324,8 +2324,8 @@ namespace NMib::NConcurrency
 		if (!mp_pConcurrencyManager || !mp_pBlockingActorStorage)
 			return;
 
-		DMibLock(mp_pConcurrencyManager->m_BlockingActorsLock);
-		mp_pConcurrencyManager->m_FreeBlockingActors.f_Insert(*mp_pBlockingActorStorage);
+		DMibLock(mp_pConcurrencyManager->mp_BlockingActorsLock);
+		mp_pConcurrencyManager->mp_FreeBlockingActors.f_Insert(*mp_pBlockingActorStorage);
 		mp_pConcurrencyManager = nullptr;
 		mp_pBlockingActorStorage = nullptr;
 	}
@@ -2358,7 +2358,7 @@ namespace NMib::NConcurrency
 		: mp_Capacity(fg_Max(_Capacity, umint(1)))
 	{
 		mp_Checkouts.f_Reserve(mp_Capacity);
-		for (umint i = 0; i < mp_Capacity; ++i)
+		for (umint iCheckout = 0; iCheckout < mp_Capacity; ++iCheckout)
 			mp_Checkouts.f_Insert(CBlockingActorCheckout(nullptr, nullptr));
 	}
 
@@ -2414,18 +2414,18 @@ namespace NMib::NConcurrency
 	{
 		using namespace NStr;
 
-		DMibLock(m_BlockingActorsLock);
+		DMibLock(mp_BlockingActorsLock);
 
-		auto *pBlockingActor = m_FreeBlockingActors.f_Pop();
+		auto *pBlockingActor = mp_FreeBlockingActors.f_Pop();
 		if (pBlockingActor)
 			return CBlockingActorCheckout(this, pBlockingActor);
 
-		auto &pNewActor = m_BlockingActors.f_Insert();
+		auto &pNewActor = mp_BlockingActors.f_Insert();
 		pNewActor = fg_Construct();
 		auto pNewActorRawPtr = pNewActor.f_Get();
-		auto iBlockingActor = m_nBlockingActors++;
+		auto iBlockingActor = mp_nBlockingActors++;
 		{
-			DMibUnlock(m_BlockingActorsLock);
+			DMibUnlock(mp_BlockingActorsLock);
 			pNewActorRawPtr->m_Actor = f_ConstructActor(fg_Construct<CBlockingActor>(), "Blocking {}"_f << iBlockingActor);
 		}
 
@@ -2434,52 +2434,52 @@ namespace NMib::NConcurrency
 
 	TCActor<CDirectCallActor> const &CConcurrencyManager::f_GetDirectCallActor()
 	{
-		return m_DirectCallActorRef;
+		return mp_DirectCallActorRef;
 	}
 
 	TCActor<CThisConcurrentActor> const &CConcurrencyManager::f_GetThisConcurrentActor()
 	{
-		return m_ThisConcurrentActorRef;
+		return mp_ThisConcurrentActorRef;
 	}
 
 	TCActor<CThisConcurrentActorLowPrio> const &CConcurrencyManager::f_GetThisConcurrentActorLowPrio()
 	{
-		return m_ThisConcurrentActorLowPrioRef;
+		return mp_ThisConcurrentActorLowPrioRef;
 	}
 
 	TCActor<CThisConcurrentActorHighCPU> const &CConcurrencyManager::f_GetThisConcurrentActorHighCPU()
 	{
-		return m_ThisConcurrentActorHighCPURef;
+		return mp_ThisConcurrentActorHighCPURef;
 	}
 
 	TCActor<COtherConcurrentActor> const &CConcurrencyManager::f_GetOtherConcurrentActor()
 	{
-		return m_OtherConcurrentActorRef;
+		return mp_OtherConcurrentActorRef;
 	}
 
 	TCActor<COtherConcurrentActorLowPrio> const &CConcurrencyManager::f_GetOtherConcurrentActorLowPrio()
 	{
-		return m_OtherConcurrentActorLowPrioRef;
+		return mp_OtherConcurrentActorLowPrioRef;
 	}
 
 	TCActor<COtherConcurrentActorHighCPU> const &CConcurrencyManager::f_GetOtherConcurrentActorHighCPU()
 	{
-		return m_OtherConcurrentActorHighCPURef;
+		return mp_OtherConcurrentActorHighCPURef;
 	}
 
 	TCActor<CDynamicConcurrentActor> const &CConcurrencyManager::f_GetDynamicConcurrentActor()
 	{
-		return m_DynamicConcurrentActorRef;
+		return mp_DynamicConcurrentActorRef;
 	}
 
 	TCActor<CDynamicConcurrentActorLowPrio> const &CConcurrencyManager::f_GetDynamicConcurrentActorLowPrio()
 	{
-		return m_DynamicConcurrentActorLowPrioRef;
+		return mp_DynamicConcurrentActorLowPrioRef;
 	}
 
 	TCActor<CDynamicConcurrentActorHighCPU> const &CConcurrencyManager::f_GetDynamicConcurrentActorHighCPU()
 	{
-		return m_DynamicConcurrentActorHighCPURef;
+		return mp_DynamicConcurrentActorHighCPURef;
 	}
 
 	TCActor<CTimerActor> const &CConcurrencyManager::f_GetTimerActor()
@@ -2492,7 +2492,7 @@ namespace NMib::NConcurrency
 		auto &ThreadLocal = fg_ConcurrencyThreadLocal();
 		CActorHolder *pHolder = _Actor ? static_cast<CActorHolder *>(_Actor.f_Get()) : ThreadLocal.m_pCurrentlyProcessingActorHolder;
 		EPriority Priority = f_ClampPriority(pHolder ? pHolder->f_GetPriority() : ThreadLocal.m_pThisQueue ? ThreadLocal.m_pThisQueue->m_Priority : EPriority_Normal);
-		if (pHolder && (&pHolder->f_ConcurrencyManager() != this || pHolder == m_DirectCallActor.f_Get()))
+		if (pHolder && (&pHolder->f_ConcurrencyManager() != this || pHolder == mp_DirectCallActor.f_Get()))
 			pHolder = nullptr;
 
 		uint32 iQueue = pHolder ? pHolder->mp_iTimerQueue.f_Load(NAtomic::gc_MemoryOrder_Relaxed) : gc_InvalidQueue;
@@ -2504,15 +2504,15 @@ namespace NMib::NConcurrency
 			(
 				ThreadLocal.m_pThisQueue
 				&& ThreadLocal.m_pThisQueue->m_Priority == Priority
-				&& ThreadLocal.m_pThisQueue->m_iQueue < m_nThreads
-				&& &m_Queues[Priority][ThreadLocal.m_pThisQueue->m_iQueue] == ThreadLocal.m_pThisQueue
+				&& ThreadLocal.m_pThisQueue->m_iQueue < mp_nThreads
+				&& &mp_Queues[Priority][ThreadLocal.m_pThisQueue->m_iQueue] == ThreadLocal.m_pThisQueue
 				&& (!pHolder || pHolder == ThreadLocal.m_pCurrentlyProcessingActorHolder)
 			)
 			{
 				iQueue = uint32(ThreadLocal.m_pThisQueue->m_iQueue);
 			}
 			else
-				iQueue = uint32(m_iNextTimerQueue[Priority].f_FetchAdd(1, NAtomic::gc_MemoryOrder_Relaxed) % m_nThreads);
+				iQueue = uint32(mp_iNextTimerQueue[Priority].f_FetchAdd(1, NAtomic::gc_MemoryOrder_Relaxed) % mp_nThreads);
 
 			if (pHolder)
 			{
@@ -2522,8 +2522,8 @@ namespace NMib::NConcurrency
 			}
 		}
 
-		DMibFastCheck(iQueue < m_Queues[Priority].f_GetLen());
-		return m_Queues[Priority][iQueue].m_TimerActorRef;
+		DMibFastCheck(iQueue < mp_Queues[Priority].f_GetLen());
+		return mp_Queues[Priority][iQueue].m_TimerActorRef;
 	}
 
 	CFutureCoroutineContextOnResumeScopeAwaiter fg_CurrentActorCheckDestroyedOnResume()
@@ -2605,8 +2605,8 @@ namespace NMib::NConcurrency
 	}
 #endif
 
-	constexpr COnScopeExitActorHelper g_OnScopeExitActorInit{};
-	COnScopeExitActorHelper const &g_OnScopeExitActor = g_OnScopeExitActorInit;
+	constexpr COnScopeExitActorHelper gc_OnScopeExitActorInit{};
+	COnScopeExitActorHelper const &g_OnScopeExitActor = gc_OnScopeExitActorInit;
 
 	CActorSubscriptionReference::~CActorSubscriptionReference() = default;
 

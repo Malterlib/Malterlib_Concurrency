@@ -242,7 +242,7 @@ namespace NMib::NConcurrency
 						,
 						[
 							fDispatcher = fg_Forward<tf_FDispatcher>(_fDispatcher)
-							, ...p_Params2 = NTraits::TCDecay<tfp_CParams2>(fg_Forward<tfp_CParams>(p_Params))
+							, ...Params = NTraits::TCDecay<tfp_CParams2>(fg_Forward<tfp_CParams>(p_Params))
 							, pFunctor = mp_pFunctor
 						] mark_no_coroutine_debug
 						() mutable
@@ -255,7 +255,7 @@ namespace NMib::NConcurrency
 											{
 												return (*pFunctor)(fg_Move(p_Params)...);
 											}
-											(fg_Move(p_Params2)...)
+											(fg_Move(Params)...)
 										;
 									}
 								)

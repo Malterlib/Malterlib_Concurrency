@@ -46,9 +46,9 @@ namespace NMib::NConcurrency
 				, tfp_CCallParams...
 			>
 			{
-				.mp_pMemberFunction = tf_pFunctionPointer
-				, .mp_Actor{*this}
-				, .mp_Params{p_CallParams...}
+				.m_pMemberFunction = tf_pFunctionPointer
+				, .m_Actor{*this}
+				, .m_Params{p_CallParams...}
 			}
 		;
 	}
@@ -94,9 +94,9 @@ namespace NMib::NConcurrency
 				, tfp_CCallParams...
 			>
 			{
-				.mp_pMemberFunction = tf_pFunctionPointer
-				, .mp_Actor{fg_Move(*this)}
-				, .mp_Params{p_CallParams...}
+				.m_pMemberFunction = tf_pFunctionPointer
+				, .m_Actor{fg_Move(*this)}
+				, .m_Params{p_CallParams...}
 			}
 		;
 	}
@@ -142,9 +142,9 @@ namespace NMib::NConcurrency
 				, NTraits::TCDecay<tfp_CCallParams>...
 			>
 			{
-				.mp_pMemberFunction = tf_pFunctionPointer
-				, .mp_Actor{*this}
-				, .mp_Params{fg_Forward<tfp_CCallParams>(p_CallParams)...}
+				.m_pMemberFunction = tf_pFunctionPointer
+				, .m_Actor{*this}
+				, .m_Params{fg_Forward<tfp_CCallParams>(p_CallParams)...}
 			}
 		;
 	}
@@ -190,9 +190,9 @@ namespace NMib::NConcurrency
 				, NTraits::TCDecay<tfp_CCallParams>...
 			>
 			{
-				.mp_pMemberFunction = tf_pFunctionPointer
-				, .mp_Actor{fg_Move(*this)}
-				, .mp_Params{fg_Forward<tfp_CCallParams>(p_CallParams)...}
+				.m_pMemberFunction = tf_pFunctionPointer
+				, .m_Actor{fg_Move(*this)}
+				, .m_Params{fg_Forward<tfp_CCallParams>(p_CallParams)...}
 			}
 		;
 	}
@@ -302,10 +302,10 @@ namespace NMib::NConcurrency
 		{
 			NPrivate::fg_CallActorFuture<t_BindOptions.m_CallType == EActorCallType::mc_Direct, t_BindOptions.m_VirtualCall>
 				(
-					fg_Forward<t_CActor>(mp_Actor)
-					, mp_pMemberFunction
+					fg_Forward<t_CActor>(m_Actor)
+					, m_pMemberFunction
 					, CPromiseConstructDiscardResult()
-					, fg_Move(fg_Get<tfp_Indices>(mp_Params))...
+					, fg_Move(fg_Get<tfp_Indices>(m_Params))...
 				)
 			;
 		}
@@ -313,10 +313,10 @@ namespace NMib::NConcurrency
 		{
 			NPrivate::fg_CallActorFuture<t_BindOptions.m_CallType == EActorCallType::mc_Direct, t_BindOptions.m_VirtualCall>
 				(
-					fg_Forward<t_CActor>(mp_Actor)
-					, mp_pMemberFunction
+					fg_Forward<t_CActor>(m_Actor)
+					, m_pMemberFunction
 					, CPromiseConstructDiscardResult()
-					, fg_Forward<tp_CParams>(fg_Get<tfp_Indices>(mp_Params))...
+					, fg_Forward<tp_CParams>(fg_Get<tfp_Indices>(m_Params))...
 				)
 			;
 		}
@@ -330,10 +330,10 @@ namespace NMib::NConcurrency
 		{
 			return NPrivate::fg_CallActorFuture<t_BindOptions.m_CallType == EActorCallType::mc_Direct, t_BindOptions.m_VirtualCall>
 				(
-					fg_Forward<t_CActor>(mp_Actor)
-					, mp_pMemberFunction
+					fg_Forward<t_CActor>(m_Actor)
+					, m_pMemberFunction
 					, CPromiseConstructNoConsume()
-					, fg_Move(fg_Get<tfp_Indices>(mp_Params))...
+					, fg_Move(fg_Get<tfp_Indices>(m_Params))...
 				)
 			;
 		}
@@ -341,10 +341,10 @@ namespace NMib::NConcurrency
 		{
 			return NPrivate::fg_CallActorFuture<t_BindOptions.m_CallType == EActorCallType::mc_Direct, t_BindOptions.m_VirtualCall>
 				(
-					fg_Forward<t_CActor>(mp_Actor)
-					, mp_pMemberFunction
+					fg_Forward<t_CActor>(m_Actor)
+					, m_pMemberFunction
 					, CPromiseConstructNoConsume()
-					, fg_Forward<tp_CParams>(fg_Get<tfp_Indices>(mp_Params))...
+					, fg_Forward<tp_CParams>(fg_Get<tfp_Indices>(m_Params))...
 				)
 			;
 		}
@@ -366,10 +366,10 @@ namespace NMib::NConcurrency
 			{
 				NPrivate::fg_CallActorFuture<t_BindOptions.m_CallType == EActorCallType::mc_Direct, t_BindOptions.m_VirtualCall>
 					(
-						fg_Forward<t_CActor>(mp_Actor)
-						, mp_pMemberFunction
+						fg_Forward<t_CActor>(m_Actor)
+						, m_pMemberFunction
 						, TCFutureOnResultOverSized<t_CReturn>{fg_Move(_fOnResult)}
-						, fg_Move(fg_Get<tfp_Indices>(mp_Params))...
+						, fg_Move(fg_Get<tfp_Indices>(m_Params))...
 					)
 				;
 			}
@@ -377,10 +377,10 @@ namespace NMib::NConcurrency
 			{
 				NPrivate::fg_CallActorFuture<t_BindOptions.m_CallType == EActorCallType::mc_Direct, t_BindOptions.m_VirtualCall>
 					(
-						fg_Forward<t_CActor>(mp_Actor)
-						, mp_pMemberFunction
+						fg_Forward<t_CActor>(m_Actor)
+						, m_pMemberFunction
 						, TCFutureOnResultOverSized<t_CReturn>{fg_Move(_fOnResult)}
-						, fg_Forward<tp_CParams>(fg_Get<tfp_Indices>(mp_Params))...
+						, fg_Forward<tp_CParams>(fg_Get<tfp_Indices>(m_Params))...
 					)
 				;
 			}
@@ -392,10 +392,10 @@ namespace NMib::NConcurrency
 			{
 				NPrivate::fg_CallActorFuture<t_BindOptions.m_CallType == EActorCallType::mc_Direct, t_BindOptions.m_VirtualCall>
 					(
-						fg_Forward<t_CActor>(mp_Actor)
-						, mp_pMemberFunction
+						fg_Forward<t_CActor>(m_Actor)
+						, m_pMemberFunction
 						, fg_Move(_fOnResult)
-						, fg_Move(fg_Get<tfp_Indices>(mp_Params))...
+						, fg_Move(fg_Get<tfp_Indices>(m_Params))...
 					)
 				;
 			}
@@ -403,10 +403,10 @@ namespace NMib::NConcurrency
 			{
 				NPrivate::fg_CallActorFuture<t_BindOptions.m_CallType == EActorCallType::mc_Direct, t_BindOptions.m_VirtualCall>
 					(
-						fg_Forward<t_CActor>(mp_Actor)
-						, mp_pMemberFunction
+						fg_Forward<t_CActor>(m_Actor)
+						, m_pMemberFunction
 						, fg_Move(_fOnResult)
-						, fg_Forward<tp_CParams>(fg_Get<tfp_Indices>(mp_Params))...
+						, fg_Forward<tp_CParams>(fg_Get<tfp_Indices>(m_Params))...
 					)
 				;
 			}
@@ -436,7 +436,7 @@ namespace NMib::NConcurrency
 		&&
 		requires (NTraits::cIsCallableWith<tf_CResultFunctor, void (TCAsyncResult<t_CReturn> &&_Result)>) // Incorrect type in result call
 	{
-		DMibFastCheck(_ResultCall.mp_Actor);
+		DMibFastCheck(_ResultCall.m_Actor);
 
 		return fg_Move(*this).fp_CallOnResult(fg_Move(_ResultCall), CIndices());
 	}

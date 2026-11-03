@@ -150,38 +150,38 @@ namespace NMib::NConcurrency
 		static_assert(!NTraits::cIsReference<t_CActor>, "Incorrect type");
 		static_assert(!NTraits::cIsReference<t_CFunctor>, "Incorrect type");
 
-		t_CActor mp_Actor;
-		t_CFunctor mp_Functor;
+		t_CActor m_Actor;
+		t_CFunctor m_Functor;
 
 		TCActorResultCall(t_CActor const &_Actor, t_CFunctor &&_Functor)
-			: mp_Actor(_Actor)
-			, mp_Functor(fg_Move(_Functor))
+			: m_Actor(_Actor)
+			, m_Functor(fg_Move(_Functor))
 		{
 		}
 
 		TCActorResultCall(TCActorResultCall const &_Other)
-			: mp_Actor(_Other.mp_Actor)
-			, mp_Functor(_Other.mp_Functor)
+			: m_Actor(_Other.m_Actor)
+			, m_Functor(_Other.m_Functor)
 		{
 		}
 
 		TCActorResultCall(TCActorResultCall &&_Other)
-			: mp_Actor(fg_Move(_Other.mp_Actor))
-			, mp_Functor(fg_Move(_Other.mp_Functor))
+			: m_Actor(fg_Move(_Other.m_Actor))
+			, m_Functor(fg_Move(_Other.m_Functor))
 		{
 		}
 
 		template <typename ...tfp_CParams>
 		void operator () (tfp_CParams && ...p_Params)
 		{
-			DMibFastCheck(mp_Actor);
+			DMibFastCheck(m_Actor);
 
-			auto pActor = mp_Actor.f_GetRealActor();
+			auto pActor = m_Actor.f_GetRealActor();
 			pActor->f_QueueProcess
 				(
 					[
 						...Params = fg_Forward<tfp_CParams>(p_Params)
-						, Functor = fg_Move(mp_Functor)
+						, Functor = fg_Move(m_Functor)
 #if DMibEnableSafeCheck > 0
 						, pActor
 #endif
@@ -197,14 +197,14 @@ namespace NMib::NConcurrency
 
 		TCActorResultCall &operator = (TCActorResultCall const &_Other)
 		{
-			mp_Actor = _Other.mp_Actor;
-			mp_Functor = _Other.mp_Functor;
+			m_Actor = _Other.m_Actor;
+			m_Functor = _Other.m_Functor;
 		}
 
 		TCActorResultCall &operator = (TCActorResultCall &&_Other)
 		{
-			mp_Actor = fg_Move(_Other.mp_Actor);
-			mp_Functor = fg_Move(_Other.mp_Functor);
+			m_Actor = fg_Move(_Other.m_Actor);
+			m_Functor = fg_Move(_Other.m_Functor);
 		}
 	};
 
@@ -642,7 +642,7 @@ namespace NMib::NConcurrency
 		using CTypeList = NMeta::TCTypeList<typename tp_CFutures::CValue...>;
 		using CStorage = NPrivate::TCCallMutipleActorStorage<true, tf_CResultFunctor, tf_CResultActor, CTypeList>;
 
-		NStorage::TCSharedPointer<CStorage> pStorage = fg_Construct(fg_Move(_ResultCall.mp_Actor), fg_Move(_ResultCall.mp_Functor));
+		NStorage::TCSharedPointer<CStorage> pStorage = fg_Construct(fg_Move(_ResultCall.m_Actor), fg_Move(_ResultCall.m_Functor));
 
 		(
 			[&]

@@ -35,7 +35,7 @@ namespace NMib::NConcurrency
 			TCAsyncResult<t_CResult> m_Result;
 		};
 
-		TCActor<CCallState> m_CallState;
+		TCActor<CCallState> mp_CallState;
 	};
 }
 

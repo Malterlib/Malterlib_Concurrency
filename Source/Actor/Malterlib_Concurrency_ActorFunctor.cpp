@@ -8,11 +8,11 @@
 
 namespace NMib::NConcurrency
 {
-	constexpr CActorFunctorHelper g_ActorFunctorInit{};
-	CActorFunctorHelper const &g_ActorFunctor = g_ActorFunctorInit;
+	constexpr CActorFunctorHelper gc_ActorFunctorInit{};
+	CActorFunctorHelper const &g_ActorFunctor = gc_ActorFunctorInit;
 
-	constexpr TCActorFunctorHelper<true> g_ActorFunctorCoalescedInit{};
-	TCActorFunctorHelper<true> const &g_ActorFunctorCoalesced = g_ActorFunctorCoalescedInit;
+	constexpr TCActorFunctorHelper<true> gc_ActorFunctorCoalescedInit{};
+	TCActorFunctorHelper<true> const &g_ActorFunctorCoalesced = gc_ActorFunctorCoalescedInit;
 
 	namespace NPrivate
 	{

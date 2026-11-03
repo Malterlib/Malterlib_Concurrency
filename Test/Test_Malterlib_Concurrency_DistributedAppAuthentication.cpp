@@ -37,7 +37,7 @@ using namespace NMib::NStr;
 using namespace NMib::NContainer;
 using namespace NMib::NTest;
 
-static fp64 g_Timeout = 60.0 * gc_TimeoutMultiplier;
+static fp64 gs_Timeout = 60.0 * gc_TimeoutMultiplier;
 
 namespace NTestAuthentication
 {
@@ -136,7 +136,7 @@ namespace NTestAuthentication
 			CServer(CDistributedAppState &_AppState)
 				: mp_AppState(_AppState)
 			{
-				mp_ProtocolInterface.f_Publish<CServerInterface>(mp_AppState.m_DistributionManager, this, g_Timeout / 2.0) > [](TCAsyncResult<void> &&_Result)
+				mp_ProtocolInterface.f_Publish<CServerInterface>(mp_AppState.m_DistributionManager, this, gs_Timeout / 2.0) > [](TCAsyncResult<void> &&_Result)
 					{
 						if (!_Result)
 							DMibConErrOut("Failed to publish server interface: {}\n", _Result.f_GetExceptionStr());
@@ -281,7 +281,7 @@ namespace NTestAuthentication
 			CServer(CDistributedAppState &_AppState)
 				: mp_AppState(_AppState)
 			{
-				mp_ProtocolInterface.f_Publish<CManyServerInterface>(mp_AppState.m_DistributionManager, this, g_Timeout / 2.0) > [](TCAsyncResult<void> &&_Result)
+				mp_ProtocolInterface.f_Publish<CManyServerInterface>(mp_AppState.m_DistributionManager, this, gs_Timeout / 2.0) > [](TCAsyncResult<void> &&_Result)
 					{
 						if (!_Result)
 							DMibConErrOut("Failed to publish server interface: {}\n", _Result.f_GetExceptionStr());
@@ -454,7 +454,7 @@ namespace NTestAuthentication
 			CServer(CDistributedAppState &_AppState)
 				: mp_AppState(_AppState)
 			{
-				mp_ProtocolInterface.f_Publish<CSlowServerInterface>(mp_AppState.m_DistributionManager, this, g_Timeout / 2.0) > [](TCAsyncResult<void> &&_Result)
+				mp_ProtocolInterface.f_Publish<CSlowServerInterface>(mp_AppState.m_DistributionManager, this, gs_Timeout / 2.0) > [](TCAsyncResult<void> &&_Result)
 					{
 						if (!_Result)
 							DMibConErrOut("Failed to publish server interface: {}\n", _Result.f_GetExceptionStr());
@@ -541,7 +541,7 @@ namespace NTestAuthentication
 				.f_MinimumCryptoStrength(NCryptography::ECryptoStrength::mc_EquivalentSymmetric128bit)
 				.f_SupportUserAuthentication(false)
 			)
-			, m_DefaultUserID(_DefaultUserID)
+			, mp_DefaultUserID(_DefaultUserID)
 		{
 		}
 
@@ -563,8 +563,8 @@ namespace NTestAuthentication
 		TCFuture<void> fp_StartApp(CEJsonSorted const _Params) override
 		{
 			// Have to create the user and set it as default user before registering the authentication handler.
-			co_await mp_State.m_TrustManager(&CDistributedActorTrustManager::f_AddUser, m_DefaultUserID, "Default User");
-			co_await mp_State.m_TrustManager(&CDistributedActorTrustManager::f_SetDefaultUser, m_DefaultUserID);
+			co_await mp_State.m_TrustManager(&CDistributedActorTrustManager::f_AddUser, mp_DefaultUserID, "Default User");
+			co_await mp_State.m_TrustManager(&CDistributedActorTrustManager::f_SetDefaultUser, mp_DefaultUserID);
 			auto [Subscription, ManySubscription, SlowSubscription] = co_await
 				(
 					mp_State.m_TrustManager->f_SubscribeTrustedActors<CServerInterface>()
@@ -832,7 +832,7 @@ namespace NTestAuthentication
 		TCTrustedActorSubscription<CManyServerInterface> mp_ManyTestServers;
 		TCTrustedActorSubscription<CSlowServerInterface> mp_SlowTestServers;
 
-		CStr m_DefaultUserID;
+		CStr mp_DefaultUserID;
 	};
 
 	NFunction::TCFunction<TCActor<CDistributedAppActor> ()> fg_ConstructApp_ClientFactory(CStr const &_DefaultUserID)
@@ -847,7 +847,7 @@ namespace NTestAuthentication
 	struct CCommandLineControlActorTest : public ICCommandLineControl
 	{
 		CCommandLineControlActorTest(bool _bEchoStdErr)
-			: m_bEchoStdErr(_bEchoStdErr)
+			: mp_bEchoStdErr(_bEchoStdErr)
 		{
 		}
 
@@ -889,7 +889,7 @@ namespace NTestAuthentication
 
 		TCFuture<NStr::CStrIO> f_ReadPrompt(NProcess::CStdInReaderPromptParams _Params) override
 		{
-			co_return m_ReturnValues.f_PopBack();
+			co_return mp_ReturnValues.f_PopBack();
 		}
 
 		TCFuture<void> f_AbortReads() override
@@ -900,7 +900,7 @@ namespace NTestAuthentication
 
 		TCFuture<void> f_StdOut(NStr::CStrIO _Output) override
 		{
-			m_StdOut += _Output;
+			mp_StdOut += _Output;
 			co_return {};
 		}
 
@@ -912,10 +912,10 @@ namespace NTestAuthentication
 
 		TCFuture<void> f_StdErr(NStr::CStrIO _Output) override
 		{
-			if (m_bEchoStdErr)
+			if (mp_bEchoStdErr)
 				DMibConOut("{}", _Output);
 			else
-				m_StdErr += _Output;
+				mp_StdErr += _Output;
 
 			co_return {};
 		}
@@ -940,24 +940,24 @@ namespace NTestAuthentication
 
 		TCFuture<void> f_ReturnString(NStr::CStrSecure _String)
 		{
-			m_ReturnValues.f_InsertLast(_String);
+			mp_ReturnValues.f_InsertLast(_String);
 			co_return {};
 		}
 
 		CStrSecure f_ReturnStdOut()
 		{
-			return fg_Move(m_StdOut);
+			return fg_Move(mp_StdOut);
 		}
 
 		CStrSecure f_ReturnStdErr()
 		{
-			return fg_Move(m_StdErr);
+			return fg_Move(mp_StdErr);
 		}
 
 		void f_Clear()
 		{
-			m_StdErr.f_Clear();
-			m_StdOut.f_Clear();
+			mp_StdErr.f_Clear();
+			mp_StdOut.f_Clear();
 		}
 
 		TCFuture<CU2FRegister::CResult> f_U2F_Register(CU2FRegister _Register) override
@@ -976,10 +976,10 @@ namespace NTestAuthentication
 			co_return {};
 		}
 
-		TCVector<NStr::CStrSecure> m_ReturnValues;
-		NStr::CStrSecure m_StdOut;
-		NStr::CStrSecure m_StdErr;
-		bool m_bEchoStdErr;
+		TCVector<NStr::CStrSecure> mp_ReturnValues;
+		NStr::CStrSecure mp_StdOut;
+		NStr::CStrSecure mp_StdErr;
+		bool mp_bEchoStdErr;
 	};
 
 	struct CCallCount : public CActor
@@ -1210,7 +1210,7 @@ private:
 
 		CProcessLaunch::fs_KillProcessesInDirectory("*", {}, RootDirectory, 10.0);
 
-		for (umint i = 0; i < 5; ++i)
+		for (umint iAttempt = 0; iAttempt < 5; ++iAttempt)
 		{
 			try
 			{
@@ -1233,17 +1233,17 @@ private:
 			}
 		;
 
-		CStr TestHostID = TrustManager(&CDistributedActorTrustManager::f_GetHostID).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
+		CStr TestHostID = TrustManager(&CDistributedActorTrustManager::f_GetHostID).f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout);
 		CTrustedSubscriptionTestHelper Subscriptions{TrustManager};
 
 		CDistributedActorTrustManager_Address TestAddress;
 		TestAddress.m_URL = "wss://[UNIX(666):{}]/"_f << fg_GetSafeUnixSocketPath("{}/controller.sock"_f << RootDirectory);
-		TrustManager(&CDistributedActorTrustManager::f_AddListen, TestAddress, 0).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
+		TrustManager(&CDistributedActorTrustManager::f_AddListen, TestAddress, 0).f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout);
 
 		CDistributedApp_LaunchHelperDependencies Dependencies;
 		Dependencies.m_Address = TestAddress.m_URL;
 		Dependencies.m_TrustManager = TrustManager;
-		Dependencies.m_DistributionManager = TrustManager(&CDistributedActorTrustManager::f_GetDistributionManager).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
+		Dependencies.m_DistributionManager = TrustManager(&CDistributedActorTrustManager::f_GetDistributionManager).f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout);
 
 		NMib::NConcurrency::CDistributedActorSecurity Security;
 		static constexpr ch8 const *c_pDefaultNamespace = "com.malterlib/Concurrency/AuthenticationTest";
@@ -1252,7 +1252,7 @@ private:
 		Security.m_AllowedIncomingConnectionNamespaces.f_Insert(CServerInterface::mc_pDefaultNamespace);
 		Security.m_AllowedIncomingConnectionNamespaces.f_Insert(CManyServerInterface::mc_pDefaultNamespace);
 		Security.m_AllowedIncomingConnectionNamespaces.f_Insert(CSlowServerInterface::mc_pDefaultNamespace);
-		Dependencies.m_DistributionManager(&CActorDistributionManager::f_SetSecurity, Security).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
+		Dependencies.m_DistributionManager(&CActorDistributionManager::f_SetSecurity, Security).f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout);
 
 		TCActor<CDistributedApp_LaunchHelper> LaunchHelper = fg_ConstructActor<CDistributedApp_LaunchHelper>(Dependencies, !!(fg_TestReportFlags() & ETestReportFlag_EnableLogs));
 		g_CallCount = fg_ConstructActor<CCallCount>();
@@ -1270,7 +1270,7 @@ private:
 		CStr ServerDirectory = RootDirectory + "/" + ServerName;
 		CFile::fs_CreateDirectory(ServerDirectory);
 		auto ServerLaunch = LaunchHelper(&CDistributedApp_LaunchHelper::f_LaunchInProcess, ServerName, ServerDirectory, &fg_ConstructApp_Server, NContainer::TCVector<NStr::CStr>{})
-			.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
+			.f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout)
 		;
 		auto pServerTrust = ServerLaunch.m_pTrustInterface;
 		NConcurrency::TCDistributedActor<CDistributedActorTrustManagerInterface> ServerTrust = *pServerTrust;
@@ -1279,12 +1279,12 @@ private:
 		ServerAddress.m_URL = "wss://[UNIX(666):{}]/"_f << fg_GetSafeUnixSocketPath("{}/DistributedAppAuthenticationTestsServer.sock"_f << RootDirectory);
 		ServerTrust.f_CallActor(&CDistributedActorTrustManagerInterface::f_AddListen)
 			(CDistributedActorTrustManagerInterface::CAddListen{.m_Address = ServerAddress})
-			.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
+			.f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout)
 		;
 
 		TrustManager.f_CallActor(&CDistributedActorTrustManager::f_AllowHostsForNamespace)
 			(CServerInterface::mc_pDefaultNamespace, fg_CreateSet<CStr>(ServerHostID), c_WaitForSubscriptions)
-			.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
+			.f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout)
 		;
 
 		auto Server = Subscriptions.f_Subscribe<CServerInterface>(RunLoopHelper);
@@ -1300,7 +1300,7 @@ private:
 				, &fg_ConstructApp_ManyServer
 				, NContainer::TCVector<NStr::CStr>{}
 			)
-			.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
+			.f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout)
 		;
 		auto pManyServerTrust = ManyServerLaunch.m_pTrustInterface;
 		NConcurrency::TCDistributedActor<CDistributedActorTrustManagerInterface> ManyServerTrust = *pManyServerTrust;
@@ -1309,12 +1309,12 @@ private:
 		ManyServerAddress.m_URL = "wss://[UNIX(666):{}]/"_f << fg_GetSafeUnixSocketPath("{}/DistributedAppAuthenticationTestsManyServer.sock"_f << RootDirectory);
 		ManyServerTrust.f_CallActor(&CDistributedActorTrustManagerInterface::f_AddListen)
 			(CDistributedActorTrustManagerInterface::CAddListen{.m_Address = ManyServerAddress})
-			.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
+			.f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout)
 		;
 
 		TrustManager.f_CallActor(&CDistributedActorTrustManager::f_AllowHostsForNamespace)
 			(CManyServerInterface::mc_pDefaultNamespace, fg_CreateSet<CStr>(ManyServerHostID), c_WaitForSubscriptions)
-			.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
+			.f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout)
 		;
 
 		auto ManyServer = Subscriptions.f_Subscribe<CManyServerInterface>(RunLoopHelper);
@@ -1330,7 +1330,7 @@ private:
 				, &fg_ConstructApp_SlowServer
 				, NContainer::TCVector<NStr::CStr>{}
 			)
-			.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
+			.f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout)
 		;
 		auto pSlowServerTrust = SlowServerLaunch.m_pTrustInterface;
 		NConcurrency::TCDistributedActor<CDistributedActorTrustManagerInterface> SlowServerTrust = *pSlowServerTrust;
@@ -1339,12 +1339,12 @@ private:
 		SlowServerAddress.m_URL = "wss://[UNIX(666):{}]/"_f << fg_GetSafeUnixSocketPath("{}/DistributedAppAuthenticationTestsSlowServer.sock"_f << RootDirectory);
 		SlowServerTrust.f_CallActor(&CDistributedActorTrustManagerInterface::f_AddListen)
 			(CDistributedActorTrustManagerInterface::CAddListen{.m_Address = SlowServerAddress})
-			.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
+			.f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout)
 		;
 
 		TrustManager.f_CallActor(&CDistributedActorTrustManager::f_AllowHostsForNamespace)
 			(CSlowServerInterface::mc_pDefaultNamespace, fg_CreateSet<CStr>(SlowServerHostID), c_WaitForSubscriptions)
-			.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
+			.f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout)
 		;
 
 		auto SlowServer = Subscriptions.f_Subscribe<CSlowServerInterface>(RunLoopHelper);
@@ -1363,7 +1363,7 @@ private:
 				, fg_ConstructApp_ClientFactory(DefaultUserID)
 				, NContainer::TCVector<NStr::CStr>{}
 			)
-			.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
+			.f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout)
 		;
 		auto pClientTrust = ClientLaunch.m_pTrustInterface;
 		NConcurrency::TCDistributedActor<CDistributedActorTrustManagerInterface> ClientTrust = *pClientTrust;
@@ -1373,7 +1373,7 @@ private:
 		ClientAddress.m_URL = "wss://[UNIX(666):{}]/"_f << fg_GetSafeUnixSocketPath("{}/DistributedAppAuthenticationTestsClient.sock"_f << RootDirectory);
 		ClientTrust.f_CallActor(&CDistributedActorTrustManagerInterface::f_AddListen)
 			(CDistributedActorTrustManagerInterface::CAddListen{.m_Address = ClientAddress})
-			.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
+			.f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout)
 		;
 
 		auto fNamespaceHosts = [](auto &&_Namespace, auto &&_Hosts)
@@ -1386,20 +1386,20 @@ private:
 		{
 			ClientTrust.f_CallActor(&CDistributedActorTrustManagerInterface::f_AllowHostsForNamespace)
 				(fNamespaceHosts(ICDistributedActorAuthentication::mc_pDefaultNamespace, fg_CreateSet<CStr>(HostID)))
-				.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
+				.f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout)
 			;
 		}
 		ClientTrust.f_CallActor(&CDistributedActorTrustManagerInterface::f_AllowHostsForNamespace)
 			(fNamespaceHosts(CServerInterface::mc_pDefaultNamespace, fg_CreateSet<CStr>(ServerHostID)))
-			.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
+			.f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout)
 		;
 		ClientTrust.f_CallActor(&CDistributedActorTrustManagerInterface::f_AllowHostsForNamespace)
 			(fNamespaceHosts(CManyServerInterface::mc_pDefaultNamespace, fg_CreateSet<CStr>(ManyServerHostID)))
-			.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
+			.f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout)
 		;
 		ClientTrust.f_CallActor(&CDistributedActorTrustManagerInterface::f_AllowHostsForNamespace)
 			(fNamespaceHosts(CSlowServerInterface::mc_pDefaultNamespace, fg_CreateSet<CStr>(SlowServerHostID)))
-			.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
+			.f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout)
 		;
 
 		{
@@ -1409,12 +1409,12 @@ private:
 				{
 					auto &ClientTrust = *pClientTrust;
 					ClientTrust.f_CallActor(&CDistributedActorTrustManagerInterface::f_AddClientConnection)
-						(CDistributedActorTrustManagerInterface::CAddClientConnection{.m_TrustTicket = _Ticket.m_Ticket, .m_Timeout = g_Timeout})
+						(CDistributedActorTrustManagerInterface::CAddClientConnection{.m_TrustTicket = _Ticket.m_Ticket, .m_Timeout = gs_Timeout})
 						.f_OnResultSet(Promise.f_ReceiveAny())
 					;
 				}
 			;
-			Promise.f_MoveFuture().f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
+			Promise.f_MoveFuture().f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout);
 		}
 		{
 			TCPromise<void> Promise;
@@ -1424,12 +1424,12 @@ private:
 				{
 					auto &ClientTrust = *pClientTrust;
 					ClientTrust.f_CallActor(&CDistributedActorTrustManagerInterface::f_AddClientConnection)
-						(CDistributedActorTrustManagerInterface::CAddClientConnection{.m_TrustTicket = _Ticket.m_Ticket, .m_Timeout = g_Timeout})
+						(CDistributedActorTrustManagerInterface::CAddClientConnection{.m_TrustTicket = _Ticket.m_Ticket, .m_Timeout = gs_Timeout})
 						.f_OnResultSet(Promise.f_ReceiveAny())
 					;
 				}
 			;
-			Promise.f_MoveFuture().f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
+			Promise.f_MoveFuture().f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout);
 		}
 		{
 			TCPromise<void> Promise;
@@ -1439,12 +1439,12 @@ private:
 				{
 					auto &ClientTrust = *pClientTrust;
 					ClientTrust.f_CallActor(&CDistributedActorTrustManagerInterface::f_AddClientConnection)
-						(CDistributedActorTrustManagerInterface::CAddClientConnection{.m_TrustTicket = _Ticket.m_Ticket, .m_Timeout = g_Timeout})
+						(CDistributedActorTrustManagerInterface::CAddClientConnection{.m_TrustTicket = _Ticket.m_Ticket, .m_Timeout = gs_Timeout})
 						.f_OnResultSet(Promise.f_ReceiveAny())
 					;
 				}
 			;
-			Promise.f_MoveFuture().f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
+			Promise.f_MoveFuture().f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout);
 		}
 
 		// Before running a command on the client we also need a command line control object
@@ -1458,7 +1458,7 @@ private:
 
 		// Now that we have a default user in the client and a command line control we will run a dummy command. That is the usual way the authentication handler is registered
 		// on the server side. We will perform all the tests after the command has returned.
-		auto CommandLineHostID = ClientLaunch.f_Test_Command("CommandLineHostID", {}).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout).f_String();
+		auto CommandLineHostID = ClientLaunch.f_Test_Command("CommandLineHostID", {}).f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout).f_String();
 		NStorage::TCSharedPointer<CCommandLineControl> pCommandLine = fg_Construct(fg_Move(CommandLineControl));
 		NEncoding::CEJsonSorted Json =
 			{
@@ -1501,40 +1501,51 @@ private:
 			}
 		;
 
-		ClientLaunch.f_RunCommandLine(fHostInfo("UserID", CommandLineHostID), "--test-actor", fg_TempCopy(Json), fg_TempCopy(pCommandLine)).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
+		ClientLaunch.f_RunCommandLine(fHostInfo("UserID", CommandLineHostID), "--test-actor", fg_TempCopy(Json), fg_TempCopy(pCommandLine)).f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout);
 
 		// Setup authentication for the user. For the sake of simplicity we will setup the user in TrustManager. We don't need the user there but it is a full trust manager,
 		// both ClientTrust and ServerTrust are CDistributedActorTrustManagerInterface with a more restricted interface.
-		TrustManager(&CDistributedActorTrustManager::f_AddUser, DefaultUserID, "Default User").f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
-		TrustManager(&CDistributedActorTrustManager::f_SetDefaultUser, DefaultUserID).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
-		TrustManager.f_CallActor(&CDistributedActorTrustManager::f_RegisterUserAuthenticationFactor)(pCommandLine, DefaultUserID, "Succeed1").f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
-		TrustManager.f_CallActor(&CDistributedActorTrustManager::f_RegisterUserAuthenticationFactor)(pCommandLine, DefaultUserID, "Succeed2").f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
-		TrustManager.f_CallActor(&CDistributedActorTrustManager::f_RegisterUserAuthenticationFactor)(pCommandLine, DefaultUserID, "Succeed3").f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
-		TrustManager.f_CallActor(&CDistributedActorTrustManager::f_RegisterUserAuthenticationFactor)(pCommandLine, DefaultUserID, "Fail1").f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
-		auto ExportedWithPrivate = fg_CurrentActor().f_Bind<fg_ExportUser<CDistributedActorTrustManager>>(TrustManager, DefaultUserID, true).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
+		TrustManager(&CDistributedActorTrustManager::f_AddUser, DefaultUserID, "Default User").f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout);
+		TrustManager(&CDistributedActorTrustManager::f_SetDefaultUser, DefaultUserID).f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout);
+		TrustManager.f_CallActor(&CDistributedActorTrustManager::f_RegisterUserAuthenticationFactor)
+			(pCommandLine, DefaultUserID, "Succeed1")
+			.f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout)
+		;
+		TrustManager.f_CallActor(&CDistributedActorTrustManager::f_RegisterUserAuthenticationFactor)
+			(pCommandLine, DefaultUserID, "Succeed2")
+			.f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout)
+		;
+		TrustManager.f_CallActor(&CDistributedActorTrustManager::f_RegisterUserAuthenticationFactor)
+			(pCommandLine, DefaultUserID, "Succeed3")
+			.f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout)
+		;
+		TrustManager.f_CallActor(&CDistributedActorTrustManager::f_RegisterUserAuthenticationFactor)(pCommandLine, DefaultUserID, "Fail1").f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout);
+		auto ExportedWithPrivate = fg_CurrentActor().f_Bind<fg_ExportUser<CDistributedActorTrustManager>>(TrustManager, DefaultUserID, true).f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout);
 		auto ExportedWithoutPrivate = fg_CurrentActor().f_Bind<fg_ExportUser<CDistributedActorTrustManager>>(TrustManager, DefaultUserID, false).f_CallSync
 			(
 				RunLoopHelper.m_pRunLoop
-				, g_Timeout
+				, gs_Timeout
 			)
 		;
 		fg_CurrentActor().f_Bind<fg_ImportUser<TCDistributedActorWrapper<CDistributedActorTrustManagerInterface>>>(ClientTrust, ExportedWithPrivate).f_CallSync
 			(
 				RunLoopHelper.m_pRunLoop
-				, g_Timeout
+				, gs_Timeout
+			)
+		;
+		fg_CurrentActor().f_Bind<fg_ImportUser<TCDistributedActorWrapper<CDistributedActorTrustManagerInterface>>>(ServerTrust, ExportedWithoutPrivate).f_CallSync
+			(
+				RunLoopHelper.m_pRunLoop
+				, gs_Timeout
 			)
 		;
 		fg_CurrentActor()
-			.f_Bind<fg_ImportUser<TCDistributedActorWrapper<CDistributedActorTrustManagerInterface>>>(ServerTrust, ExportedWithoutPrivate)
-			.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
-		;
-		fg_CurrentActor()
 			.f_Bind<fg_ImportUser<TCDistributedActorWrapper<CDistributedActorTrustManagerInterface>>>(ManyServerTrust, ExportedWithoutPrivate)
-			.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
+			.f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout)
 		;
 		fg_CurrentActor()
 			.f_Bind<fg_ImportUser<TCDistributedActorWrapper<CDistributedActorTrustManagerInterface>>>(SlowServerTrust, ExportedWithoutPrivate)
-			.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
+			.f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout)
 		;
 
 		// Add a permissions to Server that requires authentication
@@ -1551,7 +1562,7 @@ private:
 				auto &ServerTrust = *_pServerTrust;
 				ServerTrust.f_CallActor(&CDistributedActorTrustManagerInterface::f_AddPermissions)
 					(CDistributedActorTrustManagerInterface::CAddPermissions{{HostID, UserID}, Permissions, EDistributedActorTrustManagerOrderingFlag_WaitForSubscriptions})
-					.f_CallSync(pRunLoop, g_Timeout)
+					.f_CallSync(pRunLoop, gs_Timeout)
 				;
 			}
 		;
@@ -1583,7 +1594,7 @@ private:
 		using CCallCounts = TCMap<CStr, aint>;
 		auto fCallCounts = [pRunLoop = RunLoopHelper.m_pRunLoop]
 			{
-				return g_CallCount(&CCallCount::f_GetCounts).f_CallSync(pRunLoop, g_Timeout);
+				return g_CallCount(&CCallCount::f_GetCounts).f_CallSync(pRunLoop, gs_Timeout);
 			}
 		;
 
@@ -1626,12 +1637,12 @@ private:
 				Json["AuthenticationLifetime"] = _Lifetime;
 				Json["JsonOutput"] = true;
 
-				pCommandLineControl.f_CallActor(&CCommandLineControlActorTest::f_Clear)().f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
+				pCommandLineControl.f_CallActor(&CCommandLineControlActorTest::f_Clear)().f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout);
 				ClientLaunch.f_RunCommandLine(fHostInfo("UserID", CommandLineHostID), "--trust-user-authenticate-pattern", fg_TempCopy(Json), fg_TempCopy(pCommandLine))
-					.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
+					.f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout)
 				;
 
-				return CEJsonSorted::fs_FromString(pCommandLineControl.f_CallActor(&CCommandLineControlActorTest::f_ReturnStdOut)().f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout));
+				return CEJsonSorted::fs_FromString(pCommandLineControl.f_CallActor(&CCommandLineControlActorTest::f_ReturnStdOut)().f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout));
 			}
 		;
 
@@ -1641,11 +1652,11 @@ private:
 
 				Json["Permissions"] = _Permissions;
 
-				pCommandLineControl.f_CallActor(&CCommandLineControlActorTest::f_Clear)().f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
+				pCommandLineControl.f_CallActor(&CCommandLineControlActorTest::f_Clear)().f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout);
 				ClientLaunch.f_RunCommandLine(fHostInfo("UserID", CommandLineHostID), fg_TempCopy(_Command), fg_TempCopy(Json), fg_TempCopy(pCommandLine))
-					.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
+					.f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout)
 				;
-				return CEJsonSorted::fs_FromString(pCommandLineControl.f_CallActor(&CCommandLineControlActorTest::f_ReturnStdOut)().f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout))
+				return CEJsonSorted::fs_FromString(pCommandLineControl.f_CallActor(&CCommandLineControlActorTest::f_ReturnStdOut)().f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout))
 					.f_Boolean()
 				;
 			}
@@ -1659,11 +1670,11 @@ private:
 				for (auto &Query : _Permissions)
 					Queries.f_Insert(Query.f_ToJson());
 
-				pCommandLineControl.f_CallActor(&CCommandLineControlActorTest::f_Clear)().f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
+				pCommandLineControl.f_CallActor(&CCommandLineControlActorTest::f_Clear)().f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout);
 				ClientLaunch.f_RunCommandLine(fHostInfo("UserID", CommandLineHostID), "--perform-call-2", fg_TempCopy(Json), fg_TempCopy(pCommandLine))
-					.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
+					.f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout)
 				;
-				return CEJsonSorted::fs_FromString(pCommandLineControl.f_CallActor(&CCommandLineControlActorTest::f_ReturnStdOut)().f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout))
+				return CEJsonSorted::fs_FromString(pCommandLineControl.f_CallActor(&CCommandLineControlActorTest::f_ReturnStdOut)().f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout))
 					.f_Boolean()
 				;
 			}
@@ -1682,13 +1693,13 @@ private:
 						Queries.f_Insert(Query.f_ToJson());
 				}
 
-				pCommandLineControl.f_CallActor(&CCommandLineControlActorTest::f_Clear)().f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
+				pCommandLineControl.f_CallActor(&CCommandLineControlActorTest::f_Clear)().f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout);
 				ClientLaunch.f_RunCommandLine(fHostInfo("UserID", CommandLineHostID), "--perform-call-3", fg_TempCopy(Json), fg_TempCopy(pCommandLine))
-					.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
+					.f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout)
 				;
 
 				TCMap<CStr, bool> Return;
-				auto Results = CEJsonSorted::fs_FromString(pCommandLineControl.f_CallActor(&CCommandLineControlActorTest::f_ReturnStdOut)().f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout));
+				auto Results = CEJsonSorted::fs_FromString(pCommandLineControl.f_CallActor(&CCommandLineControlActorTest::f_ReturnStdOut)().f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout));
 
 				for (auto &Result : Results.f_Object())
 					Return[Result.f_Name()] = Result.f_Value().f_Boolean();
@@ -1751,7 +1762,7 @@ private:
 
 			// Multiple permissions - select the one with simplest authentication.
 			// No authentication is better that any authentication. Ifboth have authentication, select the one with the lowest value for Category.
-			g_CallCount(&CCallCount::f_Clear).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
+			g_CallCount(&CCallCount::f_Clear).f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout);
 			DMibExpectTrue(fPerformCall1(TCVector<CStr>{"com.malterlib/Succeed1", "com.malterlib/NonExistant1"}));
 			DCheckCallCounts(CCallCounts({{"Succeed1", 1}}), "Succeed1 NonExistant1");
 
@@ -1796,7 +1807,7 @@ private:
 
 			// Multiple permissions - select the one with simplest authentication.
 			// No authentication is better that any authentication. If both have authentication, select the one with the lowest value for Category.
-			g_CallCount(&CCallCount::f_Clear).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
+			g_CallCount(&CCallCount::f_Clear).f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout);
 			DMibExpectTrue(fPerformCall2(CQueries{{"com.malterlib/Succeed1", "com.malterlib/NonExistant1"}}));
 			DCheckCallCounts(CCallCounts({{"Succeed1", 1}}), "Succeed1 NonExistant1");
 
@@ -1904,7 +1915,7 @@ private:
 
 			// Multiple permissions - select the one with simplest authentication.
 			// No authentication is better that any authentication. If both have authentication, select the one with the lowest value for Category.
-			g_CallCount(&CCallCount::f_Clear).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
+			g_CallCount(&CCallCount::f_Clear).f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout);
 			DMibExpectTrue(fPerformCall3(fMQ1("Tag", CQueries{{"com.malterlib/Succeed1", "com.malterlib/NonExistant1"}}))["Tag"]);
 			DCheckCallCounts(CCallCounts({{"Succeed1", 1}}), "Succeed1 NonExistant1");
 
@@ -1990,87 +2001,91 @@ private:
 
 		// Test password authentication
 		{
-			pCommandLineControl.f_CallActor(&CCommandLineControlActorTest::f_ReturnString)("Password").f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
-			pCommandLineControl.f_CallActor(&CCommandLineControlActorTest::f_ReturnString)("Wrong").f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
+			pCommandLineControl.f_CallActor(&CCommandLineControlActorTest::f_ReturnString)("Password").f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout);
+			pCommandLineControl.f_CallActor(&CCommandLineControlActorTest::f_ReturnString)("Wrong").f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout);
 			DMibExpectException
 				(
 					TrustManager.f_CallActor(&CDistributedActorTrustManager::f_RegisterUserAuthenticationFactor)
 					(pCommandLine, DefaultUserID, "Password")
-					.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
+					.f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout)
 					, DMibErrorInstance("Password mismatch")
 				)
 			;
-			pCommandLineControl.f_CallActor(&CCommandLineControlActorTest::f_ReturnString)("Password").f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
-			pCommandLineControl.f_CallActor(&CCommandLineControlActorTest::f_ReturnString)("Password").f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
+			pCommandLineControl.f_CallActor(&CCommandLineControlActorTest::f_ReturnString)("Password").f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout);
+			pCommandLineControl.f_CallActor(&CCommandLineControlActorTest::f_ReturnString)("Password").f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout);
 			TrustManager.f_CallActor(&CDistributedActorTrustManager::f_RegisterUserAuthenticationFactor)
 				(pCommandLine, DefaultUserID, "Password")
-				.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
+				.f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout)
 			;
 
 			auto ExportedWithPrivate = fg_CurrentActor().f_Bind<fg_ExportUser<CDistributedActorTrustManager>>(TrustManager, DefaultUserID, true).f_CallSync
 				(
 					RunLoopHelper.m_pRunLoop
-					, g_Timeout
+					, gs_Timeout
 				)
 			;
 			auto ExportedWithoutPrivate = fg_CurrentActor().f_Bind<fg_ExportUser<CDistributedActorTrustManager>>(TrustManager, DefaultUserID, false).f_CallSync
 				(
 					RunLoopHelper.m_pRunLoop
-					, g_Timeout
+					, gs_Timeout
 				)
 			;
 			fg_CurrentActor().f_Bind<fg_ImportUser<TCDistributedActorWrapper<CDistributedActorTrustManagerInterface>>>(ClientTrust, ExportedWithPrivate).f_CallSync
 				(
 					RunLoopHelper.m_pRunLoop
-					, g_Timeout
+					, gs_Timeout
 				)
 			;
-			fg_CurrentActor()
-				.f_Bind<fg_ImportUser<TCDistributedActorWrapper<CDistributedActorTrustManagerInterface>>>(ServerTrust, ExportedWithoutPrivate)
-				.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
+			fg_CurrentActor().f_Bind<fg_ImportUser<TCDistributedActorWrapper<CDistributedActorTrustManagerInterface>>>(ServerTrust, ExportedWithoutPrivate).f_CallSync
+				(
+					RunLoopHelper.m_pRunLoop
+					, gs_Timeout
+				)
 			;
 			{
 				DMibTestPath("Correct Password");
-				pCommandLineControl.f_CallActor(&CCommandLineControlActorTest::f_ReturnString)("Password").f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
+				pCommandLineControl.f_CallActor(&CCommandLineControlActorTest::f_ReturnString)("Password").f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout);
 				DMibExpectTrue(fPerformCall1(TCVector<CStr>{"com.malterlib/Password"}));
 			}
 			{
 				DMibTestPath("Wrong Password");
-				pCommandLineControl.f_CallActor(&CCommandLineControlActorTest::f_ReturnString)("Wrong").f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
+				pCommandLineControl.f_CallActor(&CCommandLineControlActorTest::f_ReturnString)("Wrong").f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout);
 				DMibExpectFalse(fPerformCall1(TCVector<CStr>{"com.malterlib/Password"}));
 			}
 			// Add another password factor - both password should work for authentication
-			pCommandLineControl.f_CallActor(&CCommandLineControlActorTest::f_ReturnString)("OtherPassword").f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
-			pCommandLineControl.f_CallActor(&CCommandLineControlActorTest::f_ReturnString)("OtherPassword").f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
+			pCommandLineControl.f_CallActor(&CCommandLineControlActorTest::f_ReturnString)("OtherPassword").f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout);
+			pCommandLineControl.f_CallActor(&CCommandLineControlActorTest::f_ReturnString)("OtherPassword").f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout);
 			TrustManager.f_CallActor(&CDistributedActorTrustManager::f_RegisterUserAuthenticationFactor)
 				(pCommandLine, DefaultUserID, "Password")
-				.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
+				.f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout)
 			;
-			ExportedWithPrivate = fg_CurrentActor().f_Bind<fg_ExportUser<CDistributedActorTrustManager>>(TrustManager, DefaultUserID, true).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
+			ExportedWithPrivate = fg_CurrentActor().f_Bind<fg_ExportUser<CDistributedActorTrustManager>>(TrustManager, DefaultUserID, true).f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout);
 			ExportedWithoutPrivate = fg_CurrentActor().f_Bind<fg_ExportUser<CDistributedActorTrustManager>>(TrustManager, DefaultUserID, false).f_CallSync
 				(
 					RunLoopHelper.m_pRunLoop
-					, g_Timeout
+					, gs_Timeout
 				)
 			;
 			fg_CurrentActor().f_Bind<fg_ImportUser<TCDistributedActorWrapper<CDistributedActorTrustManagerInterface>>>(ClientTrust, ExportedWithPrivate).f_CallSync
 				(
 					RunLoopHelper.m_pRunLoop
-					, g_Timeout
+					, gs_Timeout
 				)
 			;
-			fg_CurrentActor()
-				.f_Bind<fg_ImportUser<TCDistributedActorWrapper<CDistributedActorTrustManagerInterface>>>(ServerTrust, ExportedWithoutPrivate)
-				.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
+			fg_CurrentActor().f_Bind<fg_ImportUser<TCDistributedActorWrapper<CDistributedActorTrustManagerInterface>>>(ServerTrust, ExportedWithoutPrivate).f_CallSync
+				(
+					RunLoopHelper.m_pRunLoop
+					, gs_Timeout
+				)
 			;
 			{
 				DMibTestPath("Correct Password 1");
-				pCommandLineControl.f_CallActor(&CCommandLineControlActorTest::f_ReturnString)("Password").f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
+				pCommandLineControl.f_CallActor(&CCommandLineControlActorTest::f_ReturnString)("Password").f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout);
 				DMibExpectTrue(fPerformCall1(TCVector<CStr>{"com.malterlib/Password"}));
 			}
 			{
 				DMibTestPath("Correct Password 2");
-				pCommandLineControl.f_CallActor(&CCommandLineControlActorTest::f_ReturnString)("OtherPassword").f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
+				pCommandLineControl.f_CallActor(&CCommandLineControlActorTest::f_ReturnString)("OtherPassword").f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout);
 				DMibExpectTrue(fPerformCall1(TCVector<CStr>{"com.malterlib/Password"}));
 			}
 		}
@@ -2079,7 +2094,7 @@ private:
 		{
 			DMibTestPath("Preauthentication");
 			CurrentAuthLifetime = CPermissionRequirements::mc_OverrideLifetimeNotSet;
-			g_CallCount(&CCallCount::f_Clear).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
+			g_CallCount(&CCallCount::f_Clear).f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout);
 
 			auto Results = fPreauthenticate("*", {"Succeed1"}, 5);
 			DCheckCallCounts(CCallCounts({{"Succeed1", 1}}), "Succeed1");
@@ -2157,7 +2172,7 @@ private:
 				Results = fPreauthenticate("com.manymalterlib/*", {"Succeed3"}, 5);
 				DCheckCallCounts(CCallCounts({{"Succeed3", 1}}), "Succeed3");
 
-				ManyServerLaunch.f_Test_Command("SubscribePermissions4", {}).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
+				ManyServerLaunch.f_Test_Command("SubscribePermissions4", {}).f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout);
 				DMibExpectTrue(fPerformManyCall4(TCVector<CStr>{"com.manymalterlib/Succeed3_Cacheable"}));
 				DCheckCallCounts(CCallCounts{}, "Succeed3_Cacheable");
 			}
@@ -2172,10 +2187,10 @@ private:
 							, EDistributedActorTrustManagerOrderingFlag_WaitForSubscriptions
 						}
 					)
-					.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
+					.f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout)
 				;
 				DMibExpectFalse(fPerformManyCall4(TCVector<CStr>{"com.manymalterlib/Succeed3_Cacheable"}));
-				g_CallCount(&CCallCount::f_Clear).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
+				g_CallCount(&CCallCount::f_Clear).f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout);
 			}
 			// Make sure the preauthenticated pattens doesn't interfere with the rest of the testing
 			fPreauthenticate("com.malterlib/*", {"Succeed1"}, 0);
@@ -2186,7 +2201,7 @@ private:
 		{
 			DMibTestPath("Caching");
 
-			g_CallCount(&CCallCount::f_Clear).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
+			g_CallCount(&CCallCount::f_Clear).f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout);
 			CurrentAuthLifetime = 10;
 			DMibExpectTrue(fPerformCall1(TCVector<CStr>{"com.malterlib/Succeed1_Cacheable"}));
 			DCheckCallCounts(CCallCounts({{"Succeed1", 1}}), "Succeed1_Cacheable");
@@ -2222,7 +2237,7 @@ private:
 				DCheckCallCounts(CCallCounts{}, "Many2 Succeed2_Cacheable");
 
 				// Live permissions in the authentication cache should be propagated to the newly created permission subscription
-				ManyServerLaunch.f_Test_Command("SubscribePermissions3", {}).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
+				ManyServerLaunch.f_Test_Command("SubscribePermissions3", {}).f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout);
 				DMibExpectTrue(fPerformManyCall3(TCVector<CStr>{"com.manymalterlib/Succeed2_Cacheable"}));
 				DCheckCallCounts(CCallCounts{}, "Many3 Succeed2_Cacheable");
 			}
@@ -2237,10 +2252,10 @@ private:
 							, EDistributedActorTrustManagerOrderingFlag_WaitForSubscriptions
 						}
 					)
-					.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
+					.f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout)
 				;
 				DMibExpectFalse(fPerformManyCall3(TCVector<CStr>{"com.manymalterlib/Succeed2_Cacheable"}));
-				g_CallCount(&CCallCount::f_Clear).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
+				g_CallCount(&CCallCount::f_Clear).f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout);
 			}
 		}
 	}
@@ -2260,7 +2275,7 @@ private:
 
 		CProcessLaunch::fs_KillProcessesInDirectory("*", {}, RootDirectory, 10.0);
 
-		for (umint i = 0; i < 5; ++i)
+		for (umint iAttempt = 0; iAttempt < 5; ++iAttempt)
 		{
 			try
 			{
@@ -2283,24 +2298,24 @@ private:
 			}
 		;
 
-		CStr TestHostID = TrustManager(&CDistributedActorTrustManager::f_GetHostID).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
+		CStr TestHostID = TrustManager(&CDistributedActorTrustManager::f_GetHostID).f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout);
 		CTrustedSubscriptionTestHelper Subscriptions{TrustManager};
 
 		CDistributedActorTrustManager_Address TestAddress;
 		TestAddress.m_URL = "wss://[UNIX(666):{}]/"_f << fg_GetSafeUnixSocketPath("{}/controller.sock"_f << RootDirectory);
-		TrustManager(&CDistributedActorTrustManager::f_AddListen, TestAddress, 0).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
+		TrustManager(&CDistributedActorTrustManager::f_AddListen, TestAddress, 0).f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout);
 
 		CDistributedApp_LaunchHelperDependencies Dependencies;
 		Dependencies.m_Address = TestAddress.m_URL;
 		Dependencies.m_TrustManager = TrustManager;
-		Dependencies.m_DistributionManager = TrustManager(&CDistributedActorTrustManager::f_GetDistributionManager).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
+		Dependencies.m_DistributionManager = TrustManager(&CDistributedActorTrustManager::f_GetDistributionManager).f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout);
 
 		NMib::NConcurrency::CDistributedActorSecurity Security;
 		static constexpr ch8 const *c_pDefaultNamespace = "com.malterlib/Concurrency/AuthenticationTest";
 		Security.m_AllowedIncomingConnectionNamespaces.f_Insert(c_pDefaultNamespace);
 		Security.m_AllowedIncomingConnectionNamespaces.f_Insert(ICDistributedActorAuthentication::mc_pDefaultNamespace);
 		Security.m_AllowedIncomingConnectionNamespaces.f_Insert(CServerInterface::mc_pDefaultNamespace);
-		Dependencies.m_DistributionManager(&CActorDistributionManager::f_SetSecurity, Security).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
+		Dependencies.m_DistributionManager(&CActorDistributionManager::f_SetSecurity, Security).f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout);
 
 		TCActor<CDistributedApp_LaunchHelper> LaunchHelper = fg_ConstructActor<CDistributedApp_LaunchHelper>(Dependencies, !!(fg_TestReportFlags() & ETestReportFlag_EnableLogs));
 		g_CallCount = fg_ConstructActor<CCallCount>();
@@ -2318,7 +2333,7 @@ private:
 		CStr ServerDirectory = RootDirectory + "/" + ServerName;
 		CFile::fs_CreateDirectory(ServerDirectory);
 		auto ServerLaunch = LaunchHelper(&CDistributedApp_LaunchHelper::f_LaunchInProcess, ServerName, ServerDirectory, &fg_ConstructApp_Server, NContainer::TCVector<NStr::CStr>{})
-			.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
+			.f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout)
 		;
 		auto pServerTrust = ServerLaunch.m_pTrustInterface;
 		NConcurrency::TCDistributedActor<CDistributedActorTrustManagerInterface> ServerTrust = *pServerTrust;
@@ -2327,12 +2342,12 @@ private:
 		ServerAddress.m_URL = "wss://[UNIX(666):{}]/"_f << fg_GetSafeUnixSocketPath("{}/DistributedAppAuthenticationTestsServer.sock"_f << RootDirectory);
 		ServerTrust.f_CallActor(&CDistributedActorTrustManagerInterface::f_AddListen)
 			(CDistributedActorTrustManagerInterface::CAddListen{.m_Address = ServerAddress})
-			.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
+			.f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout)
 		;
 
 		TrustManager.f_CallActor(&CDistributedActorTrustManager::f_AllowHostsForNamespace)
 			(CServerInterface::mc_pDefaultNamespace, fg_CreateSet<CStr>(ServerHostID), c_WaitForSubscriptions)
-			.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
+			.f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout)
 		;
 
 		auto Server = Subscriptions.f_Subscribe<CServerInterface>(RunLoopHelper);
@@ -2351,7 +2366,7 @@ private:
 				, fg_ConstructApp_ClientFactory(DefaultUserID)
 				, NContainer::TCVector<NStr::CStr>{}
 			)
-			.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
+			.f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout)
 		;
 		auto pClientTrust = ClientLaunch.m_pTrustInterface;
 		NConcurrency::TCDistributedActor<CDistributedActorTrustManagerInterface> ClientTrust = *pClientTrust;
@@ -2361,7 +2376,7 @@ private:
 		ClientAddress.m_URL = "wss://[UNIX(666):{}]/"_f << fg_GetSafeUnixSocketPath("{}/DistributedAppAuthenticationTestsClient.sock"_f << RootDirectory);
 		ClientTrust.f_CallActor(&CDistributedActorTrustManagerInterface::f_AddListen)
 			(CDistributedActorTrustManagerInterface::CAddListen{.m_Address = ClientAddress})
-			.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
+			.f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout)
 		;
 
 		auto fNamespaceHosts = [](auto &&_Namespace, auto &&_Hosts)
@@ -2372,11 +2387,11 @@ private:
 
 		ClientTrust.f_CallActor(&CDistributedActorTrustManagerInterface::f_AllowHostsForNamespace)
 			(fNamespaceHosts(ICDistributedActorAuthentication::mc_pDefaultNamespace, fg_CreateSet<CStr>(ServerHostID)))
-			.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
+			.f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout)
 		;
 		ClientTrust.f_CallActor(&CDistributedActorTrustManagerInterface::f_AllowHostsForNamespace)
 			(fNamespaceHosts(CServerInterface::mc_pDefaultNamespace, fg_CreateSet<CStr>(ServerHostID)))
-			.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
+			.f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout)
 		;
 
 		{
@@ -2386,12 +2401,12 @@ private:
 				{
 					auto &ClientTrust = *pClientTrust;
 					ClientTrust.f_CallActor(&CDistributedActorTrustManagerInterface::f_AddClientConnection)
-						(CDistributedActorTrustManagerInterface::CAddClientConnection{.m_TrustTicket = _Ticket.m_Ticket, .m_Timeout = g_Timeout})
+						(CDistributedActorTrustManagerInterface::CAddClientConnection{.m_TrustTicket = _Ticket.m_Ticket, .m_Timeout = gs_Timeout})
 						.f_OnResultSet(Promise.f_ReceiveAny())
 					;
 				}
 			;
-			Promise.f_MoveFuture().f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
+			Promise.f_MoveFuture().f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout);
 		}
 
 		// Before running a command on the client we also need a command line control object
@@ -2405,7 +2420,7 @@ private:
 
 		// Now that we have a default user in the client and a command line control we will run a dummy command. That is the usual way the authentication handler is registered
 		// on the server side. We will perform all the tests after the command has returned.
-		auto CommandLineHostID = ClientLaunch.f_Test_Command("CommandLineHostID", {}).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout).f_String();
+		auto CommandLineHostID = ClientLaunch.f_Test_Command("CommandLineHostID", {}).f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout).f_String();
 		NStorage::TCSharedPointer<CCommandLineControl> pCommandLine = fg_Construct(fg_Move(CommandLineControl));
 		NEncoding::CEJsonSorted Json =
 			{
@@ -2448,12 +2463,12 @@ private:
 			}
 		;
 
-		ClientLaunch.f_RunCommandLine(fHostInfo("UserID", CommandLineHostID), "--test-actor", fg_TempCopy(Json), fg_TempCopy(pCommandLine)).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
+		ClientLaunch.f_RunCommandLine(fHostInfo("UserID", CommandLineHostID), "--test-actor", fg_TempCopy(Json), fg_TempCopy(pCommandLine)).f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout);
 
 		// Setup authentication for the user. For the sake of simplicity we will setup the user in TrustManager. We don't need the user there but it is a full trust manager,
 		// both ClientTrust and ServerTrust are CDistributedActorTrustManagerInterface with a more restricted interface.
-		TrustManager(&CDistributedActorTrustManager::f_AddUser, DefaultUserID, "Default User").f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
-		TrustManager(&CDistributedActorTrustManager::f_SetDefaultUser, DefaultUserID).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
+		TrustManager(&CDistributedActorTrustManager::f_AddUser, DefaultUserID, "Default User").f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout);
+		TrustManager(&CDistributedActorTrustManager::f_SetDefaultUser, DefaultUserID).f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout);
 
 		// Add a permissions to Server that requires authentication
 		auto fAddHostUserPermission = [HostID = ClientHostID, UserID = DefaultUserID, pRunLoop = RunLoopHelper.m_pRunLoop]
@@ -2469,7 +2484,7 @@ private:
 				auto &ServerTrust = *_pServerTrust;
 				ServerTrust.f_CallActor(&CDistributedActorTrustManagerInterface::f_AddPermissions)
 					(CDistributedActorTrustManagerInterface::CAddPermissions{{HostID, UserID}, Permissions, EDistributedActorTrustManagerOrderingFlag_WaitForSubscriptions})
-					.f_CallSync(pRunLoop, g_Timeout)
+					.f_CallSync(pRunLoop, gs_Timeout)
 				;
 			}
 		;
@@ -2507,11 +2522,11 @@ private:
 
 				Json["Permissions"] = _Permissions;
 
-				pCommandLineControl.f_CallActor(&CCommandLineControlActorTest::f_Clear)().f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
+				pCommandLineControl.f_CallActor(&CCommandLineControlActorTest::f_Clear)().f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout);
 				ClientLaunch.f_RunCommandLine(fHostInfo("UserID", CommandLineHostID), fg_TempCopy(_Command), fg_TempCopy(Json), fg_TempCopy(pCommandLine))
-					.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
+					.f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout)
 				;
-				return CEJsonSorted::fs_FromString(pCommandLineControl.f_CallActor(&CCommandLineControlActorTest::f_ReturnStdOut)().f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout))
+				return CEJsonSorted::fs_FromString(pCommandLineControl.f_CallActor(&CCommandLineControlActorTest::f_ReturnStdOut)().f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout))
 					.f_Boolean()
 				;
 			}
@@ -2525,51 +2540,55 @@ private:
 
 		// Test U2F registration and authentication
 		{
-			TrustManager.f_CallActor(&CDistributedActorTrustManager::f_RegisterUserAuthenticationFactor)(pCommandLine, DefaultUserID, "U2F").f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
+			TrustManager.f_CallActor(&CDistributedActorTrustManager::f_RegisterUserAuthenticationFactor)(pCommandLine, DefaultUserID, "U2F").f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout);
 
 			auto ExportedWithPrivate = fg_CurrentActor().f_Bind<fg_ExportUser<CDistributedActorTrustManager>>(TrustManager, DefaultUserID, true).f_CallSync
 				(
 					RunLoopHelper.m_pRunLoop
-					, g_Timeout
+					, gs_Timeout
 				)
 			;
 			auto ExportedWithoutPrivate = fg_CurrentActor().f_Bind<fg_ExportUser<CDistributedActorTrustManager>>(TrustManager, DefaultUserID, false).f_CallSync
 				(
 					RunLoopHelper.m_pRunLoop
-					, g_Timeout
+					, gs_Timeout
 				)
 			;
 			fg_CurrentActor().f_Bind<fg_ImportUser<TCDistributedActorWrapper<CDistributedActorTrustManagerInterface>>>(ClientTrust, ExportedWithPrivate).f_CallSync
 				(
 					RunLoopHelper.m_pRunLoop
-					, g_Timeout
+					, gs_Timeout
 				)
 			;
-			fg_CurrentActor()
-				.f_Bind<fg_ImportUser<TCDistributedActorWrapper<CDistributedActorTrustManagerInterface>>>(ServerTrust, ExportedWithoutPrivate)
-				.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
+			fg_CurrentActor().f_Bind<fg_ImportUser<TCDistributedActorWrapper<CDistributedActorTrustManagerInterface>>>(ServerTrust, ExportedWithoutPrivate).f_CallSync
+				(
+					RunLoopHelper.m_pRunLoop
+					, gs_Timeout
+				)
 			;
 
 			DMibExpectTrue(fPerformCall1(TCVector<CStr>{"com.malterlib/Succeed1"}));
 
 			// Add another U2F factor - both should work for authentication
-			TrustManager.f_CallActor(&CDistributedActorTrustManager::f_RegisterUserAuthenticationFactor)(pCommandLine, DefaultUserID, "U2F").f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
-			ExportedWithPrivate = fg_CurrentActor().f_Bind<fg_ExportUser<CDistributedActorTrustManager>>(TrustManager, DefaultUserID, true).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
+			TrustManager.f_CallActor(&CDistributedActorTrustManager::f_RegisterUserAuthenticationFactor)(pCommandLine, DefaultUserID, "U2F").f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout);
+			ExportedWithPrivate = fg_CurrentActor().f_Bind<fg_ExportUser<CDistributedActorTrustManager>>(TrustManager, DefaultUserID, true).f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout);
 			ExportedWithoutPrivate = fg_CurrentActor().f_Bind<fg_ExportUser<CDistributedActorTrustManager>>(TrustManager, DefaultUserID, false).f_CallSync
 				(
 					RunLoopHelper.m_pRunLoop
-					, g_Timeout
+					, gs_Timeout
 				)
 			;
 			fg_CurrentActor().f_Bind<fg_ImportUser<TCDistributedActorWrapper<CDistributedActorTrustManagerInterface>>>(ClientTrust, ExportedWithPrivate).f_CallSync
 				(
 					RunLoopHelper.m_pRunLoop
-					, g_Timeout
+					, gs_Timeout
 				)
 			;
-			fg_CurrentActor()
-				.f_Bind<fg_ImportUser<TCDistributedActorWrapper<CDistributedActorTrustManagerInterface>>>(ServerTrust, ExportedWithoutPrivate)
-				.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
+			fg_CurrentActor().f_Bind<fg_ImportUser<TCDistributedActorWrapper<CDistributedActorTrustManagerInterface>>>(ServerTrust, ExportedWithoutPrivate).f_CallSync
+				(
+					RunLoopHelper.m_pRunLoop
+					, gs_Timeout
+				)
 			;
 
 			{

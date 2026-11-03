@@ -218,12 +218,12 @@ namespace NMib::NContainer
 		template <typename t_CType0, typename t_CAllocator0>
 		friend struct TCThreadSafeQueueEntry;
 
-		DMibListLinkDS_Link(TCThreadSafeQueueListEntry, m_Link);
-		t_CType m_Data;
+		DMibListLinkDS_Link(TCThreadSafeQueueListEntry, mp_Link);
+		t_CType mp_Data;
 
 		template <typename ...tfp_CParams>
 		TCThreadSafeQueueListEntry(tfp_CParams && ...p_Params)
-			: m_Data(fg_Forward<tfp_CParams>(p_Params)...)
+			: mp_Data(fg_Forward<tfp_CParams>(p_Params)...)
 		{
 		}
 	};
@@ -232,40 +232,40 @@ namespace NMib::NContainer
 	struct TCThreadSafeQueueEntry
 	{
 		TCThreadSafeQueueEntry(TCThreadSafeQueueEntry &&_Other)
-			: m_pEntry(_Other.m_pEntry)
+			: mp_pEntry(_Other.mp_pEntry)
 		{
-			_Other.m_pEntry = nullptr;
+			_Other.mp_pEntry = nullptr;
 		}
 
 		TCThreadSafeQueueEntry &operator = (TCThreadSafeQueueEntry &&_Other)
 		{
-			if (m_pEntry)
-				fg_DeleteObjectDefiniteType(t_CAllocator(), m_pEntry);
+			if (mp_pEntry)
+				fg_DeleteObjectDefiniteType(t_CAllocator(), mp_pEntry);
 
-			m_pEntry = _Other.m_pEntry;
-			_Other.m_pEntry = nullptr;
+			mp_pEntry = _Other.mp_pEntry;
+			_Other.mp_pEntry = nullptr;
 
 			return *this;
 		}
 
 		~TCThreadSafeQueueEntry()
 		{
-			if (m_pEntry)
+			if (mp_pEntry)
 			{
-				fg_DeleteObjectDefiniteType(t_CAllocator(), m_pEntry);
-				m_pEntry = nullptr;
+				fg_DeleteObjectDefiniteType(t_CAllocator(), mp_pEntry);
+				mp_pEntry = nullptr;
 			}
 		}
 
 		bool f_IsValid() const
 		{
-			return m_pEntry != nullptr;
+			return mp_pEntry != nullptr;
 		}
 
 		t_CType &f_Get()
 		{
-			DMibRequire(m_pEntry);
-			return m_pEntry->m_Data;
+			DMibRequire(mp_pEntry);
+			return mp_pEntry->mp_Data;
 		}
 
 		mark_nodebug t_CType &operator * ()
@@ -280,8 +280,8 @@ namespace NMib::NContainer
 
 		t_CType const &f_Get() const
 		{
-			DMibRequire(m_pEntry);
-			return m_pEntry->m_Data;
+			DMibRequire(mp_pEntry);
+			return mp_pEntry->mp_Data;
 		}
 
 		mark_nodebug t_CType const &operator * () const
@@ -300,11 +300,11 @@ namespace NMib::NContainer
 		}
 
 	private:
-		TCThreadSafeQueueListEntry<t_CType> *m_pEntry;
+		TCThreadSafeQueueListEntry<t_CType> *mp_pEntry;
 		// template <typename t_CType, typename t_CAllocator>
 		friend struct TCThreadSafeQueue<t_CType, t_CAllocator>;
 		TCThreadSafeQueueEntry(TCThreadSafeQueueListEntry<t_CType> *_pEntry)
-			: m_pEntry(_pEntry)
+			: mp_pEntry(_pEntry)
 		{
 		}
 
@@ -320,18 +320,18 @@ namespace NMib::NContainer
 		using CListEntry = TCThreadSafeQueueListEntry<t_CType>;
 		using CReturnEntry = TCThreadSafeQueueEntry<t_CType, t_CAllocator>;
 
-		mutable NThread::CLowLevelLock m_Lock;
-		DMibListLinkDS_List_FromTemplate(CListEntry, m_Link) m_Queue;
+		mutable NThread::CLowLevelLock mp_Lock;
+		DMibListLinkDS_List_FromTemplate(CListEntry, mp_Link) mp_Queue;
 
 		using CAllocator = t_CAllocator;
 
 		void fp_Clear()
 		{
-			CListEntry *pEntry = m_Queue.f_Pop();
+			CListEntry *pEntry = mp_Queue.f_Pop();
 			while (pEntry)
 			{
 				fg_DeleteObjectDefiniteType(t_CAllocator(), pEntry);
-				pEntry = m_Queue.f_Pop();
+				pEntry = mp_Queue.f_Pop();
 			}
 		}
 
@@ -342,19 +342,19 @@ namespace NMib::NContainer
 
 		TCThreadSafeQueue(TCThreadSafeQueue const &_Other)
 		{
-			DMibLock(_Other.m_Lock);
-			auto Iter = _Other.m_Queue.f_GetIterator();
+			DMibLock(_Other.mp_Lock);
+			auto Iter = _Other.mp_Queue.f_GetIterator();
 			while (Iter)
 			{
-				m_Queue.f_InsertLast(fg_ConstructObject<CListEntry>(t_CAllocator(), Iter->m_Data));
+				mp_Queue.f_InsertLast(fg_ConstructObject<CListEntry>(t_CAllocator(), Iter->mp_Data));
 				++Iter;
 			}
 		}
 
 		TCThreadSafeQueue(TCThreadSafeQueue &&_Other)
 		{
-			DMibLock(_Other.m_Lock);
-			m_Queue = fg_Move(_Other.m_Queue);
+			DMibLock(_Other.mp_Lock);
+			mp_Queue = fg_Move(_Other.mp_Queue);
 		}
 
 		~TCThreadSafeQueue()
@@ -364,7 +364,7 @@ namespace NMib::NContainer
 
 		void f_Clear()
 		{
-			DMibLock(m_Lock);
+			DMibLock(mp_Lock);
 			fp_Clear();
 		}
 
@@ -372,8 +372,8 @@ namespace NMib::NContainer
 		{
 			CListEntry *pEntry;
 			{
-				DMibLock(m_Lock);
-				pEntry = m_Queue.f_Pop();
+				DMibLock(mp_Lock);
+				pEntry = mp_Queue.f_Pop();
 			}
 
 			return CReturnEntry(pEntry);
@@ -383,10 +383,10 @@ namespace NMib::NContainer
 		{
 			CListEntry *pEntry;
 			{
-				DMibLock(m_Lock);
-				pEntry = m_Queue.f_GetLast();
+				DMibLock(mp_Lock);
+				pEntry = mp_Queue.f_GetLast();
 				if (pEntry)
-					pEntry->m_Link.f_Unlink();
+					pEntry->mp_Link.f_Unlink();
 			}
 
 			return CReturnEntry(pEntry);
@@ -397,28 +397,28 @@ namespace NMib::NContainer
 		{
 			CListEntry *pEntry = fg_ConstructObject<CListEntry>(t_CAllocator(), fg_Forward<tfp_CParams>(p_Params)...);
 			{
-				DMibLock(m_Lock);
-				m_Queue.f_InsertLast(pEntry);
+				DMibLock(mp_Lock);
+				mp_Queue.f_InsertLast(pEntry);
 			}
 		}
 
 		void f_PopAllToVector(NContainer::TCVector<t_CType> &o_Items)
 		{
-			DMibLock(m_Lock);
+			DMibLock(mp_Lock);
 
-			CListEntry *pEntry = m_Queue.f_Pop();
+			CListEntry *pEntry = mp_Queue.f_Pop();
 			while (pEntry)
 			{
-				o_Items.f_Insert(fg_Move(pEntry->m_Data));
+				o_Items.f_Insert(fg_Move(pEntry->mp_Data));
 				fg_DeleteObjectDefiniteType(t_CAllocator(), pEntry);
-				pEntry = m_Queue.f_Pop();
+				pEntry = mp_Queue.f_Pop();
 			}
 		}
 
 		bool f_IsEmpty() const
 		{
-			DMibLock(m_Lock);
-			return m_Queue.f_IsEmpty();
+			DMibLock(mp_Lock);
+			return mp_Queue.f_IsEmpty();
 		}
 	};
 #endif

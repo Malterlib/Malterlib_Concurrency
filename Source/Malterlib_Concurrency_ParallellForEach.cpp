@@ -6,7 +6,7 @@
 namespace NMib::NConcurrency
 {
 	CThreadPool::CThreadPool(umint _nThreads)
-		: m_Semaphore(_nThreads)
+		: mp_Semaphore(_nThreads)
 	{
 #if 1
 		umint nNumaNodes = NSys::fg_Mem_GetNumNumaNodes();
@@ -47,7 +47,7 @@ namespace NMib::NConcurrency
 			while (nThreads > 0)
 			{
 				--nThreads;
-				m_Threads.f_Insert
+				mp_Threads.f_Insert
 					(
 						NThread::CThreadObject::fs_StartThread
 						(
@@ -66,7 +66,7 @@ namespace NMib::NConcurrency
 											;
 									}
 
-									m_Semaphore.f_Wait();
+									mp_Semaphore.f_Wait();
 								}
 
 								return 0;
@@ -83,40 +83,40 @@ namespace NMib::NConcurrency
 
 	CThreadPool::~CThreadPool()
 	{
-		for (auto &Thread : m_Threads)
+		for (auto &Thread : mp_Threads)
 			Thread->f_Stop(false);
 
-		for (auto &Thread : m_Threads)
+		for (auto &Thread : mp_Threads)
 		{
 			while (Thread->f_GetState() != NThread::EThreadState_Stopped)
-				m_Semaphore.f_Signal();
+				mp_Semaphore.f_Signal();
 		}
 
-		m_Threads.f_Clear();
+		mp_Threads.f_Clear();
 	}
 
 	void CThreadPool::f_Dispatch(NFunction::TCFunction<void ()> &&_Functor)
 	{
 		// DMibConOut("Queueing\n", 0);
-		m_DispatchQueue.f_Push(fg_Move(_Functor));
-		m_Semaphore.f_Signal();
+		mp_DispatchQueue.f_Push(fg_Move(_Functor));
+		mp_Semaphore.f_Signal();
 	}
 
 	void CThreadPool::f_Dispatch(NFunction::TCFunction<void ()> const &_Functor)
 	{
 		// DMibConOut("Queueing\n", 0);
-		m_DispatchQueue.f_Push(_Functor);
-		m_Semaphore.f_Signal();
+		mp_DispatchQueue.f_Push(_Functor);
+		mp_Semaphore.f_Signal();
 	}
 
 	bool CThreadPool::f_IsSingleThreaded() const
 	{
-		return m_Threads.f_IsEmpty();
+		return mp_Threads.f_IsEmpty();
 	}
 
 	bool CThreadPool::f_DispatchOne()
 	{
-		if (auto ToDispatch = m_DispatchQueue.f_Pop())
+		if (auto ToDispatch = mp_DispatchQueue.f_Pop())
 		{
 			(*ToDispatch)();
 			return true;

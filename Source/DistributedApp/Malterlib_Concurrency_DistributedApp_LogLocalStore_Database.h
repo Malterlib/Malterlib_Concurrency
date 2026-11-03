@@ -18,7 +18,7 @@ namespace NMib::NConcurrency::NLogStoreLocalDatabase
 
 		auto operator <=> (CLogGlobalStateKey const &_Right) const noexcept = default;
 
-		static NStr::CStr const mc_Prefix;
+		static NStr::CStr const mc_Prefix; // NOLINT(malterlib-variable-naming): defined constexpr in the .cpp, which the check doesn't see from here
 
 		NStr::CStr m_DbPrefix;
 		NStr::CStr m_Prefix = mc_Prefix;
@@ -41,7 +41,7 @@ namespace NMib::NConcurrency::NLogStoreLocalDatabase
 
 		auto operator <=> (CKnownHostKey const &_Right) const noexcept = default;
 
-		static NStr::CStr const mc_Prefix;
+		static NStr::CStr const mc_Prefix; // NOLINT(malterlib-variable-naming): defined constexpr in the .cpp, which the check doesn't see from here
 
 		NStr::CStr m_DbPrefix;
 		NStr::CStr m_Prefix = mc_Prefix;
@@ -71,7 +71,7 @@ namespace NMib::NConcurrency::NLogStoreLocalDatabase
 		CDistributedAppLogReporter::CLogInfoKey f_LogInfoKey() const &;
 		CDistributedAppLogReporter::CLogInfoKey f_LogInfoKey() &&;
 
-		static NStr::CStr const mc_Prefix;
+		static NStr::CStr const mc_Prefix; // NOLINT(malterlib-variable-naming): defined constexpr in the .cpp, which the check doesn't see from here
 
 		NStr::CStr m_DbPrefix;
 		NStr::CStr m_Prefix = mc_Prefix;
@@ -101,7 +101,7 @@ namespace NMib::NConcurrency::NLogStoreLocalDatabase
 		template <typename tf_CStr>
 		void f_Format(tf_CStr &o_Str) const;
 
-		static NStr::CStr const mc_Prefix;
+		static NStr::CStr const mc_Prefix; // NOLINT(malterlib-variable-naming): defined constexpr in the .cpp, which the check doesn't see from here
 
 		uint64 m_UniqueSequence = 0;
 	};
@@ -116,7 +116,7 @@ namespace NMib::NConcurrency::NLogStoreLocalDatabase
 		template <typename tf_CStream>
 		void f_ConsumeLexicographic(tf_CStream &_Stream);
 
-		static NStr::CStr const mc_Prefix;
+		static NStr::CStr const mc_Prefix; // NOLINT(malterlib-variable-naming): defined constexpr in the .cpp, which the check doesn't see from here
 
 		NStr::CStr m_DbPrefix;
 		NStr::CStr m_Prefix = mc_Prefix;

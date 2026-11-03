@@ -9,15 +9,15 @@ namespace NMib::NConcurrency
 {
 	template <typename t_CReturnType>
 	TCActorSequencerActor<t_CReturnType>::TCActorSequencerActor(NStr::CStr const &_Name, umint _MaxConcurrency)
-		: m_MaxConcurrency(_MaxConcurrency)
-		, m_Name(_Name)
+		: mp_MaxConcurrency(_MaxConcurrency)
+		, mp_Name(_Name)
 	{
 	}
 
 	template <typename t_CReturnType>
 	umint TCActorSequencerActor<t_CReturnType>::f_NumWaiting() const
 	{
-		return m_ToSequence.f_GetLen();
+		return mp_ToSequence.f_GetLen();
 	}
 
 	template <typename t_CReturnType>
@@ -26,11 +26,11 @@ namespace NMib::NConcurrency
 		using namespace NStr;
 
 		if (f_IsDestroyed())
-			co_return DMibErrorInstance("Sequencer '{}' has been aborted"_f << m_Name);
+			co_return DMibErrorInstance("Sequencer '{}' has been aborted"_f << mp_Name);
 
 		TCPromiseFuturePair<CActorSubscription> Promise;
 
-		auto &ToSequence = m_ToSequence.f_Insert(CToSequenceEntry{});
+		auto &ToSequence = mp_ToSequence.f_Insert(CToSequenceEntry{});
 		ToSequence.m_fToSequence = [Promise = Promise.m_Promise](CActorSubscription _DoneSubscription) -> TCFuture<t_CReturnType>
 			{
 				if (!Promise.f_IsSet())
@@ -60,7 +60,7 @@ namespace NMib::NConcurrency
 	template <typename t_CReturnType>
 	TCFuture<CActorSubscription> TCActorSequencerActor<t_CReturnType>::f_TrySequence(bool _bCanSkip)
 	{
-		if (_bCanSkip && m_nRunning >= m_MaxConcurrency)
+		if (_bCanSkip && mp_nRunning >= mp_MaxConcurrency)
 			co_return {};
 
 		co_return co_await f_Sequence();
@@ -74,9 +74,9 @@ namespace NMib::NConcurrency
 		TCPromiseFuturePair<t_CReturnType> Promise;
 
 		if (f_IsDestroyed())
-			co_return DMibErrorInstance("Sequencer '{}' has been aborted"_f << m_Name);
+			co_return DMibErrorInstance("Sequencer '{}' has been aborted"_f << mp_Name);
 
-		auto &ToSequence = m_ToSequence.f_Insert(CToSequenceEntry{fg_Move(Promise.m_Promise)});
+		auto &ToSequence = mp_ToSequence.f_Insert(CToSequenceEntry{fg_Move(Promise.m_Promise)});
 		ToSequence.m_fToSequence = [fToSequence = fg_Move(_fToSequence)](CActorSubscription &&_DoneSubscription) mutable -> TCFuture<t_CReturnType>
 			{
 				return fg_Move(fToSequence)(fg_Move(_DoneSubscription));
@@ -93,9 +93,9 @@ namespace NMib::NConcurrency
 	{
 		using namespace NStr;
 
-		for (auto &ToSequence : m_ToSequence)
-			ToSequence.m_Promise.f_SetException(DMibErrorInstance("Actor sequencer '{}' went out of scope"_f << m_Name));
-		m_ToSequence.f_Clear();
+		for (auto &ToSequence : mp_ToSequence)
+			ToSequence.m_Promise.f_SetException(DMibErrorInstance("Actor sequencer '{}' went out of scope"_f << mp_Name));
+		mp_ToSequence.f_Clear();
 	}
 
 	template <typename t_CReturnType>
@@ -103,15 +103,15 @@ namespace NMib::NConcurrency
 	{
 		using namespace NStr;
 
-		for (auto &ToSequence : m_ToSequence)
-			ToSequence.m_Promise.f_SetException(DMibErrorInstance("Actor sequencer '{}' aborted"_f << m_Name));
+		for (auto &ToSequence : mp_ToSequence)
+			ToSequence.m_Promise.f_SetException(DMibErrorInstance("Actor sequencer '{}' aborted"_f << mp_Name));
 
-		m_ToSequence.f_Clear();
+		mp_ToSequence.f_Clear();
 
-		if (m_nRunning)
+		if (mp_nRunning)
 		{
 			TCPromiseFuturePair<void> AbortPromise;
-			m_AbortPromise = fg_Move(AbortPromise.m_Promise);
+			mp_AbortPromise = fg_Move(AbortPromise.m_Promise);
 			return fg_Move(AbortPromise.m_Future);
 		}
 		else
@@ -121,26 +121,26 @@ namespace NMib::NConcurrency
 	template <typename t_CReturnType>
 	void TCActorSequencerActor<t_CReturnType>::fp_ProcessSequence()
 	{
-		if (m_ToSequence.f_IsEmpty() || m_nRunning >= m_MaxConcurrency)
+		if (mp_ToSequence.f_IsEmpty() || mp_nRunning >= mp_MaxConcurrency)
 			return;
 
-		++m_nRunning;
+		++mp_nRunning;
 
-		auto ToSequence = m_ToSequence.f_Pop();
+		auto ToSequence = mp_ToSequence.f_Pop();
 		auto Promise = ToSequence.m_Promise;
 		ToSequence.m_fToSequence
 			(
 				// The release callback must retain the sequencer so its weak dispatch remains valid after the last external owner leaves.
 				g_ActorSubscription / [this, KeepAlive = TCActor<>(self)]
 				{
-					--m_nRunning;
+					--mp_nRunning;
 
 					if (f_IsDestroyed())
 					{
-						if (m_nRunning == 0)
+						if (mp_nRunning == 0)
 						{
-							if (m_AbortPromise && !(*m_AbortPromise).f_IsSet())
-								(*m_AbortPromise).f_SetResult();
+							if (mp_AbortPromise && !(*mp_AbortPromise).f_IsSet())
+								(*mp_AbortPromise).f_SetResult();
 						}
 						return;
 					}

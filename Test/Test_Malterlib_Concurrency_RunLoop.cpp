@@ -181,7 +181,7 @@ namespace NMib::NConcurrency
 
 				auto fPump = [&](umint _nIterations)
 					{
-						for (umint i = 0; i < _nIterations; ++i)
+						for (umint iIteration = 0; iIteration < _nIterations; ++iIteration)
 						{
 							pLoop->f_Wake();
 							pLoop->f_WaitOnceTimeout(0.0);
@@ -201,7 +201,7 @@ namespace NMib::NConcurrency
 					(
 						[&](NThread::CThreadObject *_pThread) -> aint
 						{
-							for (umint i = 0; i < c_nIterations; ++i)
+							for (umint iIteration = 0; iIteration < c_nIterations; ++iIteration)
 								pLoop->f_Wake();
 
 							bWakesDone = true;

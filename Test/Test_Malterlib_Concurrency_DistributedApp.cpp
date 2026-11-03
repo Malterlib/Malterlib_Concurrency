@@ -187,7 +187,7 @@ namespace
 			CStr ConfigDir = NFile::CFile::fs_GetProgramDirectory() / _Name;
 			fg_TestAddCleanupPath(ConfigDir);
 
-			for (umint i = 0; i < 5; ++i)
+			for (umint iAttempt = 0; iAttempt < 5; ++iAttempt)
 			{
 				try
 				{

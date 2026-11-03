@@ -1160,12 +1160,12 @@ namespace NMib::NConcurrency
 	}
 
 #if DMibEnableSafeCheck > 0
-	static constinit NAtomic::TCAtomic<bool> g_bAppliedLogging{false};
+	static constinit NAtomic::TCAtomic<bool> gs_bAppliedLogging{false};
 #endif
 
 	CApplyLoggingResults fg_ApplyLoggingOption(NEncoding::CEJsonSorted const &_Params, TCActor<CDistributedAppActor> const &_DistributedLoggingApp)
 	{
-		DMibFastCheck(!g_bAppliedLogging.f_Exchange(true));
+		DMibFastCheck(!gs_bAppliedLogging.f_Exchange(true));
 
 		TCActor<CDistiributedAppLogActor> LogActor;
 		CApplyLoggingResults Results;
@@ -1260,7 +1260,7 @@ namespace NMib::NConcurrency
 			if (bDeleted)
 			{
 #if DMibEnableSafeCheck > 0
-				g_bAppliedLogging.f_Exchange(false);
+				gs_bAppliedLogging.f_Exchange(false);
 #endif
 				if (m_LogActor)
 					m_LogActor->f_BlockDestroy(_DestroyLoop);

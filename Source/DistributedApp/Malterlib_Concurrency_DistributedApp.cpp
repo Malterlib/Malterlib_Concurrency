@@ -181,7 +181,12 @@ namespace NMib::NConcurrency
 		auto &Data = LogEntry.m_Data;
 		Data.f_SetFromLogSeverity(_AuditParams.m_Severity);
 		Data.m_Flags |= CDistributedAppLogReporter::ELogEntryFlag_Audit;
+#if (DMibSysLogSeverities) != 0
+		// Audit records reach the distributed log without the logger, so they get its text filter here
+		Data.m_Message = fg_GetSys()->f_GetLogger().f_FilterText(_AuditParams.m_Message);
+#else
 		Data.m_Message = fg_Move(_AuditParams.m_Message);
+#endif
 
 		if (_AuditParams.m_Category)
 			Data.m_Categories.f_Insert(fg_Move(_AuditParams.m_Category));

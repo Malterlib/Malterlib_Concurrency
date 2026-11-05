@@ -18,11 +18,6 @@ namespace NMib::NConcurrency
 {
 	struct CDistributedAppSensorReporter : public CActor
 	{
-		CDistributedAppSensorReporter();
-		~CDistributedAppSensorReporter();
-
-		static constexpr ch8 const *mc_pDefaultNamespace = "com.malterlib/Concurrency/DistributedAppSensorReporter";
-
 		enum EProtocolVersion : uint32
 		{
 			EProtocolVersion_Min = 0x101
@@ -107,10 +102,10 @@ namespace NMib::NConcurrency
 
 		struct CSensorData : public CSensorDataVariant
 		{
+			using CSensorDataVariant::CSensorDataVariant;
+
 			template <typename tf_CStream>
 			void f_Stream(tf_CStream &_Stream);
-
-			using CSensorDataVariant::CSensorDataVariant;
 		};
 
 		struct CSensorScope_Unsupported
@@ -307,6 +302,9 @@ namespace NMib::NConcurrency
 			uint64 m_LastSeenUniqueSequence = 0;
 		};
 
+		CDistributedAppSensorReporter();
+		~CDistributedAppSensorReporter();
+
 		static EStatusSeverity fs_CombineStatusSeverity(EStatusSeverity _Severity0, EStatusSeverity _Severity1);
 		static NStr::CStr fs_StatusSeverityToColor(EStatusSeverity _Severity, NCommandLine::CAnsiEncoding const &_AnsiEncoding);
 
@@ -319,6 +317,8 @@ namespace NMib::NConcurrency
 		static NContainer::TCVector<NStr::CStr> fs_FlagsToStringArray(ESensorInfoFlag _Flags);
 
 		virtual TCFuture<CSensorReporter> f_OpenSensorReporter(CSensorInfo _SensorInfo) = 0;
+
+		static constexpr ch8 const *mc_pDefaultNamespace = "com.malterlib/Concurrency/DistributedAppSensorReporter";
 	};
 }
 

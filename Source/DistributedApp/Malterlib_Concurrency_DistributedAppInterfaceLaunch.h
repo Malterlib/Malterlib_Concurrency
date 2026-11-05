@@ -28,16 +28,16 @@ namespace NMib::NConcurrency
 		~CDistributedAppInterfaceLaunchActor();
 
 	private:
+		struct CHandleRequest
+		{
+			CActorSubscription m_NotificationsSubscription;
+		};
+
 		bool fp_WillFilterOutput() override;
 		void fp_FilterOutput(NProcess::EProcessLaunchOutputType _OutputType, NStr::CStr &o_Output) override;
 		void fp_ModifyLaunch(CLaunch &o_Launch) override;
 
 		void fp_HandleTicketRequest();
-
-		struct CHandleRequest
-		{
-			CActorSubscription m_NotificationsSubscription;
-		};
 
 		TCActor<CDistributedActorTrustManager> mp_TrustManager;
 		NWeb::NHTTP::CURL mp_Address;

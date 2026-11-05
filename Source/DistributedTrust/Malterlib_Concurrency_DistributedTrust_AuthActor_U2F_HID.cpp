@@ -19,22 +19,26 @@ namespace NMib::NConcurrency
 	{
 		struct CSubSystem_Concurrency_U2FHID : public CSubSystem
 		{
-			~CSubSystem_Concurrency_U2FHID()
-			{
-				if (m_Actor)
-					m_Actor->f_BlockDestroy();
-				m_Actor.f_Clear();
-			}
+			~CSubSystem_Concurrency_U2FHID();
 
-			void f_PreDestroyThreadSpecific() override
-			{
-				if (m_Actor)
-					m_Actor->f_BlockDestroy();
-				m_Actor.f_Clear();
-			}
+			void f_PreDestroyThreadSpecific() override;
 
 			TCActor<CHumanInterfaceDevicesActor> m_Actor = {fg_Construct(), "Human Interface Device Actor"};
 		};
+
+		CSubSystem_Concurrency_U2FHID::~CSubSystem_Concurrency_U2FHID()
+		{
+			if (m_Actor)
+				m_Actor->f_BlockDestroy();
+			m_Actor.f_Clear();
+		}
+
+		void CSubSystem_Concurrency_U2FHID::f_PreDestroyThreadSpecific()
+		{
+			if (m_Actor)
+				m_Actor->f_BlockDestroy();
+			m_Actor.f_Clear();
+		}
 
 		constinit TCSubSystem<CSubSystem_Concurrency_U2FHID, ESubSystemDestruction_BeforeMemoryManager> g_MalterlibSubSystem_Concurrency_U2FHID = {DAggregateInit};
 

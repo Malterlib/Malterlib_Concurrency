@@ -22,58 +22,10 @@ namespace NMib::NConcurrency
 			NLog::CLogLocationTag m_Location;
 		};
 
-		CDistributedAppLogDestination_Internal(TCActor<CDistiributedAppLogActor> const &_LogActor)
-			: m_LogActor(_LogActor ? _LogActor : TCActor<CDistiributedAppLogActor>(fg_Construct(), "Default DistributedAppLogDestination"))
-		{
-		}
+		CDistributedAppLogDestination_Internal(TCActor<CDistiributedAppLogActor> const &_LogActor);
+		~CDistributedAppLogDestination_Internal();
 
-		~CDistributedAppLogDestination_Internal()
-		{
-			if (m_LogReporter && m_LogReporter->m_fReportEntries)
-				fg_Move(m_LogReporter->m_fReportEntries).f_Destroy().f_DiscardResult();
-		}
-
-		void f_ProcessDeferredMessages()
-		{
-			NContainer::TCVector<CDeferredMessage> Messages;
-			{
-				DMibLock(m_Lock);
-				m_bScheduledProcess = false;
-				if (!m_LogReporter)
-					return;
-				Messages = fg_Move(m_DeferredMessages);
-				if (!Messages.f_GetLen())
-					return;
-			}
-
-			if (!m_LogReporter->m_fReportEntries)
-				return;
-
-			NContainer::TCVector<CDistributedAppLogReporter::CLogEntry> LogEntries;
-			for (auto &Message : Messages)
-			{
-				auto &LogEntry = LogEntries.f_Insert();
-				LogEntry.m_Timestamp = Message.m_Time;
-
-				auto &Data = LogEntry.m_Data;
-				Data.f_SetFromLogSeverity(Message.m_Severity);
-				Data.m_Categories = fg_Move(Message.m_Categories);
-				Data.m_Operations = fg_Move(Message.m_Operations);
-				Data.m_Message = fg_Move(Message.m_Message);
-				if (Message.m_Location.m_pFile)
-					Data.m_SourceLocation = {Message.m_Location.m_pFile, Message.m_Location.m_Line};
-			}
-
-			m_LogReporter->m_fReportEntries(fg_Move(LogEntries)).f_OnResultSet
-				(
-					[pCanDestroy = m_pCanDestroy](TCAsyncResult<CDistributedAppLogReporter::CReportEntriesResult> &&_Result)
-					{
-						if (!_Result)
-							DMibConErrOut("Error reporting log entries: {}\n", _Result.f_GetExceptionStr());
-					}
-				)
-			;
-		}
+		void f_ProcessDeferredMessages();
 
 		TCActor<CDistiributedAppLogActor> m_LogActor;
 		NStorage::TCOptional<CDistributedAppLogReporter::CLogReporter> m_LogReporter;
@@ -85,6 +37,59 @@ namespace NMib::NConcurrency
 		bool m_bScheduledProcess = false;
 		bool m_bShouldDefer = true;
 	};
+
+	CDistributedAppLogDestination_Internal::CDistributedAppLogDestination_Internal(TCActor<CDistiributedAppLogActor> const &_LogActor)
+		: m_LogActor(_LogActor ? _LogActor : TCActor<CDistiributedAppLogActor>(fg_Construct(), "Default DistributedAppLogDestination"))
+	{
+	}
+
+	CDistributedAppLogDestination_Internal::~CDistributedAppLogDestination_Internal()
+	{
+		if (m_LogReporter && m_LogReporter->m_fReportEntries)
+			fg_Move(m_LogReporter->m_fReportEntries).f_Destroy().f_DiscardResult();
+	}
+
+	void CDistributedAppLogDestination_Internal::f_ProcessDeferredMessages()
+	{
+		NContainer::TCVector<CDeferredMessage> Messages;
+		{
+			DMibLock(m_Lock);
+			m_bScheduledProcess = false;
+			if (!m_LogReporter)
+				return;
+			Messages = fg_Move(m_DeferredMessages);
+			if (!Messages.f_GetLen())
+				return;
+		}
+
+		if (!m_LogReporter->m_fReportEntries)
+			return;
+
+		NContainer::TCVector<CDistributedAppLogReporter::CLogEntry> LogEntries;
+		for (auto &Message : Messages)
+		{
+			auto &LogEntry = LogEntries.f_Insert();
+			LogEntry.m_Timestamp = Message.m_Time;
+
+			auto &Data = LogEntry.m_Data;
+			Data.f_SetFromLogSeverity(Message.m_Severity);
+			Data.m_Categories = fg_Move(Message.m_Categories);
+			Data.m_Operations = fg_Move(Message.m_Operations);
+			Data.m_Message = fg_Move(Message.m_Message);
+			if (Message.m_Location.m_pFile)
+				Data.m_SourceLocation = {Message.m_Location.m_pFile, Message.m_Location.m_Line};
+		}
+
+		m_LogReporter->m_fReportEntries(fg_Move(LogEntries)).f_OnResultSet
+			(
+				[pCanDestroy = m_pCanDestroy](TCAsyncResult<CDistributedAppLogReporter::CReportEntriesResult> &&_Result)
+				{
+					if (!_Result)
+						DMibConErrOut("Error reporting log entries: {}\n", _Result.f_GetExceptionStr());
+				}
+			)
+		;
+	}
 
 	CDistributedAppLogDestination::CDistributedAppLogDestination(TCActor<CDistributedAppActor> const &_DistributedLoggingApp, TCActor<CDistiributedAppLogActor> const &_LogActor)
 		: mp_pInternal(fg_Construct(_LogActor))

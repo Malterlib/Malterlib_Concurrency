@@ -12,10 +12,10 @@ namespace NMib::NConcurrency::NDDPBridgeHelper
 {
 	struct CDDPBridgeHelperActor : public CDistributedAppActor
 	{
+		struct CServer;
+
 		CDDPBridgeHelperActor();
 		~CDDPBridgeHelperActor();
-
-		struct CServer;
 
 	private:
 		TCFuture<void> fp_StartApp(NEncoding::CEJsonSorted const _Params) override;

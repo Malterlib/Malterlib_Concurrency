@@ -355,24 +355,9 @@ namespace NMib::NConcurrency
 	{
 		using CActorInternal = TCActorInternal<t_CActor>;
 		using CContainedActor = t_CActor;
-
-		static constexpr bool mc_bIsWeak = false;
-		static constexpr bool mc_bIsAlwaysAlive = TCIsActorAlwaysAlive<t_CActor>::mc_bImpl;
 		using CNonWeak = TCActor;
 		using CWeak = TCWeakActor<t_CActor>;
 
-	private:
-		using CPointerType = TCConditional<TCIsActorAlwaysAlive<t_CActor>::mc_bImpl, CActorInternal *, TCActorHolderSharedPointer<CActorInternal>>;
-		union
-		{
-			CPointerType mp_pInternalActor = nullptr;
-			uint8 mp_Dummy[sizeof(TCActorHolderWeakPointer<CActorInternal>)];
-		};
-
-		template <typename tf_CType, typename ...tfp_CParams, typename ...tfp_CHolderParams, umint ...tfp_Indidies>
-		void fp_Construct(TCConstruct<void, TCConstruct<tf_CType, tfp_CParams...>, tfp_CHolderParams...> &&_Construct, NMeta::TCIndices<tfp_Indidies...> const &_Indices);
-
-	public:
 		TCActor();
 		~TCActor();
 		template <typename tf_CType, typename ...tfp_CParams, typename ...tfp_CHolderParams>
@@ -523,6 +508,9 @@ namespace NMib::NConcurrency
 
 		DMibSuppressUndefinedSanitizer inline_always TCActorInternal<CActor> *f_GetRealActor() const;
 
+		static constexpr bool mc_bIsWeak = false;
+		static constexpr bool mc_bIsAlwaysAlive = TCIsActorAlwaysAlive<t_CActor>::mc_bImpl;
+
 	private:
 		friend struct CConcurrencyManager;
 		template <typename t_CActor2>
@@ -538,6 +526,17 @@ namespace NMib::NConcurrency
 
 		template <typename tf_CActor>
 		friend decltype(auto) fg_GetActorInternal(tf_CActor &&_Actor);
+
+		using CPointerType = TCConditional<TCIsActorAlwaysAlive<t_CActor>::mc_bImpl, CActorInternal *, TCActorHolderSharedPointer<CActorInternal>>;
+
+		template <typename tf_CType, typename ...tfp_CParams, typename ...tfp_CHolderParams, umint ...tfp_Indidies>
+		void fp_Construct(TCConstruct<void, TCConstruct<tf_CType, tfp_CParams...>, tfp_CHolderParams...> &&_Construct, NMeta::TCIndices<tfp_Indidies...> const &_Indices);
+
+		union
+		{
+			CPointerType mp_pInternalActor = nullptr;
+			uint8 mp_Dummy[sizeof(TCActorHolderWeakPointer<CActorInternal>)];
+		};
 	};
 
 	template <typename tf_CActor, typename tf_CActorSource>

@@ -19,9 +19,6 @@ namespace NMib::NConcurrency::NPrivate
 
 	struct CSubSystem_Concurrency_DistributedActor : public CSubSystem
 	{
-		CSubSystem_Concurrency_DistributedActor();
-		~CSubSystem_Concurrency_DistributedActor();
-
 		struct CThreadLocal
 		{
 			CCallingHostInfo m_CallingHostInfo;
@@ -32,6 +29,9 @@ namespace NMib::NConcurrency::NPrivate
 			uint32 m_CurrentAuthenticationHandlerID = 0;
 			uint8 m_CurrentPriority = 128;
 		};
+
+		CSubSystem_Concurrency_DistributedActor();
+		~CSubSystem_Concurrency_DistributedActor();
 
 		NThread::TCThreadLocal<CThreadLocal> m_ThreadLocal;
 	};

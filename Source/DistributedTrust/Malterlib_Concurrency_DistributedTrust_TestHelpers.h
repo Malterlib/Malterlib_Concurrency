@@ -11,8 +11,6 @@ namespace NMib::NConcurrency
 {
 	struct CTrustManagerDatabaseTestHelper : public ICDistributedActorTrustManagerDatabase
 	{
-		static constexpr bool mc_bAllowInternalAccess = true;
-
 		TCFuture<CBasicConfig> f_GetBasicConfig() override;
 		TCFuture<void> f_SetBasicConfig(CBasicConfig _BasicConfig) override;
 		TCFuture<int32> f_GetNewCertificateSerial() override;
@@ -62,6 +60,8 @@ namespace NMib::NConcurrency
 		TCFuture<void> f_RemoveUserAuthenticationFactor(NStr::CStr _UserID, NStr::CStr _FactorName) override;
 		TCFuture<NStr::CStr> f_GetClientLastFriendlyName(NStr::CStr _HostID) override;
 
+		static constexpr bool mc_bAllowInternalAccess = true;
+
 		CBasicConfig m_BasicConfig;
 		int32 m_CertificateSerial = 0;
 		CDefaultUser m_DefaultUser;
@@ -79,6 +79,9 @@ namespace NMib::NConcurrency
 
 	struct CTrustManagerTestHelper
 	{
+		CTrustManagerTestHelper();
+		~CTrustManagerTestHelper();
+
 		auto f_TrustManager
 			(
 				NStr::CStr const &_FriendlyName
@@ -89,9 +92,6 @@ namespace NMib::NConcurrency
 			const
 			-> TCActor<CDistributedActorTrustManager>
 		;
-
-		CTrustManagerTestHelper();
-		~CTrustManagerTestHelper();
 
 		TCFuture<void> f_Destroy();
 

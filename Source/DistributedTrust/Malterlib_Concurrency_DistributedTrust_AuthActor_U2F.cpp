@@ -40,6 +40,7 @@ extern "C"
 #	include <sys/ioctl.h>
 #	include <fcntl.h>
 #	include <unistd.h>
+#	include <linux/hidraw.h>
 #endif
 };
 
@@ -83,57 +84,76 @@ namespace NMib::NConcurrency::NPrivate
 	template <typename t_CPointer, auto t_fDeleter>
 	struct TCSSLPointer
 	{
-		TCSSLPointer(t_CPointer _pSSLHandle)
-			: m_pSSLHandle(_pSSLHandle)
-		{
-		}
-
+		TCSSLPointer(t_CPointer _pSSLHandle);
 		TCSSLPointer(TCSSLPointer const &_pOther) = delete;
+		TCSSLPointer(TCSSLPointer &&_pOther);
+		~TCSSLPointer();
+
 		TCSSLPointer &operator = (TCSSLPointer const &_pOther) = delete;
+		TCSSLPointer &operator = (TCSSLPointer &&_pOther);
 
-		TCSSLPointer(TCSSLPointer &&_pOther)
-			: m_pSSLHandle(_pOther.m_pSSLHandle)
-		{
-			_pOther.m_pSSLHandle = nullptr;
-		}
+		t_CPointer operator -> () const;
+		operator bool () const;
+		operator t_CPointer () const;
 
-		TCSSLPointer &operator = (TCSSLPointer &&_pOther)
-		{
-			m_pSSLHandle = _pOther.m_pSSLHandle;
-			_pOther.m_pSSLHandle = nullptr;
-			return *this;
-		}
-
-		~TCSSLPointer()
-		{
-			if (m_pSSLHandle)
-				t_fDeleter(m_pSSLHandle);
-		}
-
-		t_CPointer operator -> () const
-		{
-			return m_pSSLHandle;
-		}
-
-		operator bool () const
-		{
-			return m_pSSLHandle != nullptr;
-		}
-
-		operator t_CPointer () const
-		{
-			return m_pSSLHandle;
-		}
-
-		t_CPointer f_StealPointer()
-		{
-			t_CPointer pTmp = m_pSSLHandle;
-			m_pSSLHandle = nullptr;
-			return pTmp;
-		}
+		t_CPointer f_StealPointer();
 
 		t_CPointer m_pSSLHandle;
 	};
+
+	template <typename t_CPointer, auto t_fDeleter>
+	TCSSLPointer<t_CPointer, t_fDeleter>::TCSSLPointer(t_CPointer _pSSLHandle)
+		: m_pSSLHandle(_pSSLHandle)
+	{
+	}
+
+	template <typename t_CPointer, auto t_fDeleter>
+	TCSSLPointer<t_CPointer, t_fDeleter>::TCSSLPointer(TCSSLPointer &&_pOther)
+		: m_pSSLHandle(_pOther.m_pSSLHandle)
+	{
+		_pOther.m_pSSLHandle = nullptr;
+	}
+
+	template <typename t_CPointer, auto t_fDeleter>
+	TCSSLPointer<t_CPointer, t_fDeleter>::~TCSSLPointer()
+	{
+		if (m_pSSLHandle)
+			t_fDeleter(m_pSSLHandle);
+	}
+
+	template <typename t_CPointer, auto t_fDeleter>
+	auto TCSSLPointer<t_CPointer, t_fDeleter>::operator = (TCSSLPointer &&_pOther) -> TCSSLPointer &
+	{
+		m_pSSLHandle = _pOther.m_pSSLHandle;
+		_pOther.m_pSSLHandle = nullptr;
+		return *this;
+	}
+
+	template <typename t_CPointer, auto t_fDeleter>
+	t_CPointer TCSSLPointer<t_CPointer, t_fDeleter>::operator -> () const
+	{
+		return m_pSSLHandle;
+	}
+
+	template <typename t_CPointer, auto t_fDeleter>
+	TCSSLPointer<t_CPointer, t_fDeleter>::operator bool () const
+	{
+		return m_pSSLHandle != nullptr;
+	}
+
+	template <typename t_CPointer, auto t_fDeleter>
+	TCSSLPointer<t_CPointer, t_fDeleter>::operator t_CPointer () const
+	{
+		return m_pSSLHandle;
+	}
+
+	template <typename t_CPointer, auto t_fDeleter>
+	t_CPointer TCSSLPointer<t_CPointer, t_fDeleter>::f_StealPointer()
+	{
+		t_CPointer pTmp = m_pSSLHandle;
+		m_pSSLHandle = nullptr;
+		return pTmp;
+	}
 
 	EC_KEY *fg_DecodeUserKey(CSecureByteVector const &_Data)
 	{
@@ -195,31 +215,8 @@ namespace NMib::NConcurrency::NPrivate
 	// The unit of data passed to and from the U2F device
 	struct CFrame
 	{
-		umint f_SetInitial(uint32 _ChannelID, uint8 _Command, uint16 _ByteCount, uint8 const *_pData, uint32 _Length)
-		{
-			_Length = fg_Min(_Length, uint32(CHumanInterfaceDevicesActor::mc_ReportSize - 7));
-			m_ChannelID = _ChannelID;
-			m_InitialFrame.m_Command = _Command;
-			m_InitialFrame.m_ByteCountHigh = _ByteCount >> 8;
-			m_InitialFrame.m_ByteCountLow = _ByteCount;
-			NMemory::fg_MemCopy(m_InitialFrame.m_Data, _pData, _Length);
-			if (_Length < CHumanInterfaceDevicesActor::mc_ReportSize - 7)
-				NMemory::fg_SecureMemClear(m_InitialFrame.m_Data + _Length, (CHumanInterfaceDevicesActor::mc_ReportSize - 7) - _Length);
-
-			return _Length;
-		}
-
-		umint f_SetContinuation(uint32 _ChannelID, uint8 _SequenceNumber, uint8 const *_pData, uint32 _Length)
-		{
-			_Length = fg_Min(_Length, uint32(CHumanInterfaceDevicesActor::mc_ReportSize - 5));
-			m_ChannelID = _ChannelID;
-			m_ContinuationFrame.m_SequenceNumber = _SequenceNumber;
-			NMemory::fg_MemCopy(m_ContinuationFrame.m_Data, _pData, _Length);
-			if (_Length < CHumanInterfaceDevicesActor::mc_ReportSize - 5)
-				NMemory::fg_SecureMemClear(m_ContinuationFrame.m_Data + _Length, (CHumanInterfaceDevicesActor::mc_ReportSize - 5) - _Length);
-
-			return _Length;
-		}
+		umint f_SetInitial(uint32 _ChannelID, uint8 _Command, uint16 _ByteCount, uint8 const *_pData, uint32 _Length);
+		umint f_SetContinuation(uint32 _ChannelID, uint8 _SequenceNumber, uint8 const *_pData, uint32 _Length);
 
 		uint32 m_ChannelID;
 		union
@@ -239,85 +236,44 @@ namespace NMib::NConcurrency::NPrivate
 		};
 	};
 
+	umint CFrame::f_SetInitial(uint32 _ChannelID, uint8 _Command, uint16 _ByteCount, uint8 const *_pData, uint32 _Length)
+	{
+		_Length = fg_Min(_Length, uint32(CHumanInterfaceDevicesActor::mc_ReportSize - 7));
+		m_ChannelID = _ChannelID;
+		m_InitialFrame.m_Command = _Command;
+		m_InitialFrame.m_ByteCountHigh = _ByteCount >> 8;
+		m_InitialFrame.m_ByteCountLow = _ByteCount;
+		NMemory::fg_MemCopy(m_InitialFrame.m_Data, _pData, _Length);
+		if (_Length < CHumanInterfaceDevicesActor::mc_ReportSize - 7)
+			NMemory::fg_SecureMemClear(m_InitialFrame.m_Data + _Length, (CHumanInterfaceDevicesActor::mc_ReportSize - 7) - _Length);
+
+		return _Length;
+	}
+
+	umint CFrame::f_SetContinuation(uint32 _ChannelID, uint8 _SequenceNumber, uint8 const *_pData, uint32 _Length)
+	{
+		_Length = fg_Min(_Length, uint32(CHumanInterfaceDevicesActor::mc_ReportSize - 5));
+		m_ChannelID = _ChannelID;
+		m_ContinuationFrame.m_SequenceNumber = _SequenceNumber;
+		NMemory::fg_MemCopy(m_ContinuationFrame.m_Data, _pData, _Length);
+		if (_Length < CHumanInterfaceDevicesActor::mc_ReportSize - 5)
+			NMemory::fg_SecureMemClear(m_ContinuationFrame.m_Data + _Length, (CHumanInterfaceDevicesActor::mc_ReportSize - 5) - _Length);
+
+		return _Length;
+	}
+
 	struct CU2FDevice : public CAllowUnsafeThis
 	{
-		CU2FDevice(TCActor<CHumanInterfaceDeviceActor> const &_Device, uint32 _ChannelID, CStr const &_Path)
-			: m_Device(_Device)
-			, m_ChannelID(_ChannelID)
-			, m_Path(_Path)
-		{
-		}
-
+		CU2FDevice(TCActor<CHumanInterfaceDeviceActor> const &_Device, uint32 _ChannelID, CStr const &_Path);
 		CU2FDevice(CU2FDevice &&_Other) = default;
 		CU2FDevice(CU2FDevice const &_Other) = default;
 		CU2FDevice &operator = (CU2FDevice &&_Other) = default;
 		CU2FDevice &operator = (CU2FDevice const &_Other) = default;
 
-		static TCFuture<CU2FDevice> DMibWorkaroundUBSanSectionErrorsDisable fs_Init(TCActor<CHumanInterfaceDeviceActor> _Device, CStr _Path)
-		{
-			static constexpr umint c_InitNonceSize = 8;
+		static TCFuture<CU2FDevice> DMibWorkaroundUBSanSectionErrorsDisable fs_Init(TCActor<CHumanInterfaceDeviceActor> _Device, CStr _Path);
+		static TCFuture<CFrame> DMibWorkaroundUBSanSectionErrorsDisable fs_ReadFrame(TCActor<CHumanInterfaceDeviceActor> _Device);
 
-			struct CInitResponse
-			{
-				uint8 m_Nonce[c_InitNonceSize];
-				uint32 m_ChannelID;
-				uint8 m_VersionInterface;
-				uint8 m_VersionMajor;
-				uint8 m_VersionMinor;
-				uint8 m_VersionBuild;
-				uint8 m_CapFlags;
-			};
-
-			CSecureByteVector Nonce;
-			NCryptography::fg_GenerateRandomData(Nonce.f_GetArray(c_InitNonceSize), c_InitNonceSize);
-
-			auto RawResponse = co_await fs_SendReceive(DU2fHidInit, Nonce, DCidBroadcast, _Device);
-
-			if (RawResponse.f_GetLen() != (c_InitNonceSize + 4 + 5))
-				co_return DMibErrorInstance("Invalid U2FHID_INIT response length");
-
-			CInitResponse Resonse;
-			NMemory::fg_MemCopy(&Resonse, RawResponse.f_GetArray(), c_InitNonceSize + 4 + 5);
-			if (NMemory::fg_MemCmp(Resonse.m_Nonce, Nonce.f_GetArray(), c_InitNonceSize))
-				co_return DMibErrorInstance("U2FHID_INIT response contains invalid nounce");
-
-			co_return CU2FDevice{_Device, Resonse.m_ChannelID, _Path};
-		}
-
-		static TCFuture<CFrame> DMibWorkaroundUBSanSectionErrorsDisable fs_ReadFrame(TCActor<CHumanInterfaceDeviceActor> _Device)
-		{
-			static constexpr umint c_HIDTimeout = 2;
-			static constexpr umint c_HIDMaxTimeout = 4096;
-			umint Timeout = c_HIDTimeout;
-
-			while (true)
-			{
-				auto Result = co_await _Device(&CHumanInterfaceDeviceActor::f_ReadTimeout, CHumanInterfaceDevicesActor::mc_ReportSize, Timeout);
-
-				if (!Result.f_IsEmpty())
-				{
-					CFrame Frame;
-					if (Result.f_GetLen() != sizeof(Frame))
-						co_return DMibErrorInstance("U2F transport error: Frame size wrong");
-
-					NMemory::fg_MemCopy((uint8 *)&Frame, Result.f_GetArray(), sizeof(Frame));
-
-					co_return fg_Move(Frame);
-				}
-
-				Timeout *= 2;
-
-				if (Timeout > c_HIDMaxTimeout)
-					break;
-			}
-
-			co_return DMibErrorInstance("U2F transport error: Timed out reading");
-		}
-
-		TCFuture<CSecureByteVector> f_SendReceive(uint8_t _Command, CSecureByteVector _Send) const
-		{
-			co_return co_await fs_SendReceive(_Command, _Send, m_ChannelID, m_Device);
-		}
+		TCFuture<CSecureByteVector> f_SendReceive(uint8_t _Command, CSecureByteVector _Send) const;
 
 		static TCFuture<CSecureByteVector> DMibWorkaroundUBSanSectionErrorsDisable fs_SendReceive
 			(
@@ -326,115 +282,193 @@ namespace NMib::NConcurrency::NPrivate
 				, uint32 _ChannelID
 				, TCActor<CHumanInterfaceDeviceActor> _Device
 			)
-		{
-			{
-				uint8 Sequence = 0;
-				umint SendLength = _Send.f_GetLen();
-				uint8 const *pSendData = _Send.f_GetArray();
-				umint DataSent = 0;
+		;
 
-				while (DataSent < SendLength)
-				{
-					CFrame Frame;
-
-					if (DataSent == 0)
-						DataSent += Frame.f_SetInitial(_ChannelID, _Command, SendLength, pSendData, SendLength);
-					else
-						DataSent += Frame.f_SetContinuation(_ChannelID, Sequence++, pSendData + DataSent, SendLength - DataSent);
-
-					CSecureByteVector Data;
-					Data.f_Insert((uint8 *)&Frame, sizeof(Frame));
-
-					auto BytesWritten = co_await _Device(&CHumanInterfaceDeviceActor::f_Write, 0, fg_Move(Data));
-					if (BytesWritten != sizeof(CFrame) + 1)
-						co_return DMibErrorInstance("Wrong number of bytes written for U2F frame");
-				}
-			}
-
-			{
-				CSecureByteVector Receive;
-				uint16 nReceived = 0;
-				uint16 DataLength = 0;
-				uint8 Sequence = 0;
-				bool bFirstFrame = true;
-				while (nReceived < DataLength || bFirstFrame)
-				{
-					auto Frame = co_await fs_ReadFrame(_Device);
-
-					if (Frame.m_ChannelID != _ChannelID)
-						co_return DMibErrorInstance("Invalid channel number reading from U2F device");
-
-					if (bFirstFrame)
-					{
-						if (Frame.m_InitialFrame.m_Command == DU2fHidError)
-						{
-							CStr Error = "Unknown error";
-							uint16 DataLength = Frame.m_InitialFrame.m_ByteCountHigh << 8 | Frame.m_InitialFrame.m_ByteCountLow;
-							if (DataLength == 1)
-							{
-								switch (Frame.m_InitialFrame.m_Data[0])
-								{
-								case DErrInvalidCmd: Error = "Invalid command"; break;
-								case DErrInvalidPar: Error = "Invalid parameter"; break;
-								case DErrInvalidLen: Error = "Invalid message length"; break;
-								case DErrInvalidSeq: Error = "Invalid message sequencing"; break;
-								case DErrMsgTimeout: Error = "Message has timed out"; break;
-								case DErrChannelBusy: Error = "Channel busy"; break;
-								case DErrLockRequired: Error = "Command requires channel lock"; break;
-								case DErrInvalidCid: Error = "Command not allowed on this cid"; break;
-								}
-							}
-
-							co_return DMibErrorInstance("Error response reading from U2F device: {}"_f << Error);
-						}
-
-						if (Frame.m_InitialFrame.m_Command != _Command)
-							co_return DMibErrorInstance("Invalid command reading from U2F device");
-
-						DataLength = Frame.m_InitialFrame.m_ByteCountHigh << 8 | Frame.m_InitialFrame.m_ByteCountLow;
-						auto Received = fg_Min(sizeof(Frame.m_InitialFrame.m_Data), umint(DataLength));
-						Receive.f_Insert(Frame.m_InitialFrame.m_Data, Received);
-						nReceived = Received;
-						bFirstFrame = false;
-					}
-					else
-					{
-						if (Frame.m_ContinuationFrame.m_SequenceNumber != Sequence++)
-							co_return DMibErrorInstance("Invalid sequence number when reading from U2F device");
-
-						auto Received = fg_Min(umint(nReceived) + sizeof(Frame.m_ContinuationFrame.m_Data), umint(DataLength)) - umint(nReceived);
-						Receive.f_Insert(Frame.m_ContinuationFrame.m_Data, Received);
-						nReceived += Received;
-					}
-				}
-				co_return fg_Move(Receive);
-			}
-		}
-
-		TCFuture<CSecureByteVector> f_SendAPDU(uint8 _Command, CSecureByteVector _Data, uint8 _UserPresence) const
-		{
-			auto DataLength = _Data.f_GetLen();
-
-			CSecureByteVector Buffer{0, _Command, _UserPresence, 0, 0, (uint8)(DataLength >> 8), (uint8)DataLength};
-			Buffer.f_Insert(_Data);
-			Buffer.f_Insert((uint8)0);
-			Buffer.f_Insert((uint8)0);
-
-			auto Response = co_await f_SendReceive(DU2fHidMsg, Buffer);
-
-			if (Response.f_GetLen() < 2)
-				co_return DMibErrorInstance("Response from U2F device too short");
-
-			if (Response.f_GetLen() > DMaxDataSize)
-				co_return DMibErrorInstance("Response from U2F device too long");
-
-			co_return fg_Move(Response);
-		}
+		TCFuture<CSecureByteVector> f_SendAPDU(uint8 _Command, CSecureByteVector _Data, uint8 _UserPresence) const;
 
 		TCActor<CHumanInterfaceDeviceActor> m_Device;
 		CStr m_Path;
 		uint32 m_ChannelID;
 	};
+
+	CU2FDevice::CU2FDevice(TCActor<CHumanInterfaceDeviceActor> const &_Device, uint32 _ChannelID, CStr const &_Path)
+		: m_Device(_Device)
+		, m_ChannelID(_ChannelID)
+		, m_Path(_Path)
+	{
+	}
+
+	TCFuture<CU2FDevice> CU2FDevice::fs_Init(TCActor<CHumanInterfaceDeviceActor> _Device, CStr _Path)
+	{
+		static constexpr umint c_InitNonceSize = 8;
+
+		struct CInitResponse
+		{
+			uint8 m_Nonce[c_InitNonceSize];
+			uint32 m_ChannelID;
+			uint8 m_VersionInterface;
+			uint8 m_VersionMajor;
+			uint8 m_VersionMinor;
+			uint8 m_VersionBuild;
+			uint8 m_CapFlags;
+		};
+
+		CSecureByteVector Nonce;
+		NCryptography::fg_GenerateRandomData(Nonce.f_GetArray(c_InitNonceSize), c_InitNonceSize);
+
+		auto RawResponse = co_await fs_SendReceive(DU2fHidInit, Nonce, DCidBroadcast, _Device);
+
+		if (RawResponse.f_GetLen() != (c_InitNonceSize + 4 + 5))
+			co_return DMibErrorInstance("Invalid U2FHID_INIT response length");
+
+		CInitResponse Resonse;
+		NMemory::fg_MemCopy(&Resonse, RawResponse.f_GetArray(), c_InitNonceSize + 4 + 5);
+		if (NMemory::fg_MemCmp(Resonse.m_Nonce, Nonce.f_GetArray(), c_InitNonceSize))
+			co_return DMibErrorInstance("U2FHID_INIT response contains invalid nounce");
+
+		co_return CU2FDevice{_Device, Resonse.m_ChannelID, _Path};
+	}
+
+	TCFuture<CFrame> CU2FDevice::fs_ReadFrame(TCActor<CHumanInterfaceDeviceActor> _Device)
+	{
+		static constexpr umint c_HIDTimeout = 2;
+		static constexpr umint c_HIDMaxTimeout = 4096;
+		umint Timeout = c_HIDTimeout;
+
+		while (true)
+		{
+			auto Result = co_await _Device(&CHumanInterfaceDeviceActor::f_ReadTimeout, CHumanInterfaceDevicesActor::mc_ReportSize, Timeout);
+
+			if (!Result.f_IsEmpty())
+			{
+				CFrame Frame;
+				if (Result.f_GetLen() != sizeof(Frame))
+					co_return DMibErrorInstance("U2F transport error: Frame size wrong");
+
+				NMemory::fg_MemCopy((uint8 *)&Frame, Result.f_GetArray(), sizeof(Frame));
+
+				co_return fg_Move(Frame);
+			}
+
+			Timeout *= 2;
+
+			if (Timeout > c_HIDMaxTimeout)
+				break;
+		}
+
+		co_return DMibErrorInstance("U2F transport error: Timed out reading");
+	}
+
+	TCFuture<CSecureByteVector> CU2FDevice::f_SendReceive(uint8_t _Command, CSecureByteVector _Send) const
+	{
+		co_return co_await fs_SendReceive(_Command, _Send, m_ChannelID, m_Device);
+	}
+
+	TCFuture<CSecureByteVector> CU2FDevice::fs_SendReceive(uint8_t _Command, CSecureByteVector _Send, uint32 _ChannelID, TCActor<CHumanInterfaceDeviceActor> _Device)
+	{
+		{
+			uint8 Sequence = 0;
+			umint SendLength = _Send.f_GetLen();
+			uint8 const *pSendData = _Send.f_GetArray();
+			umint DataSent = 0;
+
+			while (DataSent < SendLength)
+			{
+				CFrame Frame;
+
+				if (DataSent == 0)
+					DataSent += Frame.f_SetInitial(_ChannelID, _Command, SendLength, pSendData, SendLength);
+				else
+					DataSent += Frame.f_SetContinuation(_ChannelID, Sequence++, pSendData + DataSent, SendLength - DataSent);
+
+				CSecureByteVector Data;
+				Data.f_Insert((uint8 *)&Frame, sizeof(Frame));
+
+				auto BytesWritten = co_await _Device(&CHumanInterfaceDeviceActor::f_Write, 0, fg_Move(Data));
+				if (BytesWritten != sizeof(CFrame) + 1)
+					co_return DMibErrorInstance("Wrong number of bytes written for U2F frame");
+			}
+		}
+
+		{
+			CSecureByteVector Receive;
+			uint16 nReceived = 0;
+			uint16 DataLength = 0;
+			uint8 Sequence = 0;
+			bool bFirstFrame = true;
+			while (nReceived < DataLength || bFirstFrame)
+			{
+				auto Frame = co_await fs_ReadFrame(_Device);
+
+				if (Frame.m_ChannelID != _ChannelID)
+					co_return DMibErrorInstance("Invalid channel number reading from U2F device");
+
+				if (bFirstFrame)
+				{
+					if (Frame.m_InitialFrame.m_Command == DU2fHidError)
+					{
+						CStr Error = "Unknown error";
+						uint16 DataLength = Frame.m_InitialFrame.m_ByteCountHigh << 8 | Frame.m_InitialFrame.m_ByteCountLow;
+						if (DataLength == 1)
+						{
+							switch (Frame.m_InitialFrame.m_Data[0])
+							{
+							case DErrInvalidCmd: Error = "Invalid command"; break;
+							case DErrInvalidPar: Error = "Invalid parameter"; break;
+							case DErrInvalidLen: Error = "Invalid message length"; break;
+							case DErrInvalidSeq: Error = "Invalid message sequencing"; break;
+							case DErrMsgTimeout: Error = "Message has timed out"; break;
+							case DErrChannelBusy: Error = "Channel busy"; break;
+							case DErrLockRequired: Error = "Command requires channel lock"; break;
+							case DErrInvalidCid: Error = "Command not allowed on this cid"; break;
+							}
+						}
+
+						co_return DMibErrorInstance("Error response reading from U2F device: {}"_f << Error);
+					}
+
+					if (Frame.m_InitialFrame.m_Command != _Command)
+						co_return DMibErrorInstance("Invalid command reading from U2F device");
+
+					DataLength = Frame.m_InitialFrame.m_ByteCountHigh << 8 | Frame.m_InitialFrame.m_ByteCountLow;
+					auto Received = fg_Min(sizeof(Frame.m_InitialFrame.m_Data), umint(DataLength));
+					Receive.f_Insert(Frame.m_InitialFrame.m_Data, Received);
+					nReceived = Received;
+					bFirstFrame = false;
+				}
+				else
+				{
+					if (Frame.m_ContinuationFrame.m_SequenceNumber != Sequence++)
+						co_return DMibErrorInstance("Invalid sequence number when reading from U2F device");
+
+					auto Received = fg_Min(umint(nReceived) + sizeof(Frame.m_ContinuationFrame.m_Data), umint(DataLength)) - umint(nReceived);
+					Receive.f_Insert(Frame.m_ContinuationFrame.m_Data, Received);
+					nReceived += Received;
+				}
+			}
+			co_return fg_Move(Receive);
+		}
+	}
+
+	TCFuture<CSecureByteVector> CU2FDevice::f_SendAPDU(uint8 _Command, CSecureByteVector _Data, uint8 _UserPresence) const
+	{
+		auto DataLength = _Data.f_GetLen();
+
+		CSecureByteVector Buffer{0, _Command, _UserPresence, 0, 0, (uint8)(DataLength >> 8), (uint8)DataLength};
+		Buffer.f_Insert(_Data);
+		Buffer.f_Insert((uint8)0);
+		Buffer.f_Insert((uint8)0);
+
+		auto Response = co_await f_SendReceive(DU2fHidMsg, Buffer);
+
+		if (Response.f_GetLen() < 2)
+			co_return DMibErrorInstance("Response from U2F device too short");
+
+		if (Response.f_GetLen() > DMaxDataSize)
+			co_return DMibErrorInstance("Response from U2F device too long");
+
+		co_return fg_Move(Response);
+	}
 
 	// Class for handling the low level communication with the U2F device, one CFrame at the time
 	struct CU2FDevices : public CAllowUnsafeThis
@@ -445,205 +479,219 @@ namespace NMib::NConcurrency::NPrivate
 			uint16 m_Usage;
 		};
 
-		CU2FDevices()
-		{
-		}
-
-		~CU2FDevices()
-		{
-			// for (auto &Device : m_Devices)
-			// 	Device.f_Close();
-		}
+		CU2FDevices();
+		~CU2FDevices();
 
 #ifdef DPlatformFamily_Linux
+		static uint32 fs_GetBytes(uint8 *_pReportDescriptor, size_t _Len, size_t _Bytes, size_t _Cur);
 
-#	include <linux/hidraw.h>
-
-		static uint32 fs_GetBytes(uint8 *_pReportDescriptor, size_t _Len, size_t _Bytes, size_t _Cur)
-		{
-			if (_Cur + _Bytes >= _Len)
-				return 0;
-
-			if (_Bytes == 0)
-				return 0;
-
-			if (_Bytes == 1)
-				return _pReportDescriptor[_Cur + 1];
-
-			if (_Bytes == 2)
-				return (_pReportDescriptor[_Cur + 2] * 256 + _pReportDescriptor[_Cur + 1]);
-
-			return 0;
-		}
-
-		static int fs_GetUsage(uint8 *_pReportDescriptor, size_t _Size, CUsageResult &_Result)
-		{
-			size_t iItem = 0;
-			int KeySize;
-			bool bFoundUsage = false;
-			bool bFoundUsagePage = false;
-
-			while (iItem < _Size)
-			{
-				int Key = _pReportDescriptor[iItem];
-				int KeyCommand = Key & 0xfc;
-
-				if ((Key & 0xf0) == 0xf0)
-					return -1; // invalid data
-
-				aint SizeCode = Key & 0x3;
-				aint DataLength;
-				switch (SizeCode)
-				{
-				case 0:
-				case 1:
-				case 2:
-					DataLength = SizeCode;
-					break;
-				case 3: DataLength = 4; break;
-
-				default: DMibNeverGetHere;
-				};
-				KeySize = 1;
-
-				if (KeyCommand == 0x4)
-				{
-					_Result.m_UsagePage = fs_GetBytes(_pReportDescriptor, _Size, DataLength, iItem);
-					bFoundUsagePage = 1;
-				}
-				if (KeyCommand == 0x8)
-				{
-					_Result.m_Usage = fs_GetBytes(_pReportDescriptor, _Size, DataLength, iItem);
-					bFoundUsage = 1;
-				}
-
-				if (bFoundUsagePage && bFoundUsage)
-					return 0; // success
-
-				iItem += DataLength + KeySize;
-			}
-			return -1;
-		}
+		static int fs_GetUsage(uint8 *_pReportDescriptor, size_t _Size, CUsageResult &_Result);
 
 		static auto DMibWorkaroundUBSanSectionErrorsDisable fs_GetUsages(TCSharedPointer<CU2FDevices> const &_pDevices, CHumanInterfaceDevicesActor::CDeviceInfo const &_DeviceInfo)
 			-> TCUnsafeFuture<CUsageResult>
-		{
-			CUsageResult Result;
-			int DescriptorSize;
-			struct hidraw_report_descriptor ReportDescriptor;
-			int Handle = open(_DeviceInfo.m_Path, O_RDWR);
-			if (Handle > 0)
-			{
-				memset(&ReportDescriptor, 0, sizeof(ReportDescriptor));
-				if (ioctl(Handle, HIDIOCGRDESCSIZE, &DescriptorSize) >= 0)
-				{
-					ReportDescriptor.size = DescriptorSize;
-					if (ioctl(Handle, HIDIOCGRDESC, &ReportDescriptor) >= 0 && fs_GetUsage(ReportDescriptor.value, ReportDescriptor.size, Result) >= 0)
-						co_return Result;
-				}
-				close(Handle);
-			}
-
-			co_return {};
-		}
+		;
 #else
 		static auto DMibWorkaroundUBSanSectionErrorsDisable fs_GetUsages(TCSharedPointer<CU2FDevices> const &_pDevices, CHumanInterfaceDevicesActor::CDeviceInfo const &_DeviceInfo)
 			-> TCUnsafeFuture<CUsageResult>
-		{
-			co_return CUsageResult{_DeviceInfo.m_UsagePage, _DeviceInfo.m_Usage};
-		}
+		;
 #endif
 
-		static TCFuture<TCSharedPointer<CU2FDevices>> DMibWorkaroundUBSanSectionErrorsDisable fs_DiscoverDevices()
-		{
-			TCSharedPointer<CU2FDevices> pDevices = fg_Construct();
-
-			auto DeviceInfos = co_await pDevices->m_HID(&CHumanInterfaceDevicesActor::f_Enumerate, 0, 0);
-
-			TCFutureVector<CUsageResult> UsageResults;
-
-			for (auto const &DeviceInfo : DeviceInfos)
-				fs_GetUsages(pDevices, DeviceInfo) > UsageResults;
-
-			TCFutureVector<TCActor<CHumanInterfaceDeviceActor>> OpenDeviceResults;
-			{
-				auto Usages = co_await fg_AllDoneWrapped(UsageResults);
-				auto iDeviceInfo = DeviceInfos.f_GetIterator();
-
-				TCVector<CHumanInterfaceDevicesActor::CDeviceInfo> NewDeviceInfos;
-
-				for (auto &UsageResult : Usages)
-				{
-					auto &DeviceInfo = *iDeviceInfo;
-					++iDeviceInfo;
-
-					if (!UsageResult)
-					{
-						DMibLogWithCategory(Malterlib/Concurrency/U2F, Error, "Failed to get usages for U2F USB device '{}': {}", DeviceInfo.m_Path, UsageResult.f_GetExceptionStr());
-						continue;
-					}
-
-					auto &Usage = *UsageResult;
-					if (Usage.m_UsagePage == DFidoUsagePage && Usage.m_Usage == DFidoUsageU2fHid)
-					{
-						pDevices->m_HID(&CHumanInterfaceDevicesActor::f_OpenPath, DeviceInfo.m_Path) > OpenDeviceResults;
-						NewDeviceInfos.f_Insert(fg_Move(DeviceInfo));
-					}
-				}
-
-				DeviceInfos = fg_Move(NewDeviceInfos);
-			}
-
-			TCFutureVector<CU2FDevice> DeviceInits;
-			{
-				auto OpenedDevices = co_await fg_AllDoneWrapped(OpenDeviceResults);
-				auto iDeviceInfo = DeviceInfos.f_GetIterator();
-
-				TCVector<CHumanInterfaceDevicesActor::CDeviceInfo> NewDeviceInfos;
-
-				for (auto &Device : OpenedDevices)
-				{
-					auto &DeviceInfo = *iDeviceInfo;
-					++iDeviceInfo;
-
-					if (!Device)
-					{
-						DMibLogWithCategory(Malterlib/Concurrency/U2F, Error, "Failed to open U2F USB device '{}': {}", DeviceInfo.m_Path, Device.f_GetExceptionStr());
-						continue;
-					}
-
-					CU2FDevice::fs_Init(*Device, DeviceInfo.m_Path) > DeviceInits;
-
-					NewDeviceInfos.f_Insert(fg_Move(DeviceInfo));
-				}
-
-				DeviceInfos = fg_Move(NewDeviceInfos);
-			}
-
-			{
-				auto InitializedDevices = co_await fg_AllDoneWrapped(DeviceInits);
-				auto iDeviceInfo = DeviceInfos.f_GetIterator();
-				for (auto &Device : InitializedDevices)
-				{
-					[[maybe_unused]] auto &DeviceInfo = *iDeviceInfo;
-					++iDeviceInfo;
-
-					if (!Device)
-					{
-						DMibLogWithCategory(Malterlib/Concurrency/U2F, Error, "Failed to init U2F USB device '{}': {}", DeviceInfo.m_Path, Device.f_GetExceptionStr());
-						continue;
-					}
-
-					pDevices->m_Devices.f_Insert(fg_Move(*Device));
-				}
-			}
-
-			co_return fg_Move(pDevices);
-		}
+		static TCFuture<TCSharedPointer<CU2FDevices>> DMibWorkaroundUBSanSectionErrorsDisable fs_DiscoverDevices();
 
 		TCActor<CHumanInterfaceDevicesActor> m_HID = fg_HumanInterfaceDevicesActor();
 		TCVector<CU2FDevice> m_Devices;
 	};
+
+	CU2FDevices::CU2FDevices()
+	{
+	}
+
+	CU2FDevices::~CU2FDevices()
+	{
+		// for (auto &Device : m_Devices)
+		// 	Device.f_Close();
+	}
+
+#ifdef DPlatformFamily_Linux
+	uint32 CU2FDevices::fs_GetBytes(uint8 *_pReportDescriptor, size_t _Len, size_t _Bytes, size_t _Cur)
+	{
+		if (_Cur + _Bytes >= _Len)
+			return 0;
+
+		if (_Bytes == 0)
+			return 0;
+
+		if (_Bytes == 1)
+			return _pReportDescriptor[_Cur + 1];
+
+		if (_Bytes == 2)
+			return (_pReportDescriptor[_Cur + 2] * 256 + _pReportDescriptor[_Cur + 1]);
+
+		return 0;
+	}
+
+	int CU2FDevices::fs_GetUsage(uint8 *_pReportDescriptor, size_t _Size, CUsageResult &_Result)
+	{
+		size_t iItem = 0;
+		int KeySize;
+		bool bFoundUsage = false;
+		bool bFoundUsagePage = false;
+
+		while (iItem < _Size)
+		{
+			int Key = _pReportDescriptor[iItem];
+			int KeyCommand = Key & 0xfc;
+
+			if ((Key & 0xf0) == 0xf0)
+				return -1; // invalid data
+
+			aint SizeCode = Key & 0x3;
+			aint DataLength;
+			switch (SizeCode)
+			{
+			case 0:
+			case 1:
+			case 2:
+				DataLength = SizeCode;
+				break;
+			case 3: DataLength = 4; break;
+
+			default: DMibNeverGetHere;
+			};
+			KeySize = 1;
+
+			if (KeyCommand == 0x4)
+			{
+				_Result.m_UsagePage = fs_GetBytes(_pReportDescriptor, _Size, DataLength, iItem);
+				bFoundUsagePage = 1;
+			}
+			if (KeyCommand == 0x8)
+			{
+				_Result.m_Usage = fs_GetBytes(_pReportDescriptor, _Size, DataLength, iItem);
+				bFoundUsage = 1;
+			}
+
+			if (bFoundUsagePage && bFoundUsage)
+				return 0; // success
+
+			iItem += DataLength + KeySize;
+		}
+		return -1;
+	}
+
+	auto CU2FDevices::fs_GetUsages(TCSharedPointer<CU2FDevices> const &_pDevices, CHumanInterfaceDevicesActor::CDeviceInfo const &_DeviceInfo) -> TCUnsafeFuture<CUsageResult>
+	{
+		CUsageResult Result;
+		int DescriptorSize;
+		struct hidraw_report_descriptor ReportDescriptor;
+		int Handle = open(_DeviceInfo.m_Path, O_RDWR);
+		if (Handle > 0)
+		{
+			memset(&ReportDescriptor, 0, sizeof(ReportDescriptor));
+			if (ioctl(Handle, HIDIOCGRDESCSIZE, &DescriptorSize) >= 0)
+			{
+				ReportDescriptor.size = DescriptorSize;
+				if (ioctl(Handle, HIDIOCGRDESC, &ReportDescriptor) >= 0 && fs_GetUsage(ReportDescriptor.value, ReportDescriptor.size, Result) >= 0)
+					co_return Result;
+			}
+			close(Handle);
+		}
+
+		co_return {};
+	}
+#else
+	auto CU2FDevices::fs_GetUsages(TCSharedPointer<CU2FDevices> const &_pDevices, CHumanInterfaceDevicesActor::CDeviceInfo const &_DeviceInfo) -> TCUnsafeFuture<CUsageResult>
+	{
+		co_return CUsageResult{_DeviceInfo.m_UsagePage, _DeviceInfo.m_Usage};
+	}
+#endif
+
+	TCFuture<TCSharedPointer<CU2FDevices>> CU2FDevices::fs_DiscoverDevices()
+	{
+		TCSharedPointer<CU2FDevices> pDevices = fg_Construct();
+
+		auto DeviceInfos = co_await pDevices->m_HID(&CHumanInterfaceDevicesActor::f_Enumerate, 0, 0);
+
+		TCFutureVector<CUsageResult> UsageResults;
+
+		for (auto const &DeviceInfo : DeviceInfos)
+			fs_GetUsages(pDevices, DeviceInfo) > UsageResults;
+
+		TCFutureVector<TCActor<CHumanInterfaceDeviceActor>> OpenDeviceResults;
+		{
+			auto Usages = co_await fg_AllDoneWrapped(UsageResults);
+			auto iDeviceInfo = DeviceInfos.f_GetIterator();
+
+			TCVector<CHumanInterfaceDevicesActor::CDeviceInfo> NewDeviceInfos;
+
+			for (auto &UsageResult : Usages)
+			{
+				auto &DeviceInfo = *iDeviceInfo;
+				++iDeviceInfo;
+
+				if (!UsageResult)
+				{
+					DMibLogWithCategory(Malterlib/Concurrency/U2F, Error, "Failed to get usages for U2F USB device '{}': {}", DeviceInfo.m_Path, UsageResult.f_GetExceptionStr());
+					continue;
+				}
+
+				auto &Usage = *UsageResult;
+				if (Usage.m_UsagePage == DFidoUsagePage && Usage.m_Usage == DFidoUsageU2fHid)
+				{
+					pDevices->m_HID(&CHumanInterfaceDevicesActor::f_OpenPath, DeviceInfo.m_Path) > OpenDeviceResults;
+					NewDeviceInfos.f_Insert(fg_Move(DeviceInfo));
+				}
+			}
+
+			DeviceInfos = fg_Move(NewDeviceInfos);
+		}
+
+		TCFutureVector<CU2FDevice> DeviceInits;
+		{
+			auto OpenedDevices = co_await fg_AllDoneWrapped(OpenDeviceResults);
+			auto iDeviceInfo = DeviceInfos.f_GetIterator();
+
+			TCVector<CHumanInterfaceDevicesActor::CDeviceInfo> NewDeviceInfos;
+
+			for (auto &Device : OpenedDevices)
+			{
+				auto &DeviceInfo = *iDeviceInfo;
+				++iDeviceInfo;
+
+				if (!Device)
+				{
+					DMibLogWithCategory(Malterlib/Concurrency/U2F, Error, "Failed to open U2F USB device '{}': {}", DeviceInfo.m_Path, Device.f_GetExceptionStr());
+					continue;
+				}
+
+				CU2FDevice::fs_Init(*Device, DeviceInfo.m_Path) > DeviceInits;
+
+				NewDeviceInfos.f_Insert(fg_Move(DeviceInfo));
+			}
+
+			DeviceInfos = fg_Move(NewDeviceInfos);
+		}
+
+		{
+			auto InitializedDevices = co_await fg_AllDoneWrapped(DeviceInits);
+			auto iDeviceInfo = DeviceInfos.f_GetIterator();
+			for (auto &Device : InitializedDevices)
+			{
+				[[maybe_unused]] auto &DeviceInfo = *iDeviceInfo;
+				++iDeviceInfo;
+
+				if (!Device)
+				{
+					DMibLogWithCategory(Malterlib/Concurrency/U2F, Error, "Failed to init U2F USB device '{}': {}", DeviceInfo.m_Path, Device.f_GetExceptionStr());
+					continue;
+				}
+
+				pDevices->m_Devices.f_Insert(fg_Move(*Device));
+			}
+		}
+
+		co_return fg_Move(pDevices);
+	}
 
 	// Class for handling the high level U2F communication
 	struct CU2FContext : public CAllowUnsafeThis
@@ -690,308 +738,319 @@ namespace NMib::NConcurrency::NPrivate
 			CSecureByteVector m_PublicKey;
 		};
 
-		static TCFuture<CSendAPDUResult> DMibWorkaroundUBSanSectionErrorsDisable fs_SendAPDUs(uint32 _Command, TCVector<CSecureByteVector> _Data, TCFunction<void ()> _fPrompt)
+		static TCFuture<CSendAPDUResult> DMibWorkaroundUBSanSectionErrorsDisable fs_SendAPDUs(uint32 _Command, TCVector<CSecureByteVector> _Data, TCFunction<void ()> _fPrompt);
+		static TCFuture<CRegistrationResultRaw> fs_ExtractRegistrationResponse(CSecureByteVector _RegistrationData);
+
+		static auto fs_VerifyRegistrationResponseRaw(CRegistrationResultRaw _Response, CHashDigest_SHA256 _ChallengeDigest, CHashDigest_SHA256 _AppDigest, CStr _AppID)
+			-> TCFuture<CRegistrationResult>
+		;
+
+		static auto fs_VerifyAuthenticationResponse(CAuthenticationResponse _Response, CVerifyResponseDependencies _Dependencies, CSecureByteVector _SignatureBytes)
+			-> TCFuture<CAuthenticationResult>
+		;
+	};
+
+	TCFuture<CU2FContext::CSendAPDUResult> CU2FContext::fs_SendAPDUs(uint32 _Command, TCVector<CSecureByteVector> _Data, TCFunction<void ()> _fPrompt)
+	{
+		auto Data = _Data;
+		auto fPrompt = _fPrompt;
+
+		auto pU2FDevices = co_await CU2FDevices::fs_DiscoverDevices();
+
+		auto &U2FDevices = *pU2FDevices;
+
+		if (U2FDevices.m_Devices.f_IsEmpty())
+			co_return DMibErrorInstance("No U2F devices found");
+
+		TCVector<TCSet<uint32>> SkipDevice;
+		umint nIterations = 16;
+		bool bSkippedAll = true;
+		bool bDidPrompt = false;
+
+		SkipDevice.f_SetLen(_Data.f_GetLen());
+
+		while (true)
 		{
-			auto Data = _Data;
-			auto fPrompt = _fPrompt;
+			if (--nIterations == 0)
+				co_return DMibErrorInstance("Timed out waiting for U2F button press");
 
-			auto pU2FDevices = co_await CU2FDevices::fs_DiscoverDevices();
+			bSkippedAll = true;
 
-			auto &U2FDevices = *pU2FDevices;
-
-			if (U2FDevices.m_Devices.f_IsEmpty())
-				co_return DMibErrorInstance("No U2F devices found");
-
-			TCVector<TCSet<uint32>> SkipDevice;
-			umint nIterations = 16;
-			bool bSkippedAll = true;
-			bool bDidPrompt = false;
-
-			SkipDevice.f_SetLen(_Data.f_GetLen());
-
-			while (true)
+			for (umint iData = 0; iData < Data.f_GetLen(); ++iData)
 			{
-				if (--nIterations == 0)
-					co_return DMibErrorInstance("Timed out waiting for U2F button press");
-
-				bSkippedAll = true;
-
-				for (umint iData = 0; iData < Data.f_GetLen(); ++iData)
+				for (auto &Device : U2FDevices.m_Devices)
 				{
-					for (auto &Device : U2FDevices.m_Devices)
+					if (SkipDevice[iData].f_FindEqual(Device.m_ChannelID))
+						continue;
+
+					bSkippedAll = false;
+
+					auto ResponseResult = co_await Device.f_SendAPDU(_Command, Data[iData], 3).f_Wrap();
+
+					if (!ResponseResult)
 					{
-						if (SkipDevice[iData].f_FindEqual(Device.m_ChannelID))
-							continue;
+						DMibLogWithCategory(Malterlib/Concurrency/U2F, Error, "Failed to send APDU to U2F USB device: {}", ResponseResult.f_GetExceptionStr());
 
-						bSkippedAll = false;
+						SkipDevice[iData][Device.m_ChannelID];
+						continue;
+					}
 
-						auto ResponseResult = co_await Device.f_SendAPDU(_Command, Data[iData], 3).f_Wrap();
+					auto &Response = *ResponseResult;
 
-						if (!ResponseResult)
+					if (Response.f_GetLen() < 2)
+						SkipDevice[iData][Device.m_ChannelID];
+					else
+					{
+						umint ResponseLen = Response.f_GetLen();
+						uint16 StatusCode = uint16(Response[ResponseLen - 2] << 8) | uint16(Response[ResponseLen - 1]);
+
+						switch (StatusCode)
 						{
-							DMibLogWithCategory(Malterlib/Concurrency/U2F, Error, "Failed to send APDU to U2F USB device: {}", ResponseResult.f_GetExceptionStr());
-
-							SkipDevice[iData][Device.m_ChannelID];
-							continue;
-						}
-
-						auto &Response = *ResponseResult;
-
-						if (Response.f_GetLen() < 2)
-							SkipDevice[iData][Device.m_ChannelID];
-						else
-						{
-							umint ResponseLen = Response.f_GetLen();
-							uint16 StatusCode = uint16(Response[ResponseLen - 2] << 8) | uint16(Response[ResponseLen - 1]);
-
-							switch (StatusCode)
+						case 0x9000: // SW_NO_ERROR The command completed successfully without error.
 							{
-							case 0x9000: // SW_NO_ERROR The command completed successfully without error.
-								{
-									Response.f_SetLen(ResponseLen - 2);
+								Response.f_SetLen(ResponseLen - 2);
 
-									CSendAPDUResult Result;
-									Result.m_Data = fg_Move(Response);
-									Result.m_Index = iData;
+								CSendAPDUResult Result;
+								Result.m_Data = fg_Move(Response);
+								Result.m_Index = iData;
 
-									co_return fg_Move(Result);
-									break;
-								}
-							case 0x6985: // SW_CONDITIONS_NOT_SATISFIED The request was rejected due to test-of-user-presence being required.
+								co_return fg_Move(Result);
+								break;
+							}
+						case 0x6985: // SW_CONDITIONS_NOT_SATISFIED The request was rejected due to test-of-user-presence being required.
+							{
+								if (!bDidPrompt)
 								{
-									if (!bDidPrompt)
-									{
-										bDidPrompt = true;
-										fPrompt();
-									}
-									break;
+									bDidPrompt = true;
+									fPrompt();
 								}
-							case 0x6A80: // SW_WRONG_DATA The request was rejected due to an invalid key handle.
-							case 0x6700: // SW_WRONG_LENGTH The length of the request was invalid.
-							case 0x6E00: // SW_CLA_NOT_SUPPORTED The Class byte of the request is not supported.
-							case 0x6D00: // SW_INS_NOT_SUPPORTED The Instruction of the request is not supported.
-							default:
-								{
-									SkipDevice[iData][Device.m_ChannelID];
-									break;
-								}
+								break;
+							}
+						case 0x6A80: // SW_WRONG_DATA The request was rejected due to an invalid key handle.
+						case 0x6700: // SW_WRONG_LENGTH The length of the request was invalid.
+						case 0x6E00: // SW_CLA_NOT_SUPPORTED The Class byte of the request is not supported.
+						case 0x6D00: // SW_INS_NOT_SUPPORTED The Instruction of the request is not supported.
+						default:
+							{
+								SkipDevice[iData][Device.m_ChannelID];
+								break;
 							}
 						}
 					}
 				}
-
-				if (bSkippedAll)
-					co_return DMibErrorInstance("No valid U2F devices");
-
-				co_await fg_Timeout(0.5);
 			}
-		}
 
-		static TCFuture<CRegistrationResultRaw> fs_ExtractRegistrationResponse(CSecureByteVector _RegistrationData)
+			if (bSkippedAll)
+				co_return DMibErrorInstance("No valid U2F devices");
+
+			co_await fg_Timeout(0.5);
+		}
+	}
+
+	TCFuture<CU2FContext::CRegistrationResultRaw> CU2FContext::fs_ExtractRegistrationResponse(CSecureByteVector _RegistrationData)
+	{
+		auto CaptureScope = co_await g_CaptureExceptions;
+		/*
+		Layout of data
+		+-------------------------------------------------------------------+
+		| 1 |     65    | 1 |    L    |    implied               | 64       |
+		+-------------------------------------------------------------------+
+		0x05
+		public key
+		key handle length
+		key handle
+		attestation cert
+		signature
+		*/
+
+		if (_RegistrationData.f_GetLen() < 1 + 65 + 1 + 64)
+			co_return DMibErrorInstance("Registration data too short");
+
+		NStream::TCBinaryStreamMemoryPtr<NStream::CBinaryStreamBigEndian> Stream;
+		Stream.f_OpenRead(_RegistrationData);
+
 		{
-			auto CaptureScope = co_await g_CaptureExceptions;
-			/*
-			Layout of data
-			+-------------------------------------------------------------------+
-			| 1 |     65    | 1 |    L    |    implied               | 64       |
-			+-------------------------------------------------------------------+
-			0x05
-			public key
-			key handle length
-			key handle
-			attestation cert
-			signature
-			*/
+			uint8 Reserverd;
+			Stream >> Reserverd;
 
-			if (_RegistrationData.f_GetLen() < 1 + 65 + 1 + 64)
-				co_return DMibErrorInstance("Registration data too short");
-
-			NStream::TCBinaryStreamMemoryPtr<NStream::CBinaryStreamBigEndian> Stream;
-			Stream.f_OpenRead(_RegistrationData);
-
-			{
-				uint8 Reserverd;
-				Stream >> Reserverd;
-
-				if (Reserverd != 0x05)
-					co_return DMibErrorInstance("Reserved byte mismatch");
-			}
-
-			CSecureByteVector PublicKey;
-			Stream.f_ConsumeBytes(PublicKey.f_GetArray(DU2fPublicKeyLen), DU2fPublicKeyLen);
-
-			uint8 KeyHandleLen;
-			Stream >> KeyHandleLen;
-
-			CSecureByteVector KeyHandle;
-			Stream.f_ConsumeBytes(KeyHandle.f_GetArray(KeyHandleLen), KeyHandleLen);
-
-			CSecureByteVector AttestationCertData;
-			{
-				uint8 Reserved0;
-				uint8 Reserved1;
-
-				Stream >> Reserved0;
-				Stream >> Reserved1;
-
-				// Skip over offset and offset+1 (0x30, 0x82 respecitvely)
-				// Length is big-endian encoded in offset+3 and offset+4
-				if (Reserved0 != 0x30 || Reserved1 != 0x82)
-					co_return DMibErrorInstance("Reserved byte mismatch");
-
-				uint16 AttestationCertificateLen;
-				Stream >> AttestationCertificateLen;
-				Stream.f_AddPosition(-4);
-				AttestationCertificateLen += 4;
-				Stream.f_ConsumeBytes(AttestationCertData.f_GetArray(AttestationCertificateLen), AttestationCertificateLen);
-			}
-
-			CSecureByteVector SignatureBuffer;
-			{
-				size_t SignatureLen = Stream.f_GetLength() - Stream.f_GetPosition();
-				Stream.f_ConsumeBytes(SignatureBuffer.f_GetArray(SignatureLen), SignatureLen);
-			}
-
-			co_return CRegistrationResultRaw
-				{
-					.m_KeyHandle = fg_Move(KeyHandle)
-					, .m_PublicKey = fg_Move(PublicKey)
-					, .m_AttestationCertificate = fg_Move(AttestationCertData)
-					, .m_Signature = fg_Move(SignatureBuffer)
-				}
-			;
+			if (Reserverd != 0x05)
+				co_return DMibErrorInstance("Reserved byte mismatch");
 		}
 
-		static auto fs_VerifyRegistrationResponseRaw(CRegistrationResultRaw _Response, CHashDigest_SHA256 _ChallengeDigest, CHashDigest_SHA256 _AppDigest, CStr _AppID)
-			-> TCFuture<CRegistrationResult>
+		CSecureByteVector PublicKey;
+		Stream.f_ConsumeBytes(PublicKey.f_GetArray(DU2fPublicKeyLen), DU2fPublicKeyLen);
+
+		uint8 KeyHandleLen;
+		Stream >> KeyHandleLen;
+
+		CSecureByteVector KeyHandle;
+		Stream.f_ConsumeBytes(KeyHandle.f_GetArray(KeyHandleLen), KeyHandleLen);
+
+		CSecureByteVector AttestationCertData;
 		{
-			auto CaptureScope = co_await g_CaptureExceptions;
+			uint8 Reserved0;
+			uint8 Reserved1;
 
-			CSecureByteVector &PublicKey = _Response.m_PublicKey;
-			CSecureByteVector &KeyHandle = _Response.m_KeyHandle;
-			CSecureByteVector &AttestationCertData = _Response.m_AttestationCertificate;
-			CSecureByteVector &SignatureBuffer = _Response.m_Signature;
+			Stream >> Reserved0;
+			Stream >> Reserved1;
 
-			TCSSLPointer<X509 *, X509_free> pCertificate{nullptr};
-			{
-				uint8 const *pTempData = AttestationCertData.f_GetArray();
-				ERR_clear_error();
-				pCertificate = d2i_X509(nullptr, &pTempData, AttestationCertData.f_GetLen());
-				if (!pCertificate)
-					co_return DMibErrorInstance(NCryptography::NBoringSSL::fg_GetExceptionStr("Failed to verify registration response (d2i_X509)"));
-			}
+			// Skip over offset and offset+1 (0x30, 0x82 respecitvely)
+			// Length is big-endian encoded in offset+3 and offset+4
+			if (Reserved0 != 0x30 || Reserved1 != 0x82)
+				co_return DMibErrorInstance("Reserved byte mismatch");
 
-			TCSSLPointer<ECDSA_SIG *, ECDSA_SIG_free> pSig{nullptr};
-			{
-				uint8 const *pTempData = SignatureBuffer.f_GetArray();
-				ERR_clear_error();
-				pSig = d2i_ECDSA_SIG(nullptr, &pTempData, SignatureBuffer.f_GetLen());
-				if (!pSig)
-					co_return DMibErrorInstance(NCryptography::NBoringSSL::fg_GetExceptionStr("Failed to verify registration response (d2i_ECDSA_SIG)"));
-			}
-
-			TCSSLPointer<EVP_PKEY *, EVP_PKEY_free> pKey = X509_get_pubkey(pCertificate);
-			if (!pKey)
-				co_return DMibErrorInstance(NCryptography::NBoringSSL::fg_GetExceptionStr("Failed to verify registration response (X509_get_pubkey)"));
-
-			TCSSLPointer<EC_KEY *, EC_KEY_free> pECKey = EVP_PKEY_get1_EC_KEY(pKey);
-			if (!pECKey)
-				co_return DMibErrorInstance(NCryptography::NBoringSSL::fg_GetExceptionStr("Failed to verify registration response (EVP_PKEY_get1_EC_KEY)"));
-
-			TCSSLPointer<EC_GROUP *, EC_GROUP_free> pECGroup = EC_GROUP_new_by_curve_name(NID_X9_62_prime256v1);
-			EC_KEY_set_asn1_flag(pECKey, OPENSSL_EC_NAMED_CURVE);
-			EC_KEY_set_group(pECKey, pECGroup);
-
-			CHash_SHA256 Hash;
-			{
-				uint8 Init = 0;
-				Hash.f_AddData(&Init, 1);
-				Hash.f_AddData(_AppDigest.f_GetData(), _AppDigest.mc_Size);
-				Hash.f_AddData(_ChallengeDigest.f_GetData(), _ChallengeDigest.mc_Size);
-				Hash.f_AddData(KeyHandle.f_GetArray(), KeyHandle.f_GetLen());
-				Hash.f_AddData(PublicKey.f_GetArray(), PublicKey.f_GetLen());
-			}
-			auto Digest = Hash.f_GetDigest();
-
-			ERR_clear_error();
-			int VerifyResult = ECDSA_do_verify(Digest.f_GetData(), Digest.mc_Size, pSig, pECKey);
-			if (VerifyResult != 1)
-			{
-				if (VerifyResult == -1)
-					co_return DMibErrorInstance(NCryptography::NBoringSSL::fg_GetExceptionStr("Failed to verify registration response (ECDSA_do_verify)"));
-				else
-					co_return DMibErrorInstance("Invalid signature");
-			}
-
-			TCSSLPointer<EC_KEY *, EC_KEY_free> pUserPublicKey = fg_DecodeUserKey(PublicKey);
-
-			co_return CRegistrationResult
-				{
-					.m_KeyHandle = fg_Move(KeyHandle)
-					, .m_PublicKey = fg_DumpUserKey(pUserPublicKey)
-					, .m_AttestationCertificatePEM = fg_DumpX509Cert(pCertificate)
-					, .m_AppID = _AppID
-				}
-			;
+			uint16 AttestationCertificateLen;
+			Stream >> AttestationCertificateLen;
+			Stream.f_AddPosition(-4);
+			AttestationCertificateLen += 4;
+			Stream.f_ConsumeBytes(AttestationCertData.f_GetArray(AttestationCertificateLen), AttestationCertificateLen);
 		}
 
-		static auto fs_VerifyAuthenticationResponse(CAuthenticationResponse _Response, CVerifyResponseDependencies _Dependencies, CSecureByteVector _SignatureBytes)
-			-> TCFuture<CAuthenticationResult>
+		CSecureByteVector SignatureBuffer;
 		{
-			CAuthenticationResult Result;
-
-			// Parse the signature data
-
-			/*
-			Layout of data
-			+-----------------------------------+
-			| 1 |     4     |      implied      |
-			+-----------------------------------+
-			user presence
-			counter
-			signature
-			*/
-
-			if (_Response.m_Signature.f_GetLen() < 1 + DU2fCounterLen)
-				co_return DMibErrorInstance("Length mismatch");
-
-			auto *pData = _Response.m_Signature.f_GetArray();
-			Result.m_UserPresence = *pData++;
-			NMemory::fg_MemCopy((uint8 *)&Result.m_Counter, pData, DU2fCounterLen);
-			pData += DU2fCounterLen;
-
-			ERR_clear_error();
-			TCSSLPointer<ECDSA_SIG *, ECDSA_SIG_free> pSignature = d2i_ECDSA_SIG(nullptr, (uint8 const **)&pData, _Response.m_Signature.f_GetLen() - DU2fCounterLen - 1);
-			if (!pSignature)
-				co_return DMibErrorInstance(NCryptography::NBoringSSL::fg_GetExceptionStr("Failed to verify authentication response (d2i_ECDSA_SIG)"));
-
-			CHash_SHA256 Hash;
-			auto AppDigest = CHash_SHA256::fs_DigestFromData(_Dependencies.m_AppID.f_GetStr(), _Dependencies.m_AppID.f_GetLen());
-			auto ClientDigest = CHash_SHA256::fs_DigestFromData(_SignatureBytes);
-
-			Hash.f_AddData(AppDigest.f_GetData(), AppDigest.mc_Size);
-			Hash.f_AddData((uint8 *)&Result.m_UserPresence, 1);
-			Hash.f_AddData((uint8 *)&Result.m_Counter, DU2fCounterLen);
-			Hash.f_AddData(ClientDigest.f_GetData(), ClientDigest.mc_Size);
-			auto Digest = Hash.f_GetDigest();
-
-			TCSSLPointer<EC_KEY *, EC_KEY_free> pKey = fg_DecodeUserKey(_Dependencies.m_PublicKey);
-			ERR_clear_error();
-			auto Verified = ECDSA_do_verify(Digest.f_GetData(), Digest.mc_Size, pSignature, pKey);
-			if (Verified != 1)
-			{
-				if (Verified == -1)
-					co_return DMibErrorInstance(NCryptography::NBoringSSL::fg_GetExceptionStr("Failed to verify authentication response (ECDSA_do_verify)"));
-				else
-					co_return DMibErrorInstance("Invalid signature");
-			}
-			// Change endianess
-			Result.m_Counter = fg_ByteSwapBE(Result.m_Counter);
-			Result.m_bVerified = true;
-
-			co_return fg_Move(Result);
+			size_t SignatureLen = Stream.f_GetLength() - Stream.f_GetPosition();
+			Stream.f_ConsumeBytes(SignatureBuffer.f_GetArray(SignatureLen), SignatureLen);
 		}
-	};
+
+		co_return CRegistrationResultRaw
+			{
+				.m_KeyHandle = fg_Move(KeyHandle)
+				, .m_PublicKey = fg_Move(PublicKey)
+				, .m_AttestationCertificate = fg_Move(AttestationCertData)
+				, .m_Signature = fg_Move(SignatureBuffer)
+			}
+		;
+	}
+
+	auto CU2FContext::fs_VerifyRegistrationResponseRaw(CRegistrationResultRaw _Response, CHashDigest_SHA256 _ChallengeDigest, CHashDigest_SHA256 _AppDigest, CStr _AppID)
+		-> TCFuture<CRegistrationResult>
+	{
+		auto CaptureScope = co_await g_CaptureExceptions;
+
+		CSecureByteVector &PublicKey = _Response.m_PublicKey;
+		CSecureByteVector &KeyHandle = _Response.m_KeyHandle;
+		CSecureByteVector &AttestationCertData = _Response.m_AttestationCertificate;
+		CSecureByteVector &SignatureBuffer = _Response.m_Signature;
+
+		TCSSLPointer<X509 *, X509_free> pCertificate{nullptr};
+		{
+			uint8 const *pTempData = AttestationCertData.f_GetArray();
+			ERR_clear_error();
+			pCertificate = d2i_X509(nullptr, &pTempData, AttestationCertData.f_GetLen());
+			if (!pCertificate)
+				co_return DMibErrorInstance(NCryptography::NBoringSSL::fg_GetExceptionStr("Failed to verify registration response (d2i_X509)"));
+		}
+
+		TCSSLPointer<ECDSA_SIG *, ECDSA_SIG_free> pSig{nullptr};
+		{
+			uint8 const *pTempData = SignatureBuffer.f_GetArray();
+			ERR_clear_error();
+			pSig = d2i_ECDSA_SIG(nullptr, &pTempData, SignatureBuffer.f_GetLen());
+			if (!pSig)
+				co_return DMibErrorInstance(NCryptography::NBoringSSL::fg_GetExceptionStr("Failed to verify registration response (d2i_ECDSA_SIG)"));
+		}
+
+		TCSSLPointer<EVP_PKEY *, EVP_PKEY_free> pKey = X509_get_pubkey(pCertificate);
+		if (!pKey)
+			co_return DMibErrorInstance(NCryptography::NBoringSSL::fg_GetExceptionStr("Failed to verify registration response (X509_get_pubkey)"));
+
+		TCSSLPointer<EC_KEY *, EC_KEY_free> pECKey = EVP_PKEY_get1_EC_KEY(pKey);
+		if (!pECKey)
+			co_return DMibErrorInstance(NCryptography::NBoringSSL::fg_GetExceptionStr("Failed to verify registration response (EVP_PKEY_get1_EC_KEY)"));
+
+		TCSSLPointer<EC_GROUP *, EC_GROUP_free> pECGroup = EC_GROUP_new_by_curve_name(NID_X9_62_prime256v1);
+		EC_KEY_set_asn1_flag(pECKey, OPENSSL_EC_NAMED_CURVE);
+		EC_KEY_set_group(pECKey, pECGroup);
+
+		CHash_SHA256 Hash;
+		{
+			uint8 Init = 0;
+			Hash.f_AddData(&Init, 1);
+			Hash.f_AddData(_AppDigest.f_GetData(), _AppDigest.mc_Size);
+			Hash.f_AddData(_ChallengeDigest.f_GetData(), _ChallengeDigest.mc_Size);
+			Hash.f_AddData(KeyHandle.f_GetArray(), KeyHandle.f_GetLen());
+			Hash.f_AddData(PublicKey.f_GetArray(), PublicKey.f_GetLen());
+		}
+		auto Digest = Hash.f_GetDigest();
+
+		ERR_clear_error();
+		int VerifyResult = ECDSA_do_verify(Digest.f_GetData(), Digest.mc_Size, pSig, pECKey);
+		if (VerifyResult != 1)
+		{
+			if (VerifyResult == -1)
+				co_return DMibErrorInstance(NCryptography::NBoringSSL::fg_GetExceptionStr("Failed to verify registration response (ECDSA_do_verify)"));
+			else
+				co_return DMibErrorInstance("Invalid signature");
+		}
+
+		TCSSLPointer<EC_KEY *, EC_KEY_free> pUserPublicKey = fg_DecodeUserKey(PublicKey);
+
+		co_return CRegistrationResult
+			{
+				.m_KeyHandle = fg_Move(KeyHandle)
+				, .m_PublicKey = fg_DumpUserKey(pUserPublicKey)
+				, .m_AttestationCertificatePEM = fg_DumpX509Cert(pCertificate)
+				, .m_AppID = _AppID
+			}
+		;
+	}
+
+	auto CU2FContext::fs_VerifyAuthenticationResponse(CAuthenticationResponse _Response, CVerifyResponseDependencies _Dependencies, CSecureByteVector _SignatureBytes)
+		-> TCFuture<CAuthenticationResult>
+	{
+		CAuthenticationResult Result;
+
+		// Parse the signature data
+
+		/*
+		Layout of data
+		+-----------------------------------+
+		| 1 |     4     |      implied      |
+		+-----------------------------------+
+		user presence
+		counter
+		signature
+		*/
+
+		if (_Response.m_Signature.f_GetLen() < 1 + DU2fCounterLen)
+			co_return DMibErrorInstance("Length mismatch");
+
+		auto *pData = _Response.m_Signature.f_GetArray();
+		Result.m_UserPresence = *pData++;
+		NMemory::fg_MemCopy((uint8 *)&Result.m_Counter, pData, DU2fCounterLen);
+		pData += DU2fCounterLen;
+
+		ERR_clear_error();
+		TCSSLPointer<ECDSA_SIG *, ECDSA_SIG_free> pSignature = d2i_ECDSA_SIG(nullptr, (uint8 const **)&pData, _Response.m_Signature.f_GetLen() - DU2fCounterLen - 1);
+		if (!pSignature)
+			co_return DMibErrorInstance(NCryptography::NBoringSSL::fg_GetExceptionStr("Failed to verify authentication response (d2i_ECDSA_SIG)"));
+
+		CHash_SHA256 Hash;
+		auto AppDigest = CHash_SHA256::fs_DigestFromData(_Dependencies.m_AppID.f_GetStr(), _Dependencies.m_AppID.f_GetLen());
+		auto ClientDigest = CHash_SHA256::fs_DigestFromData(_SignatureBytes);
+
+		Hash.f_AddData(AppDigest.f_GetData(), AppDigest.mc_Size);
+		Hash.f_AddData((uint8 *)&Result.m_UserPresence, 1);
+		Hash.f_AddData((uint8 *)&Result.m_Counter, DU2fCounterLen);
+		Hash.f_AddData(ClientDigest.f_GetData(), ClientDigest.mc_Size);
+		auto Digest = Hash.f_GetDigest();
+
+		TCSSLPointer<EC_KEY *, EC_KEY_free> pKey = fg_DecodeUserKey(_Dependencies.m_PublicKey);
+		ERR_clear_error();
+		auto Verified = ECDSA_do_verify(Digest.f_GetData(), Digest.mc_Size, pSignature, pKey);
+		if (Verified != 1)
+		{
+			if (Verified == -1)
+				co_return DMibErrorInstance(NCryptography::NBoringSSL::fg_GetExceptionStr("Failed to verify authentication response (ECDSA_do_verify)"));
+			else
+				co_return DMibErrorInstance("Invalid signature");
+		}
+		// Change endianess
+		Result.m_Counter = fg_ByteSwapBE(Result.m_Counter);
+		Result.m_bVerified = true;
+
+		co_return fg_Move(Result);
+	}
 }
 
 namespace NMib::NConcurrency

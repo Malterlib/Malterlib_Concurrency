@@ -71,20 +71,18 @@ namespace NMib::NConcurrency
 			CInternal();
 			~CInternal();
 
-		public:
-			friend struct TCFutureMap;
-
 			TCFuture<NContainer::TCMap<t_CKey, TCAsyncResult<t_CValue>>> f_GetResults();
 
-		private:
+		private: // NOLINT(malterlib-member-order): m_RefCount keeps its cache line after the private data members
+			friend struct TCFutureMap;
+
+			void fp_TransferResults();
+
 			NContainer::TCMap<t_CKey, TCAsyncResult<t_CValue>> mp_Results;
 			TCPromise<NContainer::TCMap<t_CKey, TCAsyncResult<t_CValue>>> mp_GetResultsPromise;
 
-		public:
+		public: // NOLINT(malterlib-member-order): m_RefCount keeps its cache line after the private data members
 			align_cacheline NStorage::CIntrusiveRefCount m_RefCount;
-
-		private:
-			void fp_TransferResults();
 		};
 
 		struct CResultReceived final

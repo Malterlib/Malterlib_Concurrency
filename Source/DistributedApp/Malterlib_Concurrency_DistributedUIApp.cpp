@@ -16,21 +16,23 @@ namespace NMib::NConcurrency
 			using CActorHolder = COSMainRunLoopActorHolder;
 		};
 
-		~CInternal()
-		{
-			m_CurrentActor.f_Clear();
-			m_HelperActor->f_BlockDestroy(m_pRunLoop->f_ActorDestroyLoop());
-			m_HelperActor.f_Clear();
-			while (m_pRunLoop->m_RefCount.f_Get() > 0)
-				m_pRunLoop->f_WaitOnce();
-			m_pRunLoop.f_Clear();
-		}
+		~CInternal();
 
 		NStorage::TCSharedPointer<COSMainRunLoop> m_pRunLoop = fg_Construct();
 		TCActor<CMainLoopActor> m_HelperActor{fg_Construct()};
 		NStorage::TCOptional<CCurrentActorScope> m_CurrentActor{fg_Construct(fg_ConcurrencyThreadLocal(), m_HelperActor)};
 		CRunDistributedAppHelper m_RunHelper;
 	};
+
+	CDistributedUIApp::CInternal::~CInternal()
+	{
+		m_CurrentActor.f_Clear();
+		m_HelperActor->f_BlockDestroy(m_pRunLoop->f_ActorDestroyLoop());
+		m_HelperActor.f_Clear();
+		while (m_pRunLoop->m_RefCount.f_Get() > 0)
+			m_pRunLoop->f_WaitOnce();
+		m_pRunLoop.f_Clear();
+	}
 
 	CDistributedUIApp::CDistributedUIApp(NFunction::TCFunction<TCActor<CDistributedAppActor> ()> const &_fActorFactory)
 		: mp_fActorFactory(_fActorFactory)

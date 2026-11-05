@@ -16,9 +16,9 @@ namespace NMib::NConcurrency
 		~TCActorSequencerActor();
 
 		TCActorSequencerActor(TCActorSequencerActor &&_Other) = default;
-		TCActorSequencerActor &operator = (TCActorSequencerActor &&_Other) = default;
-
 		TCActorSequencerActor(TCActorSequencerActor const &_Other) = delete;
+
+		TCActorSequencerActor &operator = (TCActorSequencerActor &&_Other) = default;
 		TCActorSequencerActor &operator = (TCActorSequencerActor const &_Other) = delete;
 
 		TCFuture<t_CReturnType> f_RunSequenced(TCActorFunctorWeak<TCFuture<t_CReturnType> (CActorSubscription _DoneSubscription)> _fToSequence);

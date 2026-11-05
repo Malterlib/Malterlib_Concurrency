@@ -14,85 +14,109 @@ namespace
 
 	struct CAsyncResultTestActor : public CActor
 	{
-		TCFuture<int32> f_TestAwaitAsyncResultValue()
-		{
-			TCAsyncResult<int32> Result;
-			Result.f_SetResult(41);
+		TCFuture<int32> f_TestAwaitAsyncResultValue();
 
-			int32 Value = co_await fg_Move(Result);
-			co_return Value + 1;
-		}
+		TCFuture<int32> f_TestAwaitAsyncResultException();
 
-		TCFuture<int32> f_TestAwaitAsyncResultException()
-		{
-			TCAsyncResult<int32> Result;
-			Result.f_SetException(DMibErrorInstance("AsyncResult exception"));
+		TCFuture<void> f_TestAwaitAsyncResultVoidException();
 
-			int32 Value = co_await fg_Move(Result);
-			co_return Value;
-		}
+		TCFuture<int32> f_TestReturnWrappedValue();
 
-		TCFuture<void> f_TestAwaitAsyncResultVoidException()
-		{
-			TCAsyncResult<void> Result;
-			Result.f_SetException(DMibErrorInstance("AsyncResult void exception"));
+		TCFuture<int32> f_TestReturnWrappedException();
 
-			co_await fg_Move(Result);
-			co_return {};
-		}
+		TCFuture<void> f_TestReturnWrappedVoid();
 
-		TCFuture<int32> f_TestReturnWrappedValue()
-		{
-			co_return TCWrapped<int32>(42);
-		}
+		TCFuture<void> f_TestReturnWrappedVoidException();
 
-		TCFuture<int32> f_TestReturnWrappedException()
-		{
-			co_return TCWrapped<int32>(DMibErrorInstance("Wrapped exception"));
-		}
+		TCFuture<int64> f_TestReturnWrappedConvertedValue();
 
-		TCFuture<void> f_TestReturnWrappedVoid()
-		{
-			co_return TCWrapped<void>();
-		}
+		TCFuture<int64> f_TestReturnWrappedConvertedException();
 
-		TCFuture<void> f_TestReturnWrappedVoidException()
-		{
-			co_return TCWrapped<void>(DMibErrorInstance("Wrapped void exception"));
-		}
+		TCFuture<int64> f_TestReturnAsyncResultConvertedValue();
 
-		TCFuture<int64> f_TestReturnWrappedConvertedValue()
-		{
-			TCWrapped<int32> Result(42);
-			co_return fg_Move(Result);
-		}
+		TCFuture<int64> f_TestReturnAsyncResultConvertedException();
 
-		TCFuture<int64> f_TestReturnWrappedConvertedException()
-		{
-			TCWrapped<int32> Result(DMibErrorInstance("Wrapped converted exception"));
-			co_return fg_Move(Result);
-		}
-
-		TCFuture<int64> f_TestReturnAsyncResultConvertedValue()
-		{
-			TCAsyncResult<int32> Result;
-			Result.f_SetResult(42);
-			co_return fg_Move(Result);
-		}
-
-		TCFuture<int64> f_TestReturnAsyncResultConvertedException()
-		{
-			TCAsyncResult<int32> Result;
-			Result.f_SetException(DMibErrorInstance("AsyncResult converted exception"));
-			co_return fg_Move(Result);
-		}
-
-		TCFuture<int32> f_TestWrappedErrorTransform()
-		{
-			int32 Value = co_await (TCWrapped<int32>(DMibErrorInstance("Wrapped transform exception")) % "Failed doing X");
-			co_return Value;
-		}
+		TCFuture<int32> f_TestWrappedErrorTransform();
 	};
+
+	TCFuture<int32> CAsyncResultTestActor::f_TestAwaitAsyncResultValue()
+	{
+		TCAsyncResult<int32> Result;
+		Result.f_SetResult(41);
+
+		int32 Value = co_await fg_Move(Result);
+		co_return Value + 1;
+	}
+
+	TCFuture<int32> CAsyncResultTestActor::f_TestAwaitAsyncResultException()
+	{
+		TCAsyncResult<int32> Result;
+		Result.f_SetException(DMibErrorInstance("AsyncResult exception"));
+
+		int32 Value = co_await fg_Move(Result);
+		co_return Value;
+	}
+
+	TCFuture<void> CAsyncResultTestActor::f_TestAwaitAsyncResultVoidException()
+	{
+		TCAsyncResult<void> Result;
+		Result.f_SetException(DMibErrorInstance("AsyncResult void exception"));
+
+		co_await fg_Move(Result);
+		co_return {};
+	}
+
+	TCFuture<int32> CAsyncResultTestActor::f_TestReturnWrappedValue()
+	{
+		co_return TCWrapped<int32>(42);
+	}
+
+	TCFuture<int32> CAsyncResultTestActor::f_TestReturnWrappedException()
+	{
+		co_return TCWrapped<int32>(DMibErrorInstance("Wrapped exception"));
+	}
+
+	TCFuture<void> CAsyncResultTestActor::f_TestReturnWrappedVoid()
+	{
+		co_return TCWrapped<void>();
+	}
+
+	TCFuture<void> CAsyncResultTestActor::f_TestReturnWrappedVoidException()
+	{
+		co_return TCWrapped<void>(DMibErrorInstance("Wrapped void exception"));
+	}
+
+	TCFuture<int64> CAsyncResultTestActor::f_TestReturnWrappedConvertedValue()
+	{
+		TCWrapped<int32> Result(42);
+		co_return fg_Move(Result);
+	}
+
+	TCFuture<int64> CAsyncResultTestActor::f_TestReturnWrappedConvertedException()
+	{
+		TCWrapped<int32> Result(DMibErrorInstance("Wrapped converted exception"));
+		co_return fg_Move(Result);
+	}
+
+	TCFuture<int64> CAsyncResultTestActor::f_TestReturnAsyncResultConvertedValue()
+	{
+		TCAsyncResult<int32> Result;
+		Result.f_SetResult(42);
+		co_return fg_Move(Result);
+	}
+
+	TCFuture<int64> CAsyncResultTestActor::f_TestReturnAsyncResultConvertedException()
+	{
+		TCAsyncResult<int32> Result;
+		Result.f_SetException(DMibErrorInstance("AsyncResult converted exception"));
+		co_return fg_Move(Result);
+	}
+
+	TCFuture<int32> CAsyncResultTestActor::f_TestWrappedErrorTransform()
+	{
+		int32 Value = co_await (TCWrapped<int32>(DMibErrorInstance("Wrapped transform exception")) % "Failed doing X");
+		co_return Value;
+	}
 
 	TCWrapped<int32> fg_WrappedCoroutineReturnValue()
 	{
@@ -195,72 +219,69 @@ namespace
 	struct CAsyncResult_Tests : public NMib::NTest::CTest
 	{
 	private:
-		void f_DoTests()
-		{
-			DMibTestSuite("ExceptionTests")
-			{
-				TCAsyncResult<void> Result;
-				Result.f_SetException(DMibImpExceptionInstance(CExceptionMemory, "Test exception"));
-
-				DMibExpectTrue(Result.f_HasExceptionType<CExceptionMemory>());
-				DMibExpectTrue(Result.f_HasExceptionType<CException>());
-
-				DMibExpectException(Result.f_Access(), DMibImpExceptionInstance(CExceptionMemory, "Test exception"));
-			};
-
-			DMibTestSuite("CoroutineTests")
-			{
-				TCActor<CAsyncResultTestActor> TestActor(fg_Construct());
-
-				DMibExpect(TestActor(&CAsyncResultTestActor::f_TestAwaitAsyncResultValue).f_CallSync(), ==, 42);
-				DMibExpectException(TestActor(&CAsyncResultTestActor::f_TestAwaitAsyncResultException).f_CallSync(), DMibErrorInstance("AsyncResult exception"));
-				DMibExpectException(TestActor(&CAsyncResultTestActor::f_TestAwaitAsyncResultVoidException).f_CallSync(), DMibErrorInstance("AsyncResult void exception"));
-
-				DMibExpect(TestActor(&CAsyncResultTestActor::f_TestReturnWrappedValue).f_CallSync(), ==, 42);
-				DMibExpectException(TestActor(&CAsyncResultTestActor::f_TestReturnWrappedException).f_CallSync(), DMibErrorInstance("Wrapped exception"));
-				TestActor(&CAsyncResultTestActor::f_TestReturnWrappedVoid).f_CallSync();
-				DMibExpectException(TestActor(&CAsyncResultTestActor::f_TestReturnWrappedVoidException).f_CallSync(), DMibErrorInstance("Wrapped void exception"));
-				DMibExpect(TestActor(&CAsyncResultTestActor::f_TestReturnWrappedConvertedValue).f_CallSync(), ==, 42);
-				DMibExpectException(TestActor(&CAsyncResultTestActor::f_TestReturnWrappedConvertedException).f_CallSync(), DMibErrorInstance("Wrapped converted exception"));
-				DMibExpect(TestActor(&CAsyncResultTestActor::f_TestReturnAsyncResultConvertedValue).f_CallSync(), ==, 42);
-				DMibExpectException(TestActor(&CAsyncResultTestActor::f_TestReturnAsyncResultConvertedException).f_CallSync(), DMibErrorInstance("AsyncResult converted exception"));
-
-				NException::CExceptionPointer pDummy;
-				DMibExpectException
-					(
-						TestActor(&CAsyncResultTestActor::f_TestWrappedErrorTransform).f_CallSync()
-						, DMibErrorInstanceWrapped("Failed doing X: Wrapped transform exception", pDummy)
-					)
-				;
-
-				fg_Move(TestActor).f_Destroy().f_CallSync();
-			};
-
-			DMibTestSuite("WrappedCoroutineTests")
-			{
-				DMibExpect(*fg_WrappedCoroutineReturnValue(), ==, 42);
-				DMibExpectException(fg_WrappedCoroutineReturnException().f_Access(), DMibErrorInstance("Wrapped coroutine exception"));
-
-				DMibExpectTrue(bool(fg_WrappedCoroutineReturnVoid()));
-				DMibExpectException(fg_WrappedCoroutineReturnVoidException().f_Access(), DMibErrorInstance("Wrapped coroutine void exception"));
-
-				DMibExpect(*fg_WrappedCoroutineAwaitWrappedValue(), ==, 42);
-				DMibExpectException(fg_WrappedCoroutineAwaitWrappedException().f_Access(), DMibErrorInstance("Inner wrapped exception"));
-
-				DMibExpect(*fg_WrappedCoroutineAwaitAsyncResultValue(), ==, 42);
-				DMibExpectException(fg_WrappedCoroutineAwaitAsyncResultException().f_Access(), DMibErrorInstance("Inner async exception"));
-				DMibExpectException(fg_WrappedCoroutineAwaitVoidException().f_Access(), DMibErrorInstance("Inner async void exception"));
-
-				DMibExpect(*fg_WrappedCoroutineForwardWrapped(), ==, 99);
-				DMibExpectException(fg_WrappedCoroutineForwardWrappedException().f_Access(), DMibErrorInstance("Forwarded wrapped exception"));
-
-				DMibExpect(*fg_WrappedFromSameTypeAsyncResultValue(), ==, 123);
-				DMibExpectException(fg_WrappedFromSameTypeAsyncResultException().f_Access(), DMibErrorInstance("Same-type async result exception"));
-				DMibExpectTrue(bool(fg_WrappedFromSameTypeAsyncResultVoidValue()));
-				DMibExpectException(fg_WrappedFromSameTypeAsyncResultVoidException().f_Access(), DMibErrorInstance("Same-type async result void exception"));
-			};
-		}
+		void f_DoTests();
 	};
+
+	void CAsyncResult_Tests::f_DoTests()
+	{
+		DMibTestSuite("ExceptionTests")
+		{
+			TCAsyncResult<void> Result;
+			Result.f_SetException(DMibImpExceptionInstance(CExceptionMemory, "Test exception"));
+
+			DMibExpectTrue(Result.f_HasExceptionType<CExceptionMemory>());
+			DMibExpectTrue(Result.f_HasExceptionType<CException>());
+
+			DMibExpectException(Result.f_Access(), DMibImpExceptionInstance(CExceptionMemory, "Test exception"));
+		};
+
+		DMibTestSuite("CoroutineTests")
+		{
+			TCActor<CAsyncResultTestActor> TestActor(fg_Construct());
+
+			DMibExpect(TestActor(&CAsyncResultTestActor::f_TestAwaitAsyncResultValue).f_CallSync(), ==, 42);
+			DMibExpectException(TestActor(&CAsyncResultTestActor::f_TestAwaitAsyncResultException).f_CallSync(), DMibErrorInstance("AsyncResult exception"));
+			DMibExpectException(TestActor(&CAsyncResultTestActor::f_TestAwaitAsyncResultVoidException).f_CallSync(), DMibErrorInstance("AsyncResult void exception"));
+
+			DMibExpect(TestActor(&CAsyncResultTestActor::f_TestReturnWrappedValue).f_CallSync(), ==, 42);
+			DMibExpectException(TestActor(&CAsyncResultTestActor::f_TestReturnWrappedException).f_CallSync(), DMibErrorInstance("Wrapped exception"));
+			TestActor(&CAsyncResultTestActor::f_TestReturnWrappedVoid).f_CallSync();
+			DMibExpectException(TestActor(&CAsyncResultTestActor::f_TestReturnWrappedVoidException).f_CallSync(), DMibErrorInstance("Wrapped void exception"));
+			DMibExpect(TestActor(&CAsyncResultTestActor::f_TestReturnWrappedConvertedValue).f_CallSync(), ==, 42);
+			DMibExpectException(TestActor(&CAsyncResultTestActor::f_TestReturnWrappedConvertedException).f_CallSync(), DMibErrorInstance("Wrapped converted exception"));
+			DMibExpect(TestActor(&CAsyncResultTestActor::f_TestReturnAsyncResultConvertedValue).f_CallSync(), ==, 42);
+			DMibExpectException(TestActor(&CAsyncResultTestActor::f_TestReturnAsyncResultConvertedException).f_CallSync(), DMibErrorInstance("AsyncResult converted exception"));
+
+			NException::CExceptionPointer pDummy;
+			DMibExpectException(TestActor(&CAsyncResultTestActor::f_TestWrappedErrorTransform).f_CallSync(), DMibErrorInstanceWrapped("Failed doing X: Wrapped transform exception", pDummy));
+
+			fg_Move(TestActor).f_Destroy().f_CallSync();
+		};
+
+		DMibTestSuite("WrappedCoroutineTests")
+		{
+			DMibExpect(*fg_WrappedCoroutineReturnValue(), ==, 42);
+			DMibExpectException(fg_WrappedCoroutineReturnException().f_Access(), DMibErrorInstance("Wrapped coroutine exception"));
+
+			DMibExpectTrue(bool(fg_WrappedCoroutineReturnVoid()));
+			DMibExpectException(fg_WrappedCoroutineReturnVoidException().f_Access(), DMibErrorInstance("Wrapped coroutine void exception"));
+
+			DMibExpect(*fg_WrappedCoroutineAwaitWrappedValue(), ==, 42);
+			DMibExpectException(fg_WrappedCoroutineAwaitWrappedException().f_Access(), DMibErrorInstance("Inner wrapped exception"));
+
+			DMibExpect(*fg_WrappedCoroutineAwaitAsyncResultValue(), ==, 42);
+			DMibExpectException(fg_WrappedCoroutineAwaitAsyncResultException().f_Access(), DMibErrorInstance("Inner async exception"));
+			DMibExpectException(fg_WrappedCoroutineAwaitVoidException().f_Access(), DMibErrorInstance("Inner async void exception"));
+
+			DMibExpect(*fg_WrappedCoroutineForwardWrapped(), ==, 99);
+			DMibExpectException(fg_WrappedCoroutineForwardWrappedException().f_Access(), DMibErrorInstance("Forwarded wrapped exception"));
+
+			DMibExpect(*fg_WrappedFromSameTypeAsyncResultValue(), ==, 123);
+			DMibExpectException(fg_WrappedFromSameTypeAsyncResultException().f_Access(), DMibErrorInstance("Same-type async result exception"));
+			DMibExpectTrue(bool(fg_WrappedFromSameTypeAsyncResultVoidValue()));
+			DMibExpectException(fg_WrappedFromSameTypeAsyncResultVoidException().f_Access(), DMibErrorInstance("Same-type async result void exception"));
+		};
+	}
 
 	DMibTestRegister(CAsyncResult_Tests, Malterlib::Concurrency);
 }

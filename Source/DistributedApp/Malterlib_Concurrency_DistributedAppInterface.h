@@ -24,14 +24,14 @@ namespace NMib::NConcurrency
 			, EProtocolVersion_Current                                    = 0x102
 		};
 
-		CDistributedAppInterfaceBackup();
-		~CDistributedAppInterfaceBackup();
-
 		struct CManifestConfig : public NFile::CDirectoryManifestConfig
 		{
 			template <typename tf_CStream>
 			void f_Stream(tf_CStream &_Stream);
 		};
+
+		CDistributedAppInterfaceBackup();
+		~CDistributedAppInterfaceBackup();
 
 		virtual TCFuture<void> f_AppendManifest(CManifestConfig _Config) = 0;
 		virtual TCFuture<TCActorSubscriptionWithID<>> f_SubscribeInitialFinished(TCActorFunctorWithID<TCFuture<void> ()> _fOnInitialFinished) = 0;
@@ -61,8 +61,6 @@ namespace NMib::NConcurrency
 
 	struct CDistributedAppInterfaceServer : public CActor
 	{
-		static constexpr ch8 const *mc_pDefaultNamespace = "com.malterlib/Concurrency/DistributedAppInterfaceServer";
-
 		enum EProtocolVersion : uint32
 		{
 			EProtocolVersion_Min = 0x102
@@ -138,6 +136,8 @@ namespace NMib::NConcurrency
 			-> TCFuture<TCActorSubscriptionWithID<>> = 0
 		;
 		virtual TCFuture<TCActorSubscriptionWithID<>> f_RegisterConfigFiles(CConfigFiles _ConfigFiles) = 0;
+
+		static constexpr ch8 const *mc_pDefaultNamespace = "com.malterlib/Concurrency/DistributedAppInterfaceServer";
 	};
 }
 

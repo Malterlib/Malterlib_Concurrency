@@ -13,20 +13,6 @@ namespace NMib::NConcurrency
 		using CNonWeak = TCActor<t_CActor>;
 		using CWeak = TCWeakActor;
 
-		static constexpr bool mc_bIsWeak = true;
-		static constexpr bool mc_bIsAlwaysAlive = TCIsActorAlwaysAlive<CContainedActor>::mc_bImpl;
-
-	private:
-		using CPointerType = TCConditional<mc_bIsAlwaysAlive, CActorInternal *, TCActorHolderWeakPointer<CActorInternal>>;
-		union
-		{
-			CPointerType mp_pInternalActor = nullptr;
-			uint8 mp_Dummy[sizeof(TCActorHolderWeakPointer<CActorInternal>)];
-		};
-
-		CActorInternal *fp_Get() const;
-
-	public:
 		TCWeakActor();
 		~TCWeakActor();
 		TCWeakActor(TCActorHolderSharedPointer<CActorInternal> const &_pActor);
@@ -154,6 +140,9 @@ namespace NMib::NConcurrency
 		template <typename tf_CStr>
 		void f_Format(tf_CStr &o_Str) const;
 
+		static constexpr bool mc_bIsWeak = true;
+		static constexpr bool mc_bIsAlwaysAlive = TCIsActorAlwaysAlive<CContainedActor>::mc_bImpl;
+
 	private:
 		friend struct CConcurrencyManager;
 		template <typename t_CActor2>
@@ -161,5 +150,15 @@ namespace NMib::NConcurrency
 		template <typename t_CActor2>
 		friend struct TCWeakActor;
 		friend struct CConcurrencyManager;
+
+		using CPointerType = TCConditional<mc_bIsAlwaysAlive, CActorInternal *, TCActorHolderWeakPointer<CActorInternal>>;
+
+		CActorInternal *fp_Get() const;
+
+		union
+		{
+			CPointerType mp_pInternalActor = nullptr;
+			uint8 mp_Dummy[sizeof(TCActorHolderWeakPointer<CActorInternal>)];
+		};
 	};
 }

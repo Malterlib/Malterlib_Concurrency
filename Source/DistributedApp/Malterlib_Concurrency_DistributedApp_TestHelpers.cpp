@@ -21,11 +21,7 @@ namespace NMib::NConcurrency
 			CStr m_LastPath;
 		};
 
-		CInternal(CStr const &_RootPath, bool _bColorLogs)
-			: m_RootPath(_RootPath)
-			, m_bColorLogs(_bColorLogs)
-		{
-		}
+		CInternal(CStr const &_RootPath, bool _bColorLogs);
 
 		TCFuture<void> f_UpdateFile(CUniqueFileIdentifier _Identifier);
 
@@ -41,6 +37,12 @@ namespace NMib::NConcurrency
 
 		bool m_bColorLogs = false;
 	};
+
+	CDistributedAppLogForwarder::CInternal::CInternal(CStr const &_RootPath, bool _bColorLogs)
+		: m_RootPath(_RootPath)
+		, m_bColorLogs(_bColorLogs)
+	{
+	}
 
 	CDistributedAppLogForwarder::CDistributedAppLogForwarder(CStr const &_RootPath, bool _bColorLogs)
 		: mp_pInternal(fg_Construct(_RootPath, _bColorLogs))

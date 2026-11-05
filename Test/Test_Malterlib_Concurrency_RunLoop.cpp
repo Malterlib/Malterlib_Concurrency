@@ -26,281 +26,283 @@ namespace NMib::NConcurrency
 {
 	struct CRunLoop_Tests : NTest::CTest
 	{
-		void f_DoTests()
+		void f_DoTests();
+	};
+
+	void CRunLoop_Tests::f_DoTests()
+	{
+		DMibTestSuite("ReferenceWake") -> TCFuture<void>
 		{
-			DMibTestSuite("ReferenceWake") -> TCFuture<void>
+			auto Capture = co_await (g_CaptureExceptions % "Testing run-loop reference notifications");
+
+			DMibTestCategory("LastExternalReference")
 			{
-				auto Capture = co_await (g_CaptureExceptions % "Testing run-loop reference notifications");
+				NStorage::TCSharedPointer<CDefaultRunLoop> pLoop = fg_Construct();
+				NStorage::TCSharedPointer<CRunLoop> pOther = pLoop;
+				NStorage::TCSharedPointer<CRunLoop> pThird = pLoop;
 
-				DMibTestCategory("LastExternalReference")
-				{
-					NStorage::TCSharedPointer<CDefaultRunLoop> pLoop = fg_Construct();
-					NStorage::TCSharedPointer<CRunLoop> pOther = pLoop;
-					NStorage::TCSharedPointer<CRunLoop> pThird = pLoop;
+				pOther.f_Clear();
+				bool bTimedOutBeforeLastRelease = pLoop->f_WaitOnceTimeout(0.0);
+				DMibExpect(bTimedOutBeforeLastRelease, ==, true);
 
-					pOther.f_Clear();
-					bool bTimedOutBeforeLastRelease = pLoop->f_WaitOnceTimeout(0.0);
-					DMibExpect(bTimedOutBeforeLastRelease, ==, true);
+				pThird.f_Clear();
+				bool bTimedOutAfterLastRelease = pLoop->f_WaitOnceTimeout(0.0);
+				bool bTimedOutAfterConsumption = pLoop->f_WaitOnceTimeout(0.0);
+				DMibExpect(bTimedOutAfterLastRelease, ==, false);
+				DMibExpect(bTimedOutAfterConsumption, ==, true);
+			};
 
-					pThird.f_Clear();
-					bool bTimedOutAfterLastRelease = pLoop->f_WaitOnceTimeout(0.0);
-					bool bTimedOutAfterConsumption = pLoop->f_WaitOnceTimeout(0.0);
-					DMibExpect(bTimedOutAfterLastRelease, ==, false);
-					DMibExpect(bTimedOutAfterConsumption, ==, true);
-				};
+			DMibTestCategory("ReleaseOnAnotherThread") -> TCFuture<void>
+			{
+				auto Capture = co_await (g_CaptureExceptions % "Testing cross-thread reference release");
+				NStorage::TCSharedPointer<CDefaultRunLoop> pLoop = fg_Construct();
+				NStorage::TCSharedPointer<CRunLoop> pOther = pLoop;
+				auto BlockingActor = fg_BlockingActor();
 
-				DMibTestCategory("ReleaseOnAnotherThread") -> TCFuture<void>
-				{
-					auto Capture = co_await (g_CaptureExceptions % "Testing cross-thread reference release");
-					NStorage::TCSharedPointer<CDefaultRunLoop> pLoop = fg_Construct();
-					NStorage::TCSharedPointer<CRunLoop> pOther = pLoop;
-					auto BlockingActor = fg_BlockingActor();
+				co_await
+					(
+						g_Dispatch(BlockingActor) / [pOther = fg_Move(pOther)]() mutable
+						{
+							pOther.f_Clear();
+						}
+					)
+				;
 
-					co_await
-						(
-							g_Dispatch(BlockingActor) / [pOther = fg_Move(pOther)]() mutable
-							{
-								pOther.f_Clear();
-							}
-						)
-					;
-
-					DMibExpect(pLoop->f_WaitOnceTimeout(0.0), ==, false);
-					DMibExpect(pLoop->m_RefCount.f_Get(), ==, 0);
-
-					co_return {};
-				};
-
-#ifdef DPlatformFamily_macOS
-				DMibTestCategory("DistinctNativeSources")
-				{
-					NStorage::TCSharedPointer<COSMainRunLoop> pFirst = fg_Construct();
-					NStorage::TCSharedPointer<COSMainRunLoop> pSecond = fg_Construct();
-
-					pSecond->f_Wake();
-					bool bSecondTimedOut = pSecond->f_WaitOnceTimeout(0.0);
-					pFirst->f_Wake();
-					bool bFirstTimedOut = pFirst->f_WaitOnceTimeout(0.0);
-
-					DMibExpect(bSecondTimedOut, ==, false);
-					DMibExpect(bFirstTimedOut, ==, false);
-				};
-
-				DMibTestCategory("WakeConsumedThroughOtherWrapper")
-				{
-					NStorage::TCSharedPointer<COSMainRunLoop> pFirst = fg_Construct();
-					NStorage::TCSharedPointer<COSMainRunLoop> pSecond = fg_Construct();
-
-					pFirst->f_Wake();
-					bool bSecondTimedOut = pSecond->f_WaitOnceTimeout(0.0);
-					DMibExpect(bSecondTimedOut, ==, false);
-
-					pFirst->f_Wake();
-					bool bFirstTimedOut = pFirst->f_WaitOnceTimeout(0.0);
-					DMibExpect(bFirstTimedOut, ==, false);
-				};
-
-				DMibTestCategory("OSMainLoop") -> TCFuture<void>
-				{
-					auto Capture = co_await (g_CaptureExceptions % "Testing native run-loop reference release");
-					NStorage::TCSharedPointer<COSMainRunLoop> pLoop = fg_Construct();
-					NStorage::TCSharedPointer<CRunLoop> pOther = pLoop;
-					auto BlockingActor = fg_BlockingActor();
-
-					co_await
-						(
-							g_Dispatch(BlockingActor) / [pOther = fg_Move(pOther)]() mutable
-							{
-								pOther.f_Clear();
-							}
-						)
-					;
-
-					bool bTimedOutAfterRelease = pLoop->f_WaitOnceTimeout(0.0);
-					bool bTimedOutAfterConsumption = pLoop->f_WaitOnceTimeout(0.01);
-					DMibExpect(bTimedOutAfterRelease, ==, false);
-					DMibExpect(bTimedOutAfterConsumption, ==, true);
-					DMibExpect(pLoop->m_RefCount.f_Get(), ==, 0);
-
-					pLoop->f_Wake();
-					pLoop->f_Wake();
-					pLoop->f_WaitOnce();
-					bool bTimedOutAfterCoalescedWake = pLoop->f_WaitOnceTimeout(0.01);
-					DMibExpect(bTimedOutAfterCoalescedWake, ==, true);
-
-					co_return {};
-				};
-#endif
+				DMibExpect(pLoop->f_WaitOnceTimeout(0.0), ==, false);
+				DMibExpect(pLoop->m_RefCount.f_Get(), ==, 0);
 
 				co_return {};
 			};
 
 #ifdef DPlatformFamily_macOS
-			DMibTestSuite("ApplicationEventPump")
+			DMibTestCategory("DistinctNativeSources")
 			{
-				if (!pthread_main_np())
-				{
-					DMibLog(Info, "Skipped: the application event pump needs the main thread");
-					return;
-				}
+				NStorage::TCSharedPointer<COSMainRunLoop> pFirst = fg_Construct();
+				NStorage::TCSharedPointer<COSMainRunLoop> pSecond = fg_Construct();
 
-				// AppKit keeps its launch state for the life of the process, which a leak trace
-				// cannot tell from a leak
-				if (NMemory::fg_MemoryManagerFeatures() & NMemory::EMemoryManagerFeatureFlag_TraceLeaks)
-				{
-					DMibLog(Info, "Skipped: the application object's state would be traced as leaks");
-					return;
-				}
+				pSecond->f_Wake();
+				bool bSecondTimedOut = pSecond->f_WaitOnceTimeout(0.0);
+				pFirst->f_Wake();
+				bool bFirstTimedOut = pFirst->f_WaitOnceTimeout(0.0);
 
-#	if defined(DMibSanitizerEnabled_Address) || defined(DMibSanitizerEnabled_Thread)
-				// Quarantined frees and shadow memory grow the resident size far past what a pool leak would
-				DMibLog(Info, "Skipped: a sanitizer's own bookkeeping dominates the resident size");
-				return;
-#	endif
+				DMibExpect(bSecondTimedOut, ==, false);
+				DMibExpect(bFirstTimedOut, ==, false);
+			};
 
-				auto fResidentBytes = []
-					{
-						mach_task_basic_info Info;
-						mach_msg_type_number_t nInfo = MACH_TASK_BASIC_INFO_COUNT;
-						task_info(mach_task_self(), MACH_TASK_BASIC_INFO, (task_info_t)&Info, &nInfo);
-						return smint(Info.resident_size);
-					}
-				;
+			DMibTestCategory("WakeConsumedThroughOtherWrapper")
+			{
+				NStorage::TCSharedPointer<COSMainRunLoop> pFirst = fg_Construct();
+				NStorage::TCSharedPointer<COSMainRunLoop> pSecond = fg_Construct();
 
-				{
-					void *pPool = objc_autoreleasePoolPush();
-					id pApplication = ((id (*)(Class _pClass, SEL _pSelector))objc_msgSend)(objc_getClass("NSApplication"), sel_registerName("sharedApplication"));
-					((void (*)(id _pObject, SEL _pSelector, long _Policy))objc_msgSend)(pApplication, sel_registerName("setActivationPolicy:"), 2); // NSApplicationActivationPolicyProhibited
-					objc_autoreleasePoolPop(pPool);
-				}
+				pFirst->f_Wake();
+				bool bSecondTimedOut = pSecond->f_WaitOnceTimeout(0.0);
+				DMibExpect(bSecondTimedOut, ==, false);
 
-				NStorage::TCSharedPointer<COSMainRunLoop> pLoop = fg_Construct(EOSMainRunLoopMode::mc_ApplicationEvents);
+				pFirst->f_Wake();
+				bool bFirstTimedOut = pFirst->f_WaitOnceTimeout(0.0);
+				DMibExpect(bFirstTimedOut, ==, false);
+			};
 
-				constexpr umint c_nIterations = 200000;
-				constexpr smint c_MaxGrowth = 16 * 1024 * 1024;
+			DMibTestCategory("OSMainLoop") -> TCFuture<void>
+			{
+				auto Capture = co_await (g_CaptureExceptions % "Testing native run-loop reference release");
+				NStorage::TCSharedPointer<COSMainRunLoop> pLoop = fg_Construct();
+				NStorage::TCSharedPointer<CRunLoop> pOther = pLoop;
+				auto BlockingActor = fg_BlockingActor();
 
-				auto fPump = [&](umint _nIterations)
-					{
-						for (umint iIteration = 0; iIteration < _nIterations; ++iIteration)
-						{
-							pLoop->f_Wake();
-							pLoop->f_WaitOnceTimeout(0.0);
-						}
-					}
-				;
-
-				fPump(c_nIterations / 10);
-				smint Before = fResidentBytes();
-				fPump(c_nIterations);
-				smint MainThreadGrowth = fResidentBytes() - Before;
-				DMibLog(Info, "Wakes from the main thread: resident size grew {} bytes over {} pumps", MainThreadGrowth, c_nIterations);
-
-				NAtomic::TCAtomic<bool> bWakesDone = false;
-				Before = fResidentBytes();
-				auto pWaker = NThread::CThreadObject::fs_StartThread
+				co_await
 					(
-						[&](NThread::CThreadObject *_pThread) -> aint
+						g_Dispatch(BlockingActor) / [pOther = fg_Move(pOther)]() mutable
 						{
-							for (umint iIteration = 0; iIteration < c_nIterations; ++iIteration)
-								pLoop->f_Wake();
-
-							bWakesDone = true;
-							pLoop->f_Wake();
-							return 0;
+							pOther.f_Clear();
 						}
-						, "Application wakes"
 					)
 				;
-				while (!bWakesDone)
-					pLoop->f_WaitOnceTimeout(0.01);
-				pWaker->f_Stop(true);
 
-				// A wake posted from another thread reaches the queue through the main run loop, so
-				// the last one is only in the queue after a further pass
-				while (!pLoop->f_WaitOnceTimeout(0.01))
-					;
-				pLoop->f_WaitOnceTimeout(0.05);
-				smint OtherThreadGrowth = fResidentBytes() - Before;
-				DMibLog(Info, "Wakes from another thread: resident size grew {} bytes over {} wakes", OtherThreadGrowth, c_nIterations);
+				bool bTimedOutAfterRelease = pLoop->f_WaitOnceTimeout(0.0);
+				bool bTimedOutAfterConsumption = pLoop->f_WaitOnceTimeout(0.01);
+				DMibExpect(bTimedOutAfterRelease, ==, false);
+				DMibExpect(bTimedOutAfterConsumption, ==, true);
+				DMibExpect(pLoop->m_RefCount.f_Get(), ==, 0);
 
-				DMibExpect(MainThreadGrowth, <, c_MaxGrowth);
-				DMibExpect(OtherThreadGrowth, <, c_MaxGrowth);
+				pLoop->f_Wake();
+				pLoop->f_Wake();
+				pLoop->f_WaitOnce();
+				bool bTimedOutAfterCoalescedWake = pLoop->f_WaitOnceTimeout(0.01);
+				DMibExpect(bTimedOutAfterCoalescedWake, ==, true);
+
+				co_return {};
 			};
+#endif
+
+			co_return {};
+		};
+
+#ifdef DPlatformFamily_macOS
+		DMibTestSuite("ApplicationEventPump")
+		{
+			if (!pthread_main_np())
+			{
+				DMibLog(Info, "Skipped: the application event pump needs the main thread");
+				return;
+			}
+
+			// AppKit keeps its launch state for the life of the process, which a leak trace
+			// cannot tell from a leak
+			if (NMemory::fg_MemoryManagerFeatures() & NMemory::EMemoryManagerFeatureFlag_TraceLeaks)
+			{
+				DMibLog(Info, "Skipped: the application object's state would be traced as leaks");
+				return;
+			}
+
+#	if defined(DMibSanitizerEnabled_Address) || defined(DMibSanitizerEnabled_Thread)
+			// Quarantined frees and shadow memory grow the resident size far past what a pool leak would
+			DMibLog(Info, "Skipped: a sanitizer's own bookkeeping dominates the resident size");
+			return;
+#	endif
+
+			auto fResidentBytes = []
+				{
+					mach_task_basic_info Info;
+					mach_msg_type_number_t nInfo = MACH_TASK_BASIC_INFO_COUNT;
+					task_info(mach_task_self(), MACH_TASK_BASIC_INFO, (task_info_t)&Info, &nInfo);
+					return smint(Info.resident_size);
+				}
+			;
+
+			{
+				void *pPool = objc_autoreleasePoolPush();
+				id pApplication = ((id (*)(Class _pClass, SEL _pSelector))objc_msgSend)(objc_getClass("NSApplication"), sel_registerName("sharedApplication"));
+				((void (*)(id _pObject, SEL _pSelector, long _Policy))objc_msgSend)(pApplication, sel_registerName("setActivationPolicy:"), 2); // NSApplicationActivationPolicyProhibited
+				objc_autoreleasePoolPop(pPool);
+			}
+
+			NStorage::TCSharedPointer<COSMainRunLoop> pLoop = fg_Construct(EOSMainRunLoopMode::mc_ApplicationEvents);
+
+			constexpr umint c_nIterations = 200000;
+			constexpr smint c_MaxGrowth = 16 * 1024 * 1024;
+
+			auto fPump = [&](umint _nIterations)
+				{
+					for (umint iIteration = 0; iIteration < _nIterations; ++iIteration)
+					{
+						pLoop->f_Wake();
+						pLoop->f_WaitOnceTimeout(0.0);
+					}
+				}
+			;
+
+			fPump(c_nIterations / 10);
+			smint Before = fResidentBytes();
+			fPump(c_nIterations);
+			smint MainThreadGrowth = fResidentBytes() - Before;
+			DMibLog(Info, "Wakes from the main thread: resident size grew {} bytes over {} pumps", MainThreadGrowth, c_nIterations);
+
+			NAtomic::TCAtomic<bool> bWakesDone = false;
+			Before = fResidentBytes();
+			auto pWaker = NThread::CThreadObject::fs_StartThread
+				(
+					[&](NThread::CThreadObject *_pThread) -> aint
+					{
+						for (umint iIteration = 0; iIteration < c_nIterations; ++iIteration)
+							pLoop->f_Wake();
+
+						bWakesDone = true;
+						pLoop->f_Wake();
+						return 0;
+					}
+					, "Application wakes"
+				)
+			;
+			while (!bWakesDone)
+				pLoop->f_WaitOnceTimeout(0.01);
+			pWaker->f_Stop(true);
+
+			// A wake posted from another thread reaches the queue through the main run loop, so
+			// the last one is only in the queue after a further pass
+			while (!pLoop->f_WaitOnceTimeout(0.01))
+				;
+			pLoop->f_WaitOnceTimeout(0.05);
+			smint OtherThreadGrowth = fResidentBytes() - Before;
+			DMibLog(Info, "Wakes from another thread: resident size grew {} bytes over {} wakes", OtherThreadGrowth, c_nIterations);
+
+			DMibExpect(MainThreadGrowth, <, c_MaxGrowth);
+			DMibExpect(OtherThreadGrowth, <, c_MaxGrowth);
+		};
 #endif
 
 #ifdef DPlatformFamily_Linux
-			DMibTestSuite("ThreadSpawnServer")
+		DMibTestSuite("ThreadSpawnServer")
+		{
+			NStorage::TCSharedPointer<CDefaultRunLoop> pLoop = fg_Construct();
+			int BaseNice = getpriority(PRIO_PROCESS, 0);
+			NAtomic::TCAtomic<int> ChildNice{100};
+			NAtomic::TCAtomic<bool> bDone{false};
+			bool bServing = false;
 			{
-				NStorage::TCSharedPointer<CDefaultRunLoop> pLoop = fg_Construct();
-				int BaseNice = getpriority(PRIO_PROCESS, 0);
-				NAtomic::TCAtomic<int> ChildNice{100};
-				NAtomic::TCAtomic<bool> bDone{false};
-				bool bServing = false;
-				{
-					CRunLoopThreadSpawnServer SpawnServer(pLoop);
-					bServing = SpawnServer.f_IsServing();
+				CRunLoopThreadSpawnServer SpawnServer(pLoop);
+				bServing = SpawnServer.f_IsServing();
 
-					auto pThread = NThread::CThreadObject::fs_StartThread
-						(
-							[&](NThread::CThreadObject *_pThread) -> aint
-							{
-								auto pChildThread = NThread::CThreadObject::fs_StartThread
-									(
-										[&](NThread::CThreadObject *_pChildThread) -> aint
-										{
-											ChildNice = getpriority(PRIO_PROCESS, 0);
-											return 0;
-										}
-										, "Spawned child"
-										, EExecutionPriority_Normal
-									)
-								;
-								pChildThread->f_Stop();
-
-								bDone = true;
-								pLoop->f_Wake();
-
-								return 0;
-							}
-							, "Lowered parent"
-							, EExecutionPriority_Low
-						)
-					;
-
-					while (!bDone.f_Load())
-						pLoop->f_WaitOnce();
-
-					pThread->f_Stop();
-
-					// Unregistering creates the helper when threads were lowered, so this only holds while the server serves
-					if (bServing)
-					{
-						bool bFoundSpawnHelper = false;
-						bool bReadThreadName = false;
-						for (auto &TaskDirectory : NFile::CFile::fs_FindFiles("/proc/self/task/*", NFile::EFileAttrib_Directory))
+				auto pThread = NThread::CThreadObject::fs_StartThread
+					(
+						[&](NThread::CThreadObject *_pThread) -> aint
 						{
-							NContainer::TCVector<ch8> Data;
-							if (!NPlatform::fg_ReadProcFS(NStr::CFStr256(TaskDirectory + "/comm"), Data))
-								continue; // The thread exited after the tasks were listed
+							auto pChildThread = NThread::CThreadObject::fs_StartThread
+								(
+									[&](NThread::CThreadObject *_pChildThread) -> aint
+									{
+										ChildNice = getpriority(PRIO_PROCESS, 0);
+										return 0;
+									}
+									, "Spawned child"
+									, EExecutionPriority_Normal
+								)
+							;
+							pChildThread->f_Stop();
 
-							NStr::CStr ThreadName = NStr::CStr(Data.f_GetArray(), Data.f_GetLen()).f_Trim();
-							if (ThreadName)
-								bReadThreadName = true;
+							bDone = true;
+							pLoop->f_Wake();
 
-							if (ThreadName == "Thread spawner")
-								bFoundSpawnHelper = true;
+							return 0;
 						}
+						, "Lowered parent"
+						, EExecutionPriority_Low
+					)
+				;
 
-						DMibExpectTrue(bReadThreadName);
-						DMibExpectFalse(bFoundSpawnHelper);
+				while (!bDone.f_Load())
+					pLoop->f_WaitOnce();
+
+				pThread->f_Stop();
+
+				// Unregistering creates the helper when threads were lowered, so this only holds while the server serves
+				if (bServing)
+				{
+					bool bFoundSpawnHelper = false;
+					bool bReadThreadName = false;
+					for (auto &TaskDirectory : NFile::CFile::fs_FindFiles("/proc/self/task/*", NFile::EFileAttrib_Directory))
+					{
+						NContainer::TCVector<ch8> Data;
+						if (!NPlatform::fg_ReadProcFS(NStr::CFStr256(TaskDirectory + "/comm"), Data))
+							continue; // The thread exited after the tasks were listed
+
+						NStr::CStr ThreadName = NStr::CStr(Data.f_GetArray(), Data.f_GetLen()).f_Trim();
+						if (ThreadName)
+							bReadThreadName = true;
+
+						if (ThreadName == "Thread spawner")
+							bFoundSpawnHelper = true;
 					}
-				}
 
-				DMibExpect(ChildNice.f_Load(), ==, fg_Max(0, BaseNice));
-			};
+					DMibExpectTrue(bReadThreadName);
+					DMibExpectFalse(bFoundSpawnHelper);
+				}
+			}
+
+			DMibExpect(ChildNice.f_Load(), ==, fg_Max(0, BaseNice));
+		};
 #endif
-		}
-	};
+	}
 
 	DMibTestRegister(CRunLoop_Tests, Malterlib::Concurrency);
 }

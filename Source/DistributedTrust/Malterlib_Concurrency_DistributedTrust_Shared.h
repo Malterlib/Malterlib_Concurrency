@@ -15,16 +15,16 @@ namespace NMib::NConcurrency
 
 	struct CDistributedActorTrustManager_Address
 	{
+		CDistributedActorTrustManager_Address();
+		CDistributedActorTrustManager_Address(NWeb::NHTTP::CURL const &_URL);
+		CDistributedActorTrustManager_Address(NWeb::NHTTP::CURL &&_URL);
+		~CDistributedActorTrustManager_Address();
+
 		template <typename tf_CStream>
 		void f_Feed(tf_CStream &_Stream) const;
 		template <typename tf_CStream>
 		void f_Consume(tf_CStream &_Stream);
 		auto operator <=> (CDistributedActorTrustManager_Address const &_Right) const noexcept = default;
-
-		CDistributedActorTrustManager_Address();
-		~CDistributedActorTrustManager_Address();
-		CDistributedActorTrustManager_Address(NWeb::NHTTP::CURL const &_URL);
-		CDistributedActorTrustManager_Address(NWeb::NHTTP::CURL &&_URL);
 
 		template <typename tf_CStr>
 		void f_Format(tf_CStr &o_IntoStr) const;
@@ -54,15 +54,15 @@ namespace NMib::NConcurrency
 
 	struct CPermissionIdentifiers
 	{
+		CPermissionIdentifiers();
+		CPermissionIdentifiers(NStr::CStr const &_HostID, NStr::CStr const &_UserID);
+
 		template <typename tf_CStream>
 		void f_Stream(tf_CStream &_Stream);
 		template <typename tf_CStr>
 		void f_Format(tf_CStr &o_Str) const;
 
 		auto operator <=> (CPermissionIdentifiers const &_Right) const noexcept = default;
-
-		CPermissionIdentifiers();
-		CPermissionIdentifiers(NStr::CStr const &_HostID, NStr::CStr const &_UserID);
 
 		// This "constructor" handles the "legacy" cases where we have only a host id as well as the host id + user id from database filename
 		static CPermissionIdentifiers fs_GetKeyFromFileName(NStr::CStr const &_IDs);
@@ -74,19 +74,20 @@ namespace NMib::NConcurrency
 		NStr::CStr const &f_GetHostID() const;
 		NStr::CStr const &f_GetUserID() const;
 
-		NContainer::TCSet<CPermissionIdentifier> m_IDs;
 		static NStr::CStr const ms_EmptyID;
+
+		NContainer::TCSet<CPermissionIdentifier> m_IDs;
 	};
 
 	struct CPermissionRequirements
 	{
-		static constexpr int64 mc_DefaultMaximumLifetime = 15;
-		static constexpr int64 mc_OverrideLifetimeNotSet = -1;
-
 		template <typename tf_CStr>
 		void f_Format(tf_CStr &o_Str) const;
 
 		auto operator <=> (CPermissionRequirements const &_Right) const noexcept = default;
+
+		static constexpr int64 mc_DefaultMaximumLifetime = 15;
+		static constexpr int64 mc_OverrideLifetimeNotSet = -1;
 
 		NContainer::TCSet<NContainer::TCSet<NStr::CStr>> m_AuthenticationFactors;
 		int64 m_MaximumAuthenticationLifetime = mc_OverrideLifetimeNotSet;

@@ -349,19 +349,19 @@ namespace NMib::NConcurrency::NPrivate
 	template <typename t_CReturnType>
 	struct TCAsyncGeneratorCoroutineFunctor
 	{
-		NStorage::TCSharedPointer<typename TCAsyncGeneratorCoroutineContext<t_CReturnType>::CGeneratorRunState> m_pRunState;
-		TCFutureCoroutineKeepAliveImplicit<NStorage::TCOptional<t_CReturnType>> m_KeepAlive;
-#ifndef DCompiler_MSVC_Workaround
-		DMibNoUniqueAddress
-#endif
-		CAllowWrongThreadDestroy m_AllowDestroy;
-
 		void f_Destroy();
 
 		TCFuture<NStorage::TCOptional<t_CReturnType>> operator () ()
 		{
 			return m_pRunState->f_GetGeneratorValue();
 		}
+
+		NStorage::TCSharedPointer<typename TCAsyncGeneratorCoroutineContext<t_CReturnType>::CGeneratorRunState> m_pRunState;
+		TCFutureCoroutineKeepAliveImplicit<NStorage::TCOptional<t_CReturnType>> m_KeepAlive;
+#ifndef DCompiler_MSVC_Workaround
+		DMibNoUniqueAddress
+#endif
+		CAllowWrongThreadDestroy m_AllowDestroy;
 	};
 
 	template <typename t_CReturnType>

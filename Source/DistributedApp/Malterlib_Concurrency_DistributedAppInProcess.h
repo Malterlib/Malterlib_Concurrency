@@ -34,14 +34,14 @@ namespace NMib::NConcurrency
 #endif
 
 	private:
-		TCFuture<CDistributedActorTrustManager::CTrustTicket> fp_HandleTicketRequest();
-
-		TCFuture<void> fp_Destroy();
-
 		struct CHandleRequest
 		{
 			CActorSubscription m_NotificationsSubscription;
 		};
+
+		TCFuture<CDistributedActorTrustManager::CTrustTicket> fp_HandleTicketRequest();
+
+		TCFuture<void> fp_Destroy();
 
 		TCActor<CDistributedActorTrustManager> mp_TrustManager;
 		NWeb::NHTTP::CURL mp_Address;

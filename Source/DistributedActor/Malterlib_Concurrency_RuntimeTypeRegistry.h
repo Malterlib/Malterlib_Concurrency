@@ -67,9 +67,6 @@ namespace NMib::NConcurrency
 {
 	struct CSubSystem_Concurrency_RuntimeTypeRegistry : public CSubSystem
 	{
-		CSubSystem_Concurrency_RuntimeTypeRegistry();
-		~CSubSystem_Concurrency_RuntimeTypeRegistry();
-
 		struct CSortMemberFunction_Hash
 		{
 			inline_always_debug uint32 operator () (CRuntimeTypeRegistryEntry_MemberFunction const &_Entry);
@@ -79,6 +76,9 @@ namespace NMib::NConcurrency
 		{
 			inline_always_debug uint32 operator () (CRuntimeTypeRegistryEntry_Exception const &_Entry);
 		};
+
+		CSubSystem_Concurrency_RuntimeTypeRegistry();
+		~CSubSystem_Concurrency_RuntimeTypeRegistry();
 
 		NIntrusive::TCAVLTree<&CRuntimeTypeRegistryEntry_MemberFunction::m_HashLink, CSortMemberFunction_Hash> m_EntryByHash_MemberFunction;
 

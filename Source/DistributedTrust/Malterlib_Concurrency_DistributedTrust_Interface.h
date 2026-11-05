@@ -31,8 +31,6 @@ namespace NMib::NConcurrency
 
 		struct CTrustTicket
 		{
-			static constexpr uint32 mc_Version = 0x101;
-
 			template <typename tf_CStream>
 			void f_Feed(tf_CStream &_Stream) const;
 			template <typename tf_CStream>
@@ -40,6 +38,8 @@ namespace NMib::NConcurrency
 
 			NStr::CStrSecure f_ToStringTicket() const;
 			static CTrustTicket fs_FromStringTicket(NStr::CStrSecure const &_StringTicket);
+
+			static constexpr uint32 mc_Version = 0x101;
 
 			CDistributedActorTrustManager_Address m_ServerAddress;
 			NContainer::CByteVector m_ServerPublicCert;

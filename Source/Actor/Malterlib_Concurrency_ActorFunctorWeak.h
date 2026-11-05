@@ -97,8 +97,8 @@ namespace NMib::NConcurrency
 	using CActorFunctorWeakHelper = TCActorFunctorWeakHelper<false>;
 	using CActorFunctorWeakCoalesced = TCActorFunctorWeak<TCFuture<void> (), true>;
 
-	extern CActorFunctorWeakHelper const &g_ActorFunctorWeak; // NOLINT(malterlib-conceptual-prefix): binds an actor and returns a builder, not a function object
-	extern TCActorFunctorWeakHelper<true> const &g_ActorFunctorWeakCoalesced; // NOLINT(malterlib-conceptual-prefix): binds an actor and returns a builder, not a function object
+	extern CActorFunctorWeakHelper const &g_ActorFunctorWeak;
+	extern TCActorFunctorWeakHelper<true> const &g_ActorFunctorWeakCoalesced;
 }
 
 #ifndef DMibPNoShortCuts

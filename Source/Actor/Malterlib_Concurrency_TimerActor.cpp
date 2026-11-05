@@ -8,13 +8,6 @@
 #include <Mib/Concurrency/ActorSubscription>
 #include <Mib/Concurrency/LogError>
 
-// A Clang without __malterlib_tidy_version__ counts the failure branch of DMibFastCheck, and the consteval constructor of
-// std::_Literal_zero in the Microsoft STL, as calls that can free what is used after them. Only such a Clang needs the NOLINTs
-// in this file.
-#ifdef __malterlib_tidy_version__
-#	error "Remove the NOLINTs of malterlib-coroutine-actor-reference in this file, and this check"
-#endif
-
 namespace NMib::NConcurrency
 {
 	DMibImpErrorClassImplement(CExceptionAsyncTimeout);
@@ -592,17 +585,13 @@ namespace NMib::NConcurrency
 
 				// Removing the last callback also removes its timer. Destroying a callback runs the destructors of its members, which
 				// can run anything, so the timer isn't used afterwards.
-				// NOLINTNEXTLINE(malterlib-coroutine-actor-reference): the lookups in the list before it only read the list
 				if (pTimer->m_Callbacks.f_HasSingleEntry())
 				{
-					// NOLINTNEXTLINE(malterlib-coroutine-actor-reference): f_HasSingleEntry above only reads the list
 					if (pTimer->m_TreeLink.f_IsInTree())
 						Internal.m_TimerQueue.f_Remove(pTimer);
-					// NOLINTNEXTLINE(malterlib-coroutine-actor-reference): the removal from the timer queue above only unlinks the timer
 					Internal.m_RegisteredTimers.f_Remove(pTimer);
 				}
 				else
-					// NOLINTNEXTLINE(malterlib-coroutine-actor-reference): the lookups in the list before it only read the list
 					pTimer->m_Callbacks.f_Remove(*pCallback);
 
 				co_await fg_Move(fToDestroy).f_Destroy();
@@ -660,7 +649,6 @@ namespace NMib::NConcurrency
 
 				if (pTimer->m_TreeLink.f_IsInTree())
 					Internal.m_TimerQueue.f_Remove(pTimer);
-				// NOLINTNEXTLINE(malterlib-coroutine-actor-reference): the removal from the timer queue above only unlinks the timer
 				Internal.m_ExactTimers.f_Remove(*pTimer);
 
 				co_await fg_Move(fToDestroy).f_Destroy();

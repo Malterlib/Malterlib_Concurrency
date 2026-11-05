@@ -546,7 +546,6 @@ namespace NMib::NConcurrency
 		auto &Info = *(mp_PreauthenticationInfos[MultipleRequestID] = fg_Construct());
 		Info.m_nHosts = _nHosts;
 
-		// NOLINTNEXTLINE(malterlib-conceptual-prefix): a subscription handle like CActorSubscription, which the check misses because it is derived from it
 		TCActorSubscriptionWithID<> Subscription = g_ActorSubscription / [this, MultipleRequestID]() -> TCFuture<void>
 			{
 				if (auto pInfo = mp_PreauthenticationInfos.f_FindEqual(MultipleRequestID))

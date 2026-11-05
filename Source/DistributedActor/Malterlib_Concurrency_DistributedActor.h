@@ -952,7 +952,6 @@ using namespace NMib::NConcurrency;
 #ifndef DCompiler_MSVC_Workaround
 namespace NMib::NConcurrency
 {
-	// NOLINTBEGIN(malterlib-parameter-naming): the check asks for parameter names in explicit instantiations, which have none
 	extern template struct TCActor<CActorDistributionManager>;
 
 	extern template auto TCActor<CActorDistributionManager>::f_InternalCallActor
@@ -978,6 +977,5 @@ namespace NMib::NConcurrency
 		(NMib::NStorage::TCSharedPointer<NPrivate::CDistributedActorData> &&, NMib::NStream::CBinaryStorage &&, NPrivate::CDistributedActorStreamContext &) &&
 		-> TCFuture<NStream::CBinaryStorage>
 	;
-	// NOLINTEND(malterlib-parameter-naming)
 }
 #endif

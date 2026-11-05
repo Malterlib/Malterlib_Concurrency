@@ -27,7 +27,6 @@ namespace NMib::NConcurrency
 		template <typename t_CFunction, typename ...tp_CParams>
 		struct TCCallSafeIsValidFunction
 		{
-			// NOLINTNEXTLINE(malterlib-parameter-naming): the check takes the expanded pack for a parameter
 			static constexpr bool mc_Value = NTraits::cIsCallableWith<TCSafeCallParamsToFunctionPointer<TCCallSafeFunctionParams<t_CFunction>>, void (tp_CParams ...p_Params)>;
 		};
 

@@ -51,7 +51,6 @@ namespace NMib::NConcurrency
 
 		void f_Feed(CActorSubscription &&_Subscription, uint32 _SubscriptionSequenceID = TCLimitsInt<uint32>::mc_Max);
 		template <uint32 tf_SubscriptionID>
-		// NOLINTNEXTLINE(malterlib-conceptual-prefix): a subscription handle like CActorSubscription, which the check misses because it is derived from it
 		void f_Feed(TCActorSubscriptionWithID<tf_SubscriptionID> &&_Subscription);
 
 		void f_FeedActor(TCActor<> const &_Actor);
@@ -122,7 +121,6 @@ namespace NMib::NConcurrency
 
 		void f_Consume(CActorSubscription &_Subscription, uint32 _SubscriptionSequenceID = TCLimitsInt<uint32>::mc_Max);
 		template <uint32 tf_SubscriptionID>
-		// NOLINTNEXTLINE(malterlib-conceptual-prefix): a subscription handle like CActorSubscription, which the check misses because it is derived from it
 		void f_Consume(TCActorSubscriptionWithID<tf_SubscriptionID> &_Subscription);
 
 		void f_ConsumeActor(TCActor<> &_Actor, uint32 _SubscriptionSequenceID);

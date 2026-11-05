@@ -121,7 +121,6 @@ namespace NMib::NConcurrency
 
 				Subscription.m_fOnScreenChange = fg_Move(_fOnScreenChange);
 
-				// NOLINTNEXTLINE(malterlib-conceptual-prefix): a subscription handle like CActorSubscription, which the check misses because it is derived from it
 				TCActorSubscriptionWithID<> Result = g_ActorSubscription / [this, SubscriptionID]() -> TCFuture<void>
 					{
 						if (auto pSubscription = mp_ScreenChangeSubscriptions.f_FindEqual(SubscriptionID))
@@ -342,7 +341,6 @@ namespace NMib::NConcurrency
 				auto CancellationSubscriptions = fg_Move(mp_CancellationSubscriptions);
 				auto ScreenChangeSubscriptions = fg_Move(mp_ScreenChangeSubscriptions);
 
-				// NOLINTNEXTLINE(malterlib-conceptual-prefix): a subscription handle like CActorSubscription, which the check misses because it is derived from it
 				for (auto &Registration : StdInRegistrations)
 				{
 					if (Registration.f_GetSubscription())
@@ -368,7 +366,6 @@ namespace NMib::NConcurrency
 			}
 
 			// Retains the input subscription and releases it when the command drops this wrapper.
-			// NOLINTNEXTLINE(malterlib-conceptual-prefix): a subscription handle like CActorSubscription, which the check misses because it is derived from it
 			TCActorSubscriptionWithID<> fp_TrackStdInRegistration(TCActorSubscriptionWithID<> &&_Subscription)
 			{
 				auto RegistrationID = NCryptography::fg_RandomID(mp_StdInRegistrations);
@@ -381,14 +378,12 @@ namespace NMib::NConcurrency
 
 				mp_StdInRegistrations[RegistrationID] = fg_Move(_Subscription);
 
-				// NOLINTNEXTLINE(malterlib-conceptual-prefix): a subscription handle like CActorSubscription, which the check misses because it is derived from it
 				TCActorSubscriptionWithID<> Wrapped = g_ActorSubscription / [this, RegistrationID]() -> TCFuture<void>
 					{
 						auto *pRegistration = mp_StdInRegistrations.f_FindEqual(RegistrationID);
 						if (!pRegistration)
 							co_return {};
 
-						// NOLINTNEXTLINE(malterlib-conceptual-prefix): a subscription handle like CActorSubscription, which the check misses because it is derived from it
 						auto Registration = fg_Move(*pRegistration);
 						mp_StdInRegistrations.f_Remove(RegistrationID);
 

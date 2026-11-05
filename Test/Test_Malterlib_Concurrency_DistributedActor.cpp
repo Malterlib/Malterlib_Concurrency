@@ -187,8 +187,8 @@ constinit TCAtomic<umint> g_TestValueGetSubscription{0};
 
 struct CMultipleSubscriptions
 {
-	TCActorSubscriptionWithID<0> m_Subscription0; // NOLINT(malterlib-conceptual-prefix): a subscription handle like CActorSubscription, which the check misses because it is derived from it
-	TCActorSubscriptionWithID<1> m_Subscription1; // NOLINT(malterlib-conceptual-prefix): a subscription handle like CActorSubscription, which the check misses because it is derived from it
+	TCActorSubscriptionWithID<0> m_Subscription0;
+	TCActorSubscriptionWithID<1> m_Subscription1;
 
 	TCActorSubscriptionWithID<> &f_Subscription(uint32 _SequenceID)
 	{
@@ -2179,7 +2179,6 @@ private:
 				}
 			;
 
-			// NOLINTNEXTLINE(malterlib-conceptual-prefix): a subscription handle like CActorSubscription, which the check misses because it is derived from it
 			auto Subscription = Actor.f_CallActor(&CDistributedActor::f_SetInterface)(fg_Move(Interface)).f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout);
 
 			auto fCallInterface = [&]
@@ -2259,7 +2258,6 @@ private:
 				}
 			;
 
-			// NOLINTNEXTLINE(malterlib-conceptual-prefix): a subscription handle like CActorSubscription, which the check misses because it is derived from it
 			auto Subscription = Actor.f_CallActor(&CDistributedActor::f_RegisterCallback)(g_ActorFunctor(TestActor) / fCallBack).f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout);
 
 			bool bCallbacksEmpty = Actor.f_CallActor(&CDistributedActor::f_CallbacksEmpty)().f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout);
@@ -2299,12 +2297,10 @@ private:
 			TCActor<> TestActor1 = fg_ConstructActor<CActor>();
 
 			{
-				// NOLINTNEXTLINE(malterlib-conceptual-prefix): a subscription handle like CActorSubscription, which the check misses because it is derived from it
 				auto MultipleSubscription0 = Actor.f_CallActor(&CDistributedActor::f_RegisterCallbacks)
 					(g_ActorFunctor(TestActor0) / fCallback0)
 					.f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout)
 				;
-				// NOLINTNEXTLINE(malterlib-conceptual-prefix): a subscription handle like CActorSubscription, which the check misses because it is derived from it
 				auto MultipleSubscription1 = Actor.f_CallActor(&CDistributedActor::f_RegisterCallbacks)
 					(g_ActorFunctor(TestActor1) / fCallback1)
 					.f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout)

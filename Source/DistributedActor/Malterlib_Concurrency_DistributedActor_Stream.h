@@ -34,12 +34,10 @@ namespace NMib::NConcurrency
 	template <uint32 t_SubscriptionID = 0>
 	struct TCActorSubscriptionWithID : public CActorSubscription
 	{
-		// NOLINTBEGIN(malterlib-conceptual-prefix): a subscription handle like CActorSubscription, which the check misses because it is derived from it
 		TCActorSubscriptionWithID(TCActorSubscriptionWithID &&_Other) = default;
 		TCActorSubscriptionWithID &operator = (TCActorSubscriptionWithID &&_Other) = default;
 		TCActorSubscriptionWithID(TCActorSubscriptionWithID const &_Other) = delete;
 		TCActorSubscriptionWithID &operator = (TCActorSubscriptionWithID const &_Other) = delete;
-		// NOLINTEND(malterlib-conceptual-prefix)
 
 		TCActorSubscriptionWithID(CNullPtr _pNull);
 		TCActorSubscriptionWithID(uint32 _SubscriptionID = t_SubscriptionID);

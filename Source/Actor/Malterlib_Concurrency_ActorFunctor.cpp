@@ -8,11 +8,10 @@
 
 namespace NMib::NConcurrency
 {
-	constexpr CActorFunctorHelper gc_ActorFunctorInit{}; // NOLINT(malterlib-conceptual-prefix): binds an actor and returns a builder, not a function object
-	CActorFunctorHelper const &g_ActorFunctor = gc_ActorFunctorInit; // NOLINT(malterlib-conceptual-prefix): binds an actor and returns a builder, not a function object
+	constexpr CActorFunctorHelper gc_ActorFunctorInit{};
+	CActorFunctorHelper const &g_ActorFunctor = gc_ActorFunctorInit;
 
-	constexpr TCActorFunctorHelper<true> gc_ActorFunctorCoalescedInit{}; // NOLINT(malterlib-conceptual-prefix): binds an actor and returns a builder, not a function object
-	// NOLINTNEXTLINE(malterlib-conceptual-prefix): binds an actor and returns a builder, not a function object
+	constexpr TCActorFunctorHelper<true> gc_ActorFunctorCoalescedInit{};
 	TCActorFunctorHelper<true> const &g_ActorFunctorCoalesced = gc_ActorFunctorCoalescedInit;
 
 	namespace NPrivate

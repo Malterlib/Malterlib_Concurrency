@@ -67,7 +67,6 @@ namespace NMib::NConcurrency
 			void f_Consume(CDistributedActorReadStream &_Stream);
 
 			CTrustTicket m_Ticket;
-			// NOLINTNEXTLINE(malterlib-conceptual-prefix): a subscription handle like CActorSubscription, which the check misses because it is derived from it
 			TCActorSubscriptionWithID<0> m_NotificationsSubscription;
 		};
 

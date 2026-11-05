@@ -388,8 +388,8 @@ namespace
 				NThread::CEvent Delivered;
 				Delivered.f_ResetSignaled();
 
-				pthread_t QueueThread = {}; // NOLINT(malterlib-conceptual-prefix): pthread_t is a pointer on macOS and an integer on Linux
-				NAtomic::TCAtomic<pthread_t> RanOnThread = {}; // NOLINT(malterlib-conceptual-prefix): pthread_t is a pointer on macOS and an integer on Linux
+				pthread_t QueueThread = {};
+				NAtomic::TCAtomic<pthread_t> RanOnThread = {};
 				COnScopeExitShared Subscription;
 
 				// Register on the queue's own thread to bind signal delivery to that thread's loop.

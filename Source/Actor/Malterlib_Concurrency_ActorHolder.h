@@ -106,6 +106,17 @@ namespace NMib::NConcurrency
 		NStorage::CIntrusiveRefCountWithWeak m_RefCount;
 
 	protected:
+		struct COnDestroy
+		{
+			COnDestroy() = default;
+			COnDestroy(COnDestroy const &_Other) = delete;
+			COnDestroy(COnDestroy &&_Other) = default;
+
+			COrdering_Strong operator <=> (COnDestroy const &_Other) const noexcept;
+
+			NFunction::TCFunctionMutable<TCFuture<void> ()> m_fOnDestroy;
+		};
+
 		bool fp_AddToQueue(FActorQueueDispatch &&_fFunctor, CConcurrencyThreadLocal &_ThreadLocal);
 		bool fp_AddToQueue(CConcurrentRunQueueEntryHolder &&_Entry, CConcurrencyThreadLocal &_ThreadLocal);
 		virtual void fp_StartQueueProcessing();
@@ -132,6 +143,69 @@ namespace NMib::NConcurrency
 		CActor *fp_GetActorRelaxed() const;
 
 		static bool fsp_ScheduleActorDestroy(CActorHolder *_pActorHolder, CConcurrencyThreadLocal &_ThreadLocal);
+
+		static constexpr umint mcp_AlignmentZone1Size = sizeof(void *) + sizeof(void *) * 4 + sizeof(uint32) * 2 + sizeof(uint8);
+
+		// Alignment zone 1 (Mostly immutable, shared by producers and the actor) = 8 + 8 * 4 + 4 * 2 + 1 = 49 => 64 bytes on x64
+		NStorage::TCSharedPointer<ICDistributedActorData> mp_pDistributedActorData;
+		NContainer::TCSet<COnDestroy> mp_OnDestroy;
+		CConcurrencyManager *mp_pConcurrencyManager;
+		NAtomic::TCAtomic<CActor *> mp_pActorUnsafe{nullptr};      // Changed at destruction only once
+		uint32 mp_iFixedQueue{gc_InvalidQueue};
+		NAtomic::TCAtomic<uint32> mp_iTimerQueue{gc_InvalidQueue}; // Selected once; registrations may originate on other threads.
+
+		// Note: Changing these is not thread safe
+		static_assert(EPriority_Max <= 4);
+		uint8 mp_Priority:2 = 0;
+		uint8 mp_bImmediateDelete:1 = false;
+		uint8 mp_bIsAlwaysAlive:1 = false;
+		uint8 mp_bHasOverriddenDestroy:1 = false;
+
+		uint8 mp_PaddingZone1[fg_AlignUpConstExpr(mcp_AlignmentZone1Size, DMibPMemoryCacheLineSize) - mcp_AlignmentZone1Size];
+
+		// Alignment zone 2 (Changed from other threads) = 8 + 8 + 4 = 20 => 64 bytes
+		CConcurrentRunQueue mp_ConcurrentRunQueue;
+		NAtomic::TCAtomic<umint> mp_Working;
+
+		NAtomic::TCAtomic<uint32> mp_iLastQueue{gc_InvalidQueue}; // Changed from local thread, read from other threads
+
+	private: // NOLINT(malterlib-member-order): the data members keep their cache line zones
+#if DMibConfig_Concurrency_DebugBlockDestroy
+		DMibListLinkDS_Link(CActorHolder, mp_ActorLink);
+
+	public: // NOLINT(malterlib-member-order): the data members keep their cache line zones
+		NStr::CStr m_ActorTypeName;
+
+	private:
+#endif
+		DIfRefCountDebugging(NStorage::CRefCountDebugReference mp_DebugSelfRef);
+
+	protected: // NOLINT(malterlib-member-order): the data members keep their cache line zones
+		static constexpr umint mcp_AlignmentZone2Size
+			= sizeof(void *) * 2
+			+ sizeof(uint32)
+#if DMibConfig_RefCountDebugging || DMibConfig_Concurrency_DebugBlockDestroy
+			+ (fg_AlignUpConstExpr(sizeof(uint32), sizeof(void *)) - sizeof(uint32))
+#endif
+#if DMibConfig_Concurrency_DebugBlockDestroy
+			+ sizeof(void *) * 3
+#endif
+#if DMibConfig_RefCountDebugging
+			+ sizeof(void *)
+#endif
+		;
+
+		uint8 mp_PaddingZone2[fg_AlignUpConstExpr(mcp_AlignmentZone2Size, DMibPMemoryCacheLineSize) - mcp_AlignmentZone2Size];
+
+		// Alignment zone 3 (Only changed and read from local thread) = 8 * 2 + 1 * 2 = 18 => 64 bytes
+		CConcurrentRunQueue::CLocalQueueData mp_ConcurrentRunQueueLocal;
+
+		mutable NAtomic::TCAtomic<uint8> mp_Destroyed;
+		mutable NAtomic::TCAtomic<uint8> mp_DestroyInitiated{0};
+
+		bool mp_bYield = false;
+
+		// Alignment zone 4: Actor storage, other actor holder data
 
 	private:
 		friend struct CConcurrencyManager;
@@ -171,81 +245,6 @@ namespace NMib::NConcurrency
 		bool fp_Terminate();
 
 		bool fp_DequeueProcess(CConcurrencyThreadLocal &_ThreadLocal);
-
-	protected:
-		struct COnDestroy
-		{
-			COnDestroy() = default;
-			COnDestroy(COnDestroy const &_Other) = delete;
-			COnDestroy(COnDestroy &&_Other) = default;
-
-			NFunction::TCFunctionMutable<TCFuture<void> ()> m_fOnDestroy;
-
-			COrdering_Strong operator <=> (COnDestroy const &_Other) const noexcept;
-		};
-
-		// Alignment zone 1 (Mostly immutable, shared by producers and the actor) = 8 + 8 * 4 + 4 * 2 + 1 = 49 => 64 bytes on x64
-		NStorage::TCSharedPointer<ICDistributedActorData> mp_pDistributedActorData;
-		NContainer::TCSet<COnDestroy> mp_OnDestroy;
-		CConcurrencyManager *mp_pConcurrencyManager;
-		NAtomic::TCAtomic<CActor *> mp_pActorUnsafe{nullptr};      // Changed at destruction only once
-		uint32 mp_iFixedQueue{gc_InvalidQueue};
-		NAtomic::TCAtomic<uint32> mp_iTimerQueue{gc_InvalidQueue}; // Selected once; registrations may originate on other threads.
-
-		// Note: Changing these is not thread safe
-		static_assert(EPriority_Max <= 4);
-		uint8 mp_Priority:2 = 0;
-		uint8 mp_bImmediateDelete:1 = false;
-		uint8 mp_bIsAlwaysAlive:1 = false;
-		uint8 mp_bHasOverriddenDestroy:1 = false;
-
-		static constexpr umint mcp_AlignmentZone1Size = sizeof(void *) + sizeof(void *) * 4 + sizeof(uint32) * 2 + sizeof(uint8);
-
-		uint8 mp_PaddingZone1[fg_AlignUpConstExpr(mcp_AlignmentZone1Size, DMibPMemoryCacheLineSize) - mcp_AlignmentZone1Size];
-
-		// Alignment zone 2 (Changed from other threads) = 8 + 8 + 4 = 20 => 64 bytes
-		CConcurrentRunQueue mp_ConcurrentRunQueue;
-		NAtomic::TCAtomic<umint> mp_Working;
-
-		NAtomic::TCAtomic<uint32> mp_iLastQueue{gc_InvalidQueue}; // Changed from local thread, read from other threads
-
-	private:
-#if DMibConfig_Concurrency_DebugBlockDestroy
-		DMibListLinkDS_Link(CActorHolder, mp_ActorLink);
-
-	public:
-		NStr::CStr m_ActorTypeName;
-
-	private:
-#endif
-		DIfRefCountDebugging(NStorage::CRefCountDebugReference mp_DebugSelfRef);
-
-	protected:
-		static constexpr umint mcp_AlignmentZone2Size
-			= sizeof(void *) * 2
-			+ sizeof(uint32)
-#if DMibConfig_RefCountDebugging || DMibConfig_Concurrency_DebugBlockDestroy
-			+ (fg_AlignUpConstExpr(sizeof(uint32), sizeof(void *)) - sizeof(uint32))
-#endif
-#if DMibConfig_Concurrency_DebugBlockDestroy
-			+ sizeof(void *) * 3
-#endif
-#if DMibConfig_RefCountDebugging
-			+ sizeof(void *)
-#endif
-		;
-
-		uint8 mp_PaddingZone2[fg_AlignUpConstExpr(mcp_AlignmentZone2Size, DMibPMemoryCacheLineSize) - mcp_AlignmentZone2Size];
-
-		// Alignment zone 3 (Only changed and read from local thread) = 8 * 2 + 1 * 2 = 18 => 64 bytes
-		CConcurrentRunQueue::CLocalQueueData mp_ConcurrentRunQueueLocal;
-
-		mutable NAtomic::TCAtomic<uint8> mp_Destroyed;
-		mutable NAtomic::TCAtomic<uint8> mp_DestroyInitiated{0};
-
-		bool mp_bYield = false;
-
-		// Alignment zone 4: Actor storage, other actor holder data
 	};
 
 	struct CDefaultActorHolder : public CActorHolder

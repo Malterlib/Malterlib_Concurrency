@@ -92,11 +92,6 @@ namespace NMib::NConcurrency
 
 	struct CDistributedAppLogReader : public CActor
 	{
-		CDistributedAppLogReader();
-		~CDistributedAppLogReader();
-
-		static constexpr ch8 const *mc_pDefaultNamespace = "com.malterlib/Concurrency/DistributedAppLogReader";
-
 		enum EProtocolVersion : uint32
 		{
 			EProtocolVersion_Min       = CDistributedAppLogReporter::EProtocolVersion_Min
@@ -152,6 +147,9 @@ namespace NMib::NConcurrency
 			ELogEntriesFlag m_Flags = ELogEntriesFlag_None;
 		};
 
+		CDistributedAppLogReader();
+		~CDistributedAppLogReader();
+
 		template <typename tf_CStream, typename tf_CFilter>
 		static void fs_StreamFilterVector(tf_CStream &_Stream, NContainer::TCVector<tf_CFilter> &o_Filters);
 
@@ -161,6 +159,8 @@ namespace NMib::NConcurrency
 			-> TCFuture<TCActorSubscriptionWithID<>> = 0
 		;
 		virtual auto f_SubscribeLogEntries(CSubscribeLogEntries _Params) -> TCFuture<TCActorSubscriptionWithID<>> = 0;
+
+		static constexpr ch8 const *mc_pDefaultNamespace = "com.malterlib/Concurrency/DistributedAppLogReader";
 	};
 }
 

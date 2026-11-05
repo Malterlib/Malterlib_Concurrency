@@ -14,6 +14,15 @@ namespace NMib::NConcurrency
 {
 	struct CDistributedAppLogStoreLocal : public CActor
 	{
+		struct CCleanupHelper
+		{
+			bool f_Init(NDatabase::CDatabaseActor::CTransactionWrite &_WriteTransaction, NStr::CStr const &_Prefix, NTime::CTime &o_Time);
+			bool f_DeleteOne(NDatabase::CDatabaseActor::CTransactionWrite &_WriteTransaction, NTime::CTime &o_Time);
+
+		private:
+			NDatabase::CDatabaseCursorWrite mp_iEntryByTime = NDatabase::CDatabaseCursorWrite::fs_InitEmpty();
+		};
+
 		CDistributedAppLogStoreLocal(TCActor<CActorDistributionManager> const &_DistributionManager, TCActor<CDistributedActorTrustManager> const &_TrustManager);
 		~CDistributedAppLogStoreLocal();
 
@@ -44,15 +53,6 @@ namespace NMib::NConcurrency
 		TCFuture<uint32> f_RemoveLogs(NContainer::TCSet<CDistributedAppLogReporter::CLogInfoKey> _LogInfoKeys);
 
 		TCFuture<NDatabase::CDatabaseActor::CTransactionWrite> f_PrepareForCleanup(NDatabase::CDatabaseActor::CTransactionWrite _WriteTransaction);
-
-		struct CCleanupHelper
-		{
-			bool f_Init(NDatabase::CDatabaseActor::CTransactionWrite &_WriteTransaction, NStr::CStr const &_Prefix, NTime::CTime &o_Time);
-			bool f_DeleteOne(NDatabase::CDatabaseActor::CTransactionWrite &_WriteTransaction, NTime::CTime &o_Time);
-
-		private:
-			NDatabase::CDatabaseCursorWrite mp_iEntryByTime = NDatabase::CDatabaseCursorWrite::fs_InitEmpty();
-		};
 
 	private:
 		struct CInternal;

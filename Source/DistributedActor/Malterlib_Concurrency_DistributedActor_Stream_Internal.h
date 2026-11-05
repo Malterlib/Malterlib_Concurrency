@@ -44,12 +44,12 @@ namespace NMib::NConcurrency::NPrivate
 		{
 			struct CActorFunctors
 			{
+				CActorFunctors();
+				~CActorFunctors();
+
 				NStr::CStr m_ActorID;
 				TCWeakActor<CActor> m_Actor;
 				NContainer::TCMap<NStr::CStr, NStorage::TCSharedPointer<CStreamingFunction>> m_Functions;
-
-				CActorFunctors();
-				~CActorFunctors();
 			};
 
 			struct CActorInterface

@@ -102,12 +102,12 @@ namespace NMib::NConcurrency
 		template <typename t_CReturn, typename ...tp_CParams>
 		struct TCStreamingFunctionHelper<t_CReturn (tp_CParams ...p_Params)>
 		{
-			static constexpr umint mc_nParams = sizeof...(tp_CParams);
-			static constexpr bool mc_bIsFuture = TCIsFuture<t_CReturn>::mc_Value;
-			static constexpr bool mc_bIsAsyncGenerator = TCIsAsyncGenerator<t_CReturn>::mc_Value;
 			using CReturnType = typename NPrivate::TCGetReturnType<t_CReturn>::CType;
 			using CResultType = NConcurrency::TCAsyncResult<CReturnType>;
 			using CAsyncGeneratorType = typename TCIsAsyncGenerator<t_CReturn>::CType;
+
+			static constexpr bool mc_bIsFuture = TCIsFuture<t_CReturn>::mc_Value; // NOLINT(malterlib-member-order): a requires clause of fs_Functor uses it
+			static constexpr bool mc_bIsAsyncGenerator = TCIsAsyncGenerator<t_CReturn>::mc_Value; // NOLINT(malterlib-member-order): a requires clause of fs_Functor uses it
 
 			static_assert(mc_bIsFuture || mc_bIsAsyncGenerator);
 
@@ -409,6 +409,8 @@ namespace NMib::NConcurrency
 					return Stream.f_MoveStorage();
 				}
 			}
+
+			static constexpr umint mc_nParams = sizeof...(tp_CParams);
 		};
 
 		template <typename t_CReturn, typename ...tp_CParams>

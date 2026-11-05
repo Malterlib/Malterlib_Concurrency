@@ -14,12 +14,11 @@ namespace NMib::NConcurrency
 
 	struct CDistributedActorTrustManagerAuthenticationCache
 	{
-		friend struct CDistributedActorTrustManager; // To simplify creation of new trusted permission subscriptions
-
 		CDistributedActorTrustManagerAuthenticationCache();
 		CDistributedActorTrustManagerAuthenticationCache(CDistributedActorTrustManagerAuthenticationCache &&_Other);
-		CDistributedActorTrustManagerAuthenticationCache &operator = (CDistributedActorTrustManagerAuthenticationCache &&_Other);
 		~CDistributedActorTrustManagerAuthenticationCache();
+
+		CDistributedActorTrustManagerAuthenticationCache &operator = (CDistributedActorTrustManagerAuthenticationCache &&_Other);
 
 		bool f_HasAuthenticatedPermission(CPermissionIdentifiers const &_Identity, NStr::CStr const &_Permission, bool _bIsWildcard, int64 _MaximumAuthenticationLifetime);
 		void f_AddAuthenticatedPermission(CPermissionIdentifiers const &_Identity, NStr::CStr const &_Permission, NTime::CTime const &_ExpirationTime, NTime::CTime const &_CacheTime);
@@ -39,6 +38,8 @@ namespace NMib::NConcurrency
 		void f_StartPeriodicCleanup();
 
 	private:
+		friend struct CDistributedActorTrustManager; // To simplify creation of new trusted permission subscriptions
+
 		struct CCacheLifetimes
 		{
 			NTime::CTime m_ExpirationTime;

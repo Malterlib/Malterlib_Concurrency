@@ -22,14 +22,12 @@ namespace NMib::NConcurrency
 
 		using CActorHolder = CSeparateThreadActorHolder;
 
-		TCLockActor(t_CType &_Object, t_CLock &_Lock);
-		~TCLockActor();
-
 		struct CLockReference
 		{
 			CLockReference(CLockReference &&_Other);
-			CLockReference &operator = (CLockReference &&_Other);
 			~CLockReference();
+
+			CLockReference &operator = (CLockReference &&_Other);
 			t_CType &operator * ();
 
 		private:
@@ -42,6 +40,9 @@ namespace NMib::NConcurrency
 			TCWeakActor<TCLockActor> mp_Actor;
 			aint mp_LockSequence;
 		};
+
+		TCLockActor(t_CType &_Object, t_CLock &_Lock);
+		~TCLockActor();
 
 		CLockReference f_Lock();
 

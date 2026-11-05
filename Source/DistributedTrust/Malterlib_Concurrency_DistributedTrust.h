@@ -31,14 +31,15 @@ namespace NMib::NConcurrency
 	template <typename t_CActor>
 	struct TCTrustedActor
 	{
-		inline CDistributedActorIdentifier const &f_GetIdentifier() const;
-		TCDistributedActor<t_CActor> m_Actor;
-		CTrustedActorInfo m_TrustInfo;
-		uint32 m_ProtocolVersion = TCLimitsInt<uint32>::mc_Max;
-
 		TCTrustedActor() = default;
 		TCTrustedActor(TCTrustedActor &&_Other) = default;
 		TCTrustedActor(TCTrustedActor const &_Other);
+
+		inline CDistributedActorIdentifier const &f_GetIdentifier() const;
+
+		TCDistributedActor<t_CActor> m_Actor;
+		CTrustedActorInfo m_TrustInfo;
+		uint32 m_ProtocolVersion = TCLimitsInt<uint32>::mc_Max;
 
 	private:
 		template <typename t_CActor2>
@@ -49,34 +50,6 @@ namespace NMib::NConcurrency
 	template <typename t_CActor>
 	struct TCTrustedActorSubscription
 	{
-		TCTrustedActorSubscription(TCTrustedActorSubscription const &_Other) = delete;
-		TCTrustedActorSubscription &operator = (TCTrustedActorSubscription const &_Other) = delete;
-		TCTrustedActorSubscription(TCTrustedActorSubscription &&_Other);
-		TCTrustedActorSubscription &operator = (TCTrustedActorSubscription &&_Other);
-		TCTrustedActorSubscription() = default;
-		~TCTrustedActorSubscription();
-
-		TCTrustedActor<t_CActor> const *f_GetOneActor(NStr::CStr const &_HostID, NStr::CStr &o_Error) const;
-
-		TCUnsafeFuture<void> f_Destroy();
-		bool f_IsEmpty() const;
-		bool f_HasActors() const;
-
-		auto f_OnActor
-			(
-				TCActorFunctor<TCFuture<void> (TCDistributedActor<t_CActor> _NewActor, CTrustedActorInfo _ActorInfo)> &&_fOnNewActor
-				, TCActorFunctor<TCFuture<void> (TCWeakDistributedActor<CActor> _RemovedActor, CTrustedActorInfo _ActorInfo)> &&_fOnRemovedActor
-				, NStr::CStr const &_ErrorCategory = {}
-				, NStr::CStr const &_ErrorPrefix = {}
-			)
-			-> TCUnsafeFuture<void>
-		;
-
-		NContainer::TCMap<CDistributedActorIdentifier, TCTrustedActor<t_CActor>> m_Actors;
-
-	public:
-		friend struct CDistributedActorTrustManager;
-
 		struct CState : public NPrivate::CTrustedActorSubscriptionState
 		{
 			FUnitVoidFutureFunction f_AddDistributedActors(NContainer::TCMap<CDistributedActorIdentifier, TCTrustedActor<CActor>> &&_Actors) override;
@@ -96,7 +69,35 @@ namespace NMib::NConcurrency
 			TCTrustedActorSubscription *m_pSubscription;
 		};
 
+		TCTrustedActorSubscription() = default;
+		TCTrustedActorSubscription(TCTrustedActorSubscription const &_Other) = delete;
+		TCTrustedActorSubscription(TCTrustedActorSubscription &&_Other);
+		~TCTrustedActorSubscription();
+
+		TCTrustedActorSubscription &operator = (TCTrustedActorSubscription const &_Other) = delete;
+		TCTrustedActorSubscription &operator = (TCTrustedActorSubscription &&_Other);
+
+		TCTrustedActor<t_CActor> const *f_GetOneActor(NStr::CStr const &_HostID, NStr::CStr &o_Error) const;
+
+		TCUnsafeFuture<void> f_Destroy();
+		bool f_IsEmpty() const;
+		bool f_HasActors() const;
+
+		auto f_OnActor
+			(
+				TCActorFunctor<TCFuture<void> (TCDistributedActor<t_CActor> _NewActor, CTrustedActorInfo _ActorInfo)> &&_fOnNewActor
+				, TCActorFunctor<TCFuture<void> (TCWeakDistributedActor<CActor> _RemovedActor, CTrustedActorInfo _ActorInfo)> &&_fOnRemovedActor
+				, NStr::CStr const &_ErrorCategory = {}
+				, NStr::CStr const &_ErrorPrefix = {}
+			)
+			-> TCUnsafeFuture<void>
+		;
+
+		NContainer::TCMap<CDistributedActorIdentifier, TCTrustedActor<t_CActor>> m_Actors;
+
 	private:
+		friend struct CDistributedActorTrustManager;
+
 		NStorage::TCSharedPointer<CState> mp_pState;
 	};
 
@@ -141,12 +142,13 @@ namespace NMib::NConcurrency
 
 	struct CTrustedPermissionSubscription
 	{
-		CTrustedPermissionSubscription(CTrustedPermissionSubscription const &_Other) = delete;
-		CTrustedPermissionSubscription &operator = (CTrustedPermissionSubscription const &_Other) = delete;
-		CTrustedPermissionSubscription(CTrustedPermissionSubscription &&_Other);
-		CTrustedPermissionSubscription &operator = (CTrustedPermissionSubscription &&_Other);
 		CTrustedPermissionSubscription() = default;
+		CTrustedPermissionSubscription(CTrustedPermissionSubscription const &_Other) = delete;
+		CTrustedPermissionSubscription(CTrustedPermissionSubscription &&_Other);
 		~CTrustedPermissionSubscription();
+
+		CTrustedPermissionSubscription &operator = (CTrustedPermissionSubscription const &_Other) = delete;
+		CTrustedPermissionSubscription &operator = (CTrustedPermissionSubscription &&_Other);
 
 		TCUnsafeFuture<bool> f_HasPermission(NStr::CStr _Description, NContainer::TCVector<NStr::CStr> _Permissions, CCallingHostInfo _CallingHostInfo = fg_GetCallingHostInfo()) const;
 		auto f_HasPermissions(NStr::CStr _Description, NContainer::TCVector<CPermissionQuery> _Permissions, CCallingHostInfo _CallingHostInfo = fg_GetCallingHostInfo()) const
@@ -174,6 +176,9 @@ namespace NMib::NConcurrency
 		void f_OnPermissionsRemoved(TCActorFunctorWeak<TCFuture<void> (CPermissionIdentifiers _Identity, NContainer::TCSet<NStr::CStr> _PermissionsRemoved)> &&_fOnPermissionsRemoved);
 
 	private:
+		friend struct CDistributedActorTrustManager;
+		friend struct NPrivate::CTrustedPermissionSubscriptionState;
+
 		auto fp_AuthenticatePermissions
 			(
 				NContainer::TCVector<CPermissionQuery> _PermissionsQueries
@@ -213,8 +218,6 @@ namespace NMib::NConcurrency
 			const
 			-> CPermissionQuery::EQueryResult
 		;
-		friend struct CDistributedActorTrustManager;
-		friend struct NPrivate::CTrustedPermissionSubscriptionState;
 
 		NStorage::TCSharedPointer<NPrivate::CTrustedPermissionSubscriptionState> mp_pState;
 		NContainer::TCMap<CPermissionIdentifiers, NContainer::TCMap<NStr::CStr, CPermissionRequirements>> mp_Permissions;
@@ -420,6 +423,8 @@ namespace NMib::NConcurrency
 		friend struct TCTrustedActorSubscription;
 		friend struct CTrustedPermissionSubscription;
 
+		struct CInternal;
+
 		struct CTrustedActorSubscription
 		{
 			NContainer::TCMap<CDistributedActorIdentifier, TCTrustedActor<CActor>> m_InitialActors;
@@ -439,7 +444,6 @@ namespace NMib::NConcurrency
 		CDistributedActorTrustManagerAuthenticationCache fp_FilterCachedAuthentications(NStorage::TCSharedPointer<NPrivate::CTrustedPermissionSubscriptionState> const &_pState);
 		void fp_UnsubscribeToPermissions(NStorage::TCSharedPointer<NPrivate::CTrustedPermissionSubscriptionState> const &_pState);
 
-		struct CInternal;
 		NStorage::TCUniquePointer<CInternal> mp_pInternal;
 	};
 

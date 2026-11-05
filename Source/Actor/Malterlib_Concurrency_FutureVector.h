@@ -64,26 +64,25 @@ namespace NMib::NConcurrency
 			CInternal();
 			~CInternal();
 
-		public:
-			friend struct TCFutureVector;
-
 			TCFuture<NContainer::TCVector<TCAsyncResult<t_CType>>> f_GetResults();
 
-		private:
+		private: // NOLINT(malterlib-member-order): the data members keep their cache line layout, m_RefCount between mp_nAdded and mp_pFirstResult
+			friend struct TCFutureVector;
+
+			void fp_TransferResults();
+			void fp_DestroyResults();
+
 			NContainer::TCVector<TCAsyncResult<t_CType>> mp_Results;
 			TCPromise<NContainer::TCVector<TCAsyncResult<t_CType>>> mp_GetResultsPromise;
 			NAtomic::TCAtomic<bool> mp_bLazyResultsGotten = false;
 			bool mp_bDefinedSize = false;
 			align_cacheline umint mp_nAdded = 0;
 
-		public:
+		public: // NOLINT(malterlib-member-order): the data members keep their cache line layout, m_RefCount between mp_nAdded and mp_pFirstResult
 			align_cacheline NStorage::CIntrusiveRefCount m_RefCount;
 
 		private:
 			NAtomic::TCAtomic<CQueuedResult *> mp_pFirstResult;
-
-			void fp_TransferResults();
-			void fp_DestroyResults();
 		};
 
 		struct CResultReceived final

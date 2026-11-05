@@ -34,587 +34,614 @@ namespace NMib::NConcurrency::NTest
 
 	struct CPingPongActor : public CActor
 	{
-		CPingPongActor()
-		{
-		}
+		CPingPongActor();
 
-		CPingPongActor(TCActor<CPingPongActor> &&_Next)
-			: mp_Next(fg_Move(_Next))
-		{
-		}
+		CPingPongActor(TCActor<CPingPongActor> &&_Next);
 
-		TCFuture<uint32> f_Echo(uint32 _Value)
-		{
-			if (mp_Next)
-				co_return co_await mp_Next(&CPingPongActor::f_Echo, _Value + 1);
+		TCFuture<uint32> f_Echo(uint32 _Value);
 
-			co_return _Value + 1;
-		}
+		TCFuture<uint32> f_Run(TCActor<CPingPongActor> _Target, umint _nRoundTrips);
 
-		TCFuture<uint32> f_Run(TCActor<CPingPongActor> _Target, umint _nRoundTrips)
-		{
-			uint32 Value = 0;
-			for (umint iRoundTrip = 0; iRoundTrip < _nRoundTrips; ++iRoundTrip)
-				Value = co_await _Target(&CPingPongActor::f_Echo, Value);
+		TCFuture<uint32> f_Work(umint _nIterations);
 
-			co_return Value;
-		}
-
-		TCFuture<uint32> f_Work(umint _nIterations)
-		{
-			uint32 volatile Value = 1;
-			for (umint iIteration = 0; iIteration < _nIterations; ++iIteration)
-				Value = Value * 3 + 1;
-
-			co_return Value;
-		}
-
-		TCFuture<uint32> f_FanOut(TCVector<TCActor<CPingPongActor>> _Workers, umint _nIterations)
-		{
-			TCFutureVector<uint32> Results;
-			for (auto &Worker : _Workers)
-				Worker(&CPingPongActor::f_Work, _nIterations) > Results;
-
-			co_await fg_AllDoneWrapped(Results);
-
-			co_return 0;
-		}
+		TCFuture<uint32> f_FanOut(TCVector<TCActor<CPingPongActor>> _Workers, umint _nIterations);
 
 	private:
 		TCActor<CPingPongActor> mp_Next;
 	};
 
+	CPingPongActor::CPingPongActor()
+	{
+	}
+
+	CPingPongActor::CPingPongActor(TCActor<CPingPongActor> &&_Next)
+		: mp_Next(fg_Move(_Next))
+	{
+	}
+
+	TCFuture<uint32> CPingPongActor::f_Echo(uint32 _Value)
+	{
+		if (mp_Next)
+			co_return co_await mp_Next(&CPingPongActor::f_Echo, _Value + 1);
+
+		co_return _Value + 1;
+	}
+
+	TCFuture<uint32> CPingPongActor::f_Run(TCActor<CPingPongActor> _Target, umint _nRoundTrips)
+	{
+		uint32 Value = 0;
+		for (umint iRoundTrip = 0; iRoundTrip < _nRoundTrips; ++iRoundTrip)
+			Value = co_await _Target(&CPingPongActor::f_Echo, Value);
+
+		co_return Value;
+	}
+
+	TCFuture<uint32> CPingPongActor::f_Work(umint _nIterations)
+	{
+		uint32 volatile Value = 1;
+		for (umint iIteration = 0; iIteration < _nIterations; ++iIteration)
+			Value = Value * 3 + 1;
+
+		co_return Value;
+	}
+
+	TCFuture<uint32> CPingPongActor::f_FanOut(TCVector<TCActor<CPingPongActor>> _Workers, umint _nIterations)
+	{
+		TCFutureVector<uint32> Results;
+		for (auto &Worker : _Workers)
+			Worker(&CPingPongActor::f_Work, _nIterations) > Results;
+
+		co_await fg_AllDoneWrapped(Results);
+
+		co_return 0;
+	}
+
 	struct CCoroutinesPerformance_Tests : public NMib::NTest::CTest
 	{
 	private:
+		static inline_never uint32 fsp_TestRecursive(uint32 _Value);
+
+		static inline_never uint32 fsp_TestFunction(uint32 _Value);
+
+		static inline_always TCFuture<uint32> fsp_TestRecursiveCoro(uint32 _Value);
+
+		static inline_never TCFuture<uint32> fsp_TestFunctionCoro(uint32 _Value);
+
+#if defined(DMalterlibEnableThirdPartyComparisonTests)
+		static inline_always cppcoro::task<uint32> fsp_TestRecursiveCppCoro(uint32 _Value);
+
+		static inline_never cppcoro::task<uint32> fsp_TestFunctionCppCoro(uint32 _Value);
+#endif
+
+		void f_DoTests();
+
 #if defined(DMibDebug) || defined(DMibSanitizerEnabled)
 		static constexpr umint mcp_nLoops = 16384;
 #else
 		static constexpr umint mcp_nLoops = 16384 * 128 * 10;
 #endif
+	};
 
-		static inline_never uint32 fsp_TestRecursive(uint32 _Value)
-		{
-			uint32 volatile Result = _Value * 2;
-			return Result;
-		}
+	inline_never uint32 CCoroutinesPerformance_Tests::fsp_TestRecursive(uint32 _Value)
+	{
+		uint32 volatile Result = _Value * 2;
+		return Result;
+	}
 
-		static inline_never uint32 fsp_TestFunction(uint32 _Value)
-		{
-			uint32 volatile Return = 0;
-			for (umint iLoop = 0; iLoop < mcp_nLoops; ++iLoop)
-				Return = Return + fsp_TestRecursive(_Value);
-			return Return;
-		}
+	inline_never uint32 CCoroutinesPerformance_Tests::fsp_TestFunction(uint32 _Value)
+	{
+		uint32 volatile Return = 0;
+		for (umint iLoop = 0; iLoop < mcp_nLoops; ++iLoop)
+			Return = Return + fsp_TestRecursive(_Value);
+		return Return;
+	}
 
-		static inline_always TCFuture<uint32> fsp_TestRecursiveCoro(uint32 _Value)
-		{
-			co_return _Value * 2;
-		}
+	inline_always TCFuture<uint32> CCoroutinesPerformance_Tests::fsp_TestRecursiveCoro(uint32 _Value)
+	{
+		co_return _Value * 2;
+	}
 
-		static inline_never TCFuture<uint32> fsp_TestFunctionCoro(uint32 _Value)
-		{
-			uint32 Return = 0;
-			for (umint iLoop = 0; iLoop < mcp_nLoops; ++iLoop)
-				Return += co_await fsp_TestRecursiveCoro(_Value);
-			co_return Return;
-		}
+	inline_never TCFuture<uint32> CCoroutinesPerformance_Tests::fsp_TestFunctionCoro(uint32 _Value)
+	{
+		uint32 Return = 0;
+		for (umint iLoop = 0; iLoop < mcp_nLoops; ++iLoop)
+			Return += co_await fsp_TestRecursiveCoro(_Value);
+		co_return Return;
+	}
 
 #if defined(DMalterlibEnableThirdPartyComparisonTests)
-		static inline_always cppcoro::task<uint32> fsp_TestRecursiveCppCoro(uint32 _Value)
-		{
-			co_return _Value * 2;
-		}
+	inline_always cppcoro::task<uint32> CCoroutinesPerformance_Tests::fsp_TestRecursiveCppCoro(uint32 _Value)
+	{
+		co_return _Value * 2;
+	}
 
-		static inline_never cppcoro::task<uint32> fsp_TestFunctionCppCoro(uint32 _Value)
-		{
-			uint32 Return = 0;
-			for (umint iLoop = 0; iLoop < mcp_nLoops; ++iLoop)
-				Return += co_await fsp_TestRecursiveCppCoro(_Value);
-			co_return Return;
-		}
+	inline_never cppcoro::task<uint32> CCoroutinesPerformance_Tests::fsp_TestFunctionCppCoro(uint32 _Value)
+	{
+		uint32 Return = 0;
+		for (umint iLoop = 0; iLoop < mcp_nLoops; ++iLoop)
+			Return += co_await fsp_TestRecursiveCppCoro(_Value);
+		co_return Return;
+	}
 #endif
 
-		void f_DoTests()
+	void CCoroutinesPerformance_Tests::f_DoTests()
+	{
+		DMibTestSuite(CTestCategory("ThreadSelf") << CTestGroup("Performance")) -> TCFuture<void>
 		{
-			DMibTestSuite(CTestCategory("ThreadSelf") << CTestGroup("Performance")) -> TCFuture<void>
+			umint nTests = 9;
+
+			CTestPerformance PerfTest(0.015);
+			CTestPerformanceMeasure NormalTime("Normal");
+			uint32 volatile ReturnNormal;
 			{
-				umint nTests = 9;
-
-				CTestPerformance PerfTest(0.015);
-				CTestPerformanceMeasure NormalTime("Normal");
-				uint32 volatile ReturnNormal;
+				for (umint iTest = 0; iTest < nTests; ++iTest)
 				{
-					for (umint iTest = 0; iTest < nTests; ++iTest)
+					NormalTime.f_Start();
+					[&ReturnNormal]() inline_never
 					{
-						NormalTime.f_Start();
-						[&ReturnNormal]() inline_never
-						{
-							auto Return = ReturnNormal;
-							for (umint iLoop = 0; iLoop < mcp_nLoops; ++iLoop)
-								Return += NMib::NSys::fg_Thread_GetCurrentUID();
-							ReturnNormal = Return;
-						}
-						();
-						NormalTime.f_Stop(mcp_nLoops);
+						auto Return = ReturnNormal;
+						for (umint iLoop = 0; iLoop < mcp_nLoops; ++iLoop)
+							Return += NMib::NSys::fg_Thread_GetCurrentUID();
+						ReturnNormal = Return;
 					}
-					PerfTest.f_Add(NormalTime);
+					();
+					NormalTime.f_Stop(mcp_nLoops);
 				}
+				PerfTest.f_Add(NormalTime);
+			}
 
-				DMibExpectTrue(PerfTest);
+			DMibExpectTrue(PerfTest);
 
-				co_return {};
-			};
+			co_return {};
+		};
 
-			DMibTestSuite(CTestCategory("ThreadGet") << CTestGroup("Performance")) -> TCFuture<void>
+		DMibTestSuite(CTestCategory("ThreadGet") << CTestGroup("Performance")) -> TCFuture<void>
+		{
+			umint nTests = 9;
+
+			auto ThreadLocal = NMib::NSys::fg_Thread_AllocLocal();
+			auto Cleanup = g_OnScopeExit / [&]
+				{
+					NMib::NSys::fg_Thread_FreeLocal(ThreadLocal);
+				}
+			;
+			NMib::NSys::fg_Thread_SetLocal(ThreadLocal, nullptr);
+
+			CTestPerformance PerfTest(0.015);
+			CTestPerformanceMeasure NormalTime("Normal");
+			uint32 volatile ReturnNormal;
 			{
-				umint nTests = 9;
-
-				auto ThreadLocal = NMib::NSys::fg_Thread_AllocLocal();
-				auto Cleanup = g_OnScopeExit / [&]
-					{
-						NMib::NSys::fg_Thread_FreeLocal(ThreadLocal);
-					}
-				;
-				NMib::NSys::fg_Thread_SetLocal(ThreadLocal, nullptr);
-
-				CTestPerformance PerfTest(0.015);
-				CTestPerformanceMeasure NormalTime("Normal");
-				uint32 volatile ReturnNormal;
+				for (umint iTest = 0; iTest < nTests; ++iTest)
 				{
-					for (umint iTest = 0; iTest < nTests; ++iTest)
+					NormalTime.f_Start();
+					[&ReturnNormal, ThreadLocal]() inline_never
 					{
-						NormalTime.f_Start();
-						[&ReturnNormal, ThreadLocal]() inline_never
-						{
-							auto ThreadLocal2 = ThreadLocal;
-							auto Return = ReturnNormal;
-							for (umint iLoop = 0; iLoop < mcp_nLoops; ++iLoop)
-								Return += (umint)NMib::NSys::fg_Thread_GetLocal(ThreadLocal2);
-							ReturnNormal = Return;
-						}
-						();
-						NormalTime.f_Stop(mcp_nLoops);
+						auto ThreadLocal2 = ThreadLocal;
+						auto Return = ReturnNormal;
+						for (umint iLoop = 0; iLoop < mcp_nLoops; ++iLoop)
+							Return += (umint)NMib::NSys::fg_Thread_GetLocal(ThreadLocal2);
+						ReturnNormal = Return;
 					}
-					PerfTest.f_Add(NormalTime);
+					();
+					NormalTime.f_Stop(mcp_nLoops);
 				}
+				PerfTest.f_Add(NormalTime);
+			}
 
-				DMibExpectTrue(PerfTest);
+			DMibExpectTrue(PerfTest);
 
-				co_return {};
-			};
+			co_return {};
+		};
 
-			DMibTestSuite(CTestCategory("ThreadGetC++") << CTestGroup("Performance")) -> TCFuture<void>
+		DMibTestSuite(CTestCategory("ThreadGetC++") << CTestGroup("Performance")) -> TCFuture<void>
+		{
+			umint nTests = 9;
+
+			gs_ThreadLocalCpp = 0;
+
+			CTestPerformance PerfTest(0.015);
+			CTestPerformanceMeasure NormalTime("Normal");
+			uint32 volatile ReturnNormal;
 			{
-				umint nTests = 9;
-
-				gs_ThreadLocalCpp = 0;
-
-				CTestPerformance PerfTest(0.015);
-				CTestPerformanceMeasure NormalTime("Normal");
-				uint32 volatile ReturnNormal;
+				for (umint iTest = 0; iTest < nTests; ++iTest)
 				{
-					for (umint iTest = 0; iTest < nTests; ++iTest)
+					NormalTime.f_Start();
+					[&ReturnNormal]() inline_never
 					{
-						NormalTime.f_Start();
-						[&ReturnNormal]() inline_never
-						{
-							for (umint iLoop = 0; iLoop < mcp_nLoops; ++iLoop)
-								ReturnNormal += (umint)gs_ThreadLocalCpp;
-						}
-						();
-						NormalTime.f_Stop(mcp_nLoops);
+						for (umint iLoop = 0; iLoop < mcp_nLoops; ++iLoop)
+							ReturnNormal += (umint)gs_ThreadLocalCpp;
 					}
-					PerfTest.f_Add(NormalTime);
+					();
+					NormalTime.f_Stop(mcp_nLoops);
 				}
+				PerfTest.f_Add(NormalTime);
+			}
 
-				DMibExpectTrue(PerfTest);
+			DMibExpectTrue(PerfTest);
 
-				co_return {};
-			};
+			co_return {};
+		};
 
-			DMibTestSuite(CTestCategory("ThreadGetC++2") << CTestGroup("Performance")) -> TCFuture<void>
+		DMibTestSuite(CTestCategory("ThreadGetC++2") << CTestGroup("Performance")) -> TCFuture<void>
+		{
+			umint nTests = 9;
+
+			gs_ThreadLocalCpp2 = 0;
+
+			CTestPerformance PerfTest(0.015);
+			CTestPerformanceMeasure NormalTime("Normal");
+			uint32 volatile ReturnNormal;
 			{
-				umint nTests = 9;
-
-				gs_ThreadLocalCpp2 = 0;
-
-				CTestPerformance PerfTest(0.015);
-				CTestPerformanceMeasure NormalTime("Normal");
-				uint32 volatile ReturnNormal;
+				for (umint iTest = 0; iTest < nTests; ++iTest)
 				{
-					for (umint iTest = 0; iTest < nTests; ++iTest)
+					NormalTime.f_Start();
+					[&ReturnNormal]() inline_never
 					{
-						NormalTime.f_Start();
-						[&ReturnNormal]() inline_never
-						{
-							for (umint iLoop = 0; iLoop < mcp_nLoops; ++iLoop)
-								ReturnNormal += (umint)gs_ThreadLocalCpp2;
-						}
-						();
-						NormalTime.f_Stop(mcp_nLoops);
+						for (umint iLoop = 0; iLoop < mcp_nLoops; ++iLoop)
+							ReturnNormal += (umint)gs_ThreadLocalCpp2;
 					}
-					PerfTest.f_Add(NormalTime);
+					();
+					NormalTime.f_Stop(mcp_nLoops);
 				}
+				PerfTest.f_Add(NormalTime);
+			}
 
-				DMibExpectTrue(PerfTest);
+			DMibExpectTrue(PerfTest);
 
-				co_return {};
-			};
+			co_return {};
+		};
 
-			DMibTestSuite(CTestCategory("ThreadGetAlwaysSet") << CTestGroup("Performance")) -> TCFuture<void>
+		DMibTestSuite(CTestCategory("ThreadGetAlwaysSet") << CTestGroup("Performance")) -> TCFuture<void>
+		{
+			umint nTests = 9;
+
+			auto ThreadLocal = NMib::NSys::fg_Thread_AllocLocal();
+			auto Cleanup = g_OnScopeExit / [&]
+				{
+					NMib::NSys::fg_Thread_FreeLocal(ThreadLocal);
+				}
+			;
+			NMib::NSys::fg_Thread_SetLocal(ThreadLocal, nullptr);
+
+			CTestPerformance PerfTest(0.015);
+			CTestPerformanceMeasure NormalTime("Normal");
+			uint32 volatile ReturnNormal;
 			{
-				umint nTests = 9;
-
-				auto ThreadLocal = NMib::NSys::fg_Thread_AllocLocal();
-				auto Cleanup = g_OnScopeExit / [&]
-					{
-						NMib::NSys::fg_Thread_FreeLocal(ThreadLocal);
-					}
-				;
-				NMib::NSys::fg_Thread_SetLocal(ThreadLocal, nullptr);
-
-				CTestPerformance PerfTest(0.015);
-				CTestPerformanceMeasure NormalTime("Normal");
-				uint32 volatile ReturnNormal;
+				for (umint iTest = 0; iTest < nTests; ++iTest)
 				{
-					for (umint iTest = 0; iTest < nTests; ++iTest)
+					NormalTime.f_Start();
+					[&ReturnNormal, ThreadLocal]() inline_never
 					{
-						NormalTime.f_Start();
-						[&ReturnNormal, ThreadLocal]() inline_never
-						{
-							auto ThreadLocal2 = ThreadLocal;
-							auto Return = ReturnNormal;
-							for (umint iLoop = 0; iLoop < mcp_nLoops; ++iLoop)
-								Return += (umint)NMib::NSys::fg_Thread_GetLocalAlwaysSet(ThreadLocal2);
+						auto ThreadLocal2 = ThreadLocal;
+						auto Return = ReturnNormal;
+						for (umint iLoop = 0; iLoop < mcp_nLoops; ++iLoop)
+							Return += (umint)NMib::NSys::fg_Thread_GetLocalAlwaysSet(ThreadLocal2);
 
-							ReturnNormal = Return;
-						}
-						();
-						NormalTime.f_Stop(mcp_nLoops);
+						ReturnNormal = Return;
 					}
-					PerfTest.f_Add(NormalTime);
+					();
+					NormalTime.f_Stop(mcp_nLoops);
 				}
+				PerfTest.f_Add(NormalTime);
+			}
 
-				DMibExpectTrue(PerfTest);
+			DMibExpectTrue(PerfTest);
 
-				co_return {};
-			};
+			co_return {};
+		};
 
-			DMibTestSuite(CTestCategory("ThreadGetFast") << CTestGroup("Performance")) -> TCFuture<void>
+		DMibTestSuite(CTestCategory("ThreadGetFast") << CTestGroup("Performance")) -> TCFuture<void>
+		{
+			umint nTests = 9;
+
+			auto ThreadLocal = NMib::NSys::fg_Thread_AllocLocalFast();
+			auto Cleanup = g_OnScopeExit / [&]
+				{
+					NMib::NSys::fg_Thread_FreeLocalFast(ThreadLocal);
+				}
+			;
+			NMib::NSys::fg_Thread_SetLocalFast(ThreadLocal, nullptr);
+
+			CTestPerformance PerfTest(0.015);
+			CTestPerformanceMeasure NormalTime("Normal");
+			uint32 volatile ReturnNormal;
 			{
-				umint nTests = 9;
-
-				auto ThreadLocal = NMib::NSys::fg_Thread_AllocLocalFast();
-				auto Cleanup = g_OnScopeExit / [&]
-					{
-						NMib::NSys::fg_Thread_FreeLocalFast(ThreadLocal);
-					}
-				;
-				NMib::NSys::fg_Thread_SetLocalFast(ThreadLocal, nullptr);
-
-				CTestPerformance PerfTest(0.015);
-				CTestPerformanceMeasure NormalTime("Normal");
-				uint32 volatile ReturnNormal;
+				for (umint iTest = 0; iTest < nTests; ++iTest)
 				{
-					for (umint iTest = 0; iTest < nTests; ++iTest)
+					NormalTime.f_Start();
+					[&ReturnNormal, ThreadLocal]() inline_never
 					{
-						NormalTime.f_Start();
-						[&ReturnNormal, ThreadLocal]() inline_never
-						{
-							auto ThreadLocal2 = ThreadLocal;
-							auto Return = ReturnNormal;
-							for (umint iLoop = 0; iLoop < mcp_nLoops; ++iLoop)
-								Return += (umint)NMib::NSys::fg_Thread_GetLocalFast(ThreadLocal2);
-							ReturnNormal = Return;
-						}
-						();
-						NormalTime.f_Stop(mcp_nLoops);
+						auto ThreadLocal2 = ThreadLocal;
+						auto Return = ReturnNormal;
+						for (umint iLoop = 0; iLoop < mcp_nLoops; ++iLoop)
+							Return += (umint)NMib::NSys::fg_Thread_GetLocalFast(ThreadLocal2);
+						ReturnNormal = Return;
 					}
-					PerfTest.f_Add(NormalTime);
+					();
+					NormalTime.f_Stop(mcp_nLoops);
 				}
+				PerfTest.f_Add(NormalTime);
+			}
 
-				DMibExpectTrue(PerfTest);
+			DMibExpectTrue(PerfTest);
 
-				co_return {};
-			};
+			co_return {};
+		};
 
-			DMibTestSuite(CTestCategory("ThreadGetAlwaysSetFast") << CTestGroup("Performance")) -> TCFuture<void>
+		DMibTestSuite(CTestCategory("ThreadGetAlwaysSetFast") << CTestGroup("Performance")) -> TCFuture<void>
+		{
+			umint nTests = 9;
+
+			auto ThreadLocal = NMib::NSys::fg_Thread_AllocLocalFast();
+			auto Cleanup = g_OnScopeExit / [&]
+				{
+					NMib::NSys::fg_Thread_FreeLocalFast(ThreadLocal);
+				}
+			;
+			NMib::NSys::fg_Thread_SetLocalFast(ThreadLocal, nullptr);
+
+			CTestPerformance PerfTest(0.015);
+			CTestPerformanceMeasure NormalTime("Normal");
+			uint32 volatile ReturnNormal;
 			{
-				umint nTests = 9;
-
-				auto ThreadLocal = NMib::NSys::fg_Thread_AllocLocalFast();
-				auto Cleanup = g_OnScopeExit / [&]
-					{
-						NMib::NSys::fg_Thread_FreeLocalFast(ThreadLocal);
-					}
-				;
-				NMib::NSys::fg_Thread_SetLocalFast(ThreadLocal, nullptr);
-
-				CTestPerformance PerfTest(0.015);
-				CTestPerformanceMeasure NormalTime("Normal");
-				uint32 volatile ReturnNormal;
+				for (umint iTest = 0; iTest < nTests; ++iTest)
 				{
-					for (umint iTest = 0; iTest < nTests; ++iTest)
+					NormalTime.f_Start();
+					[&ReturnNormal, ThreadLocal]() inline_never
 					{
-						NormalTime.f_Start();
-						[&ReturnNormal, ThreadLocal]() inline_never
-						{
-							auto ThreadLocal2 = ThreadLocal;
-							auto Return = ReturnNormal;
-							for (umint iLoop = 0; iLoop < mcp_nLoops; ++iLoop)
-								Return += (umint)NMib::NSys::fg_Thread_GetLocalAlwaysSetFast(ThreadLocal2);
-							ReturnNormal = Return;
-						}
-						();
-						NormalTime.f_Stop(mcp_nLoops);
+						auto ThreadLocal2 = ThreadLocal;
+						auto Return = ReturnNormal;
+						for (umint iLoop = 0; iLoop < mcp_nLoops; ++iLoop)
+							Return += (umint)NMib::NSys::fg_Thread_GetLocalAlwaysSetFast(ThreadLocal2);
+						ReturnNormal = Return;
 					}
-					PerfTest.f_Add(NormalTime);
+					();
+					NormalTime.f_Stop(mcp_nLoops);
 				}
+				PerfTest.f_Add(NormalTime);
+			}
 
-				DMibExpectTrue(PerfTest);
+			DMibExpectTrue(PerfTest);
 
-				co_return {};
-			};
+			co_return {};
+		};
 
-			DMibTestSuite(CTestCategory("ThreadBoth") << CTestGroup("Performance")) -> TCFuture<void>
+		DMibTestSuite(CTestCategory("ThreadBoth") << CTestGroup("Performance")) -> TCFuture<void>
+		{
+			umint nTests = 9;
+
+			auto ThreadLocal = NMib::NSys::fg_Thread_AllocLocal();
+			auto Cleanup = g_OnScopeExit / [&]
+				{
+					NMib::NSys::fg_Thread_FreeLocal(ThreadLocal);
+				}
+			;
+			NMib::NSys::fg_Thread_SetLocal(ThreadLocal, nullptr);
+
+			CTestPerformance PerfTest(0.015);
+			CTestPerformanceMeasure NormalTime("Normal");
+			uint32 volatile ReturnNormal;
 			{
-				umint nTests = 9;
-
-				auto ThreadLocal = NMib::NSys::fg_Thread_AllocLocal();
-				auto Cleanup = g_OnScopeExit / [&]
-					{
-						NMib::NSys::fg_Thread_FreeLocal(ThreadLocal);
-					}
-				;
-				NMib::NSys::fg_Thread_SetLocal(ThreadLocal, nullptr);
-
-				CTestPerformance PerfTest(0.015);
-				CTestPerformanceMeasure NormalTime("Normal");
-				uint32 volatile ReturnNormal;
+				for (umint iTest = 0; iTest < nTests; ++iTest)
 				{
-					for (umint iTest = 0; iTest < nTests; ++iTest)
+					NormalTime.f_Start();
+					[&ReturnNormal, ThreadLocal]() inline_never
 					{
-						NormalTime.f_Start();
-						[&ReturnNormal, ThreadLocal]() inline_never
-						{
-							auto ThreadLocal2 = ThreadLocal;
-							auto Return = ReturnNormal;
-							for (umint iLoop = 0; iLoop < mcp_nLoops; ++iLoop)
-								Return += NMib::NSys::fg_Thread_GetCurrentUID() + (umint)NMib::NSys::fg_Thread_GetLocal(ThreadLocal2);
-							ReturnNormal = Return;
-						}
-						();
-						NormalTime.f_Stop(mcp_nLoops);
+						auto ThreadLocal2 = ThreadLocal;
+						auto Return = ReturnNormal;
+						for (umint iLoop = 0; iLoop < mcp_nLoops; ++iLoop)
+							Return += NMib::NSys::fg_Thread_GetCurrentUID() + (umint)NMib::NSys::fg_Thread_GetLocal(ThreadLocal2);
+						ReturnNormal = Return;
 					}
-					PerfTest.f_Add(NormalTime);
+					();
+					NormalTime.f_Stop(mcp_nLoops);
 				}
+				PerfTest.f_Add(NormalTime);
+			}
 
-				DMibExpectTrue(PerfTest);
+			DMibExpectTrue(PerfTest);
 
-				co_return {};
-			};
+			co_return {};
+		};
 
-			DMibTestSuite(CTestCategory("ThreadTriple") << CTestGroup("Performance")) -> TCFuture<void>
+		DMibTestSuite(CTestCategory("ThreadTriple") << CTestGroup("Performance")) -> TCFuture<void>
+		{
+			umint nTests = 9;
+
+			auto ThreadLocal0 = NMib::NSys::fg_Thread_AllocLocal();
+			auto ThreadLocal1 = NMib::NSys::fg_Thread_AllocLocal();
+			auto Cleanup = g_OnScopeExit / [&]
+				{
+					NMib::NSys::fg_Thread_FreeLocal(ThreadLocal0);
+					NMib::NSys::fg_Thread_FreeLocal(ThreadLocal1);
+				}
+			;
+			NMib::NSys::fg_Thread_SetLocal(ThreadLocal0, nullptr);
+			NMib::NSys::fg_Thread_SetLocal(ThreadLocal1, nullptr);
+
+			CTestPerformance PerfTest(0.015);
+			CTestPerformanceMeasure NormalTime("Normal");
+			uint32 ReturnNormal;
 			{
-				umint nTests = 9;
-
-				auto ThreadLocal0 = NMib::NSys::fg_Thread_AllocLocal();
-				auto ThreadLocal1 = NMib::NSys::fg_Thread_AllocLocal();
-				auto Cleanup = g_OnScopeExit / [&]
-					{
-						NMib::NSys::fg_Thread_FreeLocal(ThreadLocal0);
-						NMib::NSys::fg_Thread_FreeLocal(ThreadLocal1);
-					}
-				;
-				NMib::NSys::fg_Thread_SetLocal(ThreadLocal0, nullptr);
-				NMib::NSys::fg_Thread_SetLocal(ThreadLocal1, nullptr);
-
-				CTestPerformance PerfTest(0.015);
-				CTestPerformanceMeasure NormalTime("Normal");
-				uint32 ReturnNormal;
+				for (umint iTest = 0; iTest < nTests; ++iTest)
 				{
-					for (umint iTest = 0; iTest < nTests; ++iTest)
+					NormalTime.f_Start();
+					[&ReturnNormal, ThreadLocal0, ThreadLocal1]() inline_never
 					{
-						NormalTime.f_Start();
-						[&ReturnNormal, ThreadLocal0, ThreadLocal1]() inline_never
+						auto ThreadLocalCopy0 = ThreadLocal0;
+						auto ThreadLocalCopy1 = ThreadLocal1;
+						auto Return = ReturnNormal;
+						for (umint iLoop = 0; iLoop < mcp_nLoops; ++iLoop)
 						{
-							auto ThreadLocalCopy0 = ThreadLocal0;
-							auto ThreadLocalCopy1 = ThreadLocal1;
-							auto Return = ReturnNormal;
-							for (umint iLoop = 0; iLoop < mcp_nLoops; ++iLoop)
-							{
-								Return
-									+= NMib::NSys::fg_Thread_GetCurrentUID()
-									+ (umint)NMib::NSys::fg_Thread_GetLocal(ThreadLocalCopy0)
-									+ (umint)NMib::NSys::fg_Thread_GetLocal(ThreadLocalCopy1)
-								;
-							}
-							ReturnNormal = Return;
-						}
-						();
-						NormalTime.f_Stop(mcp_nLoops);
-					}
-					PerfTest.f_Add(NormalTime);
-				}
-
-				DMibExpectTrue(PerfTest);
-
-				co_return {};
-			};
-
-			DMibTestSuite(CTestCategory("Synchronous") << CTestGroup("Performance")) -> TCFuture<void>
-			{
-				umint nTests = 9;
-
-				CTestPerformance PerfTest(0.015);
-				CTestPerformanceMeasure NormalTime("Normal");
-				CTestPerformanceMeasure CoroutineTime("Coroutine");
-				CTestPerformanceMeasure CppCoroTime("CppCoro");
-				uint32 ReturnNormal;
-				DDoSleep;
-				{
-					for (umint iTest = 0; iTest < nTests; ++iTest)
-					{
-						NormalTime.f_Start();
-						uint32 Multiplier = 2;
-						[&Multiplier, &ReturnNormal]() inline_never
-						{
-							ReturnNormal = fsp_TestFunction(Multiplier);
-						}
-						();
-						NormalTime.f_Stop(mcp_nLoops);
-					}
-					PerfTest.f_AddBaseline(NormalTime);
-				}
-
-				DDoSleep;
-				uint32 ReturnCoro;
-				{
-					for (umint iTest = 0; iTest < nTests; ++iTest)
-					{
-						CoroutineTime.f_Start();
-						uint32 Multiplier = 2;
-						[&Multiplier, &ReturnCoro]() inline_never
-						{
-							ReturnCoro = fsp_TestFunctionCoro(Multiplier).f_CallSync();
-						}
-						();
-						CoroutineTime.f_Stop(mcp_nLoops);
-					}
-					PerfTest.f_Add(CoroutineTime);
-					DMibExpect(ReturnCoro, ==, ReturnNormal);
-				}
-
-				DDoSleep;
-#if defined(DMalterlibEnableThirdPartyComparisonTests)
-				uint32 ReturnCppCoro;
-				{
-					for (umint iTest = 0; iTest < nTests; ++iTest)
-					{
-						CppCoroTime.f_Start();
-						uint32 Multiplier = 2;
-						[&Multiplier, &ReturnCppCoro]() inline_never
-						{
-							ReturnCppCoro = cppcoro::sync_wait(fsp_TestFunctionCppCoro(Multiplier));
-						}
-						();
-						CppCoroTime.f_Stop(mcp_nLoops);
-					}
-					PerfTest.f_AddReference(CppCoroTime);
-					DMibExpect(ReturnCppCoro, ==, ReturnNormal);
-				}
-#endif
-				DDoSleep;
-				DMibExpectTrue(PerfTest);
-
-				co_return {};
-			};
-			DMibTestSuite(CTestCategory("Tasks") << CTestGroup("Performance")) -> TCFuture<void>
-			{
-				umint nTests = 10;
-
-#if defined(DMibDebug) || defined(DMibSanitizerEnabled)
-				constexpr umint c_nTasks = 1'000;
-#else
-				constexpr umint c_nTasks = 1'000'000;
-#endif
-
-				CTestPerformanceMeasure MalterlibTime("Malterlib5");
-				TCActor<CSeparateThreadActor> LaunchActor{fg_Construct(), "Test"};
-				{
-					for (umint iTest = 0; iTest < nTests; ++iTest)
-					{
-						MalterlibTime.f_Start();
-						TCVector<TCPromise<void>> Promises;
-						Promises.f_SetLen(c_nTasks);
-
-						TCFutureVector<void> Results;
-						Results.f_SetLen(c_nTasks);
-
-						NAtomic::TCAtomic<bool> bAllScheduled{false};
-						NThread::CEvent Event;
-						for (auto &Promise : Promises)
-						{
-							g_Dispatch(LaunchActor) / [&, Future = Promise.f_Future()]() mutable -> TCUnsafeFuture<void>
-								{
-									if (!bAllScheduled.f_Load())
-										Event.f_Wait();
-
-									co_await fg_Move(Future);
-									co_return {};
-								}
-								> Results
+							Return
+								+= NMib::NSys::fg_Thread_GetCurrentUID() + (umint)NMib::NSys::fg_Thread_GetLocal(ThreadLocalCopy0) + (umint)NMib::NSys::fg_Thread_GetLocal(ThreadLocalCopy1)
 							;
 						}
-
-						bAllScheduled.f_Exchange(true);
-						Event.f_SetSignaled();
-						for (auto &Promise : Promises)
-							Promise.f_SetResult();
-
-						co_await fg_AllDoneWrapped(Results);
-						MalterlibTime.f_Stop(c_nTasks);
+						ReturnNormal = Return;
 					}
+					();
+					NormalTime.f_Stop(mcp_nLoops);
 				}
+				PerfTest.f_Add(NormalTime);
+			}
 
-				CTestPerformance PerfTest(0.015);
-				PerfTest.f_Add(MalterlibTime);
-				DMibExpectTrue(PerfTest);
+			DMibExpectTrue(PerfTest);
 
-				co_return {};
-			};
-			DMibTestSuite(CTestCategory("ActorPingPong") << CTestGroup("Performance")) -> TCFuture<void>
+			co_return {};
+		};
+
+		DMibTestSuite(CTestCategory("Synchronous") << CTestGroup("Performance")) -> TCFuture<void>
+		{
+			umint nTests = 9;
+
+			CTestPerformance PerfTest(0.015);
+			CTestPerformanceMeasure NormalTime("Normal");
+			CTestPerformanceMeasure CoroutineTime("Coroutine");
+			CTestPerformanceMeasure CppCoroTime("CppCoro");
+			uint32 ReturnNormal;
+			DDoSleep;
 			{
-				umint nTests = 9;
+				for (umint iTest = 0; iTest < nTests; ++iTest)
+				{
+					NormalTime.f_Start();
+					uint32 Multiplier = 2;
+					[&Multiplier, &ReturnNormal]() inline_never
+					{
+						ReturnNormal = fsp_TestFunction(Multiplier);
+					}
+					();
+					NormalTime.f_Stop(mcp_nLoops);
+				}
+				PerfTest.f_AddBaseline(NormalTime);
+			}
+
+			DDoSleep;
+			uint32 ReturnCoro;
+			{
+				for (umint iTest = 0; iTest < nTests; ++iTest)
+				{
+					CoroutineTime.f_Start();
+					uint32 Multiplier = 2;
+					[&Multiplier, &ReturnCoro]() inline_never
+					{
+						ReturnCoro = fsp_TestFunctionCoro(Multiplier).f_CallSync();
+					}
+					();
+					CoroutineTime.f_Stop(mcp_nLoops);
+				}
+				PerfTest.f_Add(CoroutineTime);
+				DMibExpect(ReturnCoro, ==, ReturnNormal);
+			}
+
+			DDoSleep;
+#if defined(DMalterlibEnableThirdPartyComparisonTests)
+			uint32 ReturnCppCoro;
+			{
+				for (umint iTest = 0; iTest < nTests; ++iTest)
+				{
+					CppCoroTime.f_Start();
+					uint32 Multiplier = 2;
+					[&Multiplier, &ReturnCppCoro]() inline_never
+					{
+						ReturnCppCoro = cppcoro::sync_wait(fsp_TestFunctionCppCoro(Multiplier));
+					}
+					();
+					CppCoroTime.f_Stop(mcp_nLoops);
+				}
+				PerfTest.f_AddReference(CppCoroTime);
+				DMibExpect(ReturnCppCoro, ==, ReturnNormal);
+			}
+#endif
+			DDoSleep;
+			DMibExpectTrue(PerfTest);
+
+			co_return {};
+		};
+		DMibTestSuite(CTestCategory("Tasks") << CTestGroup("Performance")) -> TCFuture<void>
+		{
+			umint nTests = 10;
 
 #if defined(DMibDebug) || defined(DMibSanitizerEnabled)
-				constexpr umint c_nRoundTrips = 1'000;
+			constexpr umint c_nTasks = 1'000;
 #else
-				constexpr umint c_nRoundTrips = 50'000;
+			constexpr umint c_nTasks = 1'000'000;
+#endif
+
+			CTestPerformanceMeasure MalterlibTime("Malterlib5");
+			TCActor<CSeparateThreadActor> LaunchActor{fg_Construct(), "Test"};
+			{
+				for (umint iTest = 0; iTest < nTests; ++iTest)
+				{
+					MalterlibTime.f_Start();
+					TCVector<TCPromise<void>> Promises;
+					Promises.f_SetLen(c_nTasks);
+
+					TCFutureVector<void> Results;
+					Results.f_SetLen(c_nTasks);
+
+					NAtomic::TCAtomic<bool> bAllScheduled{false};
+					NThread::CEvent Event;
+					for (auto &Promise : Promises)
+					{
+						g_Dispatch(LaunchActor) / [&, Future = Promise.f_Future()]() mutable -> TCUnsafeFuture<void>
+							{
+								if (!bAllScheduled.f_Load())
+									Event.f_Wait();
+
+								co_await fg_Move(Future);
+								co_return {};
+							}
+							> Results
+						;
+					}
+
+					bAllScheduled.f_Exchange(true);
+					Event.f_SetSignaled();
+					for (auto &Promise : Promises)
+						Promise.f_SetResult();
+
+					co_await fg_AllDoneWrapped(Results);
+					MalterlibTime.f_Stop(c_nTasks);
+				}
+			}
+
+			CTestPerformance PerfTest(0.015);
+			PerfTest.f_Add(MalterlibTime);
+			DMibExpectTrue(PerfTest);
+
+			co_return {};
+		};
+		DMibTestSuite(CTestCategory("ActorPingPong") << CTestGroup("Performance")) -> TCFuture<void>
+		{
+			umint nTests = 9;
+
+#if defined(DMibDebug) || defined(DMibSanitizerEnabled)
+			constexpr umint c_nRoundTrips = 1'000;
+#else
+			constexpr umint c_nRoundTrips = 50'000;
 #endif
 
 #if DMibConfig_Concurrency_SchedulerStats
-				auto fReportStats = [](NStr::CStr const &_Name, umint _nRoundTrips, CTestPerformanceMeasure &_Measure)
-					{
-						auto Stats = fg_ConcurrencyManager().f_GetSchedulerStats();
-						DMibTrace
-							(
-								"ActorPingPong {}: {} round trips, {} cycles/rt, Signals {} Sleeps {} LocalEnqueues {} AtomicEnqueues {} Handoffs {} IdleClaims {} RoundRobin {}\n"
-								, _Name
-								, _nRoundTrips
-								, _Measure.f_CyclesMedian()
-								, Stats.m_nSignals
-								, Stats.m_nSleeps
-								, Stats.m_nLocalEnqueues
-								, Stats.m_nAtomicEnqueues
-								, Stats.m_nHandoffs
-								, Stats.m_nIdleClaims
-								, Stats.m_nRoundRobinSelections
-							)
-						;
-					}
-				;
+			auto fReportStats = [](NStr::CStr const &_Name, umint _nRoundTrips, CTestPerformanceMeasure &_Measure)
+				{
+					auto Stats = fg_ConcurrencyManager().f_GetSchedulerStats();
+					DMibTrace
+						(
+							"ActorPingPong {}: {} round trips, {} cycles/rt, Signals {} Sleeps {} LocalEnqueues {} AtomicEnqueues {} Handoffs {} IdleClaims {} RoundRobin {}\n"
+							, _Name
+							, _nRoundTrips
+							, _Measure.f_CyclesMedian()
+							, Stats.m_nSignals
+							, Stats.m_nSleeps
+							, Stats.m_nLocalEnqueues
+							, Stats.m_nAtomicEnqueues
+							, Stats.m_nHandoffs
+							, Stats.m_nIdleClaims
+							, Stats.m_nRoundRobinSelections
+						)
+					;
+				}
+			;
 #	define DPingPongStatsReset() fg_ConcurrencyManager().f_ResetSchedulerStats()
 #	define DPingPongStatsReport(d_Name, d_nRoundTrips, d_Measure) fReportStats(d_Name, d_nRoundTrips, d_Measure)
 #else
@@ -622,137 +649,136 @@ namespace NMib::NConcurrency::NTest
 #	define DPingPongStatsReport(d_Name, d_nRoundTrips, d_Measure) ((void)0)
 #endif
 
-				CTestPerformance PerfTest(0.015);
+			CTestPerformance PerfTest(0.015);
 
-				// A pool actor driving request/response round trips against another pool actor
+			// A pool actor driving request/response round trips against another pool actor
+			{
+				CTestPerformanceMeasure PairTime("PoolPair");
+				TCActor<CPingPongActor> Ping = fg_ConstructActor<CPingPongActor>();
+				TCActor<CPingPongActor> Pong = fg_ConstructActor<CPingPongActor>();
+
+				DPingPongStatsReset();
+				for (umint iTest = 0; iTest < nTests; ++iTest)
 				{
-					CTestPerformanceMeasure PairTime("PoolPair");
-					TCActor<CPingPongActor> Ping = fg_ConstructActor<CPingPongActor>();
-					TCActor<CPingPongActor> Pong = fg_ConstructActor<CPingPongActor>();
+					PairTime.f_Start();
+					co_await Ping(&CPingPongActor::f_Run, Pong, c_nRoundTrips);
+					PairTime.f_Stop(c_nRoundTrips);
+				}
+				DPingPongStatsReport("PoolPair", c_nRoundTrips * nTests, PairTime);
+				PerfTest.f_Add(PairTime);
+			}
 
-					DPingPongStatsReset();
-					for (umint iTest = 0; iTest < nTests; ++iTest)
-					{
-						PairTime.f_Start();
-						co_await Ping(&CPingPongActor::f_Run, Pong, c_nRoundTrips);
-						PairTime.f_Stop(c_nRoundTrips);
-					}
-					DPingPongStatsReport("PoolPair", c_nRoundTrips * nTests, PairTime);
-					PerfTest.f_Add(PairTime);
+			// The driver runs on a separate (off-pool) thread, so every call crosses into the pool
+			{
+				CTestPerformanceMeasure OffPoolTime("OffPoolDriver");
+				TCActor<CSeparateThreadActor> LaunchActor{fg_Construct(), "PingPong"};
+				TCActor<CPingPongActor> Pong = fg_ConstructActor<CPingPongActor>();
+
+				DPingPongStatsReset();
+				for (umint iTest = 0; iTest < nTests; ++iTest)
+				{
+					OffPoolTime.f_Start();
+					co_await
+						(
+							g_Dispatch(LaunchActor) / [Pong]() -> TCFuture<uint32>
+							{
+								TCActor<CPingPongActor> Target = Pong;
+
+								uint32 Value = 0;
+								for (umint iRoundTrip = 0; iRoundTrip < c_nRoundTrips; ++iRoundTrip)
+									Value = co_await Target(&CPingPongActor::f_Echo, Value);
+
+								co_return Value;
+							}
+						)
+					;
+					OffPoolTime.f_Stop(c_nRoundTrips);
+				}
+				DPingPongStatsReport("OffPoolDriver", c_nRoundTrips * nTests, OffPoolTime);
+				PerfTest.f_Add(OffPoolTime);
+			}
+
+			// A three-actor chain per round trip
+			{
+				CTestPerformanceMeasure ChainTime("Chain3");
+				TCActor<CPingPongActor> Tail = fg_ConstructActor<CPingPongActor>();
+				TCActor<CPingPongActor> Middle = fg_ConstructActor<CPingPongActor>(fg_Move(Tail));
+				TCActor<CPingPongActor> Head = fg_ConstructActor<CPingPongActor>(fg_Move(Middle));
+				TCActor<CPingPongActor> Ping = fg_ConstructActor<CPingPongActor>();
+
+				DPingPongStatsReset();
+				for (umint iTest = 0; iTest < nTests; ++iTest)
+				{
+					ChainTime.f_Start();
+					co_await Ping(&CPingPongActor::f_Run, Head, c_nRoundTrips);
+					ChainTime.f_Stop(c_nRoundTrips);
+				}
+				DPingPongStatsReport("Chain3", c_nRoundTrips * nTests, ChainTime);
+				PerfTest.f_Add(ChainTime);
+			}
+
+			// One independent pair per core; verifies work still spreads across the pool
+			{
+				CTestPerformanceMeasure PairsTime("ConcurrentPairs");
+				umint nPairs = fg_ConcurrencyManager().f_GetConcurrency();
+				TCVector<TCActor<CPingPongActor>> Pings;
+				TCVector<TCActor<CPingPongActor>> Pongs;
+				for (umint iPair = 0; iPair < nPairs; ++iPair)
+				{
+					Pings.f_InsertLast(fg_ConstructActor<CPingPongActor>());
+					Pongs.f_InsertLast(fg_ConstructActor<CPingPongActor>());
 				}
 
-				// The driver runs on a separate (off-pool) thread, so every call crosses into the pool
+				DPingPongStatsReset();
+				for (umint iTest = 0; iTest < nTests; ++iTest)
 				{
-					CTestPerformanceMeasure OffPoolTime("OffPoolDriver");
-					TCActor<CSeparateThreadActor> LaunchActor{fg_Construct(), "PingPong"};
-					TCActor<CPingPongActor> Pong = fg_ConstructActor<CPingPongActor>();
-
-					DPingPongStatsReset();
-					for (umint iTest = 0; iTest < nTests; ++iTest)
-					{
-						OffPoolTime.f_Start();
-						co_await
-							(
-								g_Dispatch(LaunchActor) / [Pong]() -> TCFuture<uint32>
-								{
-									TCActor<CPingPongActor> Target = Pong;
-
-									uint32 Value = 0;
-									for (umint iRoundTrip = 0; iRoundTrip < c_nRoundTrips; ++iRoundTrip)
-										Value = co_await Target(&CPingPongActor::f_Echo, Value);
-
-									co_return Value;
-								}
-							)
-						;
-						OffPoolTime.f_Stop(c_nRoundTrips);
-					}
-					DPingPongStatsReport("OffPoolDriver", c_nRoundTrips * nTests, OffPoolTime);
-					PerfTest.f_Add(OffPoolTime);
-				}
-
-				// A three-actor chain per round trip
-				{
-					CTestPerformanceMeasure ChainTime("Chain3");
-					TCActor<CPingPongActor> Tail = fg_ConstructActor<CPingPongActor>();
-					TCActor<CPingPongActor> Middle = fg_ConstructActor<CPingPongActor>(fg_Move(Tail));
-					TCActor<CPingPongActor> Head = fg_ConstructActor<CPingPongActor>(fg_Move(Middle));
-					TCActor<CPingPongActor> Ping = fg_ConstructActor<CPingPongActor>();
-
-					DPingPongStatsReset();
-					for (umint iTest = 0; iTest < nTests; ++iTest)
-					{
-						ChainTime.f_Start();
-						co_await Ping(&CPingPongActor::f_Run, Head, c_nRoundTrips);
-						ChainTime.f_Stop(c_nRoundTrips);
-					}
-					DPingPongStatsReport("Chain3", c_nRoundTrips * nTests, ChainTime);
-					PerfTest.f_Add(ChainTime);
-				}
-
-				// One independent pair per core; verifies work still spreads across the pool
-				{
-					CTestPerformanceMeasure PairsTime("ConcurrentPairs");
-					umint nPairs = fg_ConcurrencyManager().f_GetConcurrency();
-					TCVector<TCActor<CPingPongActor>> Pings;
-					TCVector<TCActor<CPingPongActor>> Pongs;
+					PairsTime.f_Start();
+					TCFutureVector<uint32> Results;
 					for (umint iPair = 0; iPair < nPairs; ++iPair)
-					{
-						Pings.f_InsertLast(fg_ConstructActor<CPingPongActor>());
-						Pongs.f_InsertLast(fg_ConstructActor<CPingPongActor>());
-					}
+						Pings[iPair](&CPingPongActor::f_Run, Pongs[iPair], c_nRoundTrips) > Results;
 
-					DPingPongStatsReset();
-					for (umint iTest = 0; iTest < nTests; ++iTest)
-					{
-						PairsTime.f_Start();
-						TCFutureVector<uint32> Results;
-						for (umint iPair = 0; iPair < nPairs; ++iPair)
-							Pings[iPair](&CPingPongActor::f_Run, Pongs[iPair], c_nRoundTrips) > Results;
-
-						co_await fg_AllDoneWrapped(Results);
-						PairsTime.f_Stop(c_nRoundTrips * nPairs);
-					}
-					DPingPongStatsReport("ConcurrentPairs", c_nRoundTrips * nPairs * nTests, PairsTime);
-					PerfTest.f_Add(PairsTime);
+					co_await fg_AllDoneWrapped(Results);
+					PairsTime.f_Stop(c_nRoundTrips * nPairs);
 				}
+				DPingPongStatsReport("ConcurrentPairs", c_nRoundTrips * nPairs * nTests, PairsTime);
+				PerfTest.f_Add(PairsTime);
+			}
 
-				// A pool actor bursting one CPU-bound job per core; the burst lands on the driver's
-				// thread and must spread to the other cores for the measured time to scale
-				{
+			// A pool actor bursting one CPU-bound job per core; the burst lands on the driver's
+			// thread and must spread to the other cores for the measured time to scale
+			{
 #if defined(DMibDebug) || defined(DMibSanitizerEnabled)
-					constexpr umint c_nWorkIterations = 10'000;
+				constexpr umint c_nWorkIterations = 10'000;
 #else
-					constexpr umint c_nWorkIterations = 1'000'000;
+				constexpr umint c_nWorkIterations = 1'000'000;
 #endif
 
-					CTestPerformanceMeasure FanOutTime("FanOutBurst");
-					umint nWorkers = fg_ConcurrencyManager().f_GetConcurrency();
-					TCActor<CPingPongActor> Driver = fg_ConstructActor<CPingPongActor>();
-					TCVector<TCActor<CPingPongActor>> Workers;
-					for (umint iWorker = 0; iWorker < nWorkers; ++iWorker)
-						Workers.f_InsertLast(fg_ConstructActor<CPingPongActor>());
+				CTestPerformanceMeasure FanOutTime("FanOutBurst");
+				umint nWorkers = fg_ConcurrencyManager().f_GetConcurrency();
+				TCActor<CPingPongActor> Driver = fg_ConstructActor<CPingPongActor>();
+				TCVector<TCActor<CPingPongActor>> Workers;
+				for (umint iWorker = 0; iWorker < nWorkers; ++iWorker)
+					Workers.f_InsertLast(fg_ConstructActor<CPingPongActor>());
 
-					DPingPongStatsReset();
-					for (umint iTest = 0; iTest < nTests; ++iTest)
-					{
-						FanOutTime.f_Start();
-						co_await Driver(&CPingPongActor::f_FanOut, Workers, c_nWorkIterations);
-						FanOutTime.f_Stop(nWorkers);
-					}
-					DPingPongStatsReport("FanOutBurst", nWorkers * nTests, FanOutTime);
-					PerfTest.f_Add(FanOutTime);
+				DPingPongStatsReset();
+				for (umint iTest = 0; iTest < nTests; ++iTest)
+				{
+					FanOutTime.f_Start();
+					co_await Driver(&CPingPongActor::f_FanOut, Workers, c_nWorkIterations);
+					FanOutTime.f_Stop(nWorkers);
 				}
+				DPingPongStatsReport("FanOutBurst", nWorkers * nTests, FanOutTime);
+				PerfTest.f_Add(FanOutTime);
+			}
 
-				DMibExpectTrue(PerfTest);
+			DMibExpectTrue(PerfTest);
 
 #undef DPingPongStatsReset
 #undef DPingPongStatsReport
 
-				co_return {};
-			};
-		}
-	};
+			co_return {};
+		};
+	}
 
 	DMibTestRegister(CCoroutinesPerformance_Tests, Malterlib::Concurrency);
 }

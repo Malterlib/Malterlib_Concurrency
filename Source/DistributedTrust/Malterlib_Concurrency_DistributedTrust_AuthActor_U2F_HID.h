@@ -53,8 +53,6 @@ namespace NMib::NConcurrency
 	{
 		using CActorHolder = CSeparateThreadActorHolder;
 
-		static constexpr aint mc_ReportSize = 64;
-
 		struct CDeviceInfo
 		{
 			NStr::CStr m_Path;
@@ -75,6 +73,8 @@ namespace NMib::NConcurrency
 		TCFuture<NContainer::TCVector<CDeviceInfo>> f_Enumerate(uint16 _VendorID, uint16 _ProductID);
 		TCFuture<TCActor<CHumanInterfaceDeviceActor>> f_Open(uint16 _VendorID, uint16 _ProductID, NStr::CStr _SerialNumber = "");
 		TCFuture<TCActor<CHumanInterfaceDeviceActor>> f_OpenPath(NStr::CStr _Path);
+
+		static constexpr aint mc_ReportSize = 64;
 
 	private:
 		NException::CExceptionPointer fp_CheckInit();

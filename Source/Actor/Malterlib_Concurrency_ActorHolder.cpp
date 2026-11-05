@@ -721,141 +721,146 @@ namespace NMib::NConcurrency
 
 	struct CActorHolder::CDestroyHandler
 	{
-		CDestroyHandler(FDestroyHolderOnDestroyed &&_fOnDestroyed, CActorHolder *_pThis, TCActorHolderSharedPointer<CActorHolder> &&_pSelfReference)
-			: m_fOnDestroyed(fg_Move(_fOnDestroyed))
-			, m_pThis(_pThis)
-			, m_pSelfReference(fg_Move(_pSelfReference))
-		{
-		}
-
+		CDestroyHandler(FDestroyHolderOnDestroyed &&_fOnDestroyed, CActorHolder *_pThis, TCActorHolderSharedPointer<CActorHolder> &&_pSelfReference);
 		CDestroyHandler(CDestroyHandler const &_Other) = delete;
+		CDestroyHandler(CDestroyHandler &&_Other);
+		~CDestroyHandler();
 
-		CDestroyHandler(CDestroyHandler &&_Other)
-			: m_fOnDestroyed(fg_Move(_Other.m_fOnDestroyed))
-			, m_pThis(_Other.m_pThis)
-			, m_pSelfReference(fg_Move(_Other.m_pSelfReference))
-			, m_bIsValid(fg_Exchange(_Other.m_bIsValid, false))
-		{
-		}
-
-		void operator () (CConcurrencyThreadLocal &_ThreadLocal)
-		{
-		}
-
-		~CDestroyHandler()
-		{
-			if (!m_bIsValid)
-				return;
-
-			auto &This = *m_pThis;
-
-			DMibFastCheck(This.mp_OnDestroy.f_IsEmpty());
-
-			auto &ThreadLocal = fg_ConcurrencyThreadLocal();
-
-			auto pActor = This.fp_GetActorRelaxed();
-			if (pActor)
-			{
-#if DMibEnableSafeCheck > 0
-
-				auto pOldDestructingActor = ThreadLocal.m_pCurrentlyDestructingActor;
-				ThreadLocal.m_pCurrentlyDestructingActor = pActor;
-				auto Cleanup = g_OnScopeExit / [&]
-					{
-						ThreadLocal.m_pCurrentlyDestructingActor = pOldDestructingActor;
-					}
-				;
-#endif
-				pActor->self.m_pThis.f_SetBits(1);
-				pActor->fp_AbortSuspendedCoroutines();
-				This.fp_DeleteActor();
-			}
-			This.mp_Destroyed.f_Exchange(2);
-			This.fp_ActorDestroyed();
-
-			bool bShouldDelete;
-
-			if (m_pSelfReference)
-			{
-				auto pLastDestructing = ThreadLocal.m_pCurrentlyDestructingActorHolder;
-				ThreadLocal.m_pCurrentlyDestructingActorHolder = &This;
-				auto Cleanup = g_OnScopeExit / [&]
-					{
-						ThreadLocal.m_pCurrentlyDestructingActorHolder = pLastDestructing;
-					}
-				;
-
-				bShouldDelete = m_pSelfReference.f_Clear();
-			}
-			else
-				bShouldDelete = true;
-
-			if (bShouldDelete)
-			{
-				if (ThreadLocal.m_pThisQueue)
-				{
-					if (ThreadLocal.m_pCurrentlyProcessingActorHolder == &This)
-					{
-						ThreadLocal.m_pCurrentlyProcessingActorHolder = nullptr;
-
-						This.mp_ConcurrentRunQueue.f_RemoveAllExceptFirst(This.mp_ConcurrentRunQueueLocal);
-					}
-					else
-						This.mp_ConcurrentRunQueue.f_RemoveAll(This.mp_ConcurrentRunQueueLocal);
-
-					NMemory::CCapturedDelete CapturedDelete = NStorage::fg_DeleteWeakObjectGetCapturedDelete(&This);
-					This.m_RefCount.f_WeakSetCapturedDelete(CapturedDelete);
-					if (This.m_RefCount.f_WeakDecrease(DIfRefCountDebugging(nullptr)) == 0)
-					{
-						if (CapturedDelete.m_Size)
-							CInternalActorAllocator::f_Free(CapturedDelete.m_pMemory, CapturedDelete.m_Size);
-						else
-							CInternalActorAllocator::f_FreeNoSize(CapturedDelete.m_pMemory);
-					}
-
-					if (m_fOnDestroyed)
-						m_fOnDestroyed();
-					return;
-				}
-
-				// Dispatch to our queue again, otherwise we ourselves could be in callstack
-				This.mp_pConcurrencyManager->fp_DispatchOnCurrentThreadOrConcurrentFirst
-					(
-						This.f_GetPriority()
-						, g_OnScopeExit / [pThis = &This, fOnDestroyed = fg_Move(m_fOnDestroyed)](auto && ...p_Params) mutable
-						{
-							auto &This = *pThis;
-
-							NMemory::CCapturedDelete CapturedDelete = NStorage::fg_DeleteWeakObjectGetCapturedDelete(&This);
-							This.m_RefCount.f_WeakSetCapturedDelete(CapturedDelete);
-							if (This.m_RefCount.f_WeakDecrease(DIfRefCountDebugging(nullptr)) == 0)
-							{
-								if (CapturedDelete.m_Size)
-									CInternalActorAllocator::f_Free(CapturedDelete.m_pMemory, CapturedDelete.m_Size);
-								else
-									CInternalActorAllocator::f_FreeNoSize(CapturedDelete.m_pMemory);
-							}
-
-							if (fOnDestroyed)
-								fOnDestroyed();
-						}
-						, ThreadLocal
-					)
-				;
-			}
-			else
-			{
-				if (m_fOnDestroyed)
-					m_fOnDestroyed();
-				return;
-			}
-		}
+		void operator () (CConcurrencyThreadLocal &_ThreadLocal);
 
 		FDestroyHolderOnDestroyed m_fOnDestroyed;
 		CActorHolder *m_pThis;
 		TCActorHolderSharedPointer<CActorHolder> m_pSelfReference;
 		bool m_bIsValid = true;
 	};
+
+	CActorHolder::CDestroyHandler::CDestroyHandler(FDestroyHolderOnDestroyed &&_fOnDestroyed, CActorHolder *_pThis, TCActorHolderSharedPointer<CActorHolder> &&_pSelfReference)
+		: m_fOnDestroyed(fg_Move(_fOnDestroyed))
+		, m_pThis(_pThis)
+		, m_pSelfReference(fg_Move(_pSelfReference))
+	{
+	}
+
+	CActorHolder::CDestroyHandler::CDestroyHandler(CDestroyHandler &&_Other)
+		: m_fOnDestroyed(fg_Move(_Other.m_fOnDestroyed))
+		, m_pThis(_Other.m_pThis)
+		, m_pSelfReference(fg_Move(_Other.m_pSelfReference))
+		, m_bIsValid(fg_Exchange(_Other.m_bIsValid, false))
+	{
+	}
+
+	CActorHolder::CDestroyHandler::~CDestroyHandler()
+	{
+		if (!m_bIsValid)
+			return;
+
+		auto &This = *m_pThis;
+
+		DMibFastCheck(This.mp_OnDestroy.f_IsEmpty());
+
+		auto &ThreadLocal = fg_ConcurrencyThreadLocal();
+
+		auto pActor = This.fp_GetActorRelaxed();
+		if (pActor)
+		{
+#if DMibEnableSafeCheck > 0
+
+			auto pOldDestructingActor = ThreadLocal.m_pCurrentlyDestructingActor;
+			ThreadLocal.m_pCurrentlyDestructingActor = pActor;
+			auto Cleanup = g_OnScopeExit / [&]
+				{
+					ThreadLocal.m_pCurrentlyDestructingActor = pOldDestructingActor;
+				}
+			;
+#endif
+			pActor->self.m_pThis.f_SetBits(1);
+			pActor->fp_AbortSuspendedCoroutines();
+			This.fp_DeleteActor();
+		}
+		This.mp_Destroyed.f_Exchange(2);
+		This.fp_ActorDestroyed();
+
+		bool bShouldDelete;
+
+		if (m_pSelfReference)
+		{
+			auto pLastDestructing = ThreadLocal.m_pCurrentlyDestructingActorHolder;
+			ThreadLocal.m_pCurrentlyDestructingActorHolder = &This;
+			auto Cleanup = g_OnScopeExit / [&]
+				{
+					ThreadLocal.m_pCurrentlyDestructingActorHolder = pLastDestructing;
+				}
+			;
+
+			bShouldDelete = m_pSelfReference.f_Clear();
+		}
+		else
+			bShouldDelete = true;
+
+		if (bShouldDelete)
+		{
+			if (ThreadLocal.m_pThisQueue)
+			{
+				if (ThreadLocal.m_pCurrentlyProcessingActorHolder == &This)
+				{
+					ThreadLocal.m_pCurrentlyProcessingActorHolder = nullptr;
+
+					This.mp_ConcurrentRunQueue.f_RemoveAllExceptFirst(This.mp_ConcurrentRunQueueLocal);
+				}
+				else
+					This.mp_ConcurrentRunQueue.f_RemoveAll(This.mp_ConcurrentRunQueueLocal);
+
+				NMemory::CCapturedDelete CapturedDelete = NStorage::fg_DeleteWeakObjectGetCapturedDelete(&This);
+				This.m_RefCount.f_WeakSetCapturedDelete(CapturedDelete);
+				if (This.m_RefCount.f_WeakDecrease(DIfRefCountDebugging(nullptr)) == 0)
+				{
+					if (CapturedDelete.m_Size)
+						CInternalActorAllocator::f_Free(CapturedDelete.m_pMemory, CapturedDelete.m_Size);
+					else
+						CInternalActorAllocator::f_FreeNoSize(CapturedDelete.m_pMemory);
+				}
+
+				if (m_fOnDestroyed)
+					m_fOnDestroyed();
+				return;
+			}
+
+			// Dispatch to our queue again, otherwise we ourselves could be in callstack
+			This.mp_pConcurrencyManager->fp_DispatchOnCurrentThreadOrConcurrentFirst
+				(
+					This.f_GetPriority()
+					, g_OnScopeExit / [pThis = &This, fOnDestroyed = fg_Move(m_fOnDestroyed)](auto && ...p_Params) mutable
+					{
+						auto &This = *pThis;
+
+						NMemory::CCapturedDelete CapturedDelete = NStorage::fg_DeleteWeakObjectGetCapturedDelete(&This);
+						This.m_RefCount.f_WeakSetCapturedDelete(CapturedDelete);
+						if (This.m_RefCount.f_WeakDecrease(DIfRefCountDebugging(nullptr)) == 0)
+						{
+							if (CapturedDelete.m_Size)
+								CInternalActorAllocator::f_Free(CapturedDelete.m_pMemory, CapturedDelete.m_Size);
+							else
+								CInternalActorAllocator::f_FreeNoSize(CapturedDelete.m_pMemory);
+						}
+
+						if (fOnDestroyed)
+							fOnDestroyed();
+					}
+					, ThreadLocal
+				)
+			;
+		}
+		else
+		{
+			if (m_fOnDestroyed)
+				m_fOnDestroyed();
+			return;
+		}
+	}
+
+	void CActorHolder::CDestroyHandler::operator () (CConcurrencyThreadLocal &_ThreadLocal)
+	{
+	}
 
 	void CActorHolder::fp_DestroyActorHolder(FDestroyHolderOnDestroyed &&_fOnDestroyed, TCActorHolderSharedPointer<CActorHolder> &&_pSelfReference, CConcurrencyThreadLocal &_ThreadLocal)
 	{
@@ -1270,16 +1275,18 @@ namespace NMib::NConcurrency
 
 	struct NPrivate::CDelegatedActorDestroyState
 	{
-		CDelegatedActorDestroyState()
-		{
-			m_Result.f_SetResult();
-		}
+		CDelegatedActorDestroyState();
 
 		NStorage::CIntrusiveRefCount m_RefCount;
 		TCPromise<void> m_Promise = CPromiseConstructEmpty();
 		TCAsyncResult<void> m_Result;
 		bool m_bDestroyed = false; // The actor destructor has finished; holder references may remain.
 	};
+
+	NPrivate::CDelegatedActorDestroyState::CDelegatedActorDestroyState()
+	{
+		m_Result.f_SetResult();
+	}
 
 	CDelegatedActorHolder::CDelegatedActorHolder
 		(

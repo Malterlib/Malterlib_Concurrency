@@ -87,11 +87,6 @@ namespace NMib::NConcurrency
 
 	struct CDistributedAppSensorReader : public CActor
 	{
-		CDistributedAppSensorReader();
-		~CDistributedAppSensorReader();
-
-		static constexpr ch8 const *mc_pDefaultNamespace = "com.malterlib/Concurrency/DistributedAppSensorReader";
-
 		enum EProtocolVersion : uint32
 		{
 			EProtocolVersion_Min       = CDistributedAppSensorReporter::EProtocolVersion_Min
@@ -139,6 +134,9 @@ namespace NMib::NConcurrency
 			uint32 m_BatchSize = 1024;
 		};
 
+		CDistributedAppSensorReader();
+		~CDistributedAppSensorReader();
+
 		template <typename tf_CStream, typename tf_CFilter>
 		static void fs_StreamFilterVector(tf_CStream &_Stream, NContainer::TCVector<tf_CFilter> &o_Filters);
 
@@ -162,6 +160,8 @@ namespace NMib::NConcurrency
 			)
 			-> TCFuture<TCActorSubscriptionWithID<>> = 0
 		;
+
+		static constexpr ch8 const *mc_pDefaultNamespace = "com.malterlib/Concurrency/DistributedAppSensorReader";
 	};
 }
 

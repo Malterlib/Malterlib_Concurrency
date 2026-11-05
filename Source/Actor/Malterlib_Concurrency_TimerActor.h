@@ -39,10 +39,6 @@ namespace NMib::NConcurrency
 	{
 		using CActorHolder = CTimerActorHolder;
 
-		static constexpr bool mc_bImmediateDelete = true;
-		static constexpr bool mc_bIsAlwaysAlive = true;
-		static constexpr bool mc_bIsAlwaysAliveImpl = true;
-
 		CTimerActor();
 		~CTimerActor();
 
@@ -52,6 +48,10 @@ namespace NMib::NConcurrency
 		CActorSubscription f_OneshotTimerAbortable(fp64 _Period, int64 _StartTicks, TCActor<CActor> const &_Actor, FUnitVoidFutureFunction &&_fCallback);
 		CActorSubscription f_RegisterTimer(fp64 _Period, int64 _StartTicks, TCActor<CActor> const &_Actor, FUnitVoidFutureFunction &&_fCallback);
 		CActorSubscription f_RegisterExactTimer(fp64 _Period, int64 _StartTicks, TCActor<CActor> const &_Actor, FUnitVoidFutureFunction &&_fCallback);
+
+		static constexpr bool mc_bImmediateDelete = true;
+		static constexpr bool mc_bIsAlwaysAlive = true;
+		static constexpr bool mc_bIsAlwaysAliveImpl = true;
 
 	private:
 		friend struct CTimerActorHolder;
@@ -69,8 +69,9 @@ namespace NMib::NConcurrency
 
 	struct CTimerActorImpl : public CTimerActor
 	{
-		static constexpr bool mc_bIsAlwaysAliveImpl = false;
 		~CTimerActorImpl();
+
+		static constexpr bool mc_bIsAlwaysAliveImpl = false;
 	};
 
 	struct CTimeoutHelper

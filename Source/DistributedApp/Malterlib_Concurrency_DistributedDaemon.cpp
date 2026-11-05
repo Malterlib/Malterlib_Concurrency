@@ -28,67 +28,75 @@ namespace NMib::NConcurrency
 
 	struct CDistributedDaemonDaemon : public CDaemonImp
 	{
-		CDistributedDaemonDaemon(TCActor<CDistributedAppActor> const &_Actor, NEncoding::CEJsonSorted const &_Params, NStorage::TCSharedPointer<CRunLoop> const &_pRunLoop)
-			: m_pRunLoop(_pRunLoop)
-			, m_Actor(_Actor)
-		{
-			m_ApplyLoggingResults = fg_ApplyLoggingOption(_Params, m_Actor);
-
-			m_Actor(&CDistributedAppActor::f_StartApp, _Params, m_ApplyLoggingResults.m_LogActor, EDistributedAppType_Daemon).f_OnResultSet
-				(
-					[](TCAsyncResult<NStr::CStr> &&_Result)
-					{
-						if (_Result)
-							return;
-
-						DMibLogWithCategory(Malterlib/Concurrency/DistributedDaemon, Error, "Failed to start application: {}", _Result.f_GetExceptionStr());
-
-						NStr::CStr Ticket = fg_GetSys()->f_GetProtectedEnvironmentVariable("MalterlibDistributedAppInterfaceServerRequestTicket");
-						if (Ticket.f_IsEmpty())
-							return;
-
-						NEncoding::CEJsonSorted Json;
-						Json["Error"] = _Result.f_GetExceptionStr();
-						DMibConErrOut("{}:Error:{}\n", Ticket, Json.f_ToString(nullptr));
-					}
-				)
-			;
-		}
-
-		~CDistributedDaemonDaemon()
-		{
-			if (m_Actor)
-			{
-				try
-				{
-					m_Actor(&CDistributedAppActor::f_StopApp).f_CallSync(m_pRunLoop);
-					fg_Move(m_Actor).f_Destroy().f_CallSync(m_pRunLoop);
-				}
-				catch (NException::CException const &_Exception)
-				{
-					(void)_Exception;
-					DMibLogWithCategory(Malterlib/Concurrency/DistributedDaemon, Error, "Exception stopping app: {}", _Exception);
-				}
-
-				m_Actor = nullptr;
-			}
-
-			try
-			{
-				m_ApplyLoggingResults.f_Destroy(m_pRunLoop->f_ActorDestroyLoop());
-			}
-			catch (NException::CException const &_Exception)
-			{
-				DMibConErrOut("Error destroying logging: {}{\n}", _Exception.f_GetErrorStr());
-			}
-
-			m_ApplyLoggingResults = {};
-		}
+		CDistributedDaemonDaemon(TCActor<CDistributedAppActor> const &_Actor, NEncoding::CEJsonSorted const &_Params, NStorage::TCSharedPointer<CRunLoop> const &_pRunLoop);
+		~CDistributedDaemonDaemon();
 
 		TCActor<CDistributedAppActor> m_Actor;
 		CApplyLoggingResults m_ApplyLoggingResults;
 		NStorage::TCSharedPointer<CRunLoop> m_pRunLoop;
 	};
+
+	CDistributedDaemonDaemon::CDistributedDaemonDaemon
+		(
+			TCActor<CDistributedAppActor> const &_Actor
+			, NEncoding::CEJsonSorted const &_Params
+			, NStorage::TCSharedPointer<CRunLoop> const &_pRunLoop
+		)
+		: m_pRunLoop(_pRunLoop)
+		, m_Actor(_Actor)
+	{
+		m_ApplyLoggingResults = fg_ApplyLoggingOption(_Params, m_Actor);
+
+		m_Actor(&CDistributedAppActor::f_StartApp, _Params, m_ApplyLoggingResults.m_LogActor, EDistributedAppType_Daemon).f_OnResultSet
+			(
+				[](TCAsyncResult<NStr::CStr> &&_Result)
+				{
+					if (_Result)
+						return;
+
+					DMibLogWithCategory(Malterlib/Concurrency/DistributedDaemon, Error, "Failed to start application: {}", _Result.f_GetExceptionStr());
+
+					NStr::CStr Ticket = fg_GetSys()->f_GetProtectedEnvironmentVariable("MalterlibDistributedAppInterfaceServerRequestTicket");
+					if (Ticket.f_IsEmpty())
+						return;
+
+					NEncoding::CEJsonSorted Json;
+					Json["Error"] = _Result.f_GetExceptionStr();
+					DMibConErrOut("{}:Error:{}\n", Ticket, Json.f_ToString(nullptr));
+				}
+			)
+		;
+	}
+
+	CDistributedDaemonDaemon::~CDistributedDaemonDaemon()
+	{
+		if (m_Actor)
+		{
+			try
+			{
+				m_Actor(&CDistributedAppActor::f_StopApp).f_CallSync(m_pRunLoop);
+				fg_Move(m_Actor).f_Destroy().f_CallSync(m_pRunLoop);
+			}
+			catch (NException::CException const &_Exception)
+			{
+				(void)_Exception;
+				DMibLogWithCategory(Malterlib/Concurrency/DistributedDaemon, Error, "Exception stopping app: {}", _Exception);
+			}
+
+			m_Actor = nullptr;
+		}
+
+		try
+		{
+			m_ApplyLoggingResults.f_Destroy(m_pRunLoop->f_ActorDestroyLoop());
+		}
+		catch (NException::CException const &_Exception)
+		{
+			DMibConErrOut("Error destroying logging: {}{\n}", _Exception.f_GetErrorStr());
+		}
+
+		m_ApplyLoggingResults = {};
+	}
 
 	CDistributedDaemon::CDistributedDaemon
 		(

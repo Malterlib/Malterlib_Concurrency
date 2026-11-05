@@ -13,14 +13,14 @@ namespace NMib::NConcurrency::NPrivate
 	template <typename t_CType>
 	struct TCWrappedSyncAwaiter
 	{
-		TCAsyncResult<t_CType> m_Result;
-
 		bool await_ready() noexcept;
 
 		template <typename tf_CPromise>
 		void await_suspend(TCCoroutineHandle<tf_CPromise> _Handle) noexcept;
 
 		auto await_resume() noexcept;
+
+		TCAsyncResult<t_CType> m_Result;
 	};
 
 	template <typename t_CType>
@@ -29,14 +29,12 @@ namespace NMib::NConcurrency::NPrivate
 		using CHandle = TCCoroutineHandle<TCWrappedCoroutinePromise<t_CType>>;
 
 		mark_artificial inline_always TCWrappedCoroutineReturnObject(CHandle _Handle) noexcept;
-
 		TCWrappedCoroutineReturnObject(TCWrappedCoroutineReturnObject const &_Other) = delete;
+		mark_artificial inline_always TCWrappedCoroutineReturnObject(TCWrappedCoroutineReturnObject &&_Other) noexcept;
+		mark_artificial inline_always ~TCWrappedCoroutineReturnObject();
+
 		TCWrappedCoroutineReturnObject &operator = (TCWrappedCoroutineReturnObject const &_Other) = delete;
 		TCWrappedCoroutineReturnObject &operator = (TCWrappedCoroutineReturnObject &&_Other) = delete;
-
-		mark_artificial inline_always TCWrappedCoroutineReturnObject(TCWrappedCoroutineReturnObject &&_Other) noexcept;
-
-		mark_artificial inline_always ~TCWrappedCoroutineReturnObject();
 
 		mark_artificial inline_always operator TCWrapped<t_CType> ();
 
@@ -46,8 +44,6 @@ namespace NMib::NConcurrency::NPrivate
 	template <typename t_CType>
 	struct TCWrappedCoroutinePromiseBase
 	{
-		TCAsyncResult<t_CType> m_Result;
-
 		mark_no_coroutine_debug TCWrappedCoroutineReturnObject<t_CType> get_return_object() noexcept;
 
 		CSuspendAlways initial_suspend() noexcept;
@@ -60,6 +56,8 @@ namespace NMib::NConcurrency::NPrivate
 
 		template <typename tf_CType>
 		TCWrappedSyncAwaiter<tf_CType> await_transform(TCWrapped<tf_CType> &&_Result) noexcept;
+
+		TCAsyncResult<t_CType> m_Result;
 	};
 
 	template <typename t_CType>

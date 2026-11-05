@@ -37,41 +37,43 @@ namespace NMib::NConcurrency
 
 	struct CSingleton_Tests : NTest::CTest
 	{
-		void f_DoTests()
+		void f_DoTests();
+	};
+
+	void CSingleton_Tests::f_DoTests()
+	{
+		DMibTestSuite("General")
 		{
-			DMibTestSuite("General")
+			DMibTestCategory("NestedCreation")
 			{
-				DMibTestCategory("NestedCreation")
+				EExecutionPriority Priorities[EPriority_Max] = {EExecutionPriority_Normal, EExecutionPriority_Normal, EExecutionPriority_Normal};
+				CConcurrencyManager Manager(Priorities);
+
 				{
-					EExecutionPriority Priorities[EPriority_Max] = {EExecutionPriority_Normal, EExecutionPriority_Normal, EExecutionPriority_Normal};
-					CConcurrencyManager Manager(Priorities);
+					umint nCreated = 0;
 
+					TCActor<TCNestedSingletonActor<0>> Outer = fg_GetNestedSingleton<0>(Manager, nCreated).f_Move();
 					{
-						umint nCreated = 0;
-
-						TCActor<TCNestedSingletonActor<0>> Outer = fg_GetNestedSingleton<0>(Manager, nCreated).f_Move();
-						{
-							DMibTestPath("FirstRequest");
-							DMibExpect(nCreated, ==, gc_NestedSingletonDepth);
-						}
-
-						TCActor<TCNestedSingletonActor<0>> OuterAgain = fg_GetNestedSingleton<0>(Manager, nCreated).f_Move();
-						TCActor<TCNestedSingletonActor<gc_NestedSingletonDepth - 1>> Innermost = fg_GetNestedSingleton<gc_NestedSingletonDepth - 1>(Manager, nCreated).f_Move();
-
-						{
-							DMibTestPath("LaterRequests");
-							DMibExpect(nCreated, ==, gc_NestedSingletonDepth);
-						}
-
-						DMibExpectTrue(Outer == OuterAgain);
-						DMibExpectTrue(bool(Innermost));
+						DMibTestPath("FirstRequest");
+						DMibExpect(nCreated, ==, gc_NestedSingletonDepth);
 					}
 
-					Manager.f_BlockOnDestroy();
-				};
+					TCActor<TCNestedSingletonActor<0>> OuterAgain = fg_GetNestedSingleton<0>(Manager, nCreated).f_Move();
+					TCActor<TCNestedSingletonActor<gc_NestedSingletonDepth - 1>> Innermost = fg_GetNestedSingleton<gc_NestedSingletonDepth - 1>(Manager, nCreated).f_Move();
+
+					{
+						DMibTestPath("LaterRequests");
+						DMibExpect(nCreated, ==, gc_NestedSingletonDepth);
+					}
+
+					DMibExpectTrue(Outer == OuterAgain);
+					DMibExpectTrue(bool(Innermost));
+				}
+
+				Manager.f_BlockOnDestroy();
 			};
-		}
-	};
+		};
+	}
 
 	DMibTestRegister(CSingleton_Tests, Malterlib::Concurrency);
 }

@@ -7,12 +7,6 @@ namespace NMib::NConcurrency
 {
 	struct CCanDestroyTracker
 	{
-		NStorage::CIntrusiveRefCount m_RefCount;
-		TCPromise<void> m_Promise;
-
-		CCanDestroyTracker();
-		~CCanDestroyTracker();
-
 		struct CCanDestroyResultFunctor
 		{
 			CCanDestroyResultFunctor(CCanDestroyResultFunctor &&_fOther);
@@ -24,8 +18,14 @@ namespace NMib::NConcurrency
 			NStorage::TCSharedPointer<CCanDestroyTracker> m_pThis;
 		};
 
+		CCanDestroyTracker();
+		~CCanDestroyTracker();
+
 		TCFuture<void> f_Future() const;
 		CCanDestroyResultFunctor f_Track();
+
+		NStorage::CIntrusiveRefCount m_RefCount;
+		TCPromise<void> m_Promise;
 	};
 
 	template <typename tf_CType>

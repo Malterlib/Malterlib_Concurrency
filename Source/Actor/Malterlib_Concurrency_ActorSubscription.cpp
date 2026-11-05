@@ -16,11 +16,12 @@ namespace NMib::NConcurrency
 	struct TCActorSubscriptionCleanupFunctor : public CActorSubscriptionReference
 	{
 		TCActorSubscriptionCleanupFunctor(TCActorSubscriptionCleanupFunctor const &_Other) = delete;
-		TCActorSubscriptionCleanupFunctor &operator = (TCActorSubscriptionCleanupFunctor const &_Other) = delete;
 		TCActorSubscriptionCleanupFunctor(TCActorSubscriptionCleanupFunctor &&_Other) = delete;
-		TCActorSubscriptionCleanupFunctor &operator = (TCActorSubscriptionCleanupFunctor &&_Other) = delete;
 		TCActorSubscriptionCleanupFunctor(TCActor<> const &_DispatchActor, NFunction::TCFunctionMovable<t_CReturnValue ()> &&_fCleanup);
 		~TCActorSubscriptionCleanupFunctor();
+
+		TCActorSubscriptionCleanupFunctor &operator = (TCActorSubscriptionCleanupFunctor const &_Other) = delete;
+		TCActorSubscriptionCleanupFunctor &operator = (TCActorSubscriptionCleanupFunctor &&_Other) = delete;
 
 		TCFuture<void> f_Destroy() override;
 

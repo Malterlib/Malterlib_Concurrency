@@ -33,16 +33,6 @@ namespace NMib::NConcurrency
 			bool m_bResultsSet = false;
 		};
 
-		CDistributedAppAuthenticationHandler
-			(
-				TCSharedPointer<CCommandLineControl> const &_pCommandLine
-				, TCActor<CDistributedActorTrustManager> const &_TrustManager
-				, int64 _AuthenticationLifetime
-			)
-		;
-
-		TCFuture<TCVector<CResponse>> f_RequestAuthentication(CRequest _Request, CChallenge _Challenge, CStr _MultipleRequestID) override;
-
 		struct CAuthenticationStateFactor
 		{
 			CAuthenticationActorInfo m_ActorInfo;
@@ -62,6 +52,16 @@ namespace NMib::NConcurrency
 			NTime::CTime m_ExpirationTime;
 			NStr::CStr m_LastPrompt;
 		};
+
+		CDistributedAppAuthenticationHandler
+			(
+				TCSharedPointer<CCommandLineControl> const &_pCommandLine
+				, TCActor<CDistributedActorTrustManager> const &_TrustManager
+				, int64 _AuthenticationLifetime
+			)
+		;
+
+		TCFuture<TCVector<CResponse>> f_RequestAuthentication(CRequest _Request, CChallenge _Challenge, CStr _MultipleRequestID) override;
 
 		TCFuture<CMultipleRequestData> f_GetMultipleRequestSubscription(uint32 _nHosts) override;
 

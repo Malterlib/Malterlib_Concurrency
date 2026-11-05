@@ -92,52 +92,25 @@ namespace NMib::NConcurrency
 
 		struct CSubSystem_ConcurrencyInit : public CSubSystem
 		{
-			CSubSystem_ConcurrencyInit()
-			{
-				NMisc::fg_Random(); // Fix deadlock
-			}
+			CSubSystem_ConcurrencyInit();
 		};
+
+		CSubSystem_ConcurrencyInit::CSubSystem_ConcurrencyInit()
+		{
+			NMisc::fg_Random(); // Fix deadlock
+		}
 
 		struct CSubSystem_Concurrency : public CSubSystem_ConcurrencyInit
 		{
+			void f_PreDestroyThreadSpecific() override;
+
+			CConcurrencyManager &f_GetConcurrencyManager();
+
 			NThread::CMutual m_ConcurrencyManagerLock;
 			NStorage::TCUniquePointer<NConcurrency::CConcurrencyManager, NMemory::CAllocator_NonTrackedHeap> m_pConcurrencyManager;
 #if DMibConfig_Concurrency_DebugFutures
 			CDebugFutures m_DebugFutures;
 #endif
-
-			void f_PreDestroyThreadSpecific() override
-			{
-				DMibLock(m_ConcurrencyManagerLock);
-				if (m_pConcurrencyManager)
-				{
-					{
-						DMibUnlock(m_ConcurrencyManagerLock);
-						m_pConcurrencyManager->f_Stop();
-					}
-					m_pConcurrencyManager.f_Clear();
-				}
-			}
-
-			CConcurrencyManager &f_GetConcurrencyManager()
-			{
-				if (!m_pConcurrencyManager)
-				{
-					DMibLock(m_ConcurrencyManagerLock);
-					if (!m_pConcurrencyManager)
-					{
-						m_pConcurrencyManager = fg_Construct(m_DefaultExecutionPriority, m_PriorityClamp);
-#if DMibConfig_Concurrency_DebugFutures
-						m_pConcurrencyManager->m_bReportFutures = true;
-#endif
-						m_pConcurrencyManager->f_Init();
-					}
-
-					return *m_pConcurrencyManager;
-				}
-				return *m_pConcurrencyManager;
-			}
-
 			NThread::TCThreadLocal<CConcurrencyThreadLocal, NMemory::CAllocator_Heap, NThread::EThreadLocalFlag_AlwaysCreated> m_ThreadLocal;
 			EExecutionPriority m_DefaultExecutionPriority[EPriority_Max]
 #ifdef DPlatformFamily_macOS
@@ -149,6 +122,38 @@ namespace NMib::NConcurrency
 			;
 			EPriority m_PriorityClamp = EPriority_Low;
 		};
+
+		void CSubSystem_Concurrency::f_PreDestroyThreadSpecific()
+		{
+			DMibLock(m_ConcurrencyManagerLock);
+			if (m_pConcurrencyManager)
+			{
+				{
+					DMibUnlock(m_ConcurrencyManagerLock);
+					m_pConcurrencyManager->f_Stop();
+				}
+				m_pConcurrencyManager.f_Clear();
+			}
+		}
+
+		CConcurrencyManager &CSubSystem_Concurrency::f_GetConcurrencyManager()
+		{
+			if (!m_pConcurrencyManager)
+			{
+				DMibLock(m_ConcurrencyManagerLock);
+				if (!m_pConcurrencyManager)
+				{
+					m_pConcurrencyManager = fg_Construct(m_DefaultExecutionPriority, m_PriorityClamp);
+#if DMibConfig_Concurrency_DebugFutures
+					m_pConcurrencyManager->m_bReportFutures = true;
+#endif
+					m_pConcurrencyManager->f_Init();
+				}
+
+				return *m_pConcurrencyManager;
+			}
+			return *m_pConcurrencyManager;
+		}
 
 		constinit TCSubSystem<CSubSystem_Concurrency, ESubSystemDestruction_BeforeMemoryManager> g_SubSystem_Concurrency = {DAggregateInit};
 
@@ -459,11 +464,13 @@ namespace NMib::NConcurrency
 	{
 		struct CCoroutineActor : public CActor
 		{
-			TCFuture<void> f_ReferenceCoroutine(uint32 _Reference)
-			{
-				co_return {};
-			}
+			TCFuture<void> f_ReferenceCoroutine(uint32 _Reference);
 		};
+
+		TCFuture<void> CCoroutineActor::f_ReferenceCoroutine(uint32 _Reference)
+		{
+			co_return {};
+		}
 	}
 
 #endif

@@ -316,14 +316,14 @@ namespace NMib::NConcurrency
 
 		struct CState
 		{
-			TCActor<CStdInActor> m_StdInActor;
-			CActorSubscription m_StdInSubscription;
-
 			void f_Clear()
 			{
 				m_StdInSubscription.f_Clear();
 				fg_Move(m_StdInActor).f_Destroy().f_DiscardResult();
 			}
+
+			TCActor<CStdInActor> m_StdInActor;
+			CActorSubscription m_StdInSubscription;
 		};
 
 		NStorage::TCSharedPointer<CState> pState = fg_Construct();

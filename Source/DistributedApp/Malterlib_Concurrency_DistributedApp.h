@@ -48,6 +48,21 @@ namespace NMib::NConcurrency
 
 	struct CDistributedAppState
 	{
+		CDistributedAppState() = delete;
+		CDistributedAppState(CDistributedAppState const &_Other);
+		CDistributedAppState(CDistributedAppState &&_Other);
+		~CDistributedAppState();
+
+		CDistributedAppState &operator = (CDistributedAppState const &_Other);
+		CDistributedAppState &operator = (CDistributedAppState &&_Other);
+
+		CDistributedAppAuditor f_Auditor(NStr::CStr const &_Category = {}, CCallingHostInfo const &_CallingHostInfo = fg_GetCallingHostInfo()) const;
+		NFunction::TCFunctionMovable<CDistributedAppAuditor (CCallingHostInfo const &_CallingHostInfo, NStr::CStr const &_Category)> f_AuditorFactory(NStr::CStr const &_Category = {}) const;
+
+		virtual TCFuture<void> f_SaveStateDatabase();
+		virtual TCFuture<void> f_SaveConfigDatabase();
+		virtual TCFuture<CDistributedAppSensorReporter::CSensorReporter> f_OpenSensorReporter(CDistributedAppSensorReporter::CSensorInfo _SensorInfo);
+
 		NEncoding::CSimpleJsonDatabase m_StateDatabase;
 		NEncoding::CSimpleJsonDatabase m_ConfigDatabase;
 		TCActor<CDistributedActorTrustManager> m_TrustManager;
@@ -61,22 +76,6 @@ namespace NMib::NConcurrency
 		NStr::CStr m_CommandLineHostID;
 		NStr::CStr m_RootDirectory;
 		DMibActorPhaseFlag(StopApp) bool m_bStoppingApp = false;
-
-		CDistributedAppAuditor f_Auditor(NStr::CStr const &_Category = {}, CCallingHostInfo const &_CallingHostInfo = fg_GetCallingHostInfo()) const;
-		NFunction::TCFunctionMovable<CDistributedAppAuditor (CCallingHostInfo const &_CallingHostInfo, NStr::CStr const &_Category)> f_AuditorFactory(NStr::CStr const &_Category = {}) const;
-
-		virtual TCFuture<void> f_SaveStateDatabase();
-		virtual TCFuture<void> f_SaveConfigDatabase();
-		virtual TCFuture<CDistributedAppSensorReporter::CSensorReporter> f_OpenSensorReporter(CDistributedAppSensorReporter::CSensorInfo _SensorInfo);
-
-		CDistributedAppState() = delete;
-		~CDistributedAppState();
-
-		CDistributedAppState(CDistributedAppState const &_Other);
-		CDistributedAppState(CDistributedAppState &&_Other);
-
-		CDistributedAppState &operator = (CDistributedAppState const &_Other);
-		CDistributedAppState &operator = (CDistributedAppState &&_Other);
 
 	private:
 		friend struct CDistributedAppActor;
@@ -111,6 +110,18 @@ namespace NMib::NConcurrency
 			, ELogOutputFlag_Raw  = DMibBit(1)
 		};
 
+		struct CInProcessCommandLine
+		{
+			TCDistributedActor<ICCommandLine> m_CommandLine;
+			TCActor<CActorDistributionManager> m_DistributionManager;
+		};
+
+		using FMutateCommandLine = NFunction::TCFunction
+			<
+				TCFuture<void> (NStorage::TCSharedPointer<CDistributedAppCommandLineSpecification> _pCommandLine, CDistributedAppActor_Settings _Settings)
+			>
+		;
+
 		CDistributedAppActor(CDistributedAppActor_Settings const &_Settings);
 		~CDistributedAppActor();
 
@@ -121,19 +132,7 @@ namespace NMib::NConcurrency
 		void f_SetAppType(EDistributedAppType _AppType);
 		void f_LogApplicationInfo();
 
-		struct CInProcessCommandLine
-		{
-			TCDistributedActor<ICCommandLine> m_CommandLine;
-			TCActor<CActorDistributionManager> m_DistributionManager;
-		};
-
 		TCFuture<CInProcessCommandLine> f_GetInProcessCommandLine();
-
-		using FMutateCommandLine = NFunction::TCFunction
-			<
-				TCFuture<void> (NStorage::TCSharedPointer<CDistributedAppCommandLineSpecification> _pCommandLine, CDistributedAppActor_Settings _Settings)
-			>
-		;
 
 		TCFuture<CDistributedAppCommandLineClient> f_GetCommandLineClient(NStorage::TCSharedPointer<CRunLoop> _pRunLoop, FMutateCommandLine _fMutateCommandLine);
 
@@ -356,6 +355,18 @@ namespace NMib::NConcurrency
 			NContainer::TCMap<TCWeakDistributedActor<ICDistributedActorAuthentication>, CRegisteredAuthentication> m_RegistrationSubscriptions;
 		};
 
+		struct CLocalAppState : public CDistributedAppState, public CActorInternal
+		{
+			CLocalAppState(CDistributedAppActor_Settings const &_Settings, CDistributedAppActor &_This);
+
+			TCFuture<void> f_SaveStateDatabase() override;
+			TCFuture<void> f_SaveConfigDatabase() override;
+			TCFuture<CDistributedAppSensorReporter::CSensorReporter> f_OpenSensorReporter(CDistributedAppSensorReporter::CSensorInfo _SensorInfo) override;
+
+		private:
+			CDistributedAppActor &mp_This;
+		};
+
 		virtual TCFuture<void> fp_StartApp(NEncoding::CEJsonSorted const _Params) = 0;
 		DMibActorPhase(StopApp) virtual TCFuture<void> fp_StopApp() = 0;
 
@@ -509,18 +520,6 @@ namespace NMib::NConcurrency
 		auto fp_OpenLogReporter(CDistributedAppLogReporter::CLogInfo _LogInfo) -> TCFuture<CDistributedAppLogReporter::CLogReporter>;
 		TCFuture<TCActor<CDistributedAppLogStoreLocal>> fp_OpenLogStoreLocal();
 
-		struct CLocalAppState : public CDistributedAppState, public CActorInternal
-		{
-			CLocalAppState(CDistributedAppActor_Settings const &_Settings, CDistributedAppActor &_This);
-
-			TCFuture<void> f_SaveStateDatabase() override;
-			TCFuture<void> f_SaveConfigDatabase() override;
-			TCFuture<CDistributedAppSensorReporter::CSensorReporter> f_OpenSensorReporter(CDistributedAppSensorReporter::CSensorInfo _SensorInfo) override;
-
-		private:
-			CDistributedAppActor &mp_This;
-		};
-
 		CLocalAppState mp_State;
 		CDistributedAppActor_Settings mp_Settings;
 		NContainer::TCMap<NStr::CStr, NEncoding::CEJsonSorted> mp_SensorMetadata;
@@ -531,6 +530,7 @@ namespace NMib::NConcurrency
 
 	private:
 		struct CDistributedAppInterfaceClientImplementation;
+		struct CInternal;
 
 		TCFuture<void> fp_WaitForDistributedTrustInitialization();
 		TCFuture<void> fp_InitializeDistributedTrust();
@@ -579,8 +579,6 @@ namespace NMib::NConcurrency
 #if DMibEnableSafeCheck > 0
 		void fp_CheckDestroy() override;
 #endif
-
-		struct CInternal;
 
 		NStorage::TCUniquePointer<CInternal> mp_pInternal;
 	};

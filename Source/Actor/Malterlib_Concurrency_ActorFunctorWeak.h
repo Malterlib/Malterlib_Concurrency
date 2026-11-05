@@ -22,13 +22,13 @@ namespace NMib::NConcurrency
 
 		TCActorFunctorWeak() = default;
 		TCActorFunctorWeak(TCActorFunctorWeak &&_fOther) = default;
-		TCActorFunctorWeak &operator = (TCActorFunctorWeak &&_fOther) = default;
 		TCActorFunctorWeak(TCActorFunctorWeak const &_fOther) = delete;
-		TCActorFunctorWeak &operator = (TCActorFunctorWeak const &_fOther) = delete;
-		~TCActorFunctorWeak();
-
 		TCActorFunctorWeak(CNullPtr _pNull);
 		TCActorFunctorWeak(TCActor<CActor> &&_Actor, CFunction &&_fFunctor);
+		~TCActorFunctorWeak();
+
+		TCActorFunctorWeak &operator = (TCActorFunctorWeak &&_fOther) = default;
+		TCActorFunctorWeak &operator = (TCActorFunctorWeak const &_fOther) = delete;
 
 		template <typename ...tfp_CParams>
 		auto operator () (tfp_CParams && ...p_Params) const -> TCFuture<CStripedReturn>

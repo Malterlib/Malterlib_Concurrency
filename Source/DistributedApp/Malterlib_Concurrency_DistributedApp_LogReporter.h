@@ -13,11 +13,6 @@ namespace NMib::NConcurrency
 {
 	struct CDistributedAppLogReporter : public CActor
 	{
-		CDistributedAppLogReporter();
-		~CDistributedAppLogReporter();
-
-		static constexpr ch8 const *mc_pDefaultNamespace = "com.malterlib/Concurrency/DistributedAppLogReporter";
-
 		enum EProtocolVersion : uint32
 		{
 			EProtocolVersion_Min = 0x101
@@ -210,10 +205,15 @@ namespace NMib::NConcurrency
 			uint64 m_LastSeenUniqueSequence = 0;
 		};
 
+		CDistributedAppLogReporter();
+		~CDistributedAppLogReporter();
+
 		virtual TCFuture<CLogReporter> f_OpenLogReporter(CLogInfo _LogInfo) = 0;
 
 		static NStr::CStr fs_LogSeverityToStr(ELogSeverity _Severity);
 		static ELogSeverity fs_LogSeverityFromStr(NStr::CStr const &_String);
+
+		static constexpr ch8 const *mc_pDefaultNamespace = "com.malterlib/Concurrency/DistributedAppLogReporter";
 	};
 }
 

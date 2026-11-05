@@ -20,11 +20,6 @@ namespace NMib::NConcurrency
 	{
 		using FStopApp = NFunction::TCFunction<bool ()>;
 
-		void f_SetLazyStartApp(NFunction::TCFunction<FStopApp (NEncoding::CEJsonSorted const &_Params, EDistributedAppCommandFlag _Flags)> const &_fLazyStartApp);
-		void f_SetLazyPreRunDirectCommand(NFunction::TCFunction<void (NEncoding::CEJsonSorted const &_Params, EDistributedAppCommandFlag _Flags)> const &_fLazyPreRunDirectCommand);
-
-		NStorage::TCSharedPointer<CRunLoop> const &f_GetRunLoop() const;
-
 		CDistributedAppCommandLineClient
 			(
 				CDistributedAppActor_Settings const &_Settings
@@ -34,19 +29,24 @@ namespace NMib::NConcurrency
 				, TCWeakActor<CDistributedAppActor> const &_AppActor = {}
 			)
 		;
+		CDistributedAppCommandLineClient(CDistributedAppCommandLineClient &&_Other);
 		~CDistributedAppCommandLineClient();
 
-		CDistributedAppCommandLineClient(CDistributedAppCommandLineClient &&_Other);
 		CDistributedAppCommandLineClient &operator = (CDistributedAppCommandLineClient &&_Other);
 
-	private:
-		void fp_Init(NEncoding::CEJsonSorted const &_Params, bool _bFailIfNotRunning);
+		void f_SetLazyStartApp(NFunction::TCFunction<FStopApp (NEncoding::CEJsonSorted const &_Params, EDistributedAppCommandFlag _Flags)> const &_fLazyStartApp);
+		void f_SetLazyPreRunDirectCommand(NFunction::TCFunction<void (NEncoding::CEJsonSorted const &_Params, EDistributedAppCommandFlag _Flags)> const &_fLazyPreRunDirectCommand);
 
+		NStorage::TCSharedPointer<CRunLoop> const &f_GetRunLoop() const;
+
+	private:
 		friend struct NCommandLine::TCCommandLineClient<CCommandLineSpecificationDistributedAppCustomization, CDistributedAppCommandLineClient>;
 
-		uint32 fp_RunCommand(void const *_pCommand, NEncoding::CEJsonSorted &&_Params);
-
 		struct CInternal;
+
+		void fp_Init(NEncoding::CEJsonSorted const &_Params, bool _bFailIfNotRunning);
+
+		uint32 fp_RunCommand(void const *_pCommand, NEncoding::CEJsonSorted &&_Params);
 
 		NStorage::TCUniquePointer<CInternal> mp_pInternal;
 		NFunction::TCFunction<FStopApp (NEncoding::CEJsonSorted const &_Params, EDistributedAppCommandFlag _Flags)> mp_fLazyStartApp;

@@ -9,8 +9,6 @@ namespace NMib::NConcurrency
 {
 	struct ICDistributedActorAuthentication : public CActor
 	{
-		static constexpr ch8 const *mc_pDefaultNamespace = "com.malterlib/Concurrency/DistributedActorAuthentication";
-
 		enum EProtocolVersion : uint32
 		{
 			EProtocolVersion_Min            = 0x101
@@ -30,6 +28,8 @@ namespace NMib::NConcurrency
 
 		virtual TCFuture<TCActorSubscriptionWithID<>> f_RegisterAuthenticationHandler(CRegisterAuthenticationHandlerParams _Params) = 0;
 		virtual TCFuture<bool> f_AuthenticatePermissionPattern(NStr::CStr _Pattern, NContainer::TCSet<NStr::CStr> _AuthenticationFactors, NStr::CStr _RequestID) = 0;
+
+		static constexpr ch8 const *mc_pDefaultNamespace = "com.malterlib/Concurrency/DistributedActorAuthentication";
 	};
 }
 

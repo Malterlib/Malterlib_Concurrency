@@ -37,9 +37,9 @@ namespace NMib::NConcurrency::NPrivate
 	template <typename t_CReturn, typename ...tp_CParams>
 	struct TCAddRValueReferencesToFunctor<t_CReturn (tp_CParams ...p_Parems)>
 	{
-		static constexpr bool mc_bAnyReference = ((... || NTraits::cIsReference<tp_CParams>));
-
 		using FType = t_CReturn (NTraits::TCRemoveQualifiersAndAddRValueReference<tp_CParams> ...p_Params);
+
+		static constexpr bool mc_bAnyReference = ((... || NTraits::cIsReference<tp_CParams>));
 	};
 
 	template <typename t_CFunction>

@@ -57,9 +57,6 @@ namespace NMib::NConcurrency::NPrivate
 	template <typename t_CReturnType>
 	struct TCAsyncGeneratorCoroutineContext : public TCFutureCoroutineContextShared<NStorage::TCOptional<t_CReturnType>>
 	{
-		TCAsyncGeneratorCoroutineContext(ECoroutineFlag _Flags = ECoroutineFlag_None) noexcept;
-		~TCAsyncGeneratorCoroutineContext();
-
 		struct CYieldSuspender
 		{
 			bool await_ready() const noexcept;
@@ -88,6 +85,9 @@ namespace NMib::NConcurrency::NPrivate
 			bool m_bDone = false;
 			bool m_bDestroyed = false;
 		};
+
+		TCAsyncGeneratorCoroutineContext(ECoroutineFlag _Flags = ECoroutineFlag_None) noexcept;
+		~TCAsyncGeneratorCoroutineContext();
 
 		static CFutureCoroutineContext::FDeliverResult fs_KeepaliveSetResultFunctor(CFutureCoroutineContext &_Context, TCActor<CActor> &&_Actor);
 

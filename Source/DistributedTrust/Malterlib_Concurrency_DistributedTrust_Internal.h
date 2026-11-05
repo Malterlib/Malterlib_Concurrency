@@ -37,14 +37,14 @@ namespace NMib::NConcurrency
 
 		struct CConnectionState
 		{
+			inline CDistributedActorTrustManager_Address const &f_GetAddress() const;
+
 			CClientConnection m_ClientConnection;
 			NContainer::TCVector<CDistributedActorConnectionReference> m_ConnectionReferences;
 			CHostState *m_pHost = nullptr;
 			bool m_bRemoving = false;
 
 			DMibListLinkDS_Link(CConnectionState, m_Link);
-
-			inline CDistributedActorTrustManager_Address const &f_GetAddress() const;
 		};
 
 		struct CTicketState
@@ -56,16 +56,21 @@ namespace NMib::NConcurrency
 
 		struct CHostState
 		{
+			inline NStr::CStr const &f_GetHostID() const;
+
 			DMibListLinkDS_List(CConnectionState, m_Link) m_ClientConnections;
 			NStr::CStr m_FriendlyName;
-
-			inline NStr::CStr const &f_GetHostID() const;
 		};
 
 		struct CTypedHost;
 
 		struct CTypedActor
 		{
+			struct CCompareIdentifier
+			{
+				auto &operator () (CTypedActor const &_Actor);
+			};
+
 			CDistributedActorIdentifier const &f_GetIdentifier() const;
 
 			CAbstractDistributedActor m_AbstractActor;
@@ -74,11 +79,6 @@ namespace NMib::NConcurrency
 
 			NIntrusive::TCAVLLink<> m_LinkAllowed;
 			NIntrusive::TCAVLLink<> m_LinkHost;
-
-			struct CCompareIdentifier
-			{
-				auto &operator () (CTypedActor const &_Actor);
-			};
 		};
 
 		struct CTypedHost
@@ -102,6 +102,8 @@ namespace NMib::NConcurrency
 
 		struct CNamespaceState
 		{
+			inline NStr::CStr const &f_GetNamespaceName() const;
+
 			CNamespace m_Namespace;
 			CActorSubscription m_Subscription;
 			NContainer::TCMap<uint32, CNamespaceTypeState> m_Types;
@@ -110,24 +112,22 @@ namespace NMib::NConcurrency
 			bool m_bExistsInDatabase = false;
 			bool m_bSubscribing = false;
 			NContainer::TCVector<NFunction::TCFunctionMovable<void (TCAsyncResult<void> const &_Result, CNamespaceState &_NamespaceState)>> m_OnSubscribe;
-
-			inline NStr::CStr const &f_GetNamespaceName() const;
 		};
 
 		struct CPermissionState
 		{
+			inline CPermissionIdentifiers const &f_GetIdentity() const;
+
 			NDistributedActorTrustManagerDatabase::CPermissions m_Permissions;
 			bool m_bExistsInDatabase = false;
-
-			inline CPermissionIdentifiers const &f_GetIdentity() const;
 		};
 
 		struct CPermissionSubscriptionState
 		{
+			inline NStr::CStr const &f_GetPermission() const;
+
 			NContainer::TCSet<NStorage::TCSharedPointer<NPrivate::CTrustedPermissionSubscriptionState>> m_Subscriptions;
 			NContainer::TCMap<CPermissionIdentifiers, NContainer::TCMap<NStr::CStr, CPermissionRequirements>> m_PermissionsPerIdentity;
-
-			inline NStr::CStr const &f_GetPermission() const;
 		};
 
 		struct CUserState
@@ -173,9 +173,9 @@ namespace NMib::NConcurrency
 		{
 			using CActorHolder = CDelegatedActorHolder;
 
-			TCFuture<NStr::CStr> f_ValidateClientAccess(NStr::CStr _HostID, NContainer::TCVector<NContainer::CByteVector> _CertificateChain) override;
-
 			CActorDistributionManagerAccessHandler(CDistributedActorTrustManager::CInternal *_pInternal);
+
+			TCFuture<NStr::CStr> f_ValidateClientAccess(NStr::CStr _HostID, NContainer::TCVector<NContainer::CByteVector> _CertificateChain) override;
 
 			DMibDelegatedActorImplementation(CDistributedActorTrustManager::CInternal);
 		};

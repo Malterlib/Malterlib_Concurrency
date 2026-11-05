@@ -39,9 +39,6 @@ namespace NMib::NConcurrency
 		TCActorInternal(CConcurrencyManager *_pConcurrencyManager, NStorage::TCSharedPointer<ICDistributedActorData> &&_pDistributedActorData, tf_CP0 &&_P0);
 		~TCActorInternal();
 
-	public:
-		static constexpr bool mc_bAllowInternalAccess = t_CActor::mc_bAllowInternalAccess;
-
 		inline_always t_CActor &f_AccessInternal();
 		inline_always t_CActor const &f_AccessInternal() const;
 
@@ -62,9 +59,9 @@ namespace NMib::NConcurrency
 
 		uint32 f_InterfaceVersion();
 
-	private:
-		using CSuper = typename t_CActor::CActorHolder;
+		static constexpr bool mc_bAllowInternalAccess = t_CActor::mc_bAllowInternalAccess;
 
+	private:
 		template <typename t_CActor2>
 		friend struct TCActor;
 
@@ -92,6 +89,8 @@ namespace NMib::NConcurrency
 		friend struct CActorHolder;
 		friend struct CCurrentActorScope;
 		friend struct CCurrentlyProcessingActorScope;
+
+		using CSuper = typename t_CActor::CActorHolder;
 
 		TCActorInternal *fp_GetThis();
 		TCActorInternal<CActor> *fp_GetRealActor(NConcurrency::CActorHolder *_pActorInternal) const override;

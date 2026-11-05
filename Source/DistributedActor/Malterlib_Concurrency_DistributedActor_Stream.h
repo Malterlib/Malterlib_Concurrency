@@ -35,14 +35,13 @@ namespace NMib::NConcurrency
 	struct TCActorSubscriptionWithID : public CActorSubscription
 	{
 		TCActorSubscriptionWithID(TCActorSubscriptionWithID &&_Other) = default;
-		TCActorSubscriptionWithID &operator = (TCActorSubscriptionWithID &&_Other) = default;
 		TCActorSubscriptionWithID(TCActorSubscriptionWithID const &_Other) = delete;
-		TCActorSubscriptionWithID &operator = (TCActorSubscriptionWithID const &_Other) = delete;
-
 		TCActorSubscriptionWithID(CNullPtr _pNull);
 		TCActorSubscriptionWithID(uint32 _SubscriptionID = t_SubscriptionID);
 		TCActorSubscriptionWithID(CActorSubscription &&_Subscription, uint32 _SubscriptionID = t_SubscriptionID);
 
+		TCActorSubscriptionWithID &operator = (TCActorSubscriptionWithID &&_Other) = default;
+		TCActorSubscriptionWithID &operator = (TCActorSubscriptionWithID const &_Other) = delete;
 		TCActorSubscriptionWithID &operator = (CActorSubscription &&_Subscription);
 
 		CActorSubscription &&f_GetSubscription() &&;
@@ -61,10 +60,7 @@ namespace NMib::NConcurrency
 	{
 		TCActorFunctorWithID() = default;
 		TCActorFunctorWithID(TCActorFunctorWithID &&_fOther) = default;
-		TCActorFunctorWithID &operator = (TCActorFunctorWithID &&_fOther) = default;
 		TCActorFunctorWithID(TCActorFunctorWithID const &_fOther) = delete;
-		TCActorFunctorWithID &operator = (TCActorFunctorWithID const &_fOther) = delete;
-
 		TCActorFunctorWithID(CNullPtr _pNull);
 		TCActorFunctorWithID(TCActorFunctor<t_CFunction> &&_fActorFunctor);
 		TCActorFunctorWithID
@@ -75,6 +71,9 @@ namespace NMib::NConcurrency
 				, uint32 _SubscriptionID = t_SubscriptionID
 			)
 		;
+
+		TCActorFunctorWithID &operator = (TCActorFunctorWithID &&_fOther) = default;
+		TCActorFunctorWithID &operator = (TCActorFunctorWithID const &_fOther) = delete;
 
 		uint32 f_GetID() const;
 		void f_SetID(uint32 _SubcriptionID);
@@ -88,12 +87,12 @@ namespace NMib::NConcurrency
 	{
 		TCAsyncGeneratorWithID() = default;
 		TCAsyncGeneratorWithID(TCAsyncGeneratorWithID &&_Other) = default;
-		TCAsyncGeneratorWithID &operator = (TCAsyncGeneratorWithID &&_Other) = default;
 		TCAsyncGeneratorWithID(TCAsyncGeneratorWithID const &_Other) = delete;
-		TCAsyncGeneratorWithID &operator = (TCAsyncGeneratorWithID const &_Other) = delete;
-
 		TCAsyncGeneratorWithID(CNullPtr _pNull);
 		TCAsyncGeneratorWithID(TCAsyncGenerator<t_CReturnType> &&_ActorFunctor, uint32 _SubscriptionID = t_SubscriptionID);
+
+		TCAsyncGeneratorWithID &operator = (TCAsyncGeneratorWithID &&_Other) = default;
+		TCAsyncGeneratorWithID &operator = (TCAsyncGeneratorWithID const &_Other) = delete;
 
 		TCAsyncGenerator<t_CReturnType> &f_Generator();
 
@@ -116,12 +115,12 @@ namespace NMib::NConcurrency
 	{
 		TCDistributedActorInterfaceWithID() = default;
 		TCDistributedActorInterfaceWithID(TCDistributedActorInterfaceWithID &&_Other) = default;
-		TCDistributedActorInterfaceWithID &operator = (TCDistributedActorInterfaceWithID &&_Other) = default;
 		TCDistributedActorInterfaceWithID(TCDistributedActorInterfaceWithID const &_Other) = delete;
-		TCDistributedActorInterfaceWithID &operator = (TCDistributedActorInterfaceWithID const &_Other) = delete;
-
 		TCDistributedActorInterfaceWithID(CNullPtr _pNull);
 		TCDistributedActorInterfaceWithID(TCDistributedActorInterfaceShare<t_CInterface> &&_Share, CActorSubscription &&_Subscription = nullptr, uint32 _SubscriptionID = t_SubscriptionID);
+
+		TCDistributedActorInterfaceWithID &operator = (TCDistributedActorInterfaceWithID &&_Other) = default;
+		TCDistributedActorInterfaceWithID &operator = (TCDistributedActorInterfaceWithID const &_Other) = delete;
 
 		uint32 f_GetID() const;
 		void f_SetID(uint32 _SubcriptionID);

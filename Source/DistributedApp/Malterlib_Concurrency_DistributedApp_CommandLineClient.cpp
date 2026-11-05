@@ -60,257 +60,26 @@ namespace NMib::NConcurrency
 	{
 		struct CCommandLineControlActor : public ICCommandLineControl
 		{
+			TCFuture<TCActorSubscriptionWithID<>> f_RegisterForStdInBinary(FOnBinaryInput _fOnInput, NProcess::EStdInReaderFlag _Flags) override;
+			TCFuture<TCActorSubscriptionWithID<>> f_RegisterForCancellation(FOnCancel _fOnCancel) override;
+			TCFuture<TCActorSubscriptionWithID<>> f_RegisterForScreenChange(FOnScreenChange _fOnScreenChange) override;
+			TCFuture<TCActorSubscriptionWithID<>> f_RegisterForStdIn(FOnInput _fOnInput, NProcess::EStdInReaderFlag _Flags) override;
+			TCFuture<NContainer::CIOByteVector> f_ReadBinary() override;
+			TCFuture<NStr::CStrIO> f_ReadLine() override;
+			TCFuture<NStr::CStrIO> f_ReadPrompt(NProcess::CStdInReaderPromptParams _Params) override;
+			TCFuture<void> f_AbortReads() override;
+			TCFuture<void> f_StdOut(NStr::CStrIO _Output) override;
+			TCFuture<void> f_StdOutBinary(NContainer::CIOByteVector _Output) override;
+			TCFuture<void> f_StdErr(NStr::CStrIO _Output) override;
+			TCFuture<void> f_StdErrBinary(NContainer::CIOByteVector _Output) override;
+			TCFuture<void> f_Clipboard_SetText(NStr::CStrIO _Text) override;
+			TCFuture<NStr::CStrIO> f_Clipboard_GetText() override;
+			TCFuture<bool> f_Cancel();
+			NConcurrency::TCFuture<CU2FRegister::CResult> f_U2F_Register(CU2FRegister _Register) override;
+			NConcurrency::TCFuture<CU2FAuthenticate::CResult> f_U2F_Authenticate(CU2FAuthenticate _Authenticate) override;
+			TCFuture<void> f_ScreenChange(CScreenChange _ScreenChange);
+
 			static constexpr EPriority mc_Priority = EPriority_NormalHighCPU;
-
-			TCFuture<TCActorSubscriptionWithID<>> f_RegisterForStdInBinary(FOnBinaryInput _fOnInput, NProcess::EStdInReaderFlag _Flags) override
-			{
-				if (auto pDestroyed = fp_CheckDestroyed())
-					co_return pDestroyed;
-
-				fp_CreateInputActor();
-
-				auto Subscription = co_await mp_InputActor(&NProcess::CStdInActor::f_RegisterForInputBinary, fg_Move(_fOnInput), _Flags, CActorDistributionManager::mc_HalfMaxMessageSize);
-
-				co_return fp_TrackStdInRegistration(fg_Move(Subscription));
-			}
-
-			TCFuture<TCActorSubscriptionWithID<>> f_RegisterForCancellation(FOnCancel _fOnCancel) override
-			{
-				if (auto pDestroyed = fp_CheckDestroyed())
-					co_return pDestroyed;
-
-				auto SubscriptionID = NCryptography::fg_RandomID(mp_CancellationSubscriptions);
-
-				auto &Subscription = mp_CancellationSubscriptions[SubscriptionID];
-
-				Subscription.m_fOnCancel = fg_Move(_fOnCancel);
-
-				if (mp_bCancelled)
-					Subscription.m_fOnCancel.f_CallDiscard();
-
-				co_return g_ActorSubscription / [this, SubscriptionID]() -> TCFuture<void>
-					{
-						if (auto pSubscription = mp_CancellationSubscriptions.f_FindEqual(SubscriptionID))
-							co_await fg_Move(pSubscription->m_fOnCancel).f_Destroy();
-
-						mp_CancellationSubscriptions.f_Remove(SubscriptionID);
-
-						co_return {};
-					}
-				;
-			}
-
-			// Requires a live stdin registration; resize delivery stops while no reader is registered.
-			TCFuture<TCActorSubscriptionWithID<>> f_RegisterForScreenChange(FOnScreenChange _fOnScreenChange) override
-			{
-				if (auto pDestroyed = fp_CheckDestroyed())
-					co_return pDestroyed;
-
-				// Windows resize records share the input queue with keystrokes. Require its existing reader so a watcher cannot consume input.
-				if (mp_StdInRegistrations.f_IsEmpty())
-					co_return DMibErrorInstance("Screen change notifications require a registration for standard input first");
-
-				auto SubscriptionID = NCryptography::fg_RandomID(mp_ScreenChangeSubscriptions);
-				auto Rollback = g_OnScopeExit / [&]
-					{
-						mp_ScreenChangeSubscriptions.f_Remove(SubscriptionID);
-					}
-				;
-
-				auto &Subscription = mp_ScreenChangeSubscriptions[SubscriptionID];
-
-				Subscription.m_fOnScreenChange = fg_Move(_fOnScreenChange);
-
-				TCActorSubscriptionWithID<> Result = g_ActorSubscription / [this, SubscriptionID]() -> TCFuture<void>
-					{
-						if (auto pSubscription = mp_ScreenChangeSubscriptions.f_FindEqual(SubscriptionID))
-							co_await fg_Move(pSubscription->m_fOnScreenChange).f_Destroy();
-
-						mp_ScreenChangeSubscriptions.f_Remove(SubscriptionID);
-
-						fp_UpdateScreenChangeWatcher();
-
-						co_return {};
-					}
-				;
-				fp_UpdateScreenChangeWatcher();
-				Rollback.f_Clear();
-
-				co_return Result;
-			}
-
-			TCFuture<TCActorSubscriptionWithID<>> f_RegisterForStdIn(FOnInput _fOnInput, NProcess::EStdInReaderFlag _Flags) override
-			{
-				if (auto pDestroyed = fp_CheckDestroyed())
-					co_return pDestroyed;
-
-				fp_CreateInputActor();
-
-				auto Subscription = co_await mp_InputActor(&NProcess::CStdInActor::f_RegisterForInput, fg_Move(_fOnInput), _Flags, CActorDistributionManager::mc_HalfMaxMessageSize);
-
-				co_return fp_TrackStdInRegistration(fg_Move(Subscription));
-			}
-
-			TCFuture<NContainer::CIOByteVector> f_ReadBinary() override
-			{
-				if (auto pDestroyed = fp_CheckDestroyed())
-					co_return pDestroyed;
-
-				fp_CreateInputActor();
-				co_return co_await mp_InputActor(&NProcess::CStdInActor::f_ReadBinary);
-			}
-
-			TCFuture<NStr::CStrIO> f_ReadLine() override
-			{
-				if (auto pDestroyed = fp_CheckDestroyed())
-					co_return pDestroyed;
-
-				fp_CreateInputActor();
-				co_return co_await mp_InputActor(&NProcess::CStdInActor::f_ReadLine);
-			}
-
-			TCFuture<NStr::CStrIO> f_ReadPrompt(NProcess::CStdInReaderPromptParams _Params) override
-			{
-				if (auto pDestroyed = fp_CheckDestroyed())
-					co_return pDestroyed;
-
-				fp_CreateInputActor();
-				co_return co_await mp_InputActor(&NProcess::CStdInActor::f_ReadPrompt, _Params);
-			}
-
-			TCFuture<void> f_AbortReads() override
-			{
-				if (auto pDestroyed = fp_CheckDestroyed())
-					co_return pDestroyed;
-
-				fp_CreateInputActor();
-				co_return co_await mp_InputActor(&NProcess::CStdInActor::f_AbortReads);
-			}
-
-			TCFuture<void> f_StdOut(NStr::CStrIO _Output) override
-			{
-				NSys::fg_ConsoleOutput(_Output);
-				co_return {};
-			}
-
-			TCFuture<void> f_StdOutBinary(NContainer::CIOByteVector _Output) override
-			{
-				NSys::fg_ConsoleOutputBinary(_Output);
-				co_return {};
-			}
-
-			TCFuture<void> f_StdErr(NStr::CStrIO _Output) override
-			{
-				NSys::fg_ConsoleErrorOutput(_Output);
-				co_return {};
-			}
-
-			TCFuture<void> f_StdErrBinary(NContainer::CIOByteVector _Output) override
-			{
-				NSys::fg_ConsoleErrorOutputBinary(_Output);
-				co_return {};
-			}
-
-			TCFuture<void> f_Clipboard_SetText(NStr::CStrIO _Text) override
-			{
-				if (auto pDestroyed = fp_CheckDestroyed())
-					co_return pDestroyed;
-
-				if (!NSys::fg_Clipboard_SetText(_Text))
-					co_return DMibErrorInstance("Failed to store text in the system clipboard");
-
-				co_return {};
-			}
-
-			TCFuture<NStr::CStrIO> f_Clipboard_GetText() override
-			{
-				if (auto pDestroyed = fp_CheckDestroyed())
-					co_return pDestroyed;
-
-				NStr::CStr Text;
-
-				if (!NSys::fg_Clipboard_GetText(Text))
-					co_return DMibErrorInstance("Failed to read text from the system clipboard");
-
-				co_return NStr::CStrIO(fg_Move(Text));
-			}
-
-			TCFuture<bool> f_Cancel()
-			{
-				TCFutureVector<bool> Results;
-
-				mp_bCancelled = true;
-
-				bool bDestroyApp = mp_CancellationSubscriptions.f_IsEmpty();
-
-				for (auto &Subscription : mp_CancellationSubscriptions)
-					Subscription.m_fOnCancel() > Results;
-
-				for (auto &bResult : co_await fg_AllDone(Results))
-				{
-					if (bResult)
-						bDestroyApp = true;
-				}
-
-				co_return bDestroyApp;
-			}
-
-			NConcurrency::TCFuture<CU2FRegister::CResult> f_U2F_Register(CU2FRegister _Register) override
-			{
-				auto Result = co_await CU2FHelpers::fs_Register
-					(
-						CU2FHelpers::CU2FRegister
-						{
-							.m_ChallengeDigest = fg_Move(_Register.m_ChallengeDigest)
-							, .m_AppDigest = fg_Move(_Register.m_AppDigest)
-							, .m_Prompt = fg_Move(_Register.m_Prompt)
-						}
-					)
-				;
-
-				co_return
-					{
-						.m_PublicKey = fg_Move(Result.m_PublicKey)
-						, .m_KeyHandle = fg_Move(Result.m_KeyHandle)
-						, .m_AttestationCertificate = fg_Move(Result.m_AttestationCertificate)
-						, .m_Signature = fg_Move(Result.m_Signature)
-					}
-				;
-			}
-
-			NConcurrency::TCFuture<CU2FAuthenticate::CResult> f_U2F_Authenticate(CU2FAuthenticate _Authenticate) override
-			{
-				CU2FHelpers::CU2FAuthenticate Authenticate{.m_Prompt = _Authenticate.m_Prompt};
-
-				for (auto &Attempt : _Authenticate.m_Attempts)
-				{
-					Authenticate.m_Attempts.f_Insert
-						(
-							{
-								.m_ChallengeDigest = fg_Move(Attempt.m_ChallengeDigest)
-								, .m_AppDigest = fg_Move(Attempt.m_AppDigest)
-								, .m_KeyHandle = fg_Move(Attempt.m_KeyHandle)
-							}
-						)
-					;
-				}
-
-				auto Result = co_await CU2FHelpers::fs_Authenticate(fg_Move(Authenticate));
-
-				co_return {.m_AppDigest = Result.m_AppDigest, .m_Signature = fg_Move(Result.m_Signature)};
-			}
-
-			TCFuture<void> f_ScreenChange(CScreenChange _ScreenChange)
-			{
-				TCFutureVector<void> Results;
-
-				for (auto &Subscription : mp_ScreenChangeSubscriptions)
-					Subscription.m_fOnScreenChange(_ScreenChange) > Results;
-
-				co_await fg_AllDone(Results);
-
-				co_return {};
-			}
 
 		private:
 			struct CCancellationSubscription
@@ -323,6 +92,14 @@ namespace NMib::NConcurrency
 				FOnScreenChange m_fOnScreenChange;
 			};
 
+			TCFuture<void> fp_Destroy() override;
+
+			void fp_CreateInputActor();
+
+			TCActorSubscriptionWithID<> fp_TrackStdInRegistration(TCActorSubscriptionWithID<> &&_Subscription);
+
+			void fp_UpdateScreenChangeWatcher();
+
 			TCActor<NProcess::CStdInActor> mp_InputActor;
 			NContainer::TCMap<NStr::CStr, CCancellationSubscription> mp_CancellationSubscriptions;
 			NContainer::TCMap<NStr::CStr, CScreenChangeSubscription> mp_ScreenChangeSubscriptions;
@@ -331,121 +108,371 @@ namespace NMib::NConcurrency
 
 			COnScopeExitShared mp_ScreenChangeWatcher; // Held only while both a screen subscriber and an input registration exist.
 			bool mp_bCancelled = false;
+		};
 
-			TCFuture<void> fp_Destroy() override
-			{
-				// Stop notifications before tearing down the actor.
-				mp_ScreenChangeWatcher.f_Clear();
+		TCFuture<TCActorSubscriptionWithID<>> CCommandLineControlActor::f_RegisterForStdInBinary(FOnBinaryInput _fOnInput, NProcess::EStdInReaderFlag _Flags)
+		{
+			if (auto pDestroyed = fp_CheckDestroyed())
+				co_return pDestroyed;
 
-				auto StdInRegistrations = fg_Move(mp_StdInRegistrations);
-				auto CancellationSubscriptions = fg_Move(mp_CancellationSubscriptions);
-				auto ScreenChangeSubscriptions = fg_Move(mp_ScreenChangeSubscriptions);
+			fp_CreateInputActor();
 
-				for (auto &Registration : StdInRegistrations)
+			auto Subscription = co_await mp_InputActor(&NProcess::CStdInActor::f_RegisterForInputBinary, fg_Move(_fOnInput), _Flags, CActorDistributionManager::mc_HalfMaxMessageSize);
+
+			co_return fp_TrackStdInRegistration(fg_Move(Subscription));
+		}
+
+		TCFuture<TCActorSubscriptionWithID<>> CCommandLineControlActor::f_RegisterForCancellation(FOnCancel _fOnCancel)
+		{
+			if (auto pDestroyed = fp_CheckDestroyed())
+				co_return pDestroyed;
+
+			auto SubscriptionID = NCryptography::fg_RandomID(mp_CancellationSubscriptions);
+
+			auto &Subscription = mp_CancellationSubscriptions[SubscriptionID];
+
+			Subscription.m_fOnCancel = fg_Move(_fOnCancel);
+
+			if (mp_bCancelled)
+				Subscription.m_fOnCancel.f_CallDiscard();
+
+			co_return g_ActorSubscription / [this, SubscriptionID]() -> TCFuture<void>
 				{
-					if (Registration.f_GetSubscription())
-						co_await Registration.f_GetSubscription()->f_Destroy();
+					if (auto pSubscription = mp_CancellationSubscriptions.f_FindEqual(SubscriptionID))
+						co_await fg_Move(pSubscription->m_fOnCancel).f_Destroy();
+
+					mp_CancellationSubscriptions.f_Remove(SubscriptionID);
+
+					co_return {};
 				}
+			;
+		}
 
-				if (mp_InputActor)
-					co_await fg_Move(mp_InputActor).f_Destroy();
+		// Requires a live stdin registration; resize delivery stops while no reader is registered.
+		TCFuture<TCActorSubscriptionWithID<>> CCommandLineControlActor::f_RegisterForScreenChange(FOnScreenChange _fOnScreenChange)
+		{
+			if (auto pDestroyed = fp_CheckDestroyed())
+				co_return pDestroyed;
 
-				for (auto &Subscription : CancellationSubscriptions)
-					co_await fg_Move(Subscription.m_fOnCancel).f_Destroy();
+			// Windows resize records share the input queue with keystrokes. Require its existing reader so a watcher cannot consume input.
+			if (mp_StdInRegistrations.f_IsEmpty())
+				co_return DMibErrorInstance("Screen change notifications require a registration for standard input first");
 
-				for (auto &Subscription : ScreenChangeSubscriptions)
-					co_await fg_Move(Subscription.m_fOnScreenChange).f_Destroy();
-
-				co_return {};
-			}
-
-			void fp_CreateInputActor()
-			{
-				if (!mp_InputActor)
-					mp_InputActor = fg_Construct();
-			}
-
-			// Retains the input subscription and releases it when the command drops this wrapper.
-			TCActorSubscriptionWithID<> fp_TrackStdInRegistration(TCActorSubscriptionWithID<> &&_Subscription)
-			{
-				auto RegistrationID = NCryptography::fg_RandomID(mp_StdInRegistrations);
-				uint32 SubscriptionID = _Subscription.f_GetID();
-				auto Rollback = g_OnScopeExit / [&]
-					{
-						mp_StdInRegistrations.f_Remove(RegistrationID);
-					}
-				;
-
-				mp_StdInRegistrations[RegistrationID] = fg_Move(_Subscription);
-
-				TCActorSubscriptionWithID<> Wrapped = g_ActorSubscription / [this, RegistrationID]() -> TCFuture<void>
-					{
-						auto *pRegistration = mp_StdInRegistrations.f_FindEqual(RegistrationID);
-						if (!pRegistration)
-							co_return {};
-
-						auto Registration = fg_Move(*pRegistration);
-						mp_StdInRegistrations.f_Remove(RegistrationID);
-
-						// Keep screen subscriptions dormant until the command registers another input reader.
-						fp_UpdateScreenChangeWatcher();
-
-						if (Registration.f_GetSubscription())
-							co_await Registration.f_GetSubscription()->f_Destroy();
-
-						co_return {};
-					}
-				;
-				Wrapped.f_SetID(SubscriptionID);
-				fp_UpdateScreenChangeWatcher();
-				Rollback.f_Clear();
-
-				return Wrapped;
-			}
-
-			// Bind resize delivery to a pool loop only while both input and screen subscriptions are live.
-			void fp_UpdateScreenChangeWatcher()
-			{
-				bool bWanted = !mp_ScreenChangeSubscriptions.f_IsEmpty() && !mp_StdInRegistrations.f_IsEmpty();
-				if (bWanted == bool(mp_ScreenChangeWatcher))
-					return;
-
-				if (!bWanted)
+			auto SubscriptionID = NCryptography::fg_RandomID(mp_ScreenChangeSubscriptions);
+			auto Rollback = g_OnScopeExit / [&]
 				{
-					mp_ScreenChangeWatcher.f_Clear();
-					return;
+					mp_ScreenChangeSubscriptions.f_Remove(SubscriptionID);
 				}
+			;
 
-				CIoLoopCreateScope WatcherLoopScope(f_ConcurrencyManager().f_PickIoLoopBinding(mc_Priority));
+			auto &Subscription = mp_ScreenChangeSubscriptions[SubscriptionID];
 
-				mp_ScreenChangeWatcher = NCommandLine::NPlatform::fg_Process_WaitForScreenChange
+			Subscription.m_fOnScreenChange = fg_Move(_fOnScreenChange);
+
+			TCActorSubscriptionWithID<> Result = g_ActorSubscription / [this, SubscriptionID]() -> TCFuture<void>
+				{
+					if (auto pSubscription = mp_ScreenChangeSubscriptions.f_FindEqual(SubscriptionID))
+						co_await fg_Move(pSubscription->m_fOnScreenChange).f_Destroy();
+
+					mp_ScreenChangeSubscriptions.f_Remove(SubscriptionID);
+
+					fp_UpdateScreenChangeWatcher();
+
+					co_return {};
+				}
+			;
+			fp_UpdateScreenChangeWatcher();
+			Rollback.f_Clear();
+
+			co_return Result;
+		}
+
+		TCFuture<TCActorSubscriptionWithID<>> CCommandLineControlActor::f_RegisterForStdIn(FOnInput _fOnInput, NProcess::EStdInReaderFlag _Flags)
+		{
+			if (auto pDestroyed = fp_CheckDestroyed())
+				co_return pDestroyed;
+
+			fp_CreateInputActor();
+
+			auto Subscription = co_await mp_InputActor(&NProcess::CStdInActor::f_RegisterForInput, fg_Move(_fOnInput), _Flags, CActorDistributionManager::mc_HalfMaxMessageSize);
+
+			co_return fp_TrackStdInRegistration(fg_Move(Subscription));
+		}
+
+		TCFuture<NContainer::CIOByteVector> CCommandLineControlActor::f_ReadBinary()
+		{
+			if (auto pDestroyed = fp_CheckDestroyed())
+				co_return pDestroyed;
+
+			fp_CreateInputActor();
+			co_return co_await mp_InputActor(&NProcess::CStdInActor::f_ReadBinary);
+		}
+
+		TCFuture<NStr::CStrIO> CCommandLineControlActor::f_ReadLine()
+		{
+			if (auto pDestroyed = fp_CheckDestroyed())
+				co_return pDestroyed;
+
+			fp_CreateInputActor();
+			co_return co_await mp_InputActor(&NProcess::CStdInActor::f_ReadLine);
+		}
+
+		TCFuture<NStr::CStrIO> CCommandLineControlActor::f_ReadPrompt(NProcess::CStdInReaderPromptParams _Params)
+		{
+			if (auto pDestroyed = fp_CheckDestroyed())
+				co_return pDestroyed;
+
+			fp_CreateInputActor();
+			co_return co_await mp_InputActor(&NProcess::CStdInActor::f_ReadPrompt, _Params);
+		}
+
+		TCFuture<void> CCommandLineControlActor::f_AbortReads()
+		{
+			if (auto pDestroyed = fp_CheckDestroyed())
+				co_return pDestroyed;
+
+			fp_CreateInputActor();
+			co_return co_await mp_InputActor(&NProcess::CStdInActor::f_AbortReads);
+		}
+
+		TCFuture<void> CCommandLineControlActor::f_StdOut(NStr::CStrIO _Output)
+		{
+			NSys::fg_ConsoleOutput(_Output);
+			co_return {};
+		}
+
+		TCFuture<void> CCommandLineControlActor::f_StdOutBinary(NContainer::CIOByteVector _Output)
+		{
+			NSys::fg_ConsoleOutputBinary(_Output);
+			co_return {};
+		}
+
+		TCFuture<void> CCommandLineControlActor::f_StdErr(NStr::CStrIO _Output)
+		{
+			NSys::fg_ConsoleErrorOutput(_Output);
+			co_return {};
+		}
+
+		TCFuture<void> CCommandLineControlActor::f_StdErrBinary(NContainer::CIOByteVector _Output)
+		{
+			NSys::fg_ConsoleErrorOutputBinary(_Output);
+			co_return {};
+		}
+
+		TCFuture<void> CCommandLineControlActor::f_Clipboard_SetText(NStr::CStrIO _Text)
+		{
+			if (auto pDestroyed = fp_CheckDestroyed())
+				co_return pDestroyed;
+
+			if (!NSys::fg_Clipboard_SetText(_Text))
+				co_return DMibErrorInstance("Failed to store text in the system clipboard");
+
+			co_return {};
+		}
+
+		TCFuture<NStr::CStrIO> CCommandLineControlActor::f_Clipboard_GetText()
+		{
+			if (auto pDestroyed = fp_CheckDestroyed())
+				co_return pDestroyed;
+
+			NStr::CStr Text;
+
+			if (!NSys::fg_Clipboard_GetText(Text))
+				co_return DMibErrorInstance("Failed to read text from the system clipboard");
+
+			co_return NStr::CStrIO(fg_Move(Text));
+		}
+
+		TCFuture<bool> CCommandLineControlActor::f_Cancel()
+		{
+			TCFutureVector<bool> Results;
+
+			mp_bCancelled = true;
+
+			bool bDestroyApp = mp_CancellationSubscriptions.f_IsEmpty();
+
+			for (auto &Subscription : mp_CancellationSubscriptions)
+				Subscription.m_fOnCancel() > Results;
+
+			for (auto &bResult : co_await fg_AllDone(Results))
+			{
+				if (bResult)
+					bDestroyApp = true;
+			}
+
+			co_return bDestroyApp;
+		}
+
+		NConcurrency::TCFuture<ICCommandLineControl::CU2FRegister::CResult> CCommandLineControlActor::f_U2F_Register(CU2FRegister _Register)
+		{
+			auto Result = co_await CU2FHelpers::fs_Register
+				(
+					CU2FHelpers::CU2FRegister
+					{
+						.m_ChallengeDigest = fg_Move(_Register.m_ChallengeDigest)
+						, .m_AppDigest = fg_Move(_Register.m_AppDigest)
+						, .m_Prompt = fg_Move(_Register.m_Prompt)
+					}
+				)
+			;
+
+			co_return
+				{
+					.m_PublicKey = fg_Move(Result.m_PublicKey)
+					, .m_KeyHandle = fg_Move(Result.m_KeyHandle)
+					, .m_AttestationCertificate = fg_Move(Result.m_AttestationCertificate)
+					, .m_Signature = fg_Move(Result.m_Signature)
+				}
+			;
+		}
+
+		NConcurrency::TCFuture<ICCommandLineControl::CU2FAuthenticate::CResult> CCommandLineControlActor::f_U2F_Authenticate(CU2FAuthenticate _Authenticate)
+		{
+			CU2FHelpers::CU2FAuthenticate Authenticate{.m_Prompt = _Authenticate.m_Prompt};
+
+			for (auto &Attempt : _Authenticate.m_Attempts)
+			{
+				Authenticate.m_Attempts.f_Insert
 					(
-						[ThisWeak = fg_ThisActorWeak(this)](NSys::CConsoleProperties const &_ConsoleProperties)
 						{
-							auto This = ThisWeak.f_Lock();
-							if (!This)
-								return;
-
-							CScreenChange ScreenChange
-								{
-									.m_Width = _ConsoleProperties.m_Width
-									, .m_Height = _ConsoleProperties.m_Height
-									, .m_GlyphWidth = _ConsoleProperties.m_GlyphWidth
-									, .m_GlyphHeight = _ConsoleProperties.m_GlyphHeight
-								}
-							;
-
-							This(&CCommandLineControlActor::f_ScreenChange, ScreenChange) > fg_DirectCallActor() / [](TCAsyncResult<void> &&_Result)
-								{
-									if (!_Result)
-										DMibConErrOut("Failed to notify screen change: {}\n", _Result.f_GetExceptionStr());
-								}
-							;
+							.m_ChallengeDigest = fg_Move(Attempt.m_ChallengeDigest)
+							, .m_AppDigest = fg_Move(Attempt.m_AppDigest)
+							, .m_KeyHandle = fg_Move(Attempt.m_KeyHandle)
 						}
 					)
 				;
 			}
-		};
+
+			auto Result = co_await CU2FHelpers::fs_Authenticate(fg_Move(Authenticate));
+
+			co_return {.m_AppDigest = Result.m_AppDigest, .m_Signature = fg_Move(Result.m_Signature)};
+		}
+
+		TCFuture<void> CCommandLineControlActor::f_ScreenChange(CScreenChange _ScreenChange)
+		{
+			TCFutureVector<void> Results;
+
+			for (auto &Subscription : mp_ScreenChangeSubscriptions)
+				Subscription.m_fOnScreenChange(_ScreenChange) > Results;
+
+			co_await fg_AllDone(Results);
+
+			co_return {};
+		}
+
+		TCFuture<void> CCommandLineControlActor::fp_Destroy()
+		{
+			// Stop notifications before tearing down the actor.
+			mp_ScreenChangeWatcher.f_Clear();
+
+			auto StdInRegistrations = fg_Move(mp_StdInRegistrations);
+			auto CancellationSubscriptions = fg_Move(mp_CancellationSubscriptions);
+			auto ScreenChangeSubscriptions = fg_Move(mp_ScreenChangeSubscriptions);
+
+			for (auto &Registration : StdInRegistrations)
+			{
+				if (Registration.f_GetSubscription())
+					co_await Registration.f_GetSubscription()->f_Destroy();
+			}
+
+			if (mp_InputActor)
+				co_await fg_Move(mp_InputActor).f_Destroy();
+
+			for (auto &Subscription : CancellationSubscriptions)
+				co_await fg_Move(Subscription.m_fOnCancel).f_Destroy();
+
+			for (auto &Subscription : ScreenChangeSubscriptions)
+				co_await fg_Move(Subscription.m_fOnScreenChange).f_Destroy();
+
+			co_return {};
+		}
+
+		void CCommandLineControlActor::fp_CreateInputActor()
+		{
+			if (!mp_InputActor)
+				mp_InputActor = fg_Construct();
+		}
+
+		// Retains the input subscription and releases it when the command drops this wrapper.
+		TCActorSubscriptionWithID<> CCommandLineControlActor::fp_TrackStdInRegistration(TCActorSubscriptionWithID<> &&_Subscription)
+		{
+			auto RegistrationID = NCryptography::fg_RandomID(mp_StdInRegistrations);
+			uint32 SubscriptionID = _Subscription.f_GetID();
+			auto Rollback = g_OnScopeExit / [&]
+				{
+					mp_StdInRegistrations.f_Remove(RegistrationID);
+				}
+			;
+
+			mp_StdInRegistrations[RegistrationID] = fg_Move(_Subscription);
+
+			TCActorSubscriptionWithID<> Wrapped = g_ActorSubscription / [this, RegistrationID]() -> TCFuture<void>
+				{
+					auto *pRegistration = mp_StdInRegistrations.f_FindEqual(RegistrationID);
+					if (!pRegistration)
+						co_return {};
+
+					auto Registration = fg_Move(*pRegistration);
+					mp_StdInRegistrations.f_Remove(RegistrationID);
+
+					// Keep screen subscriptions dormant until the command registers another input reader.
+					fp_UpdateScreenChangeWatcher();
+
+					if (Registration.f_GetSubscription())
+						co_await Registration.f_GetSubscription()->f_Destroy();
+
+					co_return {};
+				}
+			;
+			Wrapped.f_SetID(SubscriptionID);
+			fp_UpdateScreenChangeWatcher();
+			Rollback.f_Clear();
+
+			return Wrapped;
+		}
+
+		// Binds resize delivery to a pool loop only while both input and screen subscriptions are live.
+		void CCommandLineControlActor::fp_UpdateScreenChangeWatcher()
+		{
+			bool bWanted = !mp_ScreenChangeSubscriptions.f_IsEmpty() && !mp_StdInRegistrations.f_IsEmpty();
+			if (bWanted == bool(mp_ScreenChangeWatcher))
+				return;
+
+			if (!bWanted)
+			{
+				mp_ScreenChangeWatcher.f_Clear();
+				return;
+			}
+
+			CIoLoopCreateScope WatcherLoopScope(f_ConcurrencyManager().f_PickIoLoopBinding(mc_Priority));
+
+			mp_ScreenChangeWatcher = NCommandLine::NPlatform::fg_Process_WaitForScreenChange
+				(
+					[ThisWeak = fg_ThisActorWeak(this)](NSys::CConsoleProperties const &_ConsoleProperties)
+					{
+						auto This = ThisWeak.f_Lock();
+						if (!This)
+							return;
+
+						CScreenChange ScreenChange
+							{
+								.m_Width = _ConsoleProperties.m_Width
+								, .m_Height = _ConsoleProperties.m_Height
+								, .m_GlyphWidth = _ConsoleProperties.m_GlyphWidth
+								, .m_GlyphHeight = _ConsoleProperties.m_GlyphHeight
+							}
+						;
+
+						This(&CCommandLineControlActor::f_ScreenChange, ScreenChange) > fg_DirectCallActor() / [](TCAsyncResult<void> &&_Result)
+							{
+								if (!_Result)
+									DMibConErrOut("Failed to notify screen change: {}\n", _Result.f_GetExceptionStr());
+							}
+						;
+					}
+				)
+			;
+		}
 	}
 
 	namespace

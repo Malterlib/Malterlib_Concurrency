@@ -88,6 +88,29 @@ namespace NMib::NConcurrency
 	/// \brief Manages scheduling of running actors in a thread pool
 	struct CConcurrencyManager
 	{
+#if DMibConfig_Concurrency_SchedulerStats
+		/// \brief Snapshot of aggregated scheduling statistics
+		struct CSchedulerStats
+		{
+			umint m_nSignals = 0;                  ///< Semaphore signals posted to pool threads
+			umint m_nSleeps = 0;                   ///< Times pool threads went to sleep
+			umint m_nLocalEnqueues = 0;            ///< Jobs enqueued to the producing thread's own local queue
+			umint m_nAtomicEnqueues = 0;           ///< Jobs enqueued through the atomic queue
+			umint m_nCurrentThreadSelections = 0;  ///< Jobs targeted at the producing pool thread's queue
+			umint m_nFixedSelections = 0;          ///< Jobs targeted by fixed-queue pinning
+			umint m_nForcedNonLocalSelections = 0; ///< Jobs redistributed after a yield
+			umint m_nLastQueueSelections = 0;      ///< Jobs targeted by last-queue affinity
+			umint m_nRoundRobinSelections = 0;     ///< Jobs targeted by round-robin selection
+			umint m_nHandoffs = 0;                 ///< Jobs handed off to idle threads
+			umint m_nIdleClaims = 0;               ///< Successful claims of idle threads
+			umint m_nRunProcess = 0;               ///< Actor drain runs executed on pool threads
+			umint m_nEntriesDrained = 0;           ///< Actor messages processed by drain runs on pool threads
+			umint m_nLongDrains = 0;               ///< Drain runs that processed 16 or more messages
+			umint m_nGarbageCollectCalls = 0;      ///< Owner-side arena garbage collect attempts from drain runs
+			umint m_nGarbageCollects = 0;          ///< Owner-side arena garbage collects that found pending messages
+		};
+#endif
+
 		CConcurrencyManager(EExecutionPriority _ExecutionPriority[EPriority_Max], EPriority _PriorityClamp = EPriority_Low);
 		~CConcurrencyManager();
 		void f_Init();
@@ -161,27 +184,6 @@ namespace NMib::NConcurrency
 		umint f_GetQueue() const;
 
 #if DMibConfig_Concurrency_SchedulerStats
-		/// \brief Snapshot of aggregated scheduling statistics
-		struct CSchedulerStats
-		{
-			umint m_nSignals = 0;                  ///< Semaphore signals posted to pool threads
-			umint m_nSleeps = 0;                   ///< Times pool threads went to sleep
-			umint m_nLocalEnqueues = 0;            ///< Jobs enqueued to the producing thread's own local queue
-			umint m_nAtomicEnqueues = 0;           ///< Jobs enqueued through the atomic queue
-			umint m_nCurrentThreadSelections = 0;  ///< Jobs targeted at the producing pool thread's queue
-			umint m_nFixedSelections = 0;          ///< Jobs targeted by fixed-queue pinning
-			umint m_nForcedNonLocalSelections = 0; ///< Jobs redistributed after a yield
-			umint m_nLastQueueSelections = 0;      ///< Jobs targeted by last-queue affinity
-			umint m_nRoundRobinSelections = 0;     ///< Jobs targeted by round-robin selection
-			umint m_nHandoffs = 0;                 ///< Jobs handed off to idle threads
-			umint m_nIdleClaims = 0;               ///< Successful claims of idle threads
-			umint m_nRunProcess = 0;               ///< Actor drain runs executed on pool threads
-			umint m_nEntriesDrained = 0;           ///< Actor messages processed by drain runs on pool threads
-			umint m_nLongDrains = 0;               ///< Drain runs that processed 16 or more messages
-			umint m_nGarbageCollectCalls = 0;      ///< Owner-side arena garbage collect attempts from drain runs
-			umint m_nGarbageCollects = 0;          ///< Owner-side arena garbage collects that found pending messages
-		};
-
 		CSchedulerStats f_GetSchedulerStats(EPriority _Priority);
 		CSchedulerStats f_GetSchedulerStats();
 		void f_ResetSchedulerStats();
@@ -247,6 +249,11 @@ namespace NMib::NConcurrency
 
 		struct CQueue
 		{
+			CQueue(CQueue &&_Other);
+			CQueue();
+
+			void f_Signal(CConcurrencyManager *_pThis);
+
 			align_cacheline CConcurrentRunQueueNonVirtualNoAlloc m_JobQueue;
 			NAtomic::TCAtomic<umint> m_Working;
 
@@ -269,13 +276,28 @@ namespace NMib::NConcurrency
 			CSchedulerQueueStats m_SchedulerStats;
 #endif
 
-			CQueue(CQueue &&_Other);
-			CQueue();
-			void f_Signal(CConcurrencyManager *_pThis);
-
 		private:
 			void fp_CreateThread(CConcurrencyManager *_pThis);
 		};
+
+		struct align_cacheline CNumActorsPerQueue
+		{
+			NAtomic::TCAtomic<smint> m_nActors = 0;
+		};
+
+		struct align_cacheline CNumActorsOther
+		{
+			NAtomic::TCAtomic<smint> m_nActors = 0;
+		};
+
+#if DMibConfig_Concurrency_LocalFirstScheduler
+		/// \brief One chunk of the advisory idle-queue bitmask; a set bit marks a queue whose thread
+		/// is asleep (or not yet created) and may be claimed as a handoff target
+		struct align_cacheline CIdleQueueMask
+		{
+			NAtomic::TCAtomic<umint> m_Mask = 0;
+		};
+#endif
 
 		void fp_RunThread(CQueue &_Queue, NThread::CThreadObjectNonTracked *_pThread);
 		void fp_QueueJob(EPriority _Priority, umint _iFixedCore, umint _iLastCore, FActorQueueDispatchNoAlloc &&_fToQueue, CConcurrencyThreadLocal &_ThreadLocal);
@@ -307,16 +329,6 @@ namespace NMib::NConcurrency
 		inline_never void fp_DumpSchedulerStats();
 #endif
 
-		struct align_cacheline CNumActorsPerQueue
-		{
-			NAtomic::TCAtomic<smint> m_nActors = 0;
-		};
-
-		struct align_cacheline CNumActorsOther
-		{
-			NAtomic::TCAtomic<smint> m_nActors = 0;
-		};
-
 		NContainer::TCVector<CNumActorsPerQueue> mp_NumActorsPerQueue[EPriority_Max];
 		CNumActorsPerQueue *mp_NumActorsPerQueueArray[EPriority_Max];
 		NContainer::TCVector<CNumActorsOther> mp_nActorsOther;
@@ -334,13 +346,6 @@ namespace NMib::NConcurrency
 		NAtomic::TCAtomic<bool> mp_IoLoopsEnabled[EPriority_Max] = {};
 
 #if DMibConfig_Concurrency_LocalFirstScheduler
-		/// \brief One chunk of the advisory idle-queue bitmask; a set bit marks a queue whose thread
-		/// is asleep (or not yet created) and may be claimed as a handoff target
-		struct align_cacheline CIdleQueueMask
-		{
-			NAtomic::TCAtomic<umint> m_Mask = 0;
-		};
-
 		NContainer::TCVector<CIdleQueueMask> mp_IdleQueueMasks[EPriority_Max];
 #endif
 
@@ -404,10 +409,10 @@ namespace NMib::NConcurrency
 
 	struct CConcurrencyThreadLocal final
 	{
-		static constexpr bool mc_bThreadLocalConstructForThread = true;
-
 		CConcurrencyThreadLocal(NThread::CThreadLocalConstructionContext const &_Context);
 		~CConcurrencyThreadLocal();
+
+		static constexpr bool mc_bThreadLocalConstructForThread = true;
 
 		CActorHolder *m_pCurrentlyProcessingActorHolder = nullptr;
 		CActorHolder *m_pCurrentlyDestructingActorHolder = nullptr;

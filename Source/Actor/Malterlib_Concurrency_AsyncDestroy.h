@@ -10,6 +10,13 @@ namespace NMib::NConcurrency
 	template <typename t_FDestroy>
 	struct [[nodiscard("You need to store the async destroy in an variable")]] TCAsyncDestroy
 	{
+		struct [[nodiscard("You need to co_await the wrapped result")]] CNoUnwrap
+		{
+			TCFutureAwaiter<void, false> operator co_await () &&;
+
+			TCAsyncDestroy *m_pWrapped;
+		};
+
 		template <typename tf_FDestroy>
 		TCAsyncDestroy(tf_FDestroy &&_fDestroy, CFutureCoroutineContext *_pCoroutineContext)
 			requires (!NTraits::cIsReference<t_FDestroy>)
@@ -24,13 +31,6 @@ namespace NMib::NConcurrency
 		~TCAsyncDestroy();
 
 		void f_Clear();
-
-		struct [[nodiscard("You need to co_await the wrapped result")]] CNoUnwrap
-		{
-			TCFutureAwaiter<void, false> operator co_await () &&;
-
-			TCAsyncDestroy *m_pWrapped;
-		};
 
 		CNoUnwrap f_Wrap() &&;
 

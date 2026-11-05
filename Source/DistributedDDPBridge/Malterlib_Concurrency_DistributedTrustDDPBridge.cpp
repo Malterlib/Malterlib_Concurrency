@@ -22,18 +22,9 @@ namespace NMib::NConcurrency
 {
 	struct CDistributedTrustDDPBridge::CInternal : public CActorInternal
 	{
-		CInternal(CDistributedTrustDDPBridge *_pThis, TCActor<CDistributedActorTrustManager> const &_TrustManager)
-			: m_pThis{_pThis}
-			, m_TrustManager{_TrustManager}
-		{
-		}
-
 		struct CMethodHandlers
 		{
-			CStr const &f_GetMethodName() const
-			{
-				return TCMap<CStr, CMethodHandlers>::fs_GetKey(*this);
-			}
+			CStr const &f_GetMethodName() const;
 
 			TCActorFunctor<TCFuture<CEJsonSorted> (NContainer::TCVector<NEncoding::CEJsonSorted> _Params)> m_fHandlerFunction;
 		};
@@ -48,6 +39,8 @@ namespace NMib::NConcurrency
 			CActorSubscription m_DDPSubscription;
 			CStr m_AddressDesc;
 		};
+
+		CInternal(CDistributedTrustDDPBridge *_pThis, TCActor<CDistributedActorTrustManager> const &_TrustManager);
 
 		void f_NewValidatedWebsocketConnection(TCSharedPointer<CWebSocketNewServerConnection> const &_pNewServerConnection, CStr const &_HostID);
 		void f_StartupFailed(CException const &_Exception);
@@ -69,6 +62,17 @@ namespace NMib::NConcurrency
 	private:
 		CEJsonSorted fp_MethodError(CStr const &_Error, CStr const &_Reason, CStr const &_Details = "");
 	};
+
+	CStr const &CDistributedTrustDDPBridge::CInternal::CMethodHandlers::f_GetMethodName() const
+	{
+		return TCMap<CStr, CMethodHandlers>::fs_GetKey(*this);
+	}
+
+	CDistributedTrustDDPBridge::CInternal::CInternal(CDistributedTrustDDPBridge *_pThis, TCActor<CDistributedActorTrustManager> const &_TrustManager)
+		: m_pThis{_pThis}
+		, m_TrustManager{_TrustManager}
+	{
+	}
 
 	CDistributedTrustDDPBridge::CDistributedTrustDDPBridge(TCActor<CDistributedActorTrustManager> const &_TrustManager)
 		: mp_pInternal{fg_Construct(this, _TrustManager)}

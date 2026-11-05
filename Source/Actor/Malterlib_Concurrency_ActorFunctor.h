@@ -20,17 +20,15 @@ namespace NMib::NConcurrency
 		static_assert(!t_bCoalesced || NPrivate::cIsCoalescableActorFunction<t_CFunction>, "Only TCFuture<void> () functors can be coalesced");
 		using CStripedReturn = typename NPrivate::TCIsFuture<CReturn>::CType;
 
-		friend struct TCActorFunctorWeak<t_CFunction, t_bCoalesced>;
-
 		TCActorFunctor() = default;
 		TCActorFunctor(TCActorFunctor &&_fOther) = default;
-		TCActorFunctor &operator = (TCActorFunctor &&_fOther) = default;
 		TCActorFunctor(TCActorFunctor const &_fOther) = delete;
-		TCActorFunctor &operator = (TCActorFunctor const &_fOther) = delete;
-		~TCActorFunctor();
-
 		TCActorFunctor(CNullPtr _pNull);
 		TCActorFunctor(TCActor<CActor> &&_Actor, CFunction &&_fFunctor, CActorSubscription &&_Subscription = nullptr);
+		~TCActorFunctor();
+
+		TCActorFunctor &operator = (TCActorFunctor &&_fOther) = default;
+		TCActorFunctor &operator = (TCActorFunctor const &_fOther) = delete;
 
 		template <typename ...tfp_CParams>
 		auto operator () (tfp_CParams && ...p_Params) const -> TCFuture<CStripedReturn>
@@ -67,6 +65,8 @@ namespace NMib::NConcurrency
 		explicit operator bool () const;
 
 	protected:
+		friend struct TCActorFunctorWeak<t_CFunction, t_bCoalesced>;
+
 		TCActor<CActor> mp_Actor;
 		NStorage::TCSharedPointer<CStorage> mp_pFunctor;
 		CActorSubscription mp_Subscription;

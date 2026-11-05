@@ -28,9 +28,10 @@ namespace NMib::NConcurrency
 		{
 			using CMemberPointerTypes = typename NTraits::TCMemberFunctionPointerTraits<t_FMemberFunctionPointer>::CParams;
 
-			static constexpr umint mc_nParams = NMeta::gc_TypeList_Len<CMemberPointerTypes>;
 			using CReturnType = typename NTraits::TCMemberFunctionPointerTraits<t_FMemberFunctionPointer>::CReturn;
 			using CClass = typename NTraits::TCMemberFunctionPointerTraits<t_FMemberFunctionPointer>::CClass;
+
+			static constexpr umint mc_nParams = NMeta::gc_TypeList_Len<CMemberPointerTypes>; // NOLINT(malterlib-member-order): the alias CIndices uses mc_nParams
 			using CIndices = NMeta::TCConsecutiveIndices<mc_nParams>;
 
 			template <typename ...tfp_CParams>
@@ -56,8 +57,9 @@ namespace NMib::NConcurrency
 			using CTraits = NTraits::TCFunctionTraits<t_FFunctionType>;
 			using CMemberPointerTypes = typename CTraits::CParams;
 
-			static constexpr umint mc_nParams = NMeta::gc_TypeList_Len<CMemberPointerTypes>;
 			using CReturnType = typename CTraits::CReturn;
+
+			static constexpr umint mc_nParams = NMeta::gc_TypeList_Len<CMemberPointerTypes>; // NOLINT(malterlib-member-order): the alias CIndices uses mc_nParams
 			using CIndices = NMeta::TCConsecutiveIndices<mc_nParams>;
 
 			template <typename ...tfp_CParams>
@@ -93,9 +95,6 @@ namespace NMib::NConcurrency
 		static_assert(!NTraits::cIsReference<t_CActor>, "Incorrect type");
 		static_assert(!NTraits::cIsReference<t_CFunctor>, "Incorrect type");
 
-		t_CActor m_Actor;
-		t_CFunctor m_Functor;
-
 		TCActorResultCall(t_CActor const &_Actor, t_CFunctor &&_Functor);
 		TCActorResultCall(TCActorResultCall const &_Other);
 		TCActorResultCall(TCActorResultCall &&_Other);
@@ -105,6 +104,9 @@ namespace NMib::NConcurrency
 
 		TCActorResultCall &operator = (TCActorResultCall const &_Other);
 		TCActorResultCall &operator = (TCActorResultCall &&_Other);
+
+		t_CActor m_Actor;
+		t_CFunctor m_Functor;
 	};
 
 	namespace NPrivate
@@ -202,8 +204,9 @@ namespace NMib::NConcurrency
 	{
 		struct CNoUnwrapAsyncResult
 		{
-			TCFuturePackWithError *m_pWrapped;
 			auto operator co_await () &&;
+
+			TCFuturePackWithError *m_pWrapped;
 		};
 
 		TCFuturePackWithError(t_CFuturePack *_pFuturePack, FExceptionTransformer &&_fTransfomer);
@@ -218,7 +221,12 @@ namespace NMib::NConcurrency
 	template <typename ...tp_CFutures>
 	struct [[nodiscard("You need to co_await or forward the result to a functor with > operator")]] TCFuturePack
 	{
-		NStorage::TCTuple<tp_CFutures...> m_Futures;
+		struct CNoUnwrapAsyncResult
+		{
+			auto operator co_await () &&;
+
+			TCFuturePack *m_pWrapped;
+		};
 
 		TCFuturePack(NStorage::TCTuple<tp_CFutures...> &&_Tuple);
 
@@ -244,18 +252,14 @@ namespace NMib::NConcurrency
 		auto f_CallSync(fp64 _Timeout = -1.0) &&;
 		auto f_CallSync(NStorage::TCSharedPointer<CRunLoop> const &_pRunLoop, fp64 _Timeout = -1.0) &&;
 
-		struct CNoUnwrapAsyncResult
-		{
-			TCFuturePack *m_pWrapped;
-			auto operator co_await () &&;
-		};
-
 		CNoUnwrapAsyncResult f_Wrap() &&;
 
 		auto operator co_await () &&;
 
 		auto operator % (NStr::CStr const &_ErrorString) && -> TCFuturePackWithError<TCFuturePack, tp_CFutures...>;
 		auto operator ^ (NStr::CStr const &_ErrorString) && -> TCFuturePackWithError<TCFuturePack, tp_CFutures...>;
+
+		NStorage::TCTuple<tp_CFutures...> m_Futures;
 
 	private:
 		template <typename tf_CRunLoop, typename ...tfp_CParams, umint ...tfp_Indices>
@@ -295,6 +299,12 @@ namespace NMib::NConcurrency
 		template <bool t_bUnwrapTuple, typename t_CHandler, typename t_CActor, typename ...tp_CResultTypes, umint ...tp_ResultIndices>
 		struct TCCallMutipleActorStorage<t_bUnwrapTuple, t_CHandler, t_CActor, NMeta::TCTypeList<tp_CResultTypes...>, NMeta::TCIndices<tp_ResultIndices...>>
 		{
+			TCCallMutipleActorStorage(t_CActor &&_Actor, t_CHandler &&_Handler);
+			~TCCallMutipleActorStorage();
+
+			void f_ReportResult();
+			void f_Finished();
+
 			static constexpr aint mc_nResults = sizeof...(tp_CResultTypes);
 
 			NStorage::CIntrusiveRefCount m_RefCount;
@@ -302,12 +312,6 @@ namespace NMib::NConcurrency
 			NAtomic::TCAtomic<umint> m_nFinished;
 			t_CActor m_Actor;
 			t_CHandler m_Handler;
-
-			TCCallMutipleActorStorage(t_CActor &&_Actor, t_CHandler &&_Handler);
-			~TCCallMutipleActorStorage();
-
-			void f_ReportResult();
-			void f_Finished();
 		};
 
 		template <typename t_CResultTypes, typename t_CResultIndicies = NMeta::TCConsecutiveIndices<NMeta::gc_TypeList_Len<t_CResultTypes>>>
@@ -316,19 +320,18 @@ namespace NMib::NConcurrency
 		template <typename ...tp_CResultTypes, umint ...tp_ResultIndices>
 		struct TCCallMutipleFutureStorage<NMeta::TCTypeList<tp_CResultTypes...>, NMeta::TCIndices<tp_ResultIndices...>>
 		{
+			TCCallMutipleFutureStorage() = default;
+			~TCCallMutipleFutureStorage();
+
+			void f_ReportResult();
+			void f_Finished();
+
 			static constexpr aint mc_nResults = sizeof...(tp_CResultTypes);
 
 			NStorage::CIntrusiveRefCount m_RefCount;
 			NStorage::TCTuple<TCAsyncResult<tp_CResultTypes>...> m_Results;
 			NAtomic::TCAtomic<umint> m_nFinished;
 			TCPromiseFuturePair<NStorage::TCTuple<TCAsyncResult<tp_CResultTypes>...>> m_Promise;
-
-			TCCallMutipleFutureStorage() = default;
-
-			~TCCallMutipleFutureStorage();
-
-			void f_ReportResult();
-			void f_Finished();
 		};
 	}
 
@@ -352,20 +355,18 @@ namespace NMib::NConcurrency
 	template <typename t_CActor, typename t_CRet, typename t_CFunctor>
 	struct TCReportLocalFuture final : public CConcurrentRunQueueEntry
 	{
-		static constexpr bool const mc_bIsFuture = NPrivate::TCIsFuture<typename t_CFunctor::CReturnType>::mc_Value;
-		static constexpr bool const mc_bIsAsyncGenerator = NPrivate::TCIsAsyncGenerator<typename t_CFunctor::CReturnType>::mc_Value;
-
 		TCReportLocalFuture(TCReportLocalFuture const &_Other) = delete;
-
 		TCReportLocalFuture(TCReportLocalFuture &&_Other);
 		TCReportLocalFuture(t_CFunctor &&_ToCall, TCActorInternal<t_CActor> *_pActorInternal, TCPromise<t_CRet> &&_Promise, CSystemThreadLocal &_ThreadLocal, bool _bStoreCallStates);
+		~TCReportLocalFuture();
 
 		void f_Cleanup() override;
 		void f_Call(CConcurrencyThreadLocal &_ThreadLocal) override;
 		void f_CallNoDelete(CConcurrencyThreadLocal &_ThreadLocal);
 		inline_always void f_CallShared(CConcurrencyThreadLocal &_ThreadLocal);
 
-		~TCReportLocalFuture();
+		static constexpr bool const mc_bIsFuture = NPrivate::TCIsFuture<typename t_CFunctor::CReturnType>::mc_Value;
+		static constexpr bool const mc_bIsAsyncGenerator = NPrivate::TCIsAsyncGenerator<typename t_CFunctor::CReturnType>::mc_Value;
 
 		CReportLocalState m_State;
 		t_CFunctor m_ToCall;

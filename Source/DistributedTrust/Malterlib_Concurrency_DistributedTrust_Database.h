@@ -14,13 +14,13 @@ namespace NMib::NConcurrency::NDistributedActorTrustManagerDatabase
 {
 	struct CBasicConfig
 	{
-		static constexpr uint32 mc_Version = 0x102;
-		static constexpr uint32 mc_ConversionVersion = 0x102;
-
 		template <typename tf_CStream>
 		void f_Feed(tf_CStream &_Stream) const;
 		template <typename tf_CStream>
 		void f_Consume(tf_CStream &_Stream);
+
+		static constexpr uint32 mc_Version = 0x102;
+		static constexpr uint32 mc_ConversionVersion = 0x102;
 
 		NStr::CStr m_HostID;
 		NContainer::CSecureByteVector m_CAPrivateKey;
@@ -31,12 +31,12 @@ namespace NMib::NConcurrency::NDistributedActorTrustManagerDatabase
 
 	struct CServerCertificate
 	{
-		static constexpr uint32 mc_Version = 0x101;
-
 		template <typename tf_CStream>
 		void f_Feed(tf_CStream &_Stream) const;
 		template <typename tf_CStream>
 		void f_Consume(tf_CStream &_Stream);
+
+		static constexpr uint32 mc_Version = 0x101;
 
 		NContainer::CSecureByteVector m_PrivateKey;
 		NContainer::CByteVector m_PublicCertificate;
@@ -44,25 +44,25 @@ namespace NMib::NConcurrency::NDistributedActorTrustManagerDatabase
 
 	struct CListenConfig
 	{
-		static constexpr uint32 mc_Version = 0x102;
-
 		template <typename tf_CStream>
 		void f_Feed(tf_CStream &_Stream) const;
 		template <typename tf_CStream>
 		void f_Consume(tf_CStream &_Stream);
 		uint64 f_GetEffectiveSendWindowBytes(uint64 _DefaultSendWindowBytes) const;
 
+		static constexpr uint32 mc_Version = 0x102;
+
 		uint64 m_SendWindowBytes = 0; // Bytes in flight per accepted connection; zero inherits the trust-manager default.
 	};
 
 	struct CClient
 	{
-		static constexpr uint32 mc_Version = 0x102;
-
 		template <typename tf_CStream>
 		void f_Feed(tf_CStream &_Stream) const;
 		template <typename tf_CStream>
 		void f_Consume(tf_CStream &_Stream);
+
+		static constexpr uint32 mc_Version = 0x102;
 
 		NContainer::CByteVector m_PublicCertificate;
 		NStr::CStr m_LastFriendlyName;
@@ -70,8 +70,6 @@ namespace NMib::NConcurrency::NDistributedActorTrustManagerDatabase
 
 	struct CClientConnection
 	{
-		static constexpr uint32 mc_Version = 0x104;
-
 		template <typename tf_CStream>
 		void f_Feed(tf_CStream &_Stream) const;
 		template <typename tf_CStream>
@@ -79,6 +77,8 @@ namespace NMib::NConcurrency::NDistributedActorTrustManagerDatabase
 		CHostInfo f_GetHostInfo() const;
 		int32 f_GetEffectiveConnectionConcurrency(int32 _DefaultConcurrency) const;
 		uint64 f_GetEffectiveSendWindowBytes(uint64 _DefaultSendWindowBytes) const;
+
+		static constexpr uint32 mc_Version = 0x104;
 
 		NContainer::CByteVector m_PublicServerCertificate;
 		NContainer::CByteVector m_PublicClientCertificate;
@@ -89,36 +89,36 @@ namespace NMib::NConcurrency::NDistributedActorTrustManagerDatabase
 
 	struct CNamespace
 	{
-		static constexpr uint32 mc_Version = 0x101;
-
 		template <typename tf_CStream>
 		void f_Feed(tf_CStream &_Stream) const;
 		template <typename tf_CStream>
 		void f_Consume(tf_CStream &_Stream);
+
+		static constexpr uint32 mc_Version = 0x101;
 
 		NContainer::TCSet<NStr::CStr> m_AllowedHosts;
 	};
 
 	struct CPermissions
 	{
-		static constexpr uint32 mc_Version = 0x102;
-
 		template <typename tf_CStream>
 		void f_Feed(tf_CStream &_Stream) const;
 		template <typename tf_CStream>
 		void f_Consume(tf_CStream &_Stream);
+
+		static constexpr uint32 mc_Version = 0x102;
 
 		NContainer::TCMap<NStr::CStr, CPermissionRequirements> m_Permissions;
 	};
 
 	struct CUserInfo
 	{
-		static constexpr uint32 mc_Version = 0x101;
-
 		template <typename tf_CStream>
 		void f_Feed(tf_CStream &_Stream) const;
 		template <typename tf_CStream>
 		void f_Consume(tf_CStream &_Stream);
+
+		static constexpr uint32 mc_Version = 0x101;
 
 		NStr::CStr m_UserName;
 		NContainer::TCMap<NStr::CStr, NEncoding::CEJsonSorted> m_Metadata;
@@ -126,25 +126,25 @@ namespace NMib::NConcurrency::NDistributedActorTrustManagerDatabase
 
 	struct CDefaultUser
 	{
-		static constexpr uint32 mc_Version = 0x101;
-
 		template <typename tf_CStream>
 		void f_Feed(tf_CStream &_Stream) const;
 		template <typename tf_CStream>
 		void f_Consume(tf_CStream &_Stream);
+
+		static constexpr uint32 mc_Version = 0x101;
 
 		NStr::CStr m_UserID;
 	};
 
 	struct CUserAuthenticationFactor
 	{
-		static constexpr uint32 mc_Version = 0x101;
-
 		template <typename tf_CStream>
 		void f_Feed(tf_CStream &_Stream) const;
 		template <typename tf_CStream>
 		void f_Consume(tf_CStream &_Stream);
 		CUserAuthenticationFactor const &operator = (NConcurrency::CAuthenticationData const &_Data);
+
+		static constexpr uint32 mc_Version = 0x101;
 
 		EAuthenticationFactorCategory m_Category = EAuthenticationFactorCategory_None;
 		NStr::CStr m_Name;

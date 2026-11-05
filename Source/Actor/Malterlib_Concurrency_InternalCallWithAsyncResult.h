@@ -33,87 +33,99 @@ namespace NMib::NConcurrency::NPrivate
 	struct TCCallActorGetReturnType
 	{
 		// Assumed to be on result function
-		static constexpr bool mc_bIsVoid = true;
 		using CType = void;
+
+		static constexpr bool mc_bIsVoid = true;
 	};
 
 	template <typename t_CReturn>
 	struct TCCallActorGetReturnType<t_CReturn, CPromiseConstructDiscardResult>
 	{
-		static constexpr bool mc_bIsVoid = true;
 		using CType = void;
+
+		static constexpr bool mc_bIsVoid = true;
 	};
 
 	template <typename t_CReturn>
 	struct TCCallActorGetReturnType<t_CReturn, CVoidTag>
 	{
-		static constexpr bool mc_bIsVoid = false;
 		using CType = t_CReturn;
+
+		static constexpr bool mc_bIsVoid = false;
 	};
 
 	template <typename t_CReturn, typename t_CPromiseParam>
 	struct TCCallActorGetReturnType<TCFuture<t_CReturn>, t_CPromiseParam>
 	{
 		// Assumed to be on result function
-		static constexpr bool mc_bIsVoid = true;
 		using CType = void;
+
+		static constexpr bool mc_bIsVoid = true;
 	};
 
 	template <typename t_CReturn, ECoroutineFlag t_Flags, typename t_CPromiseParam>
 	struct TCCallActorGetReturnType<TCFutureWithFlags<t_CReturn, t_Flags>, t_CPromiseParam>
 	{
 		// Assumed to be on result function
-		static constexpr bool mc_bIsVoid = true;
 		using CType = void;
+
+		static constexpr bool mc_bIsVoid = true;
 	};
 
 	template <typename t_CReturn>
 	struct TCCallActorGetReturnType<TCFuture<t_CReturn>, CVoidTag>
 	{
-		static constexpr bool mc_bIsVoid = false;
 		using CType = TCFuture<t_CReturn>;
+
+		static constexpr bool mc_bIsVoid = false;
 	};
 
 	template <typename t_CReturn, ECoroutineFlag t_Flags>
 	struct TCCallActorGetReturnType<TCFutureWithFlags<t_CReturn, t_Flags>, CVoidTag>
 	{
-		static constexpr bool mc_bIsVoid = false;
 		using CType = TCFuture<t_CReturn>;
+
+		static constexpr bool mc_bIsVoid = false;
 	};
 
 	template <typename t_CReturn>
 	struct TCCallActorGetReturnType<TCFuture<t_CReturn>, CPromiseConstructDiscardResult>
 	{
-		static constexpr bool mc_bIsVoid = true;
 		using CType = void;
+
+		static constexpr bool mc_bIsVoid = true;
 	};
 
 	template <typename t_CReturn, ECoroutineFlag t_Flags>
 	struct TCCallActorGetReturnType<TCFutureWithFlags<t_CReturn, t_Flags>, CPromiseConstructDiscardResult>
 	{
-		static constexpr bool mc_bIsVoid = true;
 		using CType = void;
+
+		static constexpr bool mc_bIsVoid = true;
 	};
 
 	template <typename t_CReturn>
 	struct TCCallActorGetReturnType<TCFuture<t_CReturn>, CPromiseConstructNoConsume>
 	{
-		static constexpr bool mc_bIsVoid = false;
 		using CType = TCFuture<t_CReturn>;
+
+		static constexpr bool mc_bIsVoid = false;
 	};
 
 	template <typename t_CReturn, ECoroutineFlag t_Flags>
 	struct TCCallActorGetReturnType<TCFutureWithFlags<t_CReturn, t_Flags>, CPromiseConstructNoConsume>
 	{
-		static constexpr bool mc_bIsVoid = false;
 		using CType = TCFuture<t_CReturn>;
+
+		static constexpr bool mc_bIsVoid = false;
 	};
 
 	template <typename t_CReturn>
 	struct TCCallActorGetReturnType<t_CReturn, CPromiseConstructNoConsume>
 	{
-		static constexpr bool mc_bIsVoid = false;
 		using CType = TCFuture<t_CReturn>;
+
+		static constexpr bool mc_bIsVoid = false;
 	};
 
 	template <typename tf_CResultFunctor, typename tf_CResult>

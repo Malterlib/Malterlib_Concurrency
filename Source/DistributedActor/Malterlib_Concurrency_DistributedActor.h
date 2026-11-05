@@ -52,15 +52,17 @@ namespace NMib::NConcurrency
 	template <typename t_CActor>
 	struct TCIsDistributedActorWrapper
 	{
-		static constexpr bool mc_Value = false;
 		using CActor = t_CActor;
+
+		static constexpr bool mc_Value = false;
 	};
 
 	template <typename t_CActor>
 	struct TCIsDistributedActorWrapper<TCDistributedActorWrapper<t_CActor>>
 	{
-		static constexpr bool mc_Value = true;
 		using CActor = t_CActor;
+
+		static constexpr bool mc_Value = true;
 	};
 
 	template <typename t_CActor = CActor>
@@ -198,10 +200,10 @@ namespace NMib::NConcurrency
 
 	struct CActorDistributionCryptographySettings
 	{
-		static NCryptography::CPublicKeySetting fs_DefaultKeySetting();
-
 		CActorDistributionCryptographySettings(NStr::CStr const &_HostID);
 		~CActorDistributionCryptographySettings();
+
+		static NCryptography::CPublicKeySetting fs_DefaultKeySetting();
 		void f_GenerateNewCert(NContainer::TCVector<NStr::CStr> const &_HostNames, NCryptography::CPublicKeySetting const &_KeySetting = fs_DefaultKeySetting());
 		NContainer::CByteVector f_GenerateRequest() const;
 		NContainer::CByteVector f_SignRequest(NContainer::CByteVector const &_Request);
@@ -359,16 +361,12 @@ namespace NMib::NConcurrency
 	struct CActorDistributionManager;
 	struct CDistributedActorPublication
 	{
-		friend struct CActorDistributionManager;
-		friend struct CActorDistributionManagerInternal;
-
 		CDistributedActorPublication();
+		CDistributedActorPublication(CDistributedActorPublication const &_Other) = delete;
+		CDistributedActorPublication(CDistributedActorPublication &&_Other);
 		~CDistributedActorPublication();
 
-		CDistributedActorPublication(CDistributedActorPublication const &_Other) = delete;
 		CDistributedActorPublication &operator = (CDistributedActorPublication const &_Other) = delete;
-
-		CDistributedActorPublication(CDistributedActorPublication &&_Other);
 		CDistributedActorPublication &operator = (CDistributedActorPublication &&_Other);
 
 		bool f_IsValid() const;
@@ -376,6 +374,9 @@ namespace NMib::NConcurrency
 		TCFuture<void> f_Republish(NStr::CStr _HostID, fp32 _WaitForPublicationsTimeout = 10.0) const;
 
 	private:
+		friend struct CActorDistributionManager;
+		friend struct CActorDistributionManagerInternal;
+
 		CDistributedActorPublication(TCWeakActor<CActorDistributionManager> const &_DistributionManager, NStr::CStr const &_Namespace, NStr::CStr const &_ActorID);
 
 		TCWeakActor<CActorDistributionManager> mp_DistributionManager;
@@ -415,16 +416,12 @@ namespace NMib::NConcurrency
 
 	struct CDistributedActorListenReference
 	{
-		friend struct CActorDistributionManager;
-		friend struct CActorDistributionManagerInternal;
-
 		CDistributedActorListenReference();
+		CDistributedActorListenReference(CDistributedActorListenReference const &_Other) = delete;
+		CDistributedActorListenReference(CDistributedActorListenReference &&_Other);
 		~CDistributedActorListenReference();
 
-		CDistributedActorListenReference(CDistributedActorListenReference const &_Other) = delete;
 		CDistributedActorListenReference &operator = (CDistributedActorListenReference const &_Other) = delete;
-
-		CDistributedActorListenReference(CDistributedActorListenReference &&_Other);
 		CDistributedActorListenReference &operator = (CDistributedActorListenReference &&_Other);
 
 		void f_Clear();
@@ -439,6 +436,9 @@ namespace NMib::NConcurrency
 #endif
 
 	private:
+		friend struct CActorDistributionManager;
+		friend struct CActorDistributionManagerInternal;
+
 		CDistributedActorListenReference(TCWeakActor<CActorDistributionManager> const &_DistributionManager, NStr::CStr const &_ListenID);
 
 		TCWeakActor<CActorDistributionManager> mp_DistributionManager;
@@ -455,16 +455,12 @@ namespace NMib::NConcurrency
 
 	struct CDistributedActorConnectionReference
 	{
-		friend struct CActorDistributionManager;
-		friend struct CActorDistributionManagerInternal;
-
 		CDistributedActorConnectionReference();
+		CDistributedActorConnectionReference(CDistributedActorConnectionReference const &_Other) = delete;
+		CDistributedActorConnectionReference(CDistributedActorConnectionReference &&_Other);
 		~CDistributedActorConnectionReference();
 
-		CDistributedActorConnectionReference(CDistributedActorConnectionReference const &_Other) = delete;
 		CDistributedActorConnectionReference &operator = (CDistributedActorConnectionReference const &_Other) = delete;
-
-		CDistributedActorConnectionReference(CDistributedActorConnectionReference &&_Other);
 		CDistributedActorConnectionReference &operator = (CDistributedActorConnectionReference &&_Other);
 
 		void f_Clear();
@@ -480,6 +476,9 @@ namespace NMib::NConcurrency
 		NContainer::TCVector<NContainer::CByteVector> const &f_GetCertificateChain() const;
 
 	private:
+		friend struct CActorDistributionManager;
+		friend struct CActorDistributionManagerInternal;
+
 		CDistributedActorConnectionReference(TCWeakActor<CActorDistributionManager> const &_DistributionManager, NStr::CStr const &_ConnectionID);
 
 		TCWeakActor<CActorDistributionManager> mp_DistributionManager;
@@ -561,10 +560,11 @@ namespace NMib::NConcurrency
 	struct TCDistributedInterfaceDelegator : public t_CInterface
 	{
 		using CActorHolder = CDelegatedActorHolder;
-		static constexpr bool mc_bAllowInternalAccess = true;
 
 		template <typename ...tfp_CParams>
 		TCDistributedInterfaceDelegator(t_CDelegateTo *_pDelegateTo, tfp_CParams && ...p_Params);
+
+		static constexpr bool mc_bAllowInternalAccess = true;
 	};
 
 	struct CActorDistributionManagerHolder : public CDefaultActorHolder
@@ -657,16 +657,14 @@ namespace NMib::NConcurrency
 	{
 		using CActorHolder = CActorDistributionManagerHolder;
 
-		static constexpr NConcurrency::EPriority mc_Priority = NConcurrency::EPriority_Normal;
-
 		struct CConnectionResult
 		{
+			CConnectionResult(TCWeakActor<CActorDistributionManager> const &_DistributionManager, NStr::CStr const &_ConnectionID);
+
 			CDistributedActorConnectionReference m_ConnectionReference;
 			NStr::CStr m_UniqueHostID;
 			NContainer::TCVector<NContainer::CByteVector> m_CertificateChain;
 			CHostInfo m_HostInfo;
-
-			CConnectionResult(TCWeakActor<CActorDistributionManager> const &_DistributionManager, NStr::CStr const &_ConnectionID);
 		};
 
 		struct CHostState
@@ -757,10 +755,10 @@ namespace NMib::NConcurrency
 				, mc_AddPrioritization = 0x102
 			};
 
-			static constexpr EVersion mc_Version = EVersion::mc_AddPrioritization;
-
 			template <typename tf_CStream>
 			void f_Stream(tf_CStream &_Stream);
+
+			static constexpr EVersion mc_Version = EVersion::mc_AddPrioritization;
 
 			NContainer::TCVector<CDebugHostStats> m_Hosts;
 		};
@@ -838,6 +836,7 @@ namespace NMib::NConcurrency
 		TCFuture<CConnectionsDebugStats> f_GetConnectionsDebugStats();
 		TCFuture<NStr::CStr> f_GetHostFriendlyName(NStr::CStr _HostID);
 
+		static constexpr NConcurrency::EPriority mc_Priority = NConcurrency::EPriority_Normal;
 		static constexpr umint mc_RemoteCallOverhead = 38;
 		static constexpr umint mc_RemoteCallReturnOverhead = 19;
 		static constexpr umint mc_MaxMessageSize = 24 * 1024 * 1024;
@@ -846,6 +845,24 @@ namespace NMib::NConcurrency
 		static_assert(mc_HalfMaxMessageSize > (mc_RemoteCallOverhead + 512));
 
 	private:
+		friend auto NPrivate::fg_PublishActor
+			(
+				TCDistributedActor<CActor> &&_Actor
+				, NPrivate::CDistributedActorInterfaceInfo &&_InterfaceInfo
+				, NStr::CStr const &_Namespace
+				, fp32 _WaitForPublicationsTimeout
+			)
+			-> TCFuture<CDistributedActorPublication>
+		;
+		friend struct CDistributedActorPublication;
+		friend struct CDistributedActorListenReference;
+		friend struct CDistributedActorConnectionReference;
+		friend struct CDistributedActorReadStream;
+		friend struct CCallingHostInfo;
+		friend struct NPrivate::CDistributedActorStreamContextState;
+		friend struct NPrivate::CDistributedActorSubscriptionReferenceState;
+		friend struct CActorDistributionManagerInternal;
+
 		TCFuture<void> fp_Destroy() override;
 
 		auto fp_PublishActor(TCDistributedActor<CActor> _Actor, NStr::CStr _Namespace, NPrivate::CDistributedActorInterfaceInfo _InterfaceInfo, fp32 _WaitForPublicationsTimeout)
@@ -876,25 +893,6 @@ namespace NMib::NConcurrency
 		TCFuture<CDistributedActorConnectionStatus> fp_GetConnectionStatus(NStr::CStr _ConnectionID);
 		TCFuture<void> fp_Reconnect(NStr::CStr _ConnectionID);
 		CActorSubscription fp_OnRemoteDisconnect(TCActorFunctorWeak<TCFuture<void> ()> &&_fOnDisconnect, NStr::CStr &&_UniqueHostID, NStr::CStr &&_LastExecutionID);
-
-		friend auto NPrivate::fg_PublishActor
-			(
-				TCDistributedActor<CActor> &&_Actor
-				, NPrivate::CDistributedActorInterfaceInfo &&_InterfaceInfo
-				, NStr::CStr const &_Namespace
-				, fp32 _WaitForPublicationsTimeout
-			)
-			-> TCFuture<CDistributedActorPublication>
-		;
-		friend struct CDistributedActorPublication;
-		friend struct CDistributedActorPublication;
-		friend struct CDistributedActorListenReference;
-		friend struct CDistributedActorConnectionReference;
-		friend struct CDistributedActorReadStream;
-		friend struct CCallingHostInfo;
-		friend struct NPrivate::CDistributedActorStreamContextState;
-		friend struct NPrivate::CDistributedActorSubscriptionReferenceState;
-		friend struct CActorDistributionManagerInternal;
 
 		NStorage::TCUniquePointer<CActorDistributionManagerInternal> mp_pInternal;
 	};

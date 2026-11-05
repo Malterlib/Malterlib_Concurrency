@@ -34,24 +34,29 @@ namespace NDistributedActorPriorityTests
 	// Simple struct to hold call order info - must be outside test class for stream operators
 	struct CCallOrderEntry
 	{
+		template <typename tf_CStream>
+		void f_Stream(tf_CStream &_Stream);
+
 		uint32 m_CallID;
 		uint8 m_Priority;
-
-		template <typename tf_CStream>
-		void f_Stream(tf_CStream &_Stream)
-		{
-			_Stream % m_CallID;
-			_Stream % m_Priority;
-		}
 	};
+
+	template <typename tf_CStream>
+	void CCallOrderEntry::f_Stream(tf_CStream &_Stream)
+	{
+		_Stream % m_CallID;
+		_Stream % m_Priority;
+	}
 
 	struct CPriorityYieldActor : public CActor
 	{
-		TCFuture<void> f_Yield()
-		{
-			co_return {};
-		}
+		TCFuture<void> f_Yield();
 	};
+
+	TCFuture<void> CPriorityYieldActor::f_Yield()
+	{
+		co_return {};
+	}
 
 	// Runs on a thread of its own, so a priority left on its thread shows in its next call
 	struct CPriorityScopeThreadActor : public CActor
@@ -64,43 +69,51 @@ namespace NDistributedActorPriorityTests
 			uint8 m_AfterResume = 0;
 		};
 
-		TCFuture<CObserved> f_RunWithOwnScope(TCActor<CPriorityYieldActor> _YieldActor)
-		{
-			CObserved Observed;
-			Observed.m_BeforeOwnScope = CPriorityScope::fs_GetCurrentPriority();
+		TCFuture<CObserved> f_RunWithOwnScope(TCActor<CPriorityYieldActor> _YieldActor);
 
-			CPriorityScope Own(CPriorityScope::mc_PriorityHigh);
-			co_await _YieldActor(&CPriorityYieldActor::f_Yield);
-			Observed.m_AfterResume = CPriorityScope::fs_GetCurrentPriority();
+		uint8 f_GetPriority();
 
-			co_return Observed;
-		}
+		TCFuture<TCVector<CStr>> f_RunWithOwnCallingHost(TCActor<CPriorityYieldActor> _YieldActor);
 
-		uint8 f_GetPriority()
-		{
-			return CPriorityScope::fs_GetCurrentPriority();
-		}
-
-		TCFuture<TCVector<CStr>> f_RunWithOwnCallingHost(TCActor<CPriorityYieldActor> _YieldActor)
-		{
-			CCallingHostInfoScope Own(CCallingHostInfo({}, {}, "Unique host", CHostInfo("Real host", "Friendly name"), "Execution", 0, "User ID", "User name", nullptr, 128));
-
-			TCVector<CStr> Observed;
-			for (umint iYield = 0; iYield < 2; ++iYield)
-			{
-				co_await _YieldActor(&CPriorityYieldActor::f_Yield);
-				auto &CallingHostInfo = fg_GetCallingHostInfo();
-				Observed.f_Insert("{} {} {}"_f << CallingHostInfo.f_GetRealHostID() << CallingHostInfo.f_GetUniqueHostID() << CallingHostInfo.f_GetClaimedUserID());
-			}
-
-			co_return Observed;
-		}
-
-		CStr f_GetCallingHost()
-		{
-			return fg_GetCallingHostInfo().f_GetRealHostID();
-		}
+		CStr f_GetCallingHost();
 	};
+
+	TCFuture<CPriorityScopeThreadActor::CObserved> CPriorityScopeThreadActor::f_RunWithOwnScope(TCActor<CPriorityYieldActor> _YieldActor)
+	{
+		CObserved Observed;
+		Observed.m_BeforeOwnScope = CPriorityScope::fs_GetCurrentPriority();
+
+		CPriorityScope Own(CPriorityScope::mc_PriorityHigh);
+		co_await _YieldActor(&CPriorityYieldActor::f_Yield);
+		Observed.m_AfterResume = CPriorityScope::fs_GetCurrentPriority();
+
+		co_return Observed;
+	}
+
+	uint8 CPriorityScopeThreadActor::f_GetPriority()
+	{
+		return CPriorityScope::fs_GetCurrentPriority();
+	}
+
+	TCFuture<TCVector<CStr>> CPriorityScopeThreadActor::f_RunWithOwnCallingHost(TCActor<CPriorityYieldActor> _YieldActor)
+	{
+		CCallingHostInfoScope Own(CCallingHostInfo({}, {}, "Unique host", CHostInfo("Real host", "Friendly name"), "Execution", 0, "User ID", "User name", nullptr, 128));
+
+		TCVector<CStr> Observed;
+		for (umint iYield = 0; iYield < 2; ++iYield)
+		{
+			co_await _YieldActor(&CPriorityYieldActor::f_Yield);
+			auto &CallingHostInfo = fg_GetCallingHostInfo();
+			Observed.f_Insert("{} {} {}"_f << CallingHostInfo.f_GetRealHostID() << CallingHostInfo.f_GetUniqueHostID() << CallingHostInfo.f_GetClaimedUserID());
+		}
+
+		co_return Observed;
+	}
+
+	CStr CPriorityScopeThreadActor::f_GetCallingHost()
+	{
+		return fg_GetCallingHostInfo().f_GetRealHostID();
+	}
 
 	struct CDistributedActorPriority_Tests : public NMib::NTest::CTest
 	{
@@ -113,538 +126,557 @@ namespace NDistributedActorPriorityTests
 				, EProtocolVersion_Current = 0x10B
 			};
 
-			CPriorityTestActor()
-			{
-				DMibPublishActorFunction(CPriorityTestActor::f_GetCallPriority);
-				DMibPublishActorFunction(CPriorityTestActor::f_TestWithPriority);
-				DMibPublishActorFunction(CPriorityTestActor::f_RecordCallOrder);
-				DMibPublishActorFunction(CPriorityTestActor::f_GetCallOrder);
-				DMibPublishActorFunction(CPriorityTestActor::f_ClearCallOrder);
-			}
+			CPriorityTestActor();
 
-			// Returns the priority of the current incoming call
-			uint8 f_GetCallPriority()
-			{
-				return fg_GetCallingHostInfo().f_GetCallPriority();
-			}
+			uint8 f_GetCallPriority();
 
-			// Simple test function that returns a value
-			uint32 f_TestWithPriority()
-			{
-				return 5;
-			}
+			uint32 f_TestWithPriority();
 
-			// Record a call with its ID and priority for order verification
-			void f_RecordCallOrder(uint32 _CallID)
-			{
-				mp_CallOrder.f_Insert(CCallOrderEntry{_CallID, fg_GetCallingHostInfo().f_GetCallPriority()});
-			}
+			void f_RecordCallOrder(uint32 _CallID);
 
-			// Get the recorded call order
-			TCVector<CCallOrderEntry> f_GetCallOrder()
-			{
-				return mp_CallOrder;
-			}
+			TCVector<CCallOrderEntry> f_GetCallOrder();
 
-			// Clear the call order
-			void f_ClearCallOrder()
-			{
-				mp_CallOrder.f_Clear();
-			}
+			void f_ClearCallOrder();
 
 		private:
 			TCVector<CCallOrderEntry> mp_CallOrder;
 		};
 
+		void f_DoTests();
+
 	private:
-		void fp_CPriorityScopeTests()
+		void fp_CPriorityScopeTests();
+
+		void fp_CoroutineSuspensionTests();
+
+		void fp_RemoteCallPriorityTests();
+
+		void fp_ReconnectRecoveryTests();
+
+		void fp_MixedPriorityTests();
+	};
+
+	CDistributedActorPriority_Tests::CPriorityTestActor::CPriorityTestActor()
+	{
+		DMibPublishActorFunction(CPriorityTestActor::f_GetCallPriority);
+		DMibPublishActorFunction(CPriorityTestActor::f_TestWithPriority);
+		DMibPublishActorFunction(CPriorityTestActor::f_RecordCallOrder);
+		DMibPublishActorFunction(CPriorityTestActor::f_GetCallOrder);
+		DMibPublishActorFunction(CPriorityTestActor::f_ClearCallOrder);
+	}
+
+	uint8 CDistributedActorPriority_Tests::CPriorityTestActor::f_GetCallPriority()
+	{
+		return fg_GetCallingHostInfo().f_GetCallPriority();
+	}
+
+	uint32 CDistributedActorPriority_Tests::CPriorityTestActor::f_TestWithPriority()
+	{
+		return 5;
+	}
+
+	// Records the call ID with the priority of the current call so tests can verify the order calls arrived in.
+	void CDistributedActorPriority_Tests::CPriorityTestActor::f_RecordCallOrder(uint32 _CallID)
+	{
+		mp_CallOrder.f_Insert(CCallOrderEntry{_CallID, fg_GetCallingHostInfo().f_GetCallPriority()});
+	}
+
+	TCVector<CCallOrderEntry> CDistributedActorPriority_Tests::CPriorityTestActor::f_GetCallOrder()
+	{
+		return mp_CallOrder;
+	}
+
+	void CDistributedActorPriority_Tests::CPriorityTestActor::f_ClearCallOrder()
+	{
+		mp_CallOrder.f_Clear();
+	}
+
+	void CDistributedActorPriority_Tests::f_DoTests()
+	{
+		DMibTestCategory("Distributed Actor Priority")
 		{
-			DMibTestSuite("CPriorityScope")
-			{
-				{
-					DMibTestPath("Default priority is 128");
-					CActorRunLoopTestHelper RunLoopHelper;
-					DMibExpect(CPriorityScope::fs_GetCurrentPriority(), ==, uint8(128));
-				}
-				{
-					DMibTestPath("CPriorityScope sets high priority");
-					CActorRunLoopTestHelper RunLoopHelper;
-					{
-						CPriorityScope HighPriority(CPriorityScope::mc_PriorityHigh);
-						DMibExpect(CPriorityScope::fs_GetCurrentPriority(), ==, uint8(64));
-					}
-					DMibExpect(CPriorityScope::fs_GetCurrentPriority(), ==, uint8(128));
-				}
-				{
-					DMibTestPath("CPriorityScope sets low priority");
-					CActorRunLoopTestHelper RunLoopHelper;
-					{
-						CPriorityScope LowPriority(CPriorityScope::mc_PriorityLow);
-						DMibExpect(CPriorityScope::fs_GetCurrentPriority(), ==, uint8(192));
-					}
-					DMibExpect(CPriorityScope::fs_GetCurrentPriority(), ==, uint8(128));
-				}
-				{
-					DMibTestPath("Nested priority scopes");
-					CActorRunLoopTestHelper RunLoopHelper;
+			fp_CPriorityScopeTests();
+			fp_CoroutineSuspensionTests();
+			fp_RemoteCallPriorityTests();
+			fp_ReconnectRecoveryTests();
+			fp_MixedPriorityTests();
+		};
+	}
 
-					// Before any scope
-					uint8 PriorityBefore = CPriorityScope::fs_GetCurrentPriority();
-					DMibExpect(PriorityBefore, ==, uint8(128));
-
-					uint8 PriorityOuter, PriorityInner, PriorityAfterInner, PriorityAfterOuter;
-					{
-						CPriorityScope Outer(CPriorityScope::mc_PriorityHigh);
-						PriorityOuter = CPriorityScope::fs_GetCurrentPriority();
-						{
-							CPriorityScope Inner(CPriorityScope::mc_PriorityLow);
-							PriorityInner = CPriorityScope::fs_GetCurrentPriority();
-						}
-						PriorityAfterInner = CPriorityScope::fs_GetCurrentPriority();
-					}
-					PriorityAfterOuter = CPriorityScope::fs_GetCurrentPriority();
-
-					DMibExpect(PriorityOuter, ==, uint8(64));
-					DMibExpect(PriorityInner, ==, uint8(192));
-					DMibExpect(PriorityAfterInner, ==, uint8(64));
-					DMibExpect(PriorityAfterOuter, ==, uint8(128));
-				}
-				{
-					DMibTestPath("Custom priority value");
-					CActorRunLoopTestHelper RunLoopHelper;
-					{
-						CPriorityScope CustomPriority(42);
-						DMibExpect(CPriorityScope::fs_GetCurrentPriority(), ==, uint8(42));
-					}
-					DMibExpect(CPriorityScope::fs_GetCurrentPriority(), ==, uint8(128));
-				}
-			};
-		}
-
-		void fp_CoroutineSuspensionTests()
+	void CDistributedActorPriority_Tests::fp_CPriorityScopeTests()
+	{
+		DMibTestSuite("CPriorityScope")
 		{
-			DMibTestSuite("Coroutine suspension")
 			{
+				DMibTestPath("Default priority is 128");
+				CActorRunLoopTestHelper RunLoopHelper;
+				DMibExpect(CPriorityScope::fs_GetCurrentPriority(), ==, uint8(128));
+			}
+			{
+				DMibTestPath("CPriorityScope sets high priority");
+				CActorRunLoopTestHelper RunLoopHelper;
+				{
+					CPriorityScope HighPriority(CPriorityScope::mc_PriorityHigh);
+					DMibExpect(CPriorityScope::fs_GetCurrentPriority(), ==, uint8(64));
+				}
+				DMibExpect(CPriorityScope::fs_GetCurrentPriority(), ==, uint8(128));
+			}
+			{
+				DMibTestPath("CPriorityScope sets low priority");
+				CActorRunLoopTestHelper RunLoopHelper;
+				{
+					CPriorityScope LowPriority(CPriorityScope::mc_PriorityLow);
+					DMibExpect(CPriorityScope::fs_GetCurrentPriority(), ==, uint8(192));
+				}
+				DMibExpect(CPriorityScope::fs_GetCurrentPriority(), ==, uint8(128));
+			}
+			{
+				DMibTestPath("Nested priority scopes");
 				CActorRunLoopTestHelper RunLoopHelper;
 
-				TCActor<CPriorityScopeThreadActor> ThreadActor(fg_Construct(), "Priority scope thread");
-				TCActor<CPriorityYieldActor> YieldActor = fg_Construct();
+				// Before any scope
+				uint8 PriorityBefore = CPriorityScope::fs_GetCurrentPriority();
+				DMibExpect(PriorityBefore, ==, uint8(128));
 
-				for (bool bCallerScope : {false, true})
+				uint8 PriorityOuter, PriorityInner, PriorityAfterInner, PriorityAfterOuter;
 				{
-					DMibTestPath(bCallerScope ? "Caller scope" : "No caller scope");
-
-					CPriorityScopeThreadActor::CObserved Observed;
+					CPriorityScope Outer(CPriorityScope::mc_PriorityHigh);
+					PriorityOuter = CPriorityScope::fs_GetCurrentPriority();
 					{
-						NStorage::TCOptional<CPriorityScope> CallerScope;
-						if (bCallerScope)
-							CallerScope = fg_Construct(CPriorityScope::mc_PriorityLow);
-
-						Observed = ThreadActor(&CPriorityScopeThreadActor::f_RunWithOwnScope, YieldActor).f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout);
+						CPriorityScope Inner(CPriorityScope::mc_PriorityLow);
+						PriorityInner = CPriorityScope::fs_GetCurrentPriority();
 					}
-
-					DMibExpect(Observed.m_BeforeOwnScope, ==, uint8(bCallerScope ? 192 : 128));
-					DMibExpect(Observed.m_AfterResume, ==, uint8(64));
-
-					// The coroutine's scope and the caller's scope have both ended on the actor's thread
-					uint8 PriorityAfter = ThreadActor(&CPriorityScopeThreadActor::f_GetPriority).f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout);
-					DMibExpect(PriorityAfter, ==, uint8(128));
+					PriorityAfterInner = CPriorityScope::fs_GetCurrentPriority();
 				}
+				PriorityAfterOuter = CPriorityScope::fs_GetCurrentPriority();
 
-				{
-					DMibTestPath("Calling host over two suspensions");
-					auto Observed = ThreadActor(&CPriorityScopeThreadActor::f_RunWithOwnCallingHost, YieldActor).f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout);
-
-					DMibExpect(Observed, ==, (TCVector<CStr>{"Real host Unique host User ID", "Real host Unique host User ID"}));
-
-					CStr CallingHostAfter = ThreadActor(&CPriorityScopeThreadActor::f_GetCallingHost).f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout);
-					DMibExpect(CallingHostAfter, ==, "");
-				}
-
-				fg_Move(ThreadActor).f_Destroy().f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout);
-				fg_Move(YieldActor).f_Destroy().f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout);
-			};
-		}
-
-		void fp_RemoteCallPriorityTests()
-		{
-			DMibTestSuite("Remote Calls")
+				DMibExpect(PriorityOuter, ==, uint8(64));
+				DMibExpect(PriorityInner, ==, uint8(192));
+				DMibExpect(PriorityAfterInner, ==, uint8(64));
+				DMibExpect(PriorityAfterOuter, ==, uint8(128));
+			}
 			{
-				CStr SocketPath = NFile::CFile::fs_GetProgramDirectory() / "Sockets/DistributedActorPriorityRemote";
-
+				DMibTestPath("Custom priority value");
+				CActorRunLoopTestHelper RunLoopHelper;
 				{
-					DMibTestPath("Remote call with default priority");
-					CActorRunLoopTestHelper RunLoopHelper;
-
-					CDistributedActorTestHelperCombined TestState(SocketPath, RunLoopHelper.m_pRunLoop);
-					TestState.f_SeparateServerManager();
-					TestState.f_Init();
-
-					auto LocalActor = TestState.f_GetServer().f_GetManager()->f_ConstructActor<CPriorityTestActor>();
-					TestState.f_Publish<CPriorityTestActor>(LocalActor, "Test");
-					CStr SubscriptionID = TestState.f_Subscribe("Test");
-					auto Actor = TestState.f_GetRemoteActor<CPriorityTestActor>(SubscriptionID);
-
-					// Call without priority scope - should receive default 128
-					uint8 Priority = Actor.f_CallActor(&CPriorityTestActor::f_GetCallPriority)().f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout);
-					DMibExpect(Priority, ==, uint8(128));
+					CPriorityScope CustomPriority(42);
+					DMibExpect(CPriorityScope::fs_GetCurrentPriority(), ==, uint8(42));
 				}
-				{
-					DMibTestPath("Remote call with high priority");
-					CActorRunLoopTestHelper RunLoopHelper;
+				DMibExpect(CPriorityScope::fs_GetCurrentPriority(), ==, uint8(128));
+			}
+		};
+	}
 
-					CDistributedActorTestHelperCombined TestState(SocketPath, RunLoopHelper.m_pRunLoop);
-					TestState.f_SeparateServerManager();
-					TestState.f_Init();
-
-					auto LocalActor = TestState.f_GetServer().f_GetManager()->f_ConstructActor<CPriorityTestActor>();
-					TestState.f_Publish<CPriorityTestActor>(LocalActor, "Test");
-					CStr SubscriptionID = TestState.f_Subscribe("Test");
-					auto Actor = TestState.f_GetRemoteActor<CPriorityTestActor>(SubscriptionID);
-
-					// Call with high priority scope
-					uint8 Priority;
-					{
-						CPriorityScope HighPriority(CPriorityScope::mc_PriorityHigh);
-						Priority = Actor.f_CallActor(&CPriorityTestActor::f_GetCallPriority)().f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout);
-					}
-					DMibExpect(Priority, ==, uint8(64));
-				}
-				{
-					DMibTestPath("Remote call with low priority");
-					CActorRunLoopTestHelper RunLoopHelper;
-
-					CDistributedActorTestHelperCombined TestState(SocketPath, RunLoopHelper.m_pRunLoop);
-					TestState.f_SeparateServerManager();
-					TestState.f_Init();
-
-					auto LocalActor = TestState.f_GetServer().f_GetManager()->f_ConstructActor<CPriorityTestActor>();
-					TestState.f_Publish<CPriorityTestActor>(LocalActor, "Test");
-					CStr SubscriptionID = TestState.f_Subscribe("Test");
-					auto Actor = TestState.f_GetRemoteActor<CPriorityTestActor>(SubscriptionID);
-
-					// Call with low priority scope
-					uint8 Priority;
-					{
-						CPriorityScope LowPriority(CPriorityScope::mc_PriorityLow);
-						Priority = Actor.f_CallActor(&CPriorityTestActor::f_GetCallPriority)().f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout);
-					}
-					DMibExpect(Priority, ==, uint8(192));
-				}
-				{
-					DMibTestPath("Concurrent calls with different priorities");
-					CActorRunLoopTestHelper RunLoopHelper;
-
-					CDistributedActorTestHelperCombined TestState(SocketPath, RunLoopHelper.m_pRunLoop);
-					TestState.f_SeparateServerManager();
-					TestState.f_Init();
-
-					auto LocalActor = TestState.f_GetServer().f_GetManager()->f_ConstructActor<CPriorityTestActor>();
-					TestState.f_Publish<CPriorityTestActor>(LocalActor, "Test");
-					CStr SubscriptionID = TestState.f_Subscribe("Test");
-					auto Actor = TestState.f_GetRemoteActor<CPriorityTestActor>(SubscriptionID);
-
-					// Launch calls with different priorities concurrently
-					TCFuture<uint8> FutureHigh;
-					{
-						CPriorityScope HighPriority(CPriorityScope::mc_PriorityHigh);
-						FutureHigh = Actor.f_CallActor(&CPriorityTestActor::f_GetCallPriority)();
-					}
-
-					TCFuture<uint8> FutureNormal;
-					FutureNormal = Actor.f_CallActor(&CPriorityTestActor::f_GetCallPriority)();
-
-					TCFuture<uint8> FutureLow;
-					{
-						CPriorityScope LowPriority(CPriorityScope::mc_PriorityLow);
-						FutureLow = Actor.f_CallActor(&CPriorityTestActor::f_GetCallPriority)();
-					}
-
-					// All calls should return their respective priorities
-					DMibExpect(fg_Move(FutureHigh).f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout), ==, uint8(64));
-					DMibExpect(fg_Move(FutureNormal).f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout), ==, uint8(128));
-					DMibExpect(fg_Move(FutureLow).f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout), ==, uint8(192));
-				}
-				{
-					DMibTestPath("Custom priority value remote call");
-					CActorRunLoopTestHelper RunLoopHelper;
-
-					CDistributedActorTestHelperCombined TestState(SocketPath, RunLoopHelper.m_pRunLoop);
-					TestState.f_SeparateServerManager();
-					TestState.f_Init();
-
-					auto LocalActor = TestState.f_GetServer().f_GetManager()->f_ConstructActor<CPriorityTestActor>();
-					TestState.f_Publish<CPriorityTestActor>(LocalActor, "Test");
-					CStr SubscriptionID = TestState.f_Subscribe("Test");
-					auto Actor = TestState.f_GetRemoteActor<CPriorityTestActor>(SubscriptionID);
-
-					// Call with custom priority value
-					uint8 Priority;
-					{
-						CPriorityScope CustomPriority(17);
-						Priority = Actor.f_CallActor(&CPriorityTestActor::f_GetCallPriority)().f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout);
-					}
-					DMibExpect(Priority, ==, uint8(17));
-				}
-			};
-		}
-
-		void fp_ReconnectRecoveryTests()
+	void CDistributedActorPriority_Tests::fp_CoroutineSuspensionTests()
+	{
+		DMibTestSuite("Coroutine suspension")
 		{
-			DMibTestSuite("Reconnect Recovery")
+			CActorRunLoopTestHelper RunLoopHelper;
+
+			TCActor<CPriorityScopeThreadActor> ThreadActor(fg_Construct(), "Priority scope thread");
+			TCActor<CPriorityYieldActor> YieldActor = fg_Construct();
+
+			for (bool bCallerScope : {false, true})
 			{
-				CStr SocketPath = NFile::CFile::fs_GetProgramDirectory() / "Sockets/DistributedActorPriorityReconnect";
+				DMibTestPath(bCallerScope ? "Caller scope" : "No caller scope");
 
+				CPriorityScopeThreadActor::CObserved Observed;
 				{
-					DMibTestPath("High priority packet recovery after disconnect");
-					CActorRunLoopTestHelper RunLoopHelper;
+					NStorage::TCOptional<CPriorityScope> CallerScope;
+					if (bCallerScope)
+						CallerScope = fg_Construct(CPriorityScope::mc_PriorityLow);
 
-					CDistributedActorTestHelperCombined TestState(SocketPath, RunLoopHelper.m_pRunLoop);
-					TestState.f_SeparateServerManager();
-					TestState.f_Init(true); // Enable reconnect
-
-					auto LocalActor = TestState.f_GetServer().f_GetManager()->f_ConstructActor<CPriorityTestActor>();
-					TestState.f_Publish<CPriorityTestActor>(LocalActor, "Test");
-					CStr SubscriptionID = TestState.f_Subscribe("Test");
-					auto Actor = TestState.f_GetRemoteActor<CPriorityTestActor>(SubscriptionID);
-
-					// Queue packet that can't be received
-					TestState.f_BreakClientConnection(fp64::fs_Inf(), ESocketDebugFlag_StopProcessingReceive);
-
-					TCFuture<uint8> FutureHigh;
-					{
-						CPriorityScope HighPriority(CPriorityScope::mc_PriorityHigh);
-						FutureHigh = Actor.f_CallActor(&CPriorityTestActor::f_GetCallPriority)();
-					}
-
-					// Force reconnect
-					TestState.f_BreakClientConnection(fp64::fs_Inf(), ESocketDebugFlag_FailSends | ESocketDebugFlag_DelayClose);
-
-					// Should complete with correct priority after recovery
-					DMibExpect(fg_Move(FutureHigh).f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout), ==, uint8(64));
+					Observed = ThreadActor(&CPriorityScopeThreadActor::f_RunWithOwnScope, YieldActor).f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout);
 				}
-				{
-					DMibTestPath("Multiple priority queue recovery after disconnect");
-					CActorRunLoopTestHelper RunLoopHelper;
 
-					CDistributedActorTestHelperCombined TestState(SocketPath, RunLoopHelper.m_pRunLoop);
-					TestState.f_SeparateServerManager();
-					TestState.f_Init(true); // Enable reconnect
+				DMibExpect(Observed.m_BeforeOwnScope, ==, uint8(bCallerScope ? 192 : 128));
+				DMibExpect(Observed.m_AfterResume, ==, uint8(64));
 
-					auto LocalActor = TestState.f_GetServer().f_GetManager()->f_ConstructActor<CPriorityTestActor>();
-					TestState.f_Publish<CPriorityTestActor>(LocalActor, "Test");
-					CStr SubscriptionID = TestState.f_Subscribe("Test");
-					auto Actor = TestState.f_GetRemoteActor<CPriorityTestActor>(SubscriptionID);
+				// The coroutine's scope and the caller's scope have both ended on the actor's thread
+				uint8 PriorityAfter = ThreadActor(&CPriorityScopeThreadActor::f_GetPriority).f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout);
+				DMibExpect(PriorityAfter, ==, uint8(128));
+			}
 
-					// Queue packets with different priorities that can't be received
-					TestState.f_BreakClientConnection(fp64::fs_Inf(), ESocketDebugFlag_StopProcessingReceive);
+			{
+				DMibTestPath("Calling host over two suspensions");
+				auto Observed = ThreadActor(&CPriorityScopeThreadActor::f_RunWithOwnCallingHost, YieldActor).f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout);
 
-					TCFuture<uint8> FutureHigh;
-					{
-						CPriorityScope HighPriority(CPriorityScope::mc_PriorityHigh);
-						FutureHigh = Actor.f_CallActor(&CPriorityTestActor::f_GetCallPriority)();
-					}
+				DMibExpect(Observed, ==, (TCVector<CStr>{"Real host Unique host User ID", "Real host Unique host User ID"}));
 
-					TCFuture<uint8> FutureNormal = Actor.f_CallActor(&CPriorityTestActor::f_GetCallPriority)();
+				CStr CallingHostAfter = ThreadActor(&CPriorityScopeThreadActor::f_GetCallingHost).f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout);
+				DMibExpect(CallingHostAfter, ==, "");
+			}
 
-					TCFuture<uint8> FutureLow;
-					{
-						CPriorityScope LowPriority(CPriorityScope::mc_PriorityLow);
-						FutureLow = Actor.f_CallActor(&CPriorityTestActor::f_GetCallPriority)();
-					}
+			fg_Move(ThreadActor).f_Destroy().f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout);
+			fg_Move(YieldActor).f_Destroy().f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout);
+		};
+	}
 
-					// Force reconnect
-					TestState.f_BreakClientConnection(fp64::fs_Inf(), ESocketDebugFlag_FailSends | ESocketDebugFlag_DelayClose);
-
-					// All should complete with correct priorities after recovery
-					DMibExpect(fg_Move(FutureHigh).f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout), ==, uint8(64));
-					DMibExpect(fg_Move(FutureNormal).f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout), ==, uint8(128));
-					DMibExpect(fg_Move(FutureLow).f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout), ==, uint8(192));
-				}
-				{
-					DMibTestPath("Interleaved priority calls recovery");
-					CActorRunLoopTestHelper RunLoopHelper;
-
-					CDistributedActorTestHelperCombined TestState(SocketPath, RunLoopHelper.m_pRunLoop);
-					TestState.f_SeparateServerManager();
-					TestState.f_Init(true); // Enable reconnect
-
-					auto LocalActor = TestState.f_GetServer().f_GetManager()->f_ConstructActor<CPriorityTestActor>();
-					TestState.f_Publish<CPriorityTestActor>(LocalActor, "Test");
-					CStr SubscriptionID = TestState.f_Subscribe("Test");
-					auto Actor = TestState.f_GetRemoteActor<CPriorityTestActor>(SubscriptionID);
-
-					// Clear any previous call order
-					Actor.f_CallActor(&CPriorityTestActor::f_ClearCallOrder)().f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout);
-
-					// Queue interleaved priority calls
-					TestState.f_BreakClientConnection(fp64::fs_Inf(), ESocketDebugFlag_StopProcessingReceive);
-
-					TCFuture<void> FutureHigh1;
-					{
-						CPriorityScope HighPriority(CPriorityScope::mc_PriorityHigh);
-						FutureHigh1 = Actor.f_CallActor(&CPriorityTestActor::f_RecordCallOrder)(1);
-					}
-
-					TCFuture<void> FutureNormal1 = Actor.f_CallActor(&CPriorityTestActor::f_RecordCallOrder)(2);
-
-					TCFuture<void> FutureLow1;
-					{
-						CPriorityScope LowPriority(CPriorityScope::mc_PriorityLow);
-						FutureLow1 = Actor.f_CallActor(&CPriorityTestActor::f_RecordCallOrder)(3);
-					}
-
-					TCFuture<void> FutureHigh2;
-					{
-						CPriorityScope HighPriority(CPriorityScope::mc_PriorityHigh);
-						FutureHigh2 = Actor.f_CallActor(&CPriorityTestActor::f_RecordCallOrder)(4);
-					}
-
-					TCFuture<void> FutureNormal2 = Actor.f_CallActor(&CPriorityTestActor::f_RecordCallOrder)(5);
-
-					TCFuture<void> FutureLow2;
-					{
-						CPriorityScope LowPriority(CPriorityScope::mc_PriorityLow);
-						FutureLow2 = Actor.f_CallActor(&CPriorityTestActor::f_RecordCallOrder)(6);
-					}
-
-					// Force reconnect
-					TestState.f_BreakClientConnection(fp64::fs_Inf(), ESocketDebugFlag_FailSends | ESocketDebugFlag_DelayClose);
-
-					// Wait for all calls to complete
-					fg_Move(FutureHigh1).f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout);
-					fg_Move(FutureNormal1).f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout);
-					fg_Move(FutureLow1).f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout);
-					fg_Move(FutureHigh2).f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout);
-					fg_Move(FutureNormal2).f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout);
-					fg_Move(FutureLow2).f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout);
-
-					// Get call order and verify priorities are correct
-					auto CallOrder = Actor.f_CallActor(&CPriorityTestActor::f_GetCallOrder)().f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout);
-
-					DMibExpect(CallOrder.f_GetLen(), ==, umint(6));
-
-					// Verify each call recorded the correct priority
-					for (auto const &Call : CallOrder)
-					{
-						uint32 CallID = Call.m_CallID;
-						uint8 Priority = Call.m_Priority;
-
-						if (CallID == 1 || CallID == 4)
-							DMibExpect(Priority, ==, uint8(64))(ETestFlag_Aggregated); // High priority calls
-						else if (CallID == 2 || CallID == 5)
-							DMibExpect(Priority, ==, uint8(128))(ETestFlag_Aggregated); // Normal priority calls
-						else if (CallID == 3 || CallID == 6)
-							DMibExpect(Priority, ==, uint8(192))(ETestFlag_Aggregated); // Low priority calls
-					}
-				}
-				{
-					DMibTestPath("Server connection break with priority recovery");
-					CActorRunLoopTestHelper RunLoopHelper;
-
-					CDistributedActorTestHelperCombined TestState(SocketPath, RunLoopHelper.m_pRunLoop);
-					TestState.f_SeparateServerManager();
-					TestState.f_Init(true); // Enable reconnect
-
-					auto LocalActor = TestState.f_GetServer().f_GetManager()->f_ConstructActor<CPriorityTestActor>();
-					TestState.f_Publish<CPriorityTestActor>(LocalActor, "Test");
-					CStr SubscriptionID = TestState.f_Subscribe("Test");
-					auto Actor = TestState.f_GetRemoteActor<CPriorityTestActor>(SubscriptionID);
-
-					// Break server connection first - server will reconnect when trying to send the reply
-					TestState.f_BreakServerConnections(fp64::fs_Inf(), ESocketDebugFlag_FailSends | ESocketDebugFlag_DelayClose);
-
-					// Make a high priority call - server will reconnect when trying to reply
-					TCFuture<uint8> FutureHigh;
-					{
-						CPriorityScope HighPriority(CPriorityScope::mc_PriorityHigh);
-						FutureHigh = Actor.f_CallActor(&CPriorityTestActor::f_GetCallPriority)();
-					}
-
-					// Should complete with correct priority after server reconnects
-					DMibExpect(fg_Move(FutureHigh).f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout), ==, uint8(64));
-				}
-			};
-		}
-
-		void fp_MixedPriorityTests()
+	void CDistributedActorPriority_Tests::fp_RemoteCallPriorityTests()
+	{
+		DMibTestSuite("Remote Calls")
 		{
-			DMibTestSuite("Mixed Priority Scenarios")
+			CStr SocketPath = NFile::CFile::fs_GetProgramDirectory() / "Sockets/DistributedActorPriorityRemote";
+
 			{
-				CStr SocketPath = NFile::CFile::fs_GetProgramDirectory() / "Sockets/DistributedActorPriorityMixed";
+				DMibTestPath("Remote call with default priority");
+				CActorRunLoopTestHelper RunLoopHelper;
 
+				CDistributedActorTestHelperCombined TestState(SocketPath, RunLoopHelper.m_pRunLoop);
+				TestState.f_SeparateServerManager();
+				TestState.f_Init();
+
+				auto LocalActor = TestState.f_GetServer().f_GetManager()->f_ConstructActor<CPriorityTestActor>();
+				TestState.f_Publish<CPriorityTestActor>(LocalActor, "Test");
+				CStr SubscriptionID = TestState.f_Subscribe("Test");
+				auto Actor = TestState.f_GetRemoteActor<CPriorityTestActor>(SubscriptionID);
+
+				// Call without priority scope - should receive default 128
+				uint8 Priority = Actor.f_CallActor(&CPriorityTestActor::f_GetCallPriority)().f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout);
+				DMibExpect(Priority, ==, uint8(128));
+			}
+			{
+				DMibTestPath("Remote call with high priority");
+				CActorRunLoopTestHelper RunLoopHelper;
+
+				CDistributedActorTestHelperCombined TestState(SocketPath, RunLoopHelper.m_pRunLoop);
+				TestState.f_SeparateServerManager();
+				TestState.f_Init();
+
+				auto LocalActor = TestState.f_GetServer().f_GetManager()->f_ConstructActor<CPriorityTestActor>();
+				TestState.f_Publish<CPriorityTestActor>(LocalActor, "Test");
+				CStr SubscriptionID = TestState.f_Subscribe("Test");
+				auto Actor = TestState.f_GetRemoteActor<CPriorityTestActor>(SubscriptionID);
+
+				// Call with high priority scope
+				uint8 Priority;
 				{
-					DMibTestPath("Priority scope across multiple calls");
-					CActorRunLoopTestHelper RunLoopHelper;
+					CPriorityScope HighPriority(CPriorityScope::mc_PriorityHigh);
+					Priority = Actor.f_CallActor(&CPriorityTestActor::f_GetCallPriority)().f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout);
+				}
+				DMibExpect(Priority, ==, uint8(64));
+			}
+			{
+				DMibTestPath("Remote call with low priority");
+				CActorRunLoopTestHelper RunLoopHelper;
 
-					CDistributedActorTestHelperCombined TestState(SocketPath, RunLoopHelper.m_pRunLoop);
-					TestState.f_SeparateServerManager();
-					TestState.f_Init();
+				CDistributedActorTestHelperCombined TestState(SocketPath, RunLoopHelper.m_pRunLoop);
+				TestState.f_SeparateServerManager();
+				TestState.f_Init();
 
-					auto LocalActor = TestState.f_GetServer().f_GetManager()->f_ConstructActor<CPriorityTestActor>();
-					TestState.f_Publish<CPriorityTestActor>(LocalActor, "Test");
-					CStr SubscriptionID = TestState.f_Subscribe("Test");
-					auto Actor = TestState.f_GetRemoteActor<CPriorityTestActor>(SubscriptionID);
+				auto LocalActor = TestState.f_GetServer().f_GetManager()->f_ConstructActor<CPriorityTestActor>();
+				TestState.f_Publish<CPriorityTestActor>(LocalActor, "Test");
+				CStr SubscriptionID = TestState.f_Subscribe("Test");
+				auto Actor = TestState.f_GetRemoteActor<CPriorityTestActor>(SubscriptionID);
 
-					// Make multiple calls within same priority scope
+				// Call with low priority scope
+				uint8 Priority;
+				{
+					CPriorityScope LowPriority(CPriorityScope::mc_PriorityLow);
+					Priority = Actor.f_CallActor(&CPriorityTestActor::f_GetCallPriority)().f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout);
+				}
+				DMibExpect(Priority, ==, uint8(192));
+			}
+			{
+				DMibTestPath("Concurrent calls with different priorities");
+				CActorRunLoopTestHelper RunLoopHelper;
+
+				CDistributedActorTestHelperCombined TestState(SocketPath, RunLoopHelper.m_pRunLoop);
+				TestState.f_SeparateServerManager();
+				TestState.f_Init();
+
+				auto LocalActor = TestState.f_GetServer().f_GetManager()->f_ConstructActor<CPriorityTestActor>();
+				TestState.f_Publish<CPriorityTestActor>(LocalActor, "Test");
+				CStr SubscriptionID = TestState.f_Subscribe("Test");
+				auto Actor = TestState.f_GetRemoteActor<CPriorityTestActor>(SubscriptionID);
+
+				// Launch calls with different priorities concurrently
+				TCFuture<uint8> FutureHigh;
+				{
+					CPriorityScope HighPriority(CPriorityScope::mc_PriorityHigh);
+					FutureHigh = Actor.f_CallActor(&CPriorityTestActor::f_GetCallPriority)();
+				}
+
+				TCFuture<uint8> FutureNormal;
+				FutureNormal = Actor.f_CallActor(&CPriorityTestActor::f_GetCallPriority)();
+
+				TCFuture<uint8> FutureLow;
+				{
+					CPriorityScope LowPriority(CPriorityScope::mc_PriorityLow);
+					FutureLow = Actor.f_CallActor(&CPriorityTestActor::f_GetCallPriority)();
+				}
+
+				// All calls should return their respective priorities
+				DMibExpect(fg_Move(FutureHigh).f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout), ==, uint8(64));
+				DMibExpect(fg_Move(FutureNormal).f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout), ==, uint8(128));
+				DMibExpect(fg_Move(FutureLow).f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout), ==, uint8(192));
+			}
+			{
+				DMibTestPath("Custom priority value remote call");
+				CActorRunLoopTestHelper RunLoopHelper;
+
+				CDistributedActorTestHelperCombined TestState(SocketPath, RunLoopHelper.m_pRunLoop);
+				TestState.f_SeparateServerManager();
+				TestState.f_Init();
+
+				auto LocalActor = TestState.f_GetServer().f_GetManager()->f_ConstructActor<CPriorityTestActor>();
+				TestState.f_Publish<CPriorityTestActor>(LocalActor, "Test");
+				CStr SubscriptionID = TestState.f_Subscribe("Test");
+				auto Actor = TestState.f_GetRemoteActor<CPriorityTestActor>(SubscriptionID);
+
+				// Call with custom priority value
+				uint8 Priority;
+				{
+					CPriorityScope CustomPriority(17);
+					Priority = Actor.f_CallActor(&CPriorityTestActor::f_GetCallPriority)().f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout);
+				}
+				DMibExpect(Priority, ==, uint8(17));
+			}
+		};
+	}
+
+	void CDistributedActorPriority_Tests::fp_ReconnectRecoveryTests()
+	{
+		DMibTestSuite("Reconnect Recovery")
+		{
+			CStr SocketPath = NFile::CFile::fs_GetProgramDirectory() / "Sockets/DistributedActorPriorityReconnect";
+
+			{
+				DMibTestPath("High priority packet recovery after disconnect");
+				CActorRunLoopTestHelper RunLoopHelper;
+
+				CDistributedActorTestHelperCombined TestState(SocketPath, RunLoopHelper.m_pRunLoop);
+				TestState.f_SeparateServerManager();
+				TestState.f_Init(true); // Enable reconnect
+
+				auto LocalActor = TestState.f_GetServer().f_GetManager()->f_ConstructActor<CPriorityTestActor>();
+				TestState.f_Publish<CPriorityTestActor>(LocalActor, "Test");
+				CStr SubscriptionID = TestState.f_Subscribe("Test");
+				auto Actor = TestState.f_GetRemoteActor<CPriorityTestActor>(SubscriptionID);
+
+				// Queue packet that can't be received
+				TestState.f_BreakClientConnection(fp64::fs_Inf(), ESocketDebugFlag_StopProcessingReceive);
+
+				TCFuture<uint8> FutureHigh;
+				{
+					CPriorityScope HighPriority(CPriorityScope::mc_PriorityHigh);
+					FutureHigh = Actor.f_CallActor(&CPriorityTestActor::f_GetCallPriority)();
+				}
+
+				// Force reconnect
+				TestState.f_BreakClientConnection(fp64::fs_Inf(), ESocketDebugFlag_FailSends | ESocketDebugFlag_DelayClose);
+
+				// Should complete with correct priority after recovery
+				DMibExpect(fg_Move(FutureHigh).f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout), ==, uint8(64));
+			}
+			{
+				DMibTestPath("Multiple priority queue recovery after disconnect");
+				CActorRunLoopTestHelper RunLoopHelper;
+
+				CDistributedActorTestHelperCombined TestState(SocketPath, RunLoopHelper.m_pRunLoop);
+				TestState.f_SeparateServerManager();
+				TestState.f_Init(true); // Enable reconnect
+
+				auto LocalActor = TestState.f_GetServer().f_GetManager()->f_ConstructActor<CPriorityTestActor>();
+				TestState.f_Publish<CPriorityTestActor>(LocalActor, "Test");
+				CStr SubscriptionID = TestState.f_Subscribe("Test");
+				auto Actor = TestState.f_GetRemoteActor<CPriorityTestActor>(SubscriptionID);
+
+				// Queue packets with different priorities that can't be received
+				TestState.f_BreakClientConnection(fp64::fs_Inf(), ESocketDebugFlag_StopProcessingReceive);
+
+				TCFuture<uint8> FutureHigh;
+				{
+					CPriorityScope HighPriority(CPriorityScope::mc_PriorityHigh);
+					FutureHigh = Actor.f_CallActor(&CPriorityTestActor::f_GetCallPriority)();
+				}
+
+				TCFuture<uint8> FutureNormal = Actor.f_CallActor(&CPriorityTestActor::f_GetCallPriority)();
+
+				TCFuture<uint8> FutureLow;
+				{
+					CPriorityScope LowPriority(CPriorityScope::mc_PriorityLow);
+					FutureLow = Actor.f_CallActor(&CPriorityTestActor::f_GetCallPriority)();
+				}
+
+				// Force reconnect
+				TestState.f_BreakClientConnection(fp64::fs_Inf(), ESocketDebugFlag_FailSends | ESocketDebugFlag_DelayClose);
+
+				// All should complete with correct priorities after recovery
+				DMibExpect(fg_Move(FutureHigh).f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout), ==, uint8(64));
+				DMibExpect(fg_Move(FutureNormal).f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout), ==, uint8(128));
+				DMibExpect(fg_Move(FutureLow).f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout), ==, uint8(192));
+			}
+			{
+				DMibTestPath("Interleaved priority calls recovery");
+				CActorRunLoopTestHelper RunLoopHelper;
+
+				CDistributedActorTestHelperCombined TestState(SocketPath, RunLoopHelper.m_pRunLoop);
+				TestState.f_SeparateServerManager();
+				TestState.f_Init(true); // Enable reconnect
+
+				auto LocalActor = TestState.f_GetServer().f_GetManager()->f_ConstructActor<CPriorityTestActor>();
+				TestState.f_Publish<CPriorityTestActor>(LocalActor, "Test");
+				CStr SubscriptionID = TestState.f_Subscribe("Test");
+				auto Actor = TestState.f_GetRemoteActor<CPriorityTestActor>(SubscriptionID);
+
+				// Clear any previous call order
+				Actor.f_CallActor(&CPriorityTestActor::f_ClearCallOrder)().f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout);
+
+				// Queue interleaved priority calls
+				TestState.f_BreakClientConnection(fp64::fs_Inf(), ESocketDebugFlag_StopProcessingReceive);
+
+				TCFuture<void> FutureHigh1;
+				{
+					CPriorityScope HighPriority(CPriorityScope::mc_PriorityHigh);
+					FutureHigh1 = Actor.f_CallActor(&CPriorityTestActor::f_RecordCallOrder)(1);
+				}
+
+				TCFuture<void> FutureNormal1 = Actor.f_CallActor(&CPriorityTestActor::f_RecordCallOrder)(2);
+
+				TCFuture<void> FutureLow1;
+				{
+					CPriorityScope LowPriority(CPriorityScope::mc_PriorityLow);
+					FutureLow1 = Actor.f_CallActor(&CPriorityTestActor::f_RecordCallOrder)(3);
+				}
+
+				TCFuture<void> FutureHigh2;
+				{
+					CPriorityScope HighPriority(CPriorityScope::mc_PriorityHigh);
+					FutureHigh2 = Actor.f_CallActor(&CPriorityTestActor::f_RecordCallOrder)(4);
+				}
+
+				TCFuture<void> FutureNormal2 = Actor.f_CallActor(&CPriorityTestActor::f_RecordCallOrder)(5);
+
+				TCFuture<void> FutureLow2;
+				{
+					CPriorityScope LowPriority(CPriorityScope::mc_PriorityLow);
+					FutureLow2 = Actor.f_CallActor(&CPriorityTestActor::f_RecordCallOrder)(6);
+				}
+
+				// Force reconnect
+				TestState.f_BreakClientConnection(fp64::fs_Inf(), ESocketDebugFlag_FailSends | ESocketDebugFlag_DelayClose);
+
+				// Wait for all calls to complete
+				fg_Move(FutureHigh1).f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout);
+				fg_Move(FutureNormal1).f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout);
+				fg_Move(FutureLow1).f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout);
+				fg_Move(FutureHigh2).f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout);
+				fg_Move(FutureNormal2).f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout);
+				fg_Move(FutureLow2).f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout);
+
+				// Get call order and verify priorities are correct
+				auto CallOrder = Actor.f_CallActor(&CPriorityTestActor::f_GetCallOrder)().f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout);
+
+				DMibExpect(CallOrder.f_GetLen(), ==, umint(6));
+
+				// Verify each call recorded the correct priority
+				for (auto const &Call : CallOrder)
+				{
+					uint32 CallID = Call.m_CallID;
+					uint8 Priority = Call.m_Priority;
+
+					if (CallID == 1 || CallID == 4)
+						DMibExpect(Priority, ==, uint8(64))(ETestFlag_Aggregated); // High priority calls
+					else if (CallID == 2 || CallID == 5)
+						DMibExpect(Priority, ==, uint8(128))(ETestFlag_Aggregated); // Normal priority calls
+					else if (CallID == 3 || CallID == 6)
+						DMibExpect(Priority, ==, uint8(192))(ETestFlag_Aggregated); // Low priority calls
+				}
+			}
+			{
+				DMibTestPath("Server connection break with priority recovery");
+				CActorRunLoopTestHelper RunLoopHelper;
+
+				CDistributedActorTestHelperCombined TestState(SocketPath, RunLoopHelper.m_pRunLoop);
+				TestState.f_SeparateServerManager();
+				TestState.f_Init(true); // Enable reconnect
+
+				auto LocalActor = TestState.f_GetServer().f_GetManager()->f_ConstructActor<CPriorityTestActor>();
+				TestState.f_Publish<CPriorityTestActor>(LocalActor, "Test");
+				CStr SubscriptionID = TestState.f_Subscribe("Test");
+				auto Actor = TestState.f_GetRemoteActor<CPriorityTestActor>(SubscriptionID);
+
+				// Break server connection first - server will reconnect when trying to send the reply
+				TestState.f_BreakServerConnections(fp64::fs_Inf(), ESocketDebugFlag_FailSends | ESocketDebugFlag_DelayClose);
+
+				// Make a high priority call - server will reconnect when trying to reply
+				TCFuture<uint8> FutureHigh;
+				{
+					CPriorityScope HighPriority(CPriorityScope::mc_PriorityHigh);
+					FutureHigh = Actor.f_CallActor(&CPriorityTestActor::f_GetCallPriority)();
+				}
+
+				// Should complete with correct priority after server reconnects
+				DMibExpect(fg_Move(FutureHigh).f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout), ==, uint8(64));
+			}
+		};
+	}
+
+	void CDistributedActorPriority_Tests::fp_MixedPriorityTests()
+	{
+		DMibTestSuite("Mixed Priority Scenarios")
+		{
+			CStr SocketPath = NFile::CFile::fs_GetProgramDirectory() / "Sockets/DistributedActorPriorityMixed";
+
+			{
+				DMibTestPath("Priority scope across multiple calls");
+				CActorRunLoopTestHelper RunLoopHelper;
+
+				CDistributedActorTestHelperCombined TestState(SocketPath, RunLoopHelper.m_pRunLoop);
+				TestState.f_SeparateServerManager();
+				TestState.f_Init();
+
+				auto LocalActor = TestState.f_GetServer().f_GetManager()->f_ConstructActor<CPriorityTestActor>();
+				TestState.f_Publish<CPriorityTestActor>(LocalActor, "Test");
+				CStr SubscriptionID = TestState.f_Subscribe("Test");
+				auto Actor = TestState.f_GetRemoteActor<CPriorityTestActor>(SubscriptionID);
+
+				// Make multiple calls within same priority scope
+				{
+					CPriorityScope HighPriority(CPriorityScope::mc_PriorityHigh);
+
+					uint8 Priority1 = Actor.f_CallActor(&CPriorityTestActor::f_GetCallPriority)().f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout);
+					uint8 Priority2 = Actor.f_CallActor(&CPriorityTestActor::f_GetCallPriority)().f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout);
+					uint8 Priority3 = Actor.f_CallActor(&CPriorityTestActor::f_GetCallPriority)().f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout);
+
+					DMibExpect(Priority1, ==, uint8(64));
+					DMibExpect(Priority2, ==, uint8(64));
+					DMibExpect(Priority3, ==, uint8(64));
+				}
+			}
+			{
+				DMibTestPath("Rapid priority switching");
+				CActorRunLoopTestHelper RunLoopHelper;
+
+				CDistributedActorTestHelperCombined TestState(SocketPath, RunLoopHelper.m_pRunLoop);
+				TestState.f_SeparateServerManager();
+				TestState.f_Init();
+
+				auto LocalActor = TestState.f_GetServer().f_GetManager()->f_ConstructActor<CPriorityTestActor>();
+				TestState.f_Publish<CPriorityTestActor>(LocalActor, "Test");
+				CStr SubscriptionID = TestState.f_Subscribe("Test");
+				auto Actor = TestState.f_GetRemoteActor<CPriorityTestActor>(SubscriptionID);
+
+				// Rapid switching between priorities
+				for (umint iSwitch = 0; iSwitch < 5; ++iSwitch)
+				{
+					uint8 PriorityHigh, PriorityLow;
 					{
 						CPriorityScope HighPriority(CPriorityScope::mc_PriorityHigh);
-
-						uint8 Priority1 = Actor.f_CallActor(&CPriorityTestActor::f_GetCallPriority)().f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout);
-						uint8 Priority2 = Actor.f_CallActor(&CPriorityTestActor::f_GetCallPriority)().f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout);
-						uint8 Priority3 = Actor.f_CallActor(&CPriorityTestActor::f_GetCallPriority)().f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout);
-
-						DMibExpect(Priority1, ==, uint8(64));
-						DMibExpect(Priority2, ==, uint8(64));
-						DMibExpect(Priority3, ==, uint8(64));
+						PriorityHigh = Actor.f_CallActor(&CPriorityTestActor::f_GetCallPriority)().f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout);
 					}
-				}
-				{
-					DMibTestPath("Rapid priority switching");
-					CActorRunLoopTestHelper RunLoopHelper;
-
-					CDistributedActorTestHelperCombined TestState(SocketPath, RunLoopHelper.m_pRunLoop);
-					TestState.f_SeparateServerManager();
-					TestState.f_Init();
-
-					auto LocalActor = TestState.f_GetServer().f_GetManager()->f_ConstructActor<CPriorityTestActor>();
-					TestState.f_Publish<CPriorityTestActor>(LocalActor, "Test");
-					CStr SubscriptionID = TestState.f_Subscribe("Test");
-					auto Actor = TestState.f_GetRemoteActor<CPriorityTestActor>(SubscriptionID);
-
-					// Rapid switching between priorities
-					for (umint iSwitch = 0; iSwitch < 5; ++iSwitch)
 					{
-						uint8 PriorityHigh, PriorityLow;
-						{
-							CPriorityScope HighPriority(CPriorityScope::mc_PriorityHigh);
-							PriorityHigh = Actor.f_CallActor(&CPriorityTestActor::f_GetCallPriority)().f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout);
-						}
-						{
-							CPriorityScope LowPriority(CPriorityScope::mc_PriorityLow);
-							PriorityLow = Actor.f_CallActor(&CPriorityTestActor::f_GetCallPriority)().f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout);
-						}
-
-						DMibExpect(PriorityHigh, ==, uint8(64))(ETestFlag_Aggregated);
-						DMibExpect(PriorityLow, ==, uint8(192))(ETestFlag_Aggregated);
+						CPriorityScope LowPriority(CPriorityScope::mc_PriorityLow);
+						PriorityLow = Actor.f_CallActor(&CPriorityTestActor::f_GetCallPriority)().f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout);
 					}
-				}
-			};
-		}
 
-	public:
-		void f_DoTests()
-		{
-			DMibTestCategory("Distributed Actor Priority")
-			{
-				fp_CPriorityScopeTests();
-				fp_CoroutineSuspensionTests();
-				fp_RemoteCallPriorityTests();
-				fp_ReconnectRecoveryTests();
-				fp_MixedPriorityTests();
-			};
-		}
-	};
+					DMibExpect(PriorityHigh, ==, uint8(64))(ETestFlag_Aggregated);
+					DMibExpect(PriorityLow, ==, uint8(192))(ETestFlag_Aggregated);
+				}
+			}
+		};
+	}
 
 	DMibTestRegister(CDistributedActorPriority_Tests, Malterlib::Concurrency::DistributedActorPriority);
 }

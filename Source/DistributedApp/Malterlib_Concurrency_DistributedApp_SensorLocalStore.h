@@ -20,6 +20,15 @@ namespace NMib::NConcurrency
 			NStorage::TCOptional<fp32> m_PauseReportingFor;
 		};
 
+		struct CCleanupHelper
+		{
+			bool f_Init(NDatabase::CDatabaseActor::CTransactionWrite &_WriteTransaction, NStr::CStr const &_Prefix, NTime::CTime &o_Time);
+			bool f_DeleteOne(NDatabase::CDatabaseActor::CTransactionWrite &_WriteTransaction, NTime::CTime &o_Time);
+
+		private:
+			NDatabase::CDatabaseCursorWrite mp_iReadingByTime = NDatabase::CDatabaseCursorWrite::fs_InitEmpty();
+		};
+
 		CDistributedAppSensorStoreLocal(TCActor<CActorDistributionManager> const &_DistributionManager, TCActor<CDistributedActorTrustManager> const &_TrustManager);
 		~CDistributedAppSensorStoreLocal();
 
@@ -69,15 +78,6 @@ namespace NMib::NConcurrency
 		TCFuture<uint32> f_SnoozeSensors(NContainer::TCSet<CDistributedAppSensorReporter::CSensorInfoKey> _SensorInfoKeys, NTime::CTimeSpan _SnoozeDuration);
 
 		TCFuture<NDatabase::CDatabaseActor::CTransactionWrite> f_PrepareForCleanup(NDatabase::CDatabaseActor::CTransactionWrite _WriteTransaction);
-
-		struct CCleanupHelper
-		{
-			bool f_Init(NDatabase::CDatabaseActor::CTransactionWrite &_WriteTransaction, NStr::CStr const &_Prefix, NTime::CTime &o_Time);
-			bool f_DeleteOne(NDatabase::CDatabaseActor::CTransactionWrite &_WriteTransaction, NTime::CTime &o_Time);
-
-		private:
-			NDatabase::CDatabaseCursorWrite mp_iReadingByTime = NDatabase::CDatabaseCursorWrite::fs_InitEmpty();
-		};
 
 	private:
 		struct CInternal;

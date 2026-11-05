@@ -102,17 +102,12 @@ namespace NMib::NConcurrency
 		template <typename t_CReturn, typename ...tp_CParams>
 		struct TCStreamingFunctionHelper<t_CReturn (tp_CParams ...p_Params)>
 		{
-			static constexpr umint mc_nParams = sizeof...(tp_CParams);
-			static constexpr bool mc_bIsFuture = TCIsFuture<t_CReturn>::mc_Value;
-			static constexpr bool mc_bIsAsyncGenerator = TCIsAsyncGenerator<t_CReturn>::mc_Value;
 			using CReturnType = typename NPrivate::TCGetReturnType<t_CReturn>::CType;
 			using CResultType = NConcurrency::TCAsyncResult<CReturnType>;
 			using CAsyncGeneratorType = typename TCIsAsyncGenerator<t_CReturn>::CType;
 
-			static_assert(mc_bIsFuture || mc_bIsAsyncGenerator);
-
 			static auto fs_Functor(NStr::CStr const &_FunctionID)
-				requires (mc_bIsFuture)
+				requires (TCIsFuture<t_CReturn>::mc_Value)
 			{
 				return [_FunctionID](NTraits::TCDecay<tp_CParams> ...p_Params) -> t_CReturn
 					{
@@ -177,7 +172,7 @@ namespace NMib::NConcurrency
 			}
 
 			static auto fs_Functor(NStr::CStr const &_FunctionID)
-				requires (mc_bIsAsyncGenerator)
+				requires (TCIsAsyncGenerator<t_CReturn>::mc_Value)
 			{
 				return [_FunctionID](NTraits::TCDecay<tp_CParams> ...p_Params) -> t_CReturn
 					{
@@ -409,6 +404,12 @@ namespace NMib::NConcurrency
 					return Stream.f_MoveStorage();
 				}
 			}
+
+			static constexpr bool mc_bIsFuture = TCIsFuture<t_CReturn>::mc_Value;
+			static constexpr bool mc_bIsAsyncGenerator = TCIsAsyncGenerator<t_CReturn>::mc_Value;
+			static constexpr umint mc_nParams = sizeof...(tp_CParams);
+
+			static_assert(mc_bIsFuture || mc_bIsAsyncGenerator);
 		};
 
 		template <typename t_CReturn, typename ...tp_CParams>

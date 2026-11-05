@@ -20,40 +20,6 @@ namespace NMib::NConcurrency
 	/// Common functionality for TCAsyncResult
 	struct CAsyncResult
 	{
-	private:
-		template <typename t_CType2>
-		friend struct TCAsyncResult;
-
-		enum EDataType
-		{
-			EDataType_Exception    = 0
-			, EDataType_HasBeenSet = 1
-			, EDataType_None       = 2
-		};
-
-		union CDataUnion
-		{
-			CDataUnion();
-			~CDataUnion();
-
-			inline_always EDataType f_DataType() const;
-
-			CDataUnion(CDataUnion const &_Other);
-			CDataUnion(CDataUnion &&_Other);
-			CDataUnion &operator = (CDataUnion const &_Other);
-			CDataUnion &operator = (CDataUnion &&_Other);
-
-			NException::CExceptionPointer m_pException;
-			umint m_DataType;
-		};
-
-		CDataUnion mp_Data;
-
-	public:
-#if DMibConfig_Concurrency_DebugActorCallstacks
-		CAsyncCallstacks m_Callstacks;
-#endif
-	public:
 		CAsyncResult();
 		CAsyncResult(CAsyncResult const &_Other);
 		CAsyncResult(CAsyncResult &&_Other);
@@ -86,8 +52,42 @@ namespace NMib::NConcurrency
 
 		explicit operator bool () const; ///< Check if async result is has a valid value set: `if (_Result)`
 		bool f_IsSet() const; ///< Check if async result is has a valid value set: `if (_Result.f_IsSet())`
+
 	private:
+		template <typename t_CType2>
+		friend struct TCAsyncResult;
+
+		enum EDataType
+		{
+			EDataType_Exception    = 0
+			, EDataType_HasBeenSet = 1
+			, EDataType_None       = 2
+		};
+
+		union CDataUnion
+		{
+			CDataUnion();
+			CDataUnion(CDataUnion const &_Other);
+			CDataUnion(CDataUnion &&_Other);
+			~CDataUnion();
+
+			inline_always EDataType f_DataType() const;
+
+			CDataUnion &operator = (CDataUnion const &_Other);
+			CDataUnion &operator = (CDataUnion &&_Other);
+
+			NException::CExceptionPointer m_pException;
+			umint m_DataType;
+		};
+
 		[[noreturn]] void fp_AccessSlowPath() const;
+
+		CDataUnion mp_Data;
+
+	public: // NOLINT(malterlib-member-order): m_Callstacks follows mp_Data, as data member order decides initialization, destruction and layout
+#if DMibConfig_Concurrency_DebugActorCallstacks
+		CAsyncCallstacks m_Callstacks;
+#endif
 	};
 
 	/** \brief Used to represent a result of an async operation
@@ -102,14 +102,12 @@ namespace NMib::NConcurrency
 
 		using CValue = t_CType;
 
-		NStorage::TCAggregateSimple<t_CType> m_ResultAggregate;
-
-	public:
 		TCAsyncResult() = default;
 		~TCAsyncResult();
 		TCAsyncResult(TCAsyncResult const &_Other);
-		TCAsyncResult &operator = (TCAsyncResult const &_Other);
 		TCAsyncResult(TCAsyncResult &&_Other);
+
+		TCAsyncResult &operator = (TCAsyncResult const &_Other);
 		TCAsyncResult &operator = (TCAsyncResult &&_Other);
 
 		void f_Clear();
@@ -138,6 +136,8 @@ namespace NMib::NConcurrency
 
 		template <typename tf_CStr>
 		void f_Format(tf_CStr &o_Str) const;
+
+		NStorage::TCAggregateSimple<t_CType> m_ResultAggregate;
 	};
 
 	template <>
@@ -148,7 +148,6 @@ namespace NMib::NConcurrency
 
 		using CValue = void;
 
-	public:
 		TCAsyncResult();
 		~TCAsyncResult();
 		TCAsyncResult(TCAsyncResult &&_Other);
@@ -183,22 +182,25 @@ namespace NMib::NConcurrency
 		template <typename t_CType>
 		struct TCIsAsyncResult
 		{
-			static constexpr bool mc_Value = false;
 			using CValue = void;
+
+			static constexpr bool mc_Value = false;
 		};
 
 		template <typename t_CType>
 		struct TCIsAsyncResult<TCAsyncResult<t_CType>>
 		{
-			static constexpr bool mc_Value = true;
 			using CValue = t_CType;
+
+			static constexpr bool mc_Value = true;
 		};
 
 		template <typename t_CType>
 		struct TCIsWrapped
 		{
-			static constexpr bool mc_Value = false;
 			using CValue = void;
+
+			static constexpr bool mc_Value = false;
 		};
 	}
 
@@ -269,8 +271,9 @@ namespace NMib::NConcurrency
 		template <typename t_CType>
 		struct TCIsWrapped<TCWrapped<t_CType>>
 		{
-			static constexpr bool mc_Value = true;
 			using CValue = t_CType;
+
+			static constexpr bool mc_Value = true;
 		};
 	}
 #if !DMibConfig_Concurrency_DebugActorCallstacks

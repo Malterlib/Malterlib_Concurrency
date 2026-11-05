@@ -113,8 +113,9 @@ namespace NMib::NConcurrency
 	{
 		TCConcurrentRunQueueEntryHolder(t_CBaseEntry *_pEntry);
 		TCConcurrentRunQueueEntryHolder(TCConcurrentRunQueueEntryHolder &&_Other);
-		TCConcurrentRunQueueEntryHolder &operator = (TCConcurrentRunQueueEntryHolder &&_Other);
 		~TCConcurrentRunQueueEntryHolder();
+
+		TCConcurrentRunQueueEntryHolder &operator = (TCConcurrentRunQueueEntryHolder &&_Other);
 
 		bool f_IsEmpty() const;
 		t_CBaseEntry *operator -> ();

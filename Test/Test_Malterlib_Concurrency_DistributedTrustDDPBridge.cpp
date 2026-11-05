@@ -28,131 +28,133 @@ namespace
 
 	struct CDistributedDDPBridge_Tests : public NMib::NTest::CTest
 	{
-		void f_DoTests()
-		{
-			DMibTestSuite("DDP")
-			{
-				CActorRunLoopTestHelper RunLoopHelper;
-
-				CStr ProgramDirectory = NFile::CFile::fs_GetProgramDirectory();
-				CStr RootDirectory = ProgramDirectory + "/DistributedDDPBridgeTests";
-
-				fg_TestAddCleanupPath(RootDirectory);
-
-				CTrustManagerTestHelper ServerState;
-				CTrustManagerTestHelper ClientState;
-
-				TCActor<CDistributedActorTrustManager> ServerTrustManager = ServerState.f_TrustManager("Server");
-				TCActor<CDistributedActorTrustManager> ClientTrustManager = ClientState.f_TrustManager("Client");
-
-				CDistributedActorTrustManager_Address ServerAddress;
-
-				bool bAuthenticatedUnix = fg_IsAuthenticatedUnixSupported();
-				if (bAuthenticatedUnix)
-					ServerAddress.m_URL = "wsa://[UNIX(666):{}]/"_f << fg_GetSafeUnixSocketPath("{}/server.sock"_f << RootDirectory);
-				else
-					ServerAddress.m_URL = "wss://[UNIX(666):{}]/"_f << fg_GetSafeUnixSocketPath("{}/server.sock"_f << RootDirectory);
-
-				ServerTrustManager(&CDistributedActorTrustManager::f_AddListen, ServerAddress, 0).f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout);
-
-				{
-					auto TrustTicket = ServerTrustManager(&CDistributedActorTrustManager::f_GenerateConnectionTicket, ServerAddress, nullptr, nullptr)
-						.f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout)
-					;
-					ClientTrustManager(&CDistributedActorTrustManager::f_AddClientConnection, TrustTicket.m_Ticket, 30.0, -1, 0).f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout);
-				}
-
-				TCActor<CDistributedTrustDDPBridge> DdpBridge;
-				DdpBridge = fg_ConstructActor<CDistributedTrustDDPBridge>(ServerTrustManager);
-
-				DdpBridge(&CDistributedTrustDDPBridge::f_Startup).f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout / 3);
-
-				TCActor<CActor> HandlerActor{fg_Construct()};
-
-				CActorSubscription HandlerSubscription = DdpBridge
-					(
-						&CDistributedTrustDDPBridge::f_RegisterMethods
-						, fg_CreateVector<CDistributedTrustDDPBridge::CMethod>
-						(
-							{
-								"testMethod"
-								, g_ActorFunctor(HandlerActor) / [](NContainer::TCVector<NEncoding::CEJsonSorted> _Params) mutable -> TCFuture<NEncoding::CEJsonSorted>
-								{
-									if (_Params[0].f_GetMember("Invalid"))
-										co_return DMibErrorInstance("Invalid params");
-
-									auto &HostInfo = fg_GetCallingHostInfo();
-									co_return NEncoding::CEJsonSorted
-										{
-											"Result"_= 5
-											, "HostID"_= HostInfo.f_GetRealHostID()
-										}
-									;
-								}
-							}
-						)
-					)
-					.f_CallSync()
-				;
-				auto ConnectToURL = ServerAddress.m_URL;
-				ConnectToURL.f_SetPath({"ActorDDPBridge"});
-
-				auto &ClientDatabase = ClientState.m_Database->f_AccessInternal();
-
-				auto pClientConnection = ClientDatabase.m_ClientConnections.f_FindAny();
-
-				CSSLSettings ClientSettings;
-				ClientSettings.m_CACertificateData = pClientConnection->m_PublicServerCertificate;
-				ClientSettings.m_PrivateKeyData = ClientDatabase.m_BasicConfig.m_CAPrivateKey;
-				ClientSettings.m_PublicCertificateData = pClientConnection->m_PublicClientCertificate;
-
-				NNetwork::FVirtualSocketFactory fClientSocketFactory;
-				if (bAuthenticatedUnix)
-				{
-					NStorage::TCSharedPointer<CAuthenticatedUnixContext> pClientContext = fg_Construct(CAuthenticatedUnixContext::EType::mc_Client, ClientSettings);
-					fClientSocketFactory = CSocket_AuthenticatedUnix::fs_GetFactory(pClientContext);
-				}
-				else
-				{
-					NStorage::TCSharedPointer<CSSLContext> pClientContext = fg_Construct(CSSLContext::EType_Client, ClientSettings);
-					fClientSocketFactory = CSocket_SSL::fs_GetFactory(pClientContext);
-				}
-
-				TCActor<CDDPClient> Client = fg_ConstructActor<CDDPClient>(ConnectToURL, "", fg_Default(), "", fClientSocketFactory);
-
-				CDDPClient::CConnectInfo ConnectionInfo = Client(&CDDPClient::f_Connect, "", "", "", "", 20.0, nullptr).f_CallSync();
-
-				DMibExpect(ConnectionInfo.m_UserID, ==, "");
-
-				CEJsonSorted MethodParams =
-					{
-						"Test"_= "Test"
-					}
-				;
-				CEJsonSorted MethodResult = Client(&CDDPClient::f_Method, CStr("testMethod"), fg_CreateVector(MethodParams)).f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout / 3);
-
-				DMibExpect(MethodResult["HostID"].f_String(), ==, ClientDatabase.m_BasicConfig.m_HostID);
-
-				auto fCallInvalidParams = [&]
-					{
-						CEJsonSorted InvalidMethodParams =
-							{
-								"Invalid"_= "Test"
-							}
-						;
-						Client(&CDDPClient::f_Method, CStr("testMethod"), fg_CreateVector(InvalidMethodParams)).f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout / 3);
-					}
-				;
-				DMibExpectException(fCallInvalidParams(), DMibErrorInstance("exception: Invalid params"));
-
-				fg_Exchange(HandlerSubscription, nullptr)->f_Destroy().f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout);
-				DMibExpectException(fCallInvalidParams(), DMibErrorInstance("method-not-found: Method not found"));
-
-				ServerTrustManager->f_BlockDestroy(RunLoopHelper.m_pRunLoop->f_ActorDestroyLoop());
-				ClientTrustManager->f_BlockDestroy(RunLoopHelper.m_pRunLoop->f_ActorDestroyLoop());
-			};
-		}
+		void f_DoTests();
 	};
+
+	void CDistributedDDPBridge_Tests::f_DoTests()
+	{
+		DMibTestSuite("DDP")
+		{
+			CActorRunLoopTestHelper RunLoopHelper;
+
+			CStr ProgramDirectory = NFile::CFile::fs_GetProgramDirectory();
+			CStr RootDirectory = ProgramDirectory + "/DistributedDDPBridgeTests";
+
+			fg_TestAddCleanupPath(RootDirectory);
+
+			CTrustManagerTestHelper ServerState;
+			CTrustManagerTestHelper ClientState;
+
+			TCActor<CDistributedActorTrustManager> ServerTrustManager = ServerState.f_TrustManager("Server");
+			TCActor<CDistributedActorTrustManager> ClientTrustManager = ClientState.f_TrustManager("Client");
+
+			CDistributedActorTrustManager_Address ServerAddress;
+
+			bool bAuthenticatedUnix = fg_IsAuthenticatedUnixSupported();
+			if (bAuthenticatedUnix)
+				ServerAddress.m_URL = "wsa://[UNIX(666):{}]/"_f << fg_GetSafeUnixSocketPath("{}/server.sock"_f << RootDirectory);
+			else
+				ServerAddress.m_URL = "wss://[UNIX(666):{}]/"_f << fg_GetSafeUnixSocketPath("{}/server.sock"_f << RootDirectory);
+
+			ServerTrustManager(&CDistributedActorTrustManager::f_AddListen, ServerAddress, 0).f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout);
+
+			{
+				auto TrustTicket = ServerTrustManager(&CDistributedActorTrustManager::f_GenerateConnectionTicket, ServerAddress, nullptr, nullptr)
+					.f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout)
+				;
+				ClientTrustManager(&CDistributedActorTrustManager::f_AddClientConnection, TrustTicket.m_Ticket, 30.0, -1, 0).f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout);
+			}
+
+			TCActor<CDistributedTrustDDPBridge> DdpBridge;
+			DdpBridge = fg_ConstructActor<CDistributedTrustDDPBridge>(ServerTrustManager);
+
+			DdpBridge(&CDistributedTrustDDPBridge::f_Startup).f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout / 3);
+
+			TCActor<CActor> HandlerActor{fg_Construct()};
+
+			CActorSubscription HandlerSubscription = DdpBridge
+				(
+					&CDistributedTrustDDPBridge::f_RegisterMethods
+					, fg_CreateVector<CDistributedTrustDDPBridge::CMethod>
+					(
+						{
+							"testMethod"
+							, g_ActorFunctor(HandlerActor) / [](NContainer::TCVector<NEncoding::CEJsonSorted> _Params) mutable -> TCFuture<NEncoding::CEJsonSorted>
+							{
+								if (_Params[0].f_GetMember("Invalid"))
+									co_return DMibErrorInstance("Invalid params");
+
+								auto &HostInfo = fg_GetCallingHostInfo();
+								co_return NEncoding::CEJsonSorted
+									{
+										"Result"_= 5
+										, "HostID"_= HostInfo.f_GetRealHostID()
+									}
+								;
+							}
+						}
+					)
+				)
+				.f_CallSync()
+			;
+			auto ConnectToURL = ServerAddress.m_URL;
+			ConnectToURL.f_SetPath({"ActorDDPBridge"});
+
+			auto &ClientDatabase = ClientState.m_Database->f_AccessInternal();
+
+			auto pClientConnection = ClientDatabase.m_ClientConnections.f_FindAny();
+
+			CSSLSettings ClientSettings;
+			ClientSettings.m_CACertificateData = pClientConnection->m_PublicServerCertificate;
+			ClientSettings.m_PrivateKeyData = ClientDatabase.m_BasicConfig.m_CAPrivateKey;
+			ClientSettings.m_PublicCertificateData = pClientConnection->m_PublicClientCertificate;
+
+			NNetwork::FVirtualSocketFactory fClientSocketFactory;
+			if (bAuthenticatedUnix)
+			{
+				NStorage::TCSharedPointer<CAuthenticatedUnixContext> pClientContext = fg_Construct(CAuthenticatedUnixContext::EType::mc_Client, ClientSettings);
+				fClientSocketFactory = CSocket_AuthenticatedUnix::fs_GetFactory(pClientContext);
+			}
+			else
+			{
+				NStorage::TCSharedPointer<CSSLContext> pClientContext = fg_Construct(CSSLContext::EType_Client, ClientSettings);
+				fClientSocketFactory = CSocket_SSL::fs_GetFactory(pClientContext);
+			}
+
+			TCActor<CDDPClient> Client = fg_ConstructActor<CDDPClient>(ConnectToURL, "", fg_Default(), "", fClientSocketFactory);
+
+			CDDPClient::CConnectInfo ConnectionInfo = Client(&CDDPClient::f_Connect, "", "", "", "", 20.0, nullptr).f_CallSync();
+
+			DMibExpect(ConnectionInfo.m_UserID, ==, "");
+
+			CEJsonSorted MethodParams =
+				{
+					"Test"_= "Test"
+				}
+			;
+			CEJsonSorted MethodResult = Client(&CDDPClient::f_Method, CStr("testMethod"), fg_CreateVector(MethodParams)).f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout / 3);
+
+			DMibExpect(MethodResult["HostID"].f_String(), ==, ClientDatabase.m_BasicConfig.m_HostID);
+
+			auto fCallInvalidParams = [&]
+				{
+					CEJsonSorted InvalidMethodParams =
+						{
+							"Invalid"_= "Test"
+						}
+					;
+					Client(&CDDPClient::f_Method, CStr("testMethod"), fg_CreateVector(InvalidMethodParams)).f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout / 3);
+				}
+			;
+			DMibExpectException(fCallInvalidParams(), DMibErrorInstance("exception: Invalid params"));
+
+			fg_Exchange(HandlerSubscription, nullptr)->f_Destroy().f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout);
+			DMibExpectException(fCallInvalidParams(), DMibErrorInstance("method-not-found: Method not found"));
+
+			ServerTrustManager->f_BlockDestroy(RunLoopHelper.m_pRunLoop->f_ActorDestroyLoop());
+			ClientTrustManager->f_BlockDestroy(RunLoopHelper.m_pRunLoop->f_ActorDestroyLoop());
+		};
+	}
 
 	DMibTestRegister(CDistributedDDPBridge_Tests, Malterlib::Concurrency);
 }

@@ -122,6 +122,14 @@ namespace NMib::NConcurrency
 
 		static DMibSuppressUndefinedSanitizer TCActorInternal<CActor> *fs_GetRealActor(NConcurrency::CActorHolder *_pActorInternal);
 
+		static constexpr bool mc_bAllowInternalAccess = false;
+		static constexpr bool mc_bImmediateDelete = false;
+		static constexpr EPriority mc_Priority = EPriority_Normal;
+		static constexpr bool mc_bIsAlwaysAlive = false;
+		static constexpr bool mc_bIsAlwaysAliveImpl = false;
+
+		NPrivate::CThisActor self; // NOLINT(malterlib-variable-naming): the name the actor call syntax uses
+
 	protected:
 		template <typename tf_CReturnType, typename tf_FFunction, typename ...tfp_CParams>
 		inline_always tf_CReturnType fp_DispatchWithReturnCoroutine(tf_FFunction &&_fToDisptach, tfp_CParams ...p_Params);
@@ -152,16 +160,6 @@ namespace NMib::NConcurrency
 
 		DMibActorPhaseEntry(Destroy) TCFuture<void> fp_DestroyInternal();
 
-	public:
-		static constexpr bool mc_bAllowInternalAccess = false;
-		static constexpr bool mc_bImmediateDelete = false;
-		static constexpr EPriority mc_Priority = EPriority_Normal;
-		static constexpr bool mc_bIsAlwaysAlive = false;
-		static constexpr bool mc_bIsAlwaysAliveImpl = false;
-
-		NPrivate::CThisActor self; // NOLINT(malterlib-variable-naming): the name the actor call syntax uses
-
-	private:
 		DMibListLinkDS_List(CFutureCoroutineContext, m_Link) mp_SuspendedCoroutines;
 	};
 

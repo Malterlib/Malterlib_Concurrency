@@ -14,17 +14,19 @@ using namespace NMib::NConcurrency::NDDPBridgeHelper;
 struct CDDPBridgeHelper : public CApplication
 {
 private:
-	aint f_Main()
-	{
-		return NConcurrency::fg_RunApp
-			(
-				[]
-				{
-					return fg_ConstructActor<CDDPBridgeHelperActor>();
-				}
-			)
-		;
-	}
+	aint f_Main();
 };
+
+aint CDDPBridgeHelper::f_Main()
+{
+	return NConcurrency::fg_RunApp
+		(
+			[]
+			{
+				return fg_ConstructActor<CDDPBridgeHelperActor>();
+			}
+		)
+	;
+}
 
 DAppImplement(CDDPBridgeHelper);

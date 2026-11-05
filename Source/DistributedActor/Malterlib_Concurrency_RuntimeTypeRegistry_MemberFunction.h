@@ -58,17 +58,18 @@ namespace NMib::NConcurrency
 	template <auto t_fMemberFunction>
 	struct TCAlternateHashesForMemberFunction
 	{
-		static constexpr bool mc_bHasAlternates = false;
 		using CAlternates = NMeta::TCTypeList<>;
+
+		static constexpr bool mc_bHasAlternates = false;
 	};
 
 #define DMibConcurrencyRegisterMemberFunctionAlternateHashes(d_MemberFunction, ...) \
 	template <> \
 	struct NMib::NConcurrency::TCAlternateHashesForMemberFunction<&d_MemberFunction> \
 	{ \
-		static constexpr bool mc_bHasAlternates = true; \
 		using CAlternates = NMeta::TCTypeList<__VA_ARGS__>; \
 		using CAlternatesArray = TCGetAlternatesHashesArray<CAlternates>; \
+		static constexpr bool mc_bHasAlternates = true; \
 	};
 }
 

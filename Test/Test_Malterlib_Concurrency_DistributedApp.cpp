@@ -27,417 +27,426 @@ namespace
 {
 	struct CInitReconnectDelay
 	{
-		CInitReconnectDelay()
-		{
-			// Override reconnect delay for whole process
-			CDistributedAppActor_Settings::fs_GetGlobalDefaultSettings().m_ReconnectDelay = 1_ms;
-		}
+		CInitReconnectDelay();
 	};
+
+	CInitReconnectDelay::CInitReconnectDelay()
+	{
+		// Override reconnect delay for whole process
+		CDistributedAppActor_Settings::fs_GetGlobalDefaultSettings().m_ReconnectDelay = 1_ms;
+	}
 
 	assure_used CInitReconnectDelay g_InitReconnectDelay;
 
 	struct CTestDistributedApp : public CDistributedAppActor
 	{
-		CTestDistributedApp(CStr const &_Name, bool _bInProcessOnly = false, CStr const &_Enclave = {})
-			: CDistributedAppActor
+		CTestDistributedApp(CStr const &_Name, bool _bInProcessOnly = false, CStr const &_Enclave = {});
+
+		void fp_BuildCommandLine(CDistributedAppCommandLineSpecification &o_CommandLine) override;
+
+		TCFuture<void> fp_StartApp(NEncoding::CEJsonSorted const _Params) override;
+
+		TCFuture<void> fp_StopApp() override;
+	};
+
+	CTestDistributedApp::CTestDistributedApp(CStr const &_Name, bool _bInProcessOnly, CStr const &_Enclave)
+		: CDistributedAppActor
+		(
+			CDistributedAppActor_Settings(_Name)
+			.f_RootDirectory(NFile::CFile::fs_GetProgramDirectory() / _Name)
+			.f_Enclave(_Enclave)
+			.f_SeparateDistributionManager(true)
+			.f_InProcessCommandLineOnly(_bInProcessOnly)
+			.f_KeySetting(NConcurrency::CDistributedActorTestKeySettings{})
+			.f_MinimumCryptoStrength(NCryptography::ECryptoStrength::mc_EquivalentSymmetric128bit)
+			.f_DefaultCommandLineFunctionalies(EDefaultCommandLineFunctionality_None)
+		)
+	{
+	}
+
+	void CTestDistributedApp::fp_BuildCommandLine(CDistributedAppCommandLineSpecification &o_CommandLine)
+	{
+		auto Section = o_CommandLine.f_AddSection("Test1", "Testing test 2");
+
+		Section.f_RegisterCommand
 			(
-				CDistributedAppActor_Settings(_Name)
-				.f_RootDirectory(NFile::CFile::fs_GetProgramDirectory() / _Name)
-				.f_Enclave(_Enclave)
-				.f_SeparateDistributionManager(true)
-				.f_InProcessCommandLineOnly(_bInProcessOnly)
-				.f_KeySetting(NConcurrency::CDistributedActorTestKeySettings{})
-				.f_MinimumCryptoStrength(NCryptography::ECryptoStrength::mc_EquivalentSymmetric128bit)
-				.f_DefaultCommandLineFunctionalies(EDefaultCommandLineFunctionality_None)
-			)
-		{
-		}
-
-		void fp_BuildCommandLine(CDistributedAppCommandLineSpecification &o_CommandLine) override
-		{
-			auto Section = o_CommandLine.f_AddSection("Test1", "Testing test 2");
-
-			Section.f_RegisterCommand
-				(
+				{
+					"Names"_o= _o["--test-actor"]
+					, "Description"_o= "Test 3."
+					, "Options"_o=
 					{
-						"Names"_o= _o["--test-actor"]
-						, "Description"_o= "Test 3."
-						, "Options"_o=
+						"Integer?"_o=
 						{
-							"Integer?"_o=
-							{
-								"Names"_o= _o["--integer"]
-								, "Default"_o= 5
-								, "Description"_o= "Test 1"
-							}
+							"Names"_o= _o["--integer"]
+							, "Default"_o= 5
+							, "Description"_o= "Test 1"
 						}
 					}
-					, [](NEncoding::CEJsonSorted const _Params, NStorage::TCSharedPointer<CCommandLineControl> _pCommandLine) -> TCFuture<uint32>
-					{
-						co_return _Params["Integer"].f_Integer();
-					}
-				)
-			;
+				}
+				, [](NEncoding::CEJsonSorted const _Params, NStorage::TCSharedPointer<CCommandLineControl> _pCommandLine) -> TCFuture<uint32>
+				{
+					co_return _Params["Integer"].f_Integer();
+				}
+			)
+		;
 
-			Section.f_RegisterCommand
-				(
-					{"Names"_o= _o["--test-remote-session"], "Description"_o= "Return 1 for a session through the app's listener."}
-					, [](NEncoding::CEJsonSorted const _Params, NStorage::TCSharedPointer<CCommandLineControl> _pCommandLine) -> TCFuture<uint32>
-					{
-						co_return _pCommandLine->m_ClientInfo.m_UTCOffsetSeconds ? 1 : 0;
-					}
-				)
-			;
+		Section.f_RegisterCommand
+			(
+				{"Names"_o= _o["--test-remote-session"], "Description"_o= "Return 1 for a session through the app's listener."}
+				, [](NEncoding::CEJsonSorted const _Params, NStorage::TCSharedPointer<CCommandLineControl> _pCommandLine) -> TCFuture<uint32>
+				{
+					co_return _pCommandLine->m_ClientInfo.m_UTCOffsetSeconds ? 1 : 0;
+				}
+			)
+		;
 
-			Section.f_RegisterCommand
-				(
-					{"Names"_o= _o["--test-calling-host"], "Description"_o= "Return 1 when the command runs as the app's own host."}
-					, [this](NEncoding::CEJsonSorted const _Params, NStorage::TCSharedPointer<CCommandLineControl> _pCommandLine) -> TCFuture<uint32>
-					{
-						auto &CallingHostInfo = fg_GetCallingHostInfo();
-						bool bOwnHost = CallingHostInfo.f_GetRealHostID() == mp_State.m_HostID;
-						bool bLocalName = CallingHostInfo.f_GetHostInfo().m_FriendlyName.f_EndsWith("(Local Command line)");
+		Section.f_RegisterCommand
+			(
+				{"Names"_o= _o["--test-calling-host"], "Description"_o= "Return 1 when the command runs as the app's own host."}
+				, [this](NEncoding::CEJsonSorted const _Params, NStorage::TCSharedPointer<CCommandLineControl> _pCommandLine) -> TCFuture<uint32>
+				{
+					auto &CallingHostInfo = fg_GetCallingHostInfo();
+					bool bOwnHost = CallingHostInfo.f_GetRealHostID() == mp_State.m_HostID;
+					bool bLocalName = CallingHostInfo.f_GetHostInfo().m_FriendlyName.f_EndsWith("(Local Command line)");
 
-						co_return bOwnHost && bLocalName ? 1 : 0;
-					}
-				)
-			;
+					co_return bOwnHost && bLocalName ? 1 : 0;
+				}
+			)
+		;
 
-			Section.f_RegisterCommand
-				(
-					{"Names"_o= _o["--test-input"], "Description"_o= "Exercise redirected input subscriptions."}
-					, [](CEJsonSorted _Params, NStorage::TCSharedPointer<CCommandLineControl> _pCommandLine) -> TCFuture<uint32>
-					{
-						auto fTextInput = []
-							{
-								return g_ActorFunctor / [](NProcess::EStdInReaderOutputType _Type, CStrIO _Input) -> TCFuture<void>
-									{
-										co_return {};
-									}
-								;
-							}
-						;
-						CActorSubscription Input = (co_await _pCommandLine->f_RegisterForStdIn(fTextInput(), NProcess::EStdInReaderFlag_None)).f_GetSubscription();
-						auto DestroyInput = co_await fg_AsyncDestroy
-							(
-								[&Input]() -> TCFuture<void>
+		Section.f_RegisterCommand
+			(
+				{"Names"_o= _o["--test-input"], "Description"_o= "Exercise redirected input subscriptions."}
+				, [](CEJsonSorted _Params, NStorage::TCSharedPointer<CCommandLineControl> _pCommandLine) -> TCFuture<uint32>
+				{
+					auto fTextInput = []
+						{
+							return g_ActorFunctor / [](NProcess::EStdInReaderOutputType _Type, CStrIO _Input) -> TCFuture<void>
 								{
-									if (Input)
-										co_await fg_Exchange(Input, nullptr)->f_Destroy();
-
 									co_return {};
 								}
-							)
-						;
-
-						auto fOnResize = g_ActorFunctor / [](ICCommandLineControl::CScreenChange _ScreenChange) -> TCFuture<void>
+							;
+						}
+					;
+					CActorSubscription Input = (co_await _pCommandLine->f_RegisterForStdIn(fTextInput(), NProcess::EStdInReaderFlag_None)).f_GetSubscription();
+					auto DestroyInput = co_await fg_AsyncDestroy
+						(
+							[&Input]() -> TCFuture<void>
 							{
+								if (Input)
+									co_await fg_Exchange(Input, nullptr)->f_Destroy();
+
 								co_return {};
 							}
-						;
-						CActorSubscription Screen = (co_await _pCommandLine->f_RegisterForScreenChange(fg_Move(fOnResize))).f_GetSubscription();
-						DMibExpectTrue(Screen);
-						auto DestroyScreen = co_await fg_AsyncDestroy(fg_Move(Screen));
+						)
+					;
 
+					auto fOnResize = g_ActorFunctor / [](ICCommandLineControl::CScreenChange _ScreenChange) -> TCFuture<void>
+						{
+							co_return {};
+						}
+					;
+					CActorSubscription Screen = (co_await _pCommandLine->f_RegisterForScreenChange(fg_Move(fOnResize))).f_GetSubscription();
+					DMibExpectTrue(Screen);
+					auto DestroyScreen = co_await fg_AsyncDestroy(fg_Move(Screen));
+
+					co_await Input->f_Destroy();
+					Input.f_Clear();
+
+					for (bool bBinary : {false, true})
+					{
+						DMibTestPath(bBinary ? "Binary" : "Text");
+						if (bBinary)
+						{
+							auto fOnInput = g_ActorFunctor / [](NProcess::EStdInReaderOutputType _Type, CIOByteVector _Input, CStr _Error) -> TCFuture<void>
+								{
+									co_return {};
+								}
+							;
+							Input = (co_await _pCommandLine->f_RegisterForStdInBinary(fg_Move(fOnInput), NProcess::EStdInReaderFlag_None)).f_GetSubscription();
+						}
+						else
+							Input = (co_await _pCommandLine->f_RegisterForStdIn(fTextInput(), NProcess::EStdInReaderFlag_None)).f_GetSubscription();
+
+						DMibExpectTrue(Input);
 						co_await Input->f_Destroy();
 						Input.f_Clear();
-
-						for (bool bBinary : {false, true})
-						{
-							DMibTestPath(bBinary ? "Binary" : "Text");
-							if (bBinary)
-							{
-								auto fOnInput = g_ActorFunctor / [](NProcess::EStdInReaderOutputType _Type, CIOByteVector _Input, CStr _Error) -> TCFuture<void>
-									{
-										co_return {};
-									}
-								;
-								Input = (co_await _pCommandLine->f_RegisterForStdInBinary(fg_Move(fOnInput), NProcess::EStdInReaderFlag_None)).f_GetSubscription();
-							}
-							else
-								Input = (co_await _pCommandLine->f_RegisterForStdIn(fTextInput(), NProcess::EStdInReaderFlag_None)).f_GetSubscription();
-
-							DMibExpectTrue(Input);
-							co_await Input->f_Destroy();
-							Input.f_Clear();
-						}
-
-						co_return 0;
 					}
-				)
-			;
-		}
 
-		TCFuture<void> fp_StartApp(NEncoding::CEJsonSorted const _Params) override
-		{
-			co_return {};
-		}
+					co_return 0;
+				}
+			)
+		;
+	}
 
-		TCFuture<void> fp_StopApp() override
-		{
-			co_return {};
-		}
-	};
+	TCFuture<void> CTestDistributedApp::fp_StartApp(NEncoding::CEJsonSorted const _Params)
+	{
+		co_return {};
+	}
+
+	TCFuture<void> CTestDistributedApp::fp_StopApp()
+	{
+		co_return {};
+	}
 
 	struct CDistributedApp_Tests : public NMib::NTest::CTest
 	{
+		void f_DoTests();
+
 	private:
-		void fp_RunTests(TCFunction<void (CDistributedAppCommandLineClient &_Client)> &&_fTests, CStr const &_Name, bool _bInProcessOnly = false)
+		void fp_RunTests(TCFunction<void (CDistributedAppCommandLineClient &_Client)> &&_fTests, CStr const &_Name, bool _bInProcessOnly = false);
+	};
+
+	void CDistributedApp_Tests::f_DoTests()
+	{
+		DMibTestSuite("Local socket paths")
 		{
-			CStr ConfigDir = NFile::CFile::fs_GetProgramDirectory() / _Name;
-			fg_TestAddCleanupPath(ConfigDir);
+			using NFile::CFile;
 
-			for (umint iAttempt = 0; iAttempt < 5; ++iAttempt)
+			CDistributedAppActor_Settings Settings("SocketPaths");
+			Settings.m_Enclave = "c2x3u37jzzYBtQGDh";
+			Settings.m_RootDirectory = CFile::fs_GetProgramDirectory();
+			while (Settings.m_RootDirectory.f_GetLen() < 200)
+				Settings.m_RootDirectory /= "LongDeploymentDirectory";
+
+			CStr PlainPath;
+			for (bool bAuthenticated : {false, true})
 			{
-				try
-				{
-					if (NFile::CFile::fs_FileExists(ConfigDir))
-						NFile::CFile::fs_DeleteDirectoryRecursive(ConfigDir);
-					break;
-				}
-				catch (NFile::CExceptionFile const &)
-				{
-				}
+				DMibTestPath(bAuthenticated ? "Authenticated" : "Plain");
+				auto Flags = ELocalSocketFlag::mc_EnclaveSpecific;
+				if (bAuthenticated)
+					Flags |= ELocalSocketFlag::mc_AuthenticatedUnix;
+
+				CStr Path = Settings.f_GetLocalSocketFileName(Flags, Settings.m_Enclave);
+				DMibExpect(Path.f_GetLen(), <=, aint(NSys::NNetwork::fg_GetMaxUnixSocketNameLength()));
+				DMibExpect(Settings.f_GetLocalSocketWildcard(Flags), ==, Path.f_Replace(Settings.m_Enclave, "*"));
+				if (bAuthenticated)
+					DMibExpect(Path, !=, PlainPath);
+				else
+					PlainPath = Path;
+#ifdef DPlatformFamily_Windows
+				DMibExpectFalse(CFile::fs_GetDrive(Path).f_IsEmpty());
+				DMibExpect(Path, ==, CFile::fs_GetExpandedPath(Path));
+#endif
+				CDistributedAppActor_Settings OtherRoot = Settings;
+				OtherRoot.m_RootDirectory /= "Other";
+				DMibExpect(OtherRoot.f_GetLocalSocketFileName(Flags, OtherRoot.m_Enclave), !=, Path);
+				CDistributedAppActor_Settings OtherApp = Settings;
+				OtherApp.m_AppName += "Other";
+				DMibExpect(OtherApp.f_GetLocalSocketFileName(Flags, OtherApp.m_Enclave), !=, Path);
 			}
+		};
 
-			CActorRunLoopTestHelper RunLoopHelper;
+		DMibTestSuite("Enclave socket sweep")
+		{
+			using NFile::CFile;
 
-			auto AppActor = fg_ConstructActor<CTestDistributedApp>(_Name, _bInProcessOnly);
-			AppActor(&CDistributedAppActor::f_StartApp, NEncoding::CEJsonSorted{}, TCActor<CDistiributedAppLogActor>{}, EDistributedAppType_InProcess).f_CallSync(RunLoopHelper.m_pRunLoop);
-			CDistributedAppCommandLineClient CommandLineClient = AppActor(&CDistributedAppActor::f_GetCommandLineClient, RunLoopHelper.m_pRunLoop, nullptr)
-				.f_CallSync(RunLoopHelper.m_pRunLoop)
+			CStr Name = "TestDistAppEnclaveSweep";
+			CStr RootDirectory = CFile::fs_GetProgramDirectory() / Name;
+			fg_TestAddCleanupPath(RootDirectory);
+			if (CFile::fs_FileExists(RootDirectory))
+				CFile::fs_DeleteDirectoryRecursive(RootDirectory);
+			CFile::fs_CreateDirectory(RootDirectory);
+
+			// Other instances' paths are only enclave specific with an enclave of their own
+			CDistributedAppActor_Settings Settings(Name);
+			Settings.m_RootDirectory = RootDirectory;
+			Settings.m_Enclave = NCryptography::fg_RandomID();
+			auto fOtherSocketPath = [&]
+				{
+					return Settings.f_GetLocalSocketFileName(ELocalSocketFlag::mc_EnclaveSpecific, NCryptography::fg_RandomID());
+				}
 			;
 
-			_fTests(CommandLineClient);
+			CStr StalePath = fOtherSocketPath();
+			CFile::fs_CreateDirectoryForFile(StalePath); // Long root directories put sockets in a fallback directory
+			CFile::fs_WriteStringToFile(StalePath, "Stale", false);
+
+			CStr LivePath = fOtherSocketPath();
+			NNetwork::CSocket Live;
+			Live.f_Listen(NNetwork::CSocket::fs_ResolveAddress("UNIX:" + LivePath), nullptr, NNetwork::ENetFlag_None);
+
+			CStr OldStagedPath = NSys::NNetwork::fg_GetStagedUnixSocketPath(fOtherSocketPath());
+			CFile::fs_WriteStringToFile(OldStagedPath, "Leftover", false);
+			CFile::fs_SetWriteTime(OldStagedPath, NTime::CTime::fs_NowUTC() - NTime::CTimeSpanConvert::fs_CreateMinuteSpan(10));
+
+			CStr StartingStagedPath = NSys::NNetwork::fg_GetStagedUnixSocketPath(fOtherSocketPath());
+			CFile::fs_WriteStringToFile(StartingStagedPath, "Starting", false);
+
+			CActorRunLoopTestHelper RunLoopHelper;
+			auto AppActor = fg_ConstructActor<CTestDistributedApp>(Name, false, NCryptography::fg_RandomID());
+			AppActor(&CDistributedAppActor::f_StartApp, NEncoding::CEJsonSorted{}, TCActor<CDistiributedAppLogActor>{}, EDistributedAppType_InProcess).f_CallSync(RunLoopHelper.m_pRunLoop);
+
+			// The sweep runs in the background of the startup
+			NTime::CStopwatch Stopwatch{true};
+			while ((CFile::fs_FileExists(StalePath) || CFile::fs_FileExists(OldStagedPath)) && Stopwatch.f_GetTime() < 60.0)
+				NSys::fg_Thread_Sleep(0.05f);
+
+			DMibExpectFalse(CFile::fs_FileExists(StalePath));
+			DMibExpectFalse(CFile::fs_FileExists(OldStagedPath));
+			DMibExpectTrue(CFile::fs_FileExists(LivePath));
+			DMibExpectTrue(CFile::fs_FileExists(StartingStagedPath));
 
 			AppActor->f_BlockDestroy(RunLoopHelper.m_pRunLoop->f_ActorDestroyLoop());
-		}
+			Live.f_Close();
+		};
 
-	public:
-		void f_DoTests()
+		DMibTestCategory("Send window")
 		{
-			DMibTestSuite("Local socket paths")
+			DMibTestSuite("Parse")
 			{
-				using NFile::CFile;
-
-				CDistributedAppActor_Settings Settings("SocketPaths");
-				Settings.m_Enclave = "c2x3u37jzzYBtQGDh";
-				Settings.m_RootDirectory = CFile::fs_GetProgramDirectory();
-				while (Settings.m_RootDirectory.f_GetLen() < 200)
-					Settings.m_RootDirectory /= "LongDeploymentDirectory";
-
-				CStr PlainPath;
-				for (bool bAuthenticated : {false, true})
-				{
-					DMibTestPath(bAuthenticated ? "Authenticated" : "Plain");
-					auto Flags = ELocalSocketFlag::mc_EnclaveSpecific;
-					if (bAuthenticated)
-						Flags |= ELocalSocketFlag::mc_AuthenticatedUnix;
-
-					CStr Path = Settings.f_GetLocalSocketFileName(Flags, Settings.m_Enclave);
-					DMibExpect(Path.f_GetLen(), <=, aint(NSys::NNetwork::fg_GetMaxUnixSocketNameLength()));
-					DMibExpect(Settings.f_GetLocalSocketWildcard(Flags), ==, Path.f_Replace(Settings.m_Enclave, "*"));
-					if (bAuthenticated)
-						DMibExpect(Path, !=, PlainPath);
-					else
-						PlainPath = Path;
-#ifdef DPlatformFamily_Windows
-					DMibExpectFalse(CFile::fs_GetDrive(Path).f_IsEmpty());
-					DMibExpect(Path, ==, CFile::fs_GetExpandedPath(Path));
-#endif
-					CDistributedAppActor_Settings OtherRoot = Settings;
-					OtherRoot.m_RootDirectory /= "Other";
-					DMibExpect(OtherRoot.f_GetLocalSocketFileName(Flags, OtherRoot.m_Enclave), !=, Path);
-					CDistributedAppActor_Settings OtherApp = Settings;
-					OtherApp.m_AppName += "Other";
-					DMibExpect(OtherApp.f_GetLocalSocketFileName(Flags, OtherApp.m_Enclave), !=, Path);
-				}
-			};
-
-			DMibTestSuite("Enclave socket sweep")
-			{
-				using NFile::CFile;
-
-				CStr Name = "TestDistAppEnclaveSweep";
-				CStr RootDirectory = CFile::fs_GetProgramDirectory() / Name;
-				fg_TestAddCleanupPath(RootDirectory);
-				if (CFile::fs_FileExists(RootDirectory))
-					CFile::fs_DeleteDirectoryRecursive(RootDirectory);
-				CFile::fs_CreateDirectory(RootDirectory);
-
-				// Other instances' paths are only enclave specific with an enclave of their own
-				CDistributedAppActor_Settings Settings(Name);
-				Settings.m_RootDirectory = RootDirectory;
-				Settings.m_Enclave = NCryptography::fg_RandomID();
-				auto fOtherSocketPath = [&]
+				auto fParse = [](CStr const &_Text) -> uint64
 					{
-						return Settings.f_GetLocalSocketFileName(ELocalSocketFlag::mc_EnclaveSpecific, NCryptography::fg_RandomID());
-					}
-				;
-
-				CStr StalePath = fOtherSocketPath();
-				CFile::fs_CreateDirectoryForFile(StalePath); // Long root directories put sockets in a fallback directory
-				CFile::fs_WriteStringToFile(StalePath, "Stale", false);
-
-				CStr LivePath = fOtherSocketPath();
-				NNetwork::CSocket Live;
-				Live.f_Listen(NNetwork::CSocket::fs_ResolveAddress("UNIX:" + LivePath), nullptr, NNetwork::ENetFlag_None);
-
-				CStr OldStagedPath = NSys::NNetwork::fg_GetStagedUnixSocketPath(fOtherSocketPath());
-				CFile::fs_WriteStringToFile(OldStagedPath, "Leftover", false);
-				CFile::fs_SetWriteTime(OldStagedPath, NTime::CTime::fs_NowUTC() - NTime::CTimeSpanConvert::fs_CreateMinuteSpan(10));
-
-				CStr StartingStagedPath = NSys::NNetwork::fg_GetStagedUnixSocketPath(fOtherSocketPath());
-				CFile::fs_WriteStringToFile(StartingStagedPath, "Starting", false);
-
-				CActorRunLoopTestHelper RunLoopHelper;
-				auto AppActor = fg_ConstructActor<CTestDistributedApp>(Name, false, NCryptography::fg_RandomID());
-				AppActor(&CDistributedAppActor::f_StartApp, NEncoding::CEJsonSorted{}, TCActor<CDistiributedAppLogActor>{}, EDistributedAppType_InProcess)
-					.f_CallSync(RunLoopHelper.m_pRunLoop)
-				;
-
-				// The sweep runs in the background of the startup
-				NTime::CStopwatch Stopwatch{true};
-				while ((CFile::fs_FileExists(StalePath) || CFile::fs_FileExists(OldStagedPath)) && Stopwatch.f_GetTime() < 60.0)
-					NSys::fg_Thread_Sleep(0.05f);
-
-				DMibExpectFalse(CFile::fs_FileExists(StalePath));
-				DMibExpectFalse(CFile::fs_FileExists(OldStagedPath));
-				DMibExpectTrue(CFile::fs_FileExists(LivePath));
-				DMibExpectTrue(CFile::fs_FileExists(StartingStagedPath));
-
-				AppActor->f_BlockDestroy(RunLoopHelper.m_pRunLoop->f_ActorDestroyLoop());
-				Live.f_Close();
-			};
-
-			DMibTestCategory("Send window")
-			{
-				DMibTestSuite("Parse")
-				{
-					auto fParse = [](CStr const &_Text) -> uint64
-						{
-							DMibTestPath(_Text.f_IsEmpty() ? CStr("Empty") : _Text);
-
-							uint64 nBytes = 0;
-							CStr Error;
-							DMibExpectTrue(fg_ParseSendWindow(_Text, nBytes, Error));
-							return nBytes;
-						}
-					;
-
-					DMibExpect(fParse(""), ==, uint64(0));
-					DMibExpect(fParse("default"), ==, uint64(0));
-					DMibExpect(fParse("1048576"), ==, uint64(1048576));
-					DMibExpect(fParse("20 MiB"), ==, uint64(20) << 20);
-					DMibExpect(fParse("2m"), ==, uint64(2) << 20);
-					DMibExpect(fParse("512KB"), ==, uint64(512000));
-					DMibExpect(fParse("1gib"), ==, uint64(1) << 30);
-
-					DMibExpect(fParse("10gbit@10ms"), ==, uint64(25000000));
-					DMibExpect(fParse("1gbps@20"), ==, uint64(5000000));
-					DMibExpect(fParse("100mbit@1s"), ==, uint64(25000000));
-					DMibExpect(fParse("8 Mbit @ 500 us"), ==, uint64(1000));
-
-					{
-						DMibTestPath("Invalid");
+						DMibTestPath(_Text.f_IsEmpty() ? CStr("Empty") : _Text);
 
 						uint64 nBytes = 0;
 						CStr Error;
-						DMibExpectTrue(!fg_ParseSendWindow("10 parsecs", nBytes, Error));
-						DMibExpectTrue(!fg_ParseSendWindow("10gbit@", nBytes, Error));
-						DMibExpectTrue(!fg_ParseSendWindow("5 TiB", nBytes, Error));
+						DMibExpectTrue(fg_ParseSendWindow(_Text, nBytes, Error));
+						return nBytes;
 					}
+				;
 
-					{
-						DMibTestPath("Format");
+				DMibExpect(fParse(""), ==, uint64(0));
+				DMibExpect(fParse("default"), ==, uint64(0));
+				DMibExpect(fParse("1048576"), ==, uint64(1048576));
+				DMibExpect(fParse("20 MiB"), ==, uint64(20) << 20);
+				DMibExpect(fParse("2m"), ==, uint64(2) << 20);
+				DMibExpect(fParse("512KB"), ==, uint64(512000));
+				DMibExpect(fParse("1gib"), ==, uint64(1) << 30);
 
-						DMibExpect(fg_FormatSendWindow(0), ==, CStr("default"));
-						DMibExpect(fg_FormatSendWindow(uint64(20) << 20), ==, CStr("20 MiB"));
-						DMibExpect(fg_FormatSendWindow(1536), ==, CStr("1536 B"));
-						DMibExpect(fg_FormatSendWindow(25000000), ==, CStr("25000000 B"));
-					}
-				};
-			};
+				DMibExpect(fParse("10gbit@10ms"), ==, uint64(25000000));
+				DMibExpect(fParse("1gbps@20"), ==, uint64(5000000));
+				DMibExpect(fParse("100mbit@1s"), ==, uint64(25000000));
+				DMibExpect(fParse("8 Mbit @ 500 us"), ==, uint64(1000));
 
-			DMibTestCategory("Command line")
-			{
-				DMibTestSuite("RedirectedInputResize")
 				{
-					if (!(NTest::fg_TestReportFlags() & NTest::ETestReportFlag_ProcessRecursive))
-					{
-						CStr Output;
-						CStr Error;
-						uint32 ExitCode = 1;
-						bool bLaunched = NProcess::CProcessLaunch::fs_LaunchBlock
-							(
-								NFile::CFile::fs_GetProgramPath()
-								, {"--test", NTest::fg_TestGetCurrentPath(), "--process-recursive"}
-								, Output
-								, Error
-								, ExitCode
-							)
-						;
-						DMibExpectTrue(bLaunched);
-						DMibExpect(ExitCode, ==, 0);
-						if (ExitCode)
-							DMibConErrOut("{}{}", Output, Error);
+					DMibTestPath("Invalid");
 
-						return;
-					}
+					uint64 nBytes = 0;
+					CStr Error;
+					DMibExpectTrue(!fg_ParseSendWindow("10 parsecs", nBytes, Error));
+					DMibExpectTrue(!fg_ParseSendWindow("10gbit@", nBytes, Error));
+					DMibExpectTrue(!fg_ParseSendWindow("5 TiB", nBytes, Error));
+				}
+
+				{
+					DMibTestPath("Format");
+
+					DMibExpect(fg_FormatSendWindow(0), ==, CStr("default"));
+					DMibExpect(fg_FormatSendWindow(uint64(20) << 20), ==, CStr("20 MiB"));
+					DMibExpect(fg_FormatSendWindow(1536), ==, CStr("1536 B"));
+					DMibExpect(fg_FormatSendWindow(25000000), ==, CStr("25000000 B"));
+				}
+			};
+		};
+
+		DMibTestCategory("Command line")
+		{
+			DMibTestSuite("RedirectedInputResize")
+			{
+				if (!(NTest::fg_TestReportFlags() & NTest::ETestReportFlag_ProcessRecursive))
+				{
+					CStr Output;
+					CStr Error;
+					uint32 ExitCode = 1;
+					bool bLaunched = NProcess::CProcessLaunch::fs_LaunchBlock
+						(
+							NFile::CFile::fs_GetProgramPath()
+							, {"--test", NTest::fg_TestGetCurrentPath(), "--process-recursive"}
+							, Output
+							, Error
+							, ExitCode
+						)
+					;
+					DMibExpectTrue(bLaunched);
+					DMibExpect(ExitCode, ==, 0);
+					if (ExitCode)
+						DMibConErrOut("{}{}", Output, Error);
+
+					return;
+				}
 
 #ifdef DPlatformFamily_Windows
-					DMibAssert(GetFileType(GetStdHandle(STD_INPUT_HANDLE)), ==, DWORD(FILE_TYPE_PIPE));
+				DMibAssert(GetFileType(GetStdHandle(STD_INPUT_HANDLE)), ==, DWORD(FILE_TYPE_PIPE));
 #endif
-					fp_RunTests
-						(
-							[](CDistributedAppCommandLineClient &_Client)
-							{
-								auto Result = _Client.f_RunCommandLine(fg_CreateVector<CStr>("App", "--test-input"));
-								DMibExpect(Result, ==, 0);
-							}
-							, "TestDistAppRedirectedInput-{}"_f << NCryptography::fg_FastRandomID()
-							, true
-						)
-					;
-				};
-
-				DMibTestSuite("Actor")
-				{
-					fp_RunTests
-						(
-							[](CDistributedAppCommandLineClient &_Client)
-							{
-								CEJsonSorted RunParams;
-
-								DMibTestPath("General");
-								aint Ret = _Client.f_RunCommandLine(fg_CreateVector<CStr>("App", "--test-actor", "--integer", "66"));
-								DMibExpect(Ret, ==, 66);
-							}
-							, "TestDistAppCommandLineActor"
-						)
-					;
-				};
-
-				DMibTestSuite("In process")
-				{
-					// An app that runs in the client's process runs its commands without connecting to its own listener
-					fp_RunTests
-						(
-							[](CDistributedAppCommandLineClient &_Client)
-							{
-								aint Ret = _Client.f_RunCommandLine(fg_CreateVector<CStr>("App", "--test-remote-session"));
-								DMibExpect(Ret, ==, 0);
-
-								aint OwnHost = _Client.f_RunCommandLine(fg_CreateVector<CStr>("App", "--test-calling-host"));
-								DMibExpect(OwnHost, ==, 1);
-							}
-							, "TestDistAppCommandLineInProcess"
-						)
-					;
-				};
+				fp_RunTests
+					(
+						[](CDistributedAppCommandLineClient &_Client)
+						{
+							auto Result = _Client.f_RunCommandLine(fg_CreateVector<CStr>("App", "--test-input"));
+							DMibExpect(Result, ==, 0);
+						}
+						, "TestDistAppRedirectedInput-{}"_f << NCryptography::fg_FastRandomID()
+						, true
+					)
+				;
 			};
+
+			DMibTestSuite("Actor")
+			{
+				fp_RunTests
+					(
+						[](CDistributedAppCommandLineClient &_Client)
+						{
+							CEJsonSorted RunParams;
+
+							DMibTestPath("General");
+							aint Ret = _Client.f_RunCommandLine(fg_CreateVector<CStr>("App", "--test-actor", "--integer", "66"));
+							DMibExpect(Ret, ==, 66);
+						}
+						, "TestDistAppCommandLineActor"
+					)
+				;
+			};
+
+			DMibTestSuite("In process")
+			{
+				// An app that runs in the client's process runs its commands without connecting to its own listener
+				fp_RunTests
+					(
+						[](CDistributedAppCommandLineClient &_Client)
+						{
+							aint Ret = _Client.f_RunCommandLine(fg_CreateVector<CStr>("App", "--test-remote-session"));
+							DMibExpect(Ret, ==, 0);
+
+							aint OwnHost = _Client.f_RunCommandLine(fg_CreateVector<CStr>("App", "--test-calling-host"));
+							DMibExpect(OwnHost, ==, 1);
+						}
+						, "TestDistAppCommandLineInProcess"
+					)
+				;
+			};
+		};
+	}
+
+	void CDistributedApp_Tests::fp_RunTests(TCFunction<void (CDistributedAppCommandLineClient &_Client)> &&_fTests, CStr const &_Name, bool _bInProcessOnly)
+	{
+		CStr ConfigDir = NFile::CFile::fs_GetProgramDirectory() / _Name;
+		fg_TestAddCleanupPath(ConfigDir);
+
+		for (umint iAttempt = 0; iAttempt < 5; ++iAttempt)
+		{
+			try
+			{
+				if (NFile::CFile::fs_FileExists(ConfigDir))
+					NFile::CFile::fs_DeleteDirectoryRecursive(ConfigDir);
+				break;
+			}
+			catch (NFile::CExceptionFile const &)
+			{
+			}
 		}
-	};
+
+		CActorRunLoopTestHelper RunLoopHelper;
+
+		auto AppActor = fg_ConstructActor<CTestDistributedApp>(_Name, _bInProcessOnly);
+		AppActor(&CDistributedAppActor::f_StartApp, NEncoding::CEJsonSorted{}, TCActor<CDistiributedAppLogActor>{}, EDistributedAppType_InProcess).f_CallSync(RunLoopHelper.m_pRunLoop);
+		CDistributedAppCommandLineClient CommandLineClient = AppActor(&CDistributedAppActor::f_GetCommandLineClient, RunLoopHelper.m_pRunLoop, nullptr).f_CallSync(RunLoopHelper.m_pRunLoop);
+
+		_fTests(CommandLineClient);
+
+		AppActor->f_BlockDestroy(RunLoopHelper.m_pRunLoop->f_ActorDestroyLoop());
+	}
 
 	DMibTestRegister(CDistributedApp_Tests, Malterlib::Concurrency);
 }

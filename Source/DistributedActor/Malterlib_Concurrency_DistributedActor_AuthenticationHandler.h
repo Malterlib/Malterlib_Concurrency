@@ -16,8 +16,6 @@ namespace NMib::NConcurrency
 			, EProtocolVersion_Current = 0x101
 		};
 
-		ICDistributedActorAuthenticationHandler();
-
 		struct CPermissionWithRequirements
 		{
 			template <typename tf_CStream>
@@ -110,6 +108,8 @@ namespace NMib::NConcurrency
 			TCActorSubscriptionWithID<> m_Subscription;
 			NStr::CStr m_ID;
 		};
+
+		ICDistributedActorAuthenticationHandler();
 
 		virtual TCFuture<NContainer::TCVector<CResponse>> f_RequestAuthentication(CRequest _Request, CChallenge _Challenge, NStr::CStr _MultipleRequestID) = 0;
 		virtual TCFuture<CMultipleRequestData> f_GetMultipleRequestSubscription(uint32 _nHosts) = 0;

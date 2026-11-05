@@ -32,18 +32,19 @@ namespace NMib::NContainer
 		template <typename t_CType0, typename t_CAllocator0>
 		friend struct TCThreadSafeQueueEntry;
 
-		t_CType mp_Data;
-
 		template <typename tf_CParam0>
 		TCThreadSafeQueueListEntry(tf_CParam0 &&_Param0);
+
+		t_CType mp_Data;
 	};
 
 	template <typename t_CType, typename t_CAllocator = NMemory::CAllocator_Heap>
 	struct TCThreadSafeQueueEntry
 	{
 		TCThreadSafeQueueEntry(TCThreadSafeQueueEntry &&_Other);
-		TCThreadSafeQueueEntry &operator = (TCThreadSafeQueueEntry &&_Other);
 		~TCThreadSafeQueueEntry();
+
+		TCThreadSafeQueueEntry &operator = (TCThreadSafeQueueEntry &&_Other);
 
 		bool f_IsValid() const;
 
@@ -58,24 +59,25 @@ namespace NMib::NContainer
 		inline_small explicit operator bool () const;
 
 	private:
-		TCThreadSafeQueueListEntry<t_CType> *mp_pEntry;
 		// template <typename t_CType, typename t_CAllocator>
 		friend struct TCThreadSafeQueue<t_CType, t_CAllocator>;
+
 		TCThreadSafeQueueEntry(TCThreadSafeQueueListEntry<t_CType> *_pEntry);
 
 		// Disable copy
 		TCThreadSafeQueueEntry(TCThreadSafeQueueEntry const &_Other);
 		TCThreadSafeQueueEntry &operator = (TCThreadSafeQueueEntry const &_Other);
+
+		TCThreadSafeQueueListEntry<t_CType> *mp_pEntry;
 	};
 
 	template <typename t_CType, typename t_CAllocator = NMemory::CAllocator_Heap>
 	struct TCThreadSafeQueue
 	{
 	private:
-		// Declared before the public section, which uses it.
 		using CReturnEntry = TCThreadSafeQueueEntry<t_CType, t_CAllocator>;
 
-	public:
+	public: // NOLINT(malterlib-member-order): the public section uses CReturnEntry
 		TCThreadSafeQueue();
 		~TCThreadSafeQueue();
 
@@ -93,17 +95,17 @@ namespace NMib::NContainer
 
 	private:
 		using CListEntry = TCThreadSafeQueueListEntry<t_CType>;
-
-		boost::lockfree::queue<CListEntry *> mp_Queue;
-
 		using CAllocator = t_CAllocator;
-
-		void fp_Clear();
 
 		TCThreadSafeQueue(TCThreadSafeQueue const &_Other);
 		TCThreadSafeQueue(TCThreadSafeQueue &&_Other);
+
+		void fp_Clear();
+
 		TCThreadSafeQueue &operator = (TCThreadSafeQueue const &_Other);
 		TCThreadSafeQueue &operator = (TCThreadSafeQueue &&_Other);
+
+		boost::lockfree::queue<CListEntry *> mp_Queue;
 	};
 #else
 	template <typename t_CType, typename t_CAllocator>
@@ -124,19 +126,20 @@ namespace NMib::NContainer
 		template <typename t_CType0, typename t_CAllocator0>
 		friend struct TCThreadSafeQueueEntry;
 
-		DMibListLinkDS_Link(TCThreadSafeQueueListEntry, mp_Link);
-		t_CType mp_Data;
-
 		template <typename ...tfp_CParams>
 		TCThreadSafeQueueListEntry(tfp_CParams && ...p_Params);
+
+		DMibListLinkDS_Link(TCThreadSafeQueueListEntry, mp_Link);
+		t_CType mp_Data;
 	};
 
 	template <typename t_CType, typename t_CAllocator = NMemory::CAllocator_Heap>
 	struct TCThreadSafeQueueEntry
 	{
 		TCThreadSafeQueueEntry(TCThreadSafeQueueEntry &&_Other);
-		TCThreadSafeQueueEntry &operator = (TCThreadSafeQueueEntry &&_Other);
 		~TCThreadSafeQueueEntry();
+
+		TCThreadSafeQueueEntry &operator = (TCThreadSafeQueueEntry &&_Other);
 
 		bool f_IsValid() const;
 
@@ -151,24 +154,25 @@ namespace NMib::NContainer
 		inline_small explicit operator bool () const;
 
 	private:
-		TCThreadSafeQueueListEntry<t_CType> *mp_pEntry;
 		// template <typename t_CType, typename t_CAllocator>
 		friend struct TCThreadSafeQueue<t_CType, t_CAllocator>;
+
 		TCThreadSafeQueueEntry(TCThreadSafeQueueListEntry<t_CType> *_pEntry);
 
 		// Disable copy
 		TCThreadSafeQueueEntry(TCThreadSafeQueueEntry const &_Other);
 		TCThreadSafeQueueEntry &operator = (TCThreadSafeQueueEntry const &_Other);
+
+		TCThreadSafeQueueListEntry<t_CType> *mp_pEntry;
 	};
 
 	template <typename t_CType, typename t_CAllocator = NMemory::CAllocator_Heap>
 	struct TCThreadSafeQueue
 	{
 	private:
-		// Declared before the public section, which uses it.
 		using CReturnEntry = TCThreadSafeQueueEntry<t_CType, t_CAllocator>;
 
-	public:
+	public: // NOLINT(malterlib-member-order): the public section uses CReturnEntry
 		TCThreadSafeQueue();
 		TCThreadSafeQueue(TCThreadSafeQueue const &_Other);
 		TCThreadSafeQueue(TCThreadSafeQueue &&_Other);
@@ -188,13 +192,12 @@ namespace NMib::NContainer
 
 	private:
 		using CListEntry = TCThreadSafeQueueListEntry<t_CType>;
-
-		mutable NThread::CLowLevelLock mp_Lock;
-		DMibListLinkDS_List_FromTemplate(CListEntry, mp_Link) mp_Queue;
-
 		using CAllocator = t_CAllocator;
 
 		void fp_Clear();
+
+		mutable NThread::CLowLevelLock mp_Lock;
+		DMibListLinkDS_List_FromTemplate(CListEntry, mp_Link) mp_Queue;
 	};
 #endif
 }

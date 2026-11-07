@@ -1673,7 +1673,7 @@ void CDistributedAppAuthentication_Tests::fp_DoGeneralTests()
 		}
 	;
 
-	auto fHostInfo = [&Info = fg_GetCallingHostInfo()](CStr const &_UserID, CStr const &_HostID = "")
+	auto fHostInfo = [Info = fg_GetCallingHostInfo()](CStr const &_UserID, CStr const &_HostID = "")
 		{
 			return CCallingHostInfo
 				(
@@ -2607,7 +2607,7 @@ void CDistributedAppAuthentication_Tests::fp_DoU2FTests()
 		}
 	;
 
-	auto fHostInfo = [&Info = fg_GetCallingHostInfo()](CStr const &_UserID, CStr const &_HostID = "")
+	auto fHostInfo = [Info = fg_GetCallingHostInfo()](CStr const &_UserID, CStr const &_HostID = "")
 		{
 			return CCallingHostInfo
 				(

@@ -1482,7 +1482,7 @@ private:
 			}
 		;
 
-		auto fHostInfo = [&Info = fg_GetCallingHostInfo()](CStr const &_UserID, CStr const &_HostID = "")
+		auto fHostInfo = [Info = fg_GetCallingHostInfo()](CStr const &_UserID, CStr const &_HostID = "")
 			{
 				return CCallingHostInfo
 					(
@@ -2440,7 +2440,7 @@ private:
 			}
 		;
 
-		auto fHostInfo = [&Info = fg_GetCallingHostInfo()](CStr const &_UserID, CStr const &_HostID = "")
+		auto fHostInfo = [Info = fg_GetCallingHostInfo()](CStr const &_UserID, CStr const &_HostID = "")
 			{
 				return CCallingHostInfo
 					(

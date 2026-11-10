@@ -195,9 +195,7 @@ namespace NMib::NConcurrency
 
 	inline_always_lto CSuspendNever CFutureCoroutineContext::await_transform(ECoroutineFlag _Flags)
 	{
-#ifndef DMibClangAnalyzerWorkaround
 		m_Flags |= _Flags;
-#endif
 		return {};
 	}
 

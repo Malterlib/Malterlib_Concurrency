@@ -123,17 +123,14 @@ namespace NMib::NConcurrency::NPrivate
 	template <typename t_CReturnType>
 	void TCFutureCoroutineContext<t_CReturnType>::return_value(t_CReturnType &&_Value)
 	{
-#ifndef DMibClangAnalyzerWorkaround
 		auto *pPromiseData = static_cast<TCPromiseData<t_CReturnType> *>(this->m_pPromiseData);
 		pPromiseData->f_SetResultNoReport(fg_Move(_Value));
-#endif
 	}
 
 	template <typename t_CReturnType>
 	template <typename tf_CReturnType>
 	void TCFutureCoroutineContext<t_CReturnType>::return_value(tf_CReturnType &&_Value)
 	{
-#ifndef DMibClangAnalyzerWorkaround
 		auto *pPromiseData = static_cast<TCPromiseData<t_CReturnType> *>(this->m_pPromiseData);
 
 		using CReturnNoReference = NTraits::TCRemoveReferenceAndQualifiers<tf_CReturnType>;
@@ -165,13 +162,11 @@ namespace NMib::NConcurrency::NPrivate
 			pPromiseData->f_SetExceptionNoReport(fg_Forward<tf_CReturnType>(_Value));
 		else
 			pPromiseData->f_SetResultNoReport(fg_Forward<tf_CReturnType>(_Value));
-#endif
 	}
 
 	template <typename tf_CReturnType>
 	void TCFutureCoroutineContext<void>::return_value(tf_CReturnType &&_Value)
 	{
-#ifndef DMibClangAnalyzerWorkaround
 		using CReturnNoReference = NTraits::TCRemoveReferenceAndQualifiers<tf_CReturnType>;
 		static_assert
 			(
@@ -207,7 +202,6 @@ namespace NMib::NConcurrency::NPrivate
 			else
 				pPromiseData->f_SetExceptionNoReport(fg_Forward<tf_CReturnType>(_Value));
 		}
-#endif
 	}
 
 	template <typename t_CReturnType>

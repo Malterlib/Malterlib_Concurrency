@@ -562,11 +562,7 @@ namespace NMib::NConcurrency
 				co_return {};
 			}
 		;
-#ifndef DMibClangAnalyzerWorkaround
 		co_return CMultipleRequestData{fg_Move(Subscription), fg_Move(MultipleRequestID)};
-#else
-		co_return DMibErrorInstance("Workaround analyzer bug");
-#endif
 	}
 
 	auto CDistributedAppActor::fp_SetupAuthentication(TCSharedPointer<CCommandLineControl> _pCommandLine, int64 _AuthenticationLifetime, CStr _UserID)

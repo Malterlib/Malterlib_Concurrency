@@ -420,9 +420,7 @@ namespace NMib::NConcurrency
 #if DMibEnableSafeCheck > 0
 	void CFutureCoroutineContext::f_SetOwner(CActorHolder *_pCoroutineOwner)
 	{
-#	ifndef DMibClangAnalyzerWorkaround
 		m_pPromiseData->m_pCoroutineOwner = _pCoroutineOwner;
-#	endif
 	}
 #endif
 

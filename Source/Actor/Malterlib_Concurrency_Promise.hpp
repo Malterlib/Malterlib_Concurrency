@@ -55,7 +55,6 @@ namespace NMib::NConcurrency
 	template <typename tf_CThis, ECoroutineFlag tf_Flags>
 	inline decltype(auto) CFutureCoroutineContext::await_transform(TCFutureForwardThis<tf_CThis, tf_Flags> &&_MoveThis)
 	{
-#ifndef DMibClangAnalyzerWorkaround
 		DMibFastCheck(m_Flags & ECoroutineFlag_UnsafeThisPointer); // You don't need to move this
 
 #	if DMibEnableSafeCheck > 0
@@ -67,7 +66,6 @@ namespace NMib::NConcurrency
 		if constexpr ((tf_Flags & (ECoroutineFlag_CaptureExceptions | ECoroutineFlag_CaptureMalterlibExceptions)) != ECoroutineFlag_None)
 			m_Flags |= tf_Flags;
 #	endif
-#endif
 		return fg_Move(_MoveThis);
 	}
 

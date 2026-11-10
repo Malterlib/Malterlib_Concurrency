@@ -80,17 +80,14 @@ namespace NMib::NConcurrency::NPrivate
 	template <typename t_CReturnType>
 	void TCAsyncGeneratorCoroutineContext<t_CReturnType>::return_value(CEmpty _Empty)
 	{
-#ifndef DMibClangAnalyzerWorkaround
 		auto *pPromiseData = static_cast<TCPromiseData<NStorage::TCOptional<t_CReturnType>> *>(this->m_pPromiseData);
 		pPromiseData->f_SetResultNoReport(NStorage::TCOptional<t_CReturnType>{});
-#endif
 	}
 
 	template <typename t_CReturnType>
 	template <typename tf_CReturnType>
 	void TCAsyncGeneratorCoroutineContext<t_CReturnType>::return_value(tf_CReturnType &&_Value)
 	{
-#ifndef DMibClangAnalyzerWorkaround
 		auto *pPromiseData = static_cast<TCPromiseData<NStorage::TCOptional<t_CReturnType>> *>(this->m_pPromiseData);
 		using CReturnNoReference = NTraits::TCRemoveReferenceAndQualifiers<tf_CReturnType>;
 
@@ -108,14 +105,12 @@ namespace NMib::NConcurrency::NPrivate
 			pPromiseData->f_SetExceptionNoReport(fg_Forward<tf_CReturnType>(_Value));
 		else
 			static_assert(NTraits::cIsVoid<tf_CReturnType>, "Can only return exceptions from generators");
-#endif
 	}
 
 	template <typename t_CReturnType>
 	template <typename tf_CReturnType>
 	auto TCAsyncGeneratorCoroutineContext<t_CReturnType>::yield_value(tf_CReturnType &&_Value) -> CYieldSuspender
 	{
-#ifndef DMibClangAnalyzerWorkaround
 		auto *pPromiseData = static_cast<TCPromiseData<NStorage::TCOptional<t_CReturnType>> *>(this->m_pPromiseData);
 		using CReturnNoReference = NTraits::TCRemoveReferenceAndQualifiers<tf_CReturnType>;
 		if constexpr (NTraits::cIsSame<CReturnNoReference, TCAsyncResult<t_CReturnType>>)
@@ -132,18 +127,15 @@ namespace NMib::NConcurrency::NPrivate
 			pPromiseData->m_Result.f_SetResult(fg_Forward<tf_CReturnType>(_Value));
 			pPromiseData->f_OnResultNoClear();
 		}
-#endif
 		return {};
 	}
 
 	template <typename t_CReturnType>
 	auto TCAsyncGeneratorCoroutineContext<t_CReturnType>::yield_value(t_CReturnType &&_Value) -> CYieldSuspender
 	{
-#ifndef DMibClangAnalyzerWorkaround
 		auto *pPromiseData = static_cast<TCPromiseData<NStorage::TCOptional<t_CReturnType>> *>(this->m_pPromiseData);
 		pPromiseData->m_Result.f_SetResult(fg_Move(_Value));
 		pPromiseData->f_OnResultNoClear();
-#endif
 		return {};
 	}
 

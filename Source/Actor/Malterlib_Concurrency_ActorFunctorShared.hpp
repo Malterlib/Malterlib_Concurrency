@@ -129,6 +129,7 @@ namespace NMib::NConcurrency::NPrivate
 			NStorage::TCSharedPointer<CStorage> pStorage = fg_Construct();
 			// NOLINTNEXTLINE(malterlib-coroutine-lambda-call): the storage keeps the function, which only the actor functor calls
 			static_cast<NFunction::TCFunctionMovable<typename TCAddRValueReferencesToFunctor<tf_CFunction>::FType> &>(*pStorage)
+				// NOLINTNEXTLINE(malterlib-coroutine-reference-capture): the function is stored in the allocation that pGate points into
 				= [pGate = &pStorage->m_Gate, fFunctor = fg_Move(_fFunctor)]
 				() mutable -> TCFuture<void>
 				{

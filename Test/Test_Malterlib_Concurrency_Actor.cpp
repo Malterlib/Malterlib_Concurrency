@@ -2135,17 +2135,16 @@ namespace
 					Results.f_SetLen(nSplits);
 					for (umint iSplit = 0; iSplit < nSplits; ++iSplit)
 					{
-						auto *pActor = &PerfTestActors[iSplit];
 						fg_ConcurrentDispatch
 							(
-								[nIterationsPerSplit, pActor]() -> TCFuture<void>
+								[nIterationsPerSplit, Actor = PerfTestActors[iSplit]]() -> TCFuture<void>
 								{
 									for (umint iIteration = 0; iIteration < nIterationsPerSplit; ++iIteration)
 									{
 										if ((iIteration & gc_YieldMask) == gc_YieldMask)
 											co_await g_Yield;
 
-										(*pActor).f_Bind<&CPerformanceTestActor::f_AddIntNoFuture>(uint32(1)).f_DiscardResult();
+										Actor.f_Bind<&CPerformanceTestActor::f_AddIntNoFuture>(uint32(1)).f_DiscardResult();
 									}
 
 									co_return {};
@@ -2191,17 +2190,16 @@ namespace
 					Results.f_SetLen(nSplits);
 					for (umint iSplit = 0; iSplit < nSplits; ++iSplit)
 					{
-						auto *pActor = &PerfTestActors[iSplit];
 						fg_ConcurrentDispatch
 							(
-								[nIterationsPerSplit, pActor]() -> TCFuture<void>
+								[nIterationsPerSplit, Actor = PerfTestActors[iSplit]]() -> TCFuture<void>
 								{
 									for (umint iIteration = 0; iIteration < nIterationsPerSplit; ++iIteration)
 									{
 										if ((iIteration & gc_YieldMask) == gc_YieldMask)
 											co_await g_Yield;
 
-										(*pActor).f_Bind<&CPerformanceTestActor::f_AddIntCoro>(uint32(1)).f_DiscardResult();
+										Actor.f_Bind<&CPerformanceTestActor::f_AddIntCoro>(uint32(1)).f_DiscardResult();
 									}
 
 									co_return {};
@@ -2248,10 +2246,9 @@ namespace
 					DMibTestScopeMeasureThreads(ActorMeasure, nIterations, NSys::fg_Thread_GetPhysicalCores());
 					for (umint iSplit = 0; iSplit < nSplits; ++iSplit)
 					{
-						auto *pActor = &PerfTestActors[iSplit];
 						fg_ConcurrentDispatch
 							(
-								[nIterationsPerSplit, pActor]() -> TCFuture<uint32>
+								[nIterationsPerSplit, Actor = PerfTestActors[iSplit]]() -> TCFuture<uint32>
 								{
 									TCFutureMap<uint32, void> ResultMap;
 
@@ -2260,12 +2257,12 @@ namespace
 										if ((iIteration & gc_YieldMask) == gc_YieldMask)
 											co_await g_Yield;
 
-										pActor->f_Bind<&CPerformanceTestActor::f_AddIntNoFuture>(uint32(1)) > ResultMap[iIteration];
+										Actor.f_Bind<&CPerformanceTestActor::f_AddIntNoFuture>(uint32(1)) > ResultMap[iIteration];
 									}
 
 									co_await fg_AllDoneWrapped(ResultMap);
 
-									co_return co_await pActor->f_Bind<&CPerformanceTestActor::f_ExchangeResult>();
+									co_return co_await Actor.f_Bind<&CPerformanceTestActor::f_ExchangeResult>();
 								}
 							)
 							> Dispatches
@@ -2308,10 +2305,9 @@ namespace
 					DMibTestScopeMeasureThreads(ActorMeasure, nIterations, NSys::fg_Thread_GetPhysicalCores());
 					for (umint iSplit = 0; iSplit < nSplits; ++iSplit)
 					{
-						auto *pActor = &PerfTestActors[iSplit];
 						fg_ConcurrentDispatch
 							(
-								[nIterationsPerSplit, pActor]() -> TCFuture<uint32>
+								[nIterationsPerSplit, Actor = PerfTestActors[iSplit]]() -> TCFuture<uint32>
 								{
 									TCMapOfFutures<uint32, void> ResultMap;
 
@@ -2320,12 +2316,12 @@ namespace
 										if ((iIteration & gc_YieldMask) == gc_YieldMask)
 											co_await g_Yield;
 
-										pActor->f_Bind<&CPerformanceTestActor::f_AddIntNoFuture>(uint32(1)) > ResultMap(iIteration);
+										Actor.f_Bind<&CPerformanceTestActor::f_AddIntNoFuture>(uint32(1)) > ResultMap(iIteration);
 									}
 
 									co_await fg_AllDoneWrapped(ResultMap);
 
-									co_return co_await pActor->f_Bind<&CPerformanceTestActor::f_ExchangeResult>();
+									co_return co_await Actor.f_Bind<&CPerformanceTestActor::f_ExchangeResult>();
 								}
 							)
 							> Dispatches
@@ -2368,10 +2364,9 @@ namespace
 					DMibTestScopeMeasureThreads(ActorMeasure, nIterations, NSys::fg_Thread_GetPhysicalCores());
 					for (umint iSplit = 0; iSplit < nSplits; ++iSplit)
 					{
-						auto *pActor = &PerfTestActors[iSplit];
 						fg_ConcurrentDispatch
 							(
-								[nIterationsPerSplit, pActor]() -> TCFuture<uint32>
+								[nIterationsPerSplit, Actor = PerfTestActors[iSplit]]() -> TCFuture<uint32>
 								{
 									TCVectorOfFutures<void> ResultVector;
 									ResultVector.f_Reserve(nIterationsPerSplit);
@@ -2381,12 +2376,12 @@ namespace
 										if ((iIteration & gc_YieldMask) == gc_YieldMask)
 											co_await g_Yield;
 
-										pActor->f_Bind<&CPerformanceTestActor::f_AddIntNoFuture>(uint32(1)) > ResultVector;
+										Actor.f_Bind<&CPerformanceTestActor::f_AddIntNoFuture>(uint32(1)) > ResultVector;
 									}
 
 									co_await fg_AllDoneWrapped(ResultVector);
 
-									co_return co_await pActor->f_Bind<&CPerformanceTestActor::f_ExchangeResult>();
+									co_return co_await Actor.f_Bind<&CPerformanceTestActor::f_ExchangeResult>();
 								}
 							)
 							> Dispatches
@@ -2429,10 +2424,9 @@ namespace
 					DMibTestScopeMeasureThreads(ActorMeasure, nIterations, NSys::fg_Thread_GetPhysicalCores());
 					for (umint iSplit = 0; iSplit < nSplits; ++iSplit)
 					{
-						auto *pActor = &PerfTestActors[iSplit];
 						fg_ConcurrentDispatch
 							(
-								[nIterationsPerSplit, pActor]() -> TCFuture<uint32>
+								[nIterationsPerSplit, Actor = PerfTestActors[iSplit]]() -> TCFuture<uint32>
 								{
 									TCFutureVector<void> ResultVector;
 									ResultVector.f_SetLen(nIterationsPerSplit);
@@ -2442,12 +2436,12 @@ namespace
 										if ((iIteration & gc_YieldMask) == gc_YieldMask)
 											co_await g_Yield;
 
-										pActor->f_Bind<&CPerformanceTestActor::f_AddIntNoFuture>(uint32(1)) > ResultVector;
+										Actor.f_Bind<&CPerformanceTestActor::f_AddIntNoFuture>(uint32(1)) > ResultVector;
 									}
 
 									co_await fg_AllDoneWrapped(ResultVector);
 
-									co_return co_await pActor->f_Bind<&CPerformanceTestActor::f_ExchangeResult>();
+									co_return co_await Actor.f_Bind<&CPerformanceTestActor::f_ExchangeResult>();
 								}
 							)
 							> Dispatches
@@ -2490,10 +2484,9 @@ namespace
 					DMibTestScopeMeasureThreads(ActorMeasure, nIterations, NSys::fg_Thread_GetPhysicalCores());
 					for (umint iSplit = 0; iSplit < nSplits; ++iSplit)
 					{
-						auto *pActor = &PerfTestActors[iSplit];
 						fg_ConcurrentDispatch
 							(
-								[nIterationsPerSplit, pActor]() -> TCFuture<uint32>
+								[nIterationsPerSplit, Actor = PerfTestActors[iSplit]]() -> TCFuture<uint32>
 								{
 									TCFutureVector<void> ResultVector;
 
@@ -2502,12 +2495,12 @@ namespace
 										if ((iIteration & gc_YieldMask) == gc_YieldMask)
 											co_await g_Yield;
 
-										pActor->f_Bind<&CPerformanceTestActor::f_AddIntNoFuture>(uint32(1)) > ResultVector;
+										Actor.f_Bind<&CPerformanceTestActor::f_AddIntNoFuture>(uint32(1)) > ResultVector;
 									}
 
 									co_await fg_AllDoneWrapped(ResultVector);
 
-									co_return co_await pActor->f_Bind<&CPerformanceTestActor::f_ExchangeResult>();
+									co_return co_await Actor.f_Bind<&CPerformanceTestActor::f_ExchangeResult>();
 								}
 							)
 							> Dispatches
@@ -2550,10 +2543,9 @@ namespace
 					DMibTestScopeMeasureThreads(ActorMeasure, nIterations, NSys::fg_Thread_GetPhysicalCores());
 					for (umint iSplit = 0; iSplit < nSplits; ++iSplit)
 					{
-						auto *pActor = &PerfTestActors[iSplit];
 						fg_ConcurrentDispatch
 							(
-								[nIterationsPerSplit, pActor]() -> TCFuture<uint32>
+								[nIterationsPerSplit, Actor = PerfTestActors[iSplit]]() -> TCFuture<uint32>
 								{
 									TCFutureVector<void> ResultVector;
 									ResultVector.f_SetLen(nIterationsPerSplit);
@@ -2563,12 +2555,12 @@ namespace
 										if ((iIteration & gc_YieldMask) == gc_YieldMask)
 											co_await g_Yield;
 
-										pActor->f_Bind<&CPerformanceTestActor::f_AddIntCoro>(uint32(1)) > ResultVector;
+										Actor.f_Bind<&CPerformanceTestActor::f_AddIntCoro>(uint32(1)) > ResultVector;
 									}
 
 									co_await fg_AllDoneWrapped(ResultVector);
 
-									co_return co_await pActor->f_Bind<&CPerformanceTestActor::f_ExchangeResult>();
+									co_return co_await Actor.f_Bind<&CPerformanceTestActor::f_ExchangeResult>();
 								}
 							)
 							> Dispatches

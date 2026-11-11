@@ -131,7 +131,7 @@ namespace NMib::NConcurrency
 	}
 
 	template <typename tf_FFunction, typename ...tfp_CParams>
-	mark_artificial inline_always auto fg_CallSafe(tf_FFunction &&_fFunction, tfp_CParams && ...p_Params)
+	DMibRunsGivenFunction mark_artificial inline_always auto fg_CallSafe(tf_FFunction &&_fFunction, tfp_CParams && ...p_Params)
 		requires (NPrivate::TCCallSafeIsValidFunction<NTraits::TCRemoveReferenceAndQualifiers<tf_FFunction>, tfp_CParams...>::mc_Value)
 	{
 		using FFunctionType = NTraits::TCRemoveReferenceAndQualifiers<tf_FFunction>;
@@ -139,7 +139,7 @@ namespace NMib::NConcurrency
 	}
 
 	template <typename tf_CFunction, typename ...tfp_CParams>
-	mark_artificial inline_always auto fg_CallSafe(NStorage::TCSharedPointer<tf_CFunction> const &_pFunction, tfp_CParams && ...p_Params)
+	DMibRunsGivenFunction mark_artificial inline_always auto fg_CallSafe(NStorage::TCSharedPointer<tf_CFunction> const &_pFunction, tfp_CParams && ...p_Params)
 		requires (NPrivate::TCCallSafeIsValidFunction<NTraits::TCRemoveReferenceAndQualifiers<tf_CFunction>, tfp_CParams...>::mc_Value)
 	{
 		using FFunctionType = NTraits::TCRemoveReferenceAndQualifiers<tf_CFunction>;
@@ -147,7 +147,7 @@ namespace NMib::NConcurrency
 	}
 
 	template <typename tf_FFunction, typename ...tfp_CParams>
-	auto fg_CallSafeDispatchedOn(TCActor<CActor> &&_Actor, tf_FFunction &&_fFunction, tfp_CParams && ...p_Params)
+	DMibRunsGivenFunction auto fg_CallSafeDispatchedOn(TCActor<CActor> &&_Actor, tf_FFunction &&_fFunction, tfp_CParams && ...p_Params)
 	{
 		using CReturn = NTraits::TCDecay<decltype(fg_CallSafe(fg_Forward<tf_FFunction>(_fFunction), fg_Forward<tfp_CParams>(p_Params)...))>;
 		using CStrippedReturn = typename NPrivate::TCIsFuture<CReturn>::CType;
@@ -162,7 +162,7 @@ namespace NMib::NConcurrency
 	}
 
 	template <typename tf_FFunction, typename ...tfp_CParams>
-	auto fg_CallSafeDispatched(tf_FFunction &&_fFunction, tfp_CParams && ...p_Params)
+	DMibRunsGivenFunction auto fg_CallSafeDispatched(tf_FFunction &&_fFunction, tfp_CParams && ...p_Params)
 	{
 		return fg_CallSafeDispatchedOn(fg_CurrentActor(), fg_Forward<tf_FFunction>(_fFunction), fg_Forward<tfp_CParams>(p_Params)...);
 	}

@@ -106,7 +106,7 @@ namespace NMib::NConcurrency
 			using CResultType = NConcurrency::TCAsyncResult<CReturnType>;
 			using CAsyncGeneratorType = typename TCIsAsyncGenerator<t_CReturn>::CType;
 
-			static constexpr bool mc_bIsFuture = TCIsFuture<t_CReturn>::mc_Value; // NOLINT(malterlib-member-order): a requires clause of fs_Functor uses it
+			static constexpr bool mc_bIsFuture = TCIsFuture<t_CReturn>::mc_Value;                 // NOLINT(malterlib-member-order): a requires clause of fs_Functor uses it
 			static constexpr bool mc_bIsAsyncGenerator = TCIsAsyncGenerator<t_CReturn>::mc_Value; // NOLINT(malterlib-member-order): a requires clause of fs_Functor uses it
 
 			static_assert(mc_bIsFuture || mc_bIsAsyncGenerator);

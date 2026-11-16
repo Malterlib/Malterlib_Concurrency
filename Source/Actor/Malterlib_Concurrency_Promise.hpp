@@ -57,15 +57,15 @@ namespace NMib::NConcurrency
 	{
 		DMibFastCheck(m_Flags & ECoroutineFlag_UnsafeThisPointer); // You don't need to move this
 
-#	if DMibEnableSafeCheck > 0
+#if DMibEnableSafeCheck > 0
 		if constexpr ((tf_Flags & (ECoroutineFlag_CaptureExceptions | ECoroutineFlag_CaptureMalterlibExceptions | ECoroutineFlag_AllowReferences)) != ECoroutineFlag_None)
 			m_Flags |= tf_Flags;
 		if (!(m_Flags & ECoroutineFlag_UnsafeReferenceParameters))
 			m_Flags |= ECoroutineFlag_AllowReferences;
-#	else
+#else
 		if constexpr ((tf_Flags & (ECoroutineFlag_CaptureExceptions | ECoroutineFlag_CaptureMalterlibExceptions)) != ECoroutineFlag_None)
 			m_Flags |= tf_Flags;
-#	endif
+#endif
 		return fg_Move(_MoveThis);
 	}
 

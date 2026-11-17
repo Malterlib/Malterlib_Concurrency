@@ -187,7 +187,7 @@ namespace NMib::NConcurrency
 		return _Hostname;
 	}
 
-	NWeb::NHTTP::CURL CActorDistributionManagerInternal::fp_TranslateURL(NWeb::NHTTP::CURL const &_URL) const
+	NWeb::NHTTP::CUrl CActorDistributionManagerInternal::fp_TranslateURL(NWeb::NHTTP::CUrl const &_URL) const
 	{
 		if (m_TranslateHostnames.f_IsEmpty())
 			return _URL;

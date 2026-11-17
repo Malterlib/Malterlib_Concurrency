@@ -13,7 +13,7 @@ namespace NMib::NConcurrency
 {
 	CDistributedAppInProcessActor::CDistributedAppInProcessActor
 		(
-			NWeb::NHTTP::CURL const &_Address
+			NWeb::NHTTP::CUrl const &_Address
 			, TCActor<CDistributedActorTrustManager> const &_TrustManager
 			, FOnUseTicket &&_fOnUseTicket
 			, NStr::CStr const &_Description

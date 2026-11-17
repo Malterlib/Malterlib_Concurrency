@@ -357,15 +357,15 @@ namespace NMib::NConcurrency
 		return !mp_Settings.m_bTLSForLocalSockets && NNetwork::fg_IsAuthenticatedUnixSupported();
 	}
 
-	NWeb::NHTTP::CURL CDistributedAppActor::fp_GetLocalAddress() const
+	NWeb::NHTTP::CUrl CDistributedAppActor::fp_GetLocalAddress() const
 	{
 		return fp_GetLocalAddressForTransport(fp_UseAuthenticatedUnixForLocalSockets());
 	}
 
-	NWeb::NHTTP::CURL CDistributedAppActor::fp_GetLocalAddressForTransport(bool _bAuthenticatedUnix) const
+	NWeb::NHTTP::CUrl CDistributedAppActor::fp_GetLocalAddressForTransport(bool _bAuthenticatedUnix) const
 	{
 		// Include .wsa before the socket-name length check and hashed fallback.
-		return NWeb::NHTTP::CURL
+		return NWeb::NHTTP::CUrl
 			{
 				fg_Format("{}://[{}]/", _bAuthenticatedUnix ? "wsa" : "wss", fp_GetLocalHostname(_bAuthenticatedUnix ? ELocalSocketFlag::mc_AuthenticatedUnix : ELocalSocketFlag::mc_None))
 			}

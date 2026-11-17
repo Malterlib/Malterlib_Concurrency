@@ -60,7 +60,7 @@ namespace NMib::NConcurrency
 	}
 
 	// Reports assigned ports for port-zero listens; empty while a retrying listen has not bound.
-	TCFuture<NContainer::TCVector<NWeb::NHTTP::CURL>> CDistributedActorListenReference::f_GetListenAddresses()
+	TCFuture<NContainer::TCVector<NWeb::NHTTP::CUrl>> CDistributedActorListenReference::f_GetListenAddresses()
 	{
 		auto DistributionManager = mp_DistributionManager.f_Lock();
 		if (!DistributionManager)
@@ -700,12 +700,12 @@ namespace NMib::NConcurrency
 		co_return CDistributedActorListenReference(fg_ThisActor(m_pThis), _ListenID);
 	}
 
-	TCFuture<NContainer::TCVector<NWeb::NHTTP::CURL>> CActorDistributionManager::fp_GetListenAddresses(NStr::CStr _ListenID)
+	TCFuture<NContainer::TCVector<NWeb::NHTTP::CUrl>> CActorDistributionManager::fp_GetListenAddresses(NStr::CStr _ListenID)
 	{
 		auto &Internal = *mp_pInternal;
 		auto *pListen = Internal.m_Listens.f_FindEqual(_ListenID);
 		if (!pListen)
-			co_return NContainer::TCVector<NWeb::NHTTP::CURL>();
+			co_return NContainer::TCVector<NWeb::NHTTP::CUrl>();
 
 		co_return pListen->m_ListenAddresses;
 	}

@@ -16,7 +16,7 @@ namespace NMib::NConcurrency
 
 		CDistributedAppInterfaceLaunchActor
 			(
-				NWeb::NHTTP::CURL const &_Address
+				NWeb::NHTTP::CUrl const &_Address
 				, TCActor<CDistributedActorTrustManager> const &_TrustManager
 				, FOnUseTicket &&_fOnUseTicket
 				, TCActorFunctor<TCFuture<void> (NStr::CStr _Error)> &&_fOnLaunchError
@@ -40,7 +40,7 @@ namespace NMib::NConcurrency
 		void fp_HandleTicketRequest();
 
 		TCActor<CDistributedActorTrustManager> mp_TrustManager;
-		NWeb::NHTTP::CURL mp_Address;
+		NWeb::NHTTP::CUrl mp_Address;
 		NStr::CStrSecure mp_RequestTicketMagic;
 		NStr::CStr mp_Description;
 		NStr::CStr mp_LaunchID;

@@ -1322,14 +1322,14 @@ namespace NMib::NConcurrency
 	CStr CJsonDirectoryStore::f_PercentEncode(CStr const &_Str) const
 	{
 		CStr Encoded;
-		NWeb::NHTTP::CURL::fs_PercentEncode(Encoded, _Str);
+		NWeb::NHTTP::CUrl::fs_PercentEncode(Encoded, _Str);
 		return Encoded;
 	}
 
 	CStr CJsonDirectoryStore::f_PercentDecode(CStr const &_Str) const
 	{
 		CStr Decoded;
-		NWeb::NHTTP::CURL::fs_PercentDecode(Decoded, _Str);
+		NWeb::NHTTP::CUrl::fs_PercentDecode(Decoded, _Str);
 		return Decoded;
 	}
 

@@ -16,8 +16,8 @@ namespace NMib::NConcurrency
 	struct CDistributedActorTrustManager_Address
 	{
 		CDistributedActorTrustManager_Address();
-		CDistributedActorTrustManager_Address(NWeb::NHTTP::CURL const &_URL);
-		CDistributedActorTrustManager_Address(NWeb::NHTTP::CURL &&_URL);
+		CDistributedActorTrustManager_Address(NWeb::NHTTP::CUrl const &_URL);
+		CDistributedActorTrustManager_Address(NWeb::NHTTP::CUrl &&_URL);
 		~CDistributedActorTrustManager_Address();
 
 		template <typename tf_CStream>
@@ -29,7 +29,7 @@ namespace NMib::NConcurrency
 		template <typename tf_CStr>
 		void f_Format(tf_CStr &o_IntoStr) const;
 
-		NWeb::NHTTP::CURL m_URL;
+		NWeb::NHTTP::CUrl m_URL;
 	};
 
 	enum EPermissionIdentifierType

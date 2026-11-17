@@ -29,7 +29,7 @@ namespace NMib::NConcurrency
 			{
 				auto &Internal = *mp_pInternal;
 
-				CActorDistributionListenSettings ListenSettings(NContainer::fg_CreateVector<NWeb::NHTTP::CURL>(_Address.m_URL));
+				CActorDistributionListenSettings ListenSettings(NContainer::fg_CreateVector<NWeb::NHTTP::CUrl>(_Address.m_URL));
 				ListenSettings.m_PrivateKey = _pServerCert->m_PrivateKey;
 				ListenSettings.m_CACertificate = Internal.m_BasicConfig.m_CACertificate;
 				ListenSettings.m_PublicCertificate = _pServerCert->m_PublicCertificate;

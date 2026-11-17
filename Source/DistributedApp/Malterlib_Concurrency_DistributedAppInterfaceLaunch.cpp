@@ -12,7 +12,7 @@ namespace NMib::NConcurrency
 {
 	CDistributedAppInterfaceLaunchActor::CDistributedAppInterfaceLaunchActor
 		(
-			NWeb::NHTTP::CURL const &_Address
+			NWeb::NHTTP::CUrl const &_Address
 			, TCActor<CDistributedActorTrustManager> const &_TrustManager
 			, FOnUseTicket &&_fOnUseTicket
 			, TCActorFunctor<TCFuture<void> (NStr::CStr _Error)> &&_fOnLaunchError

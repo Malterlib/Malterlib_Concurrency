@@ -515,7 +515,7 @@ namespace NMib::NConcurrency
 		return Return;
 	}
 
-	void CActorDistributionCryptographySettings::f_AddRemoteServer(NWeb::NHTTP::CURL const &_URL, NContainer::CByteVector const &_ServerCert, NContainer::CByteVector const &_ClientCert)
+	void CActorDistributionCryptographySettings::f_AddRemoteServer(NWeb::NHTTP::CUrl const &_URL, NContainer::CByteVector const &_ServerCert, NContainer::CByteVector const &_ClientCert)
 	{
 		auto &NewRemote = m_RemoteClientCertificates[_URL];
 		NewRemote.m_PublicServerCertificate = _ServerCert;
@@ -551,12 +551,12 @@ namespace NMib::NConcurrency
 	{
 		if (_AddressType == NNetwork::ENetAddressType_None || _AddressType == NNetwork::ENetAddressType_TCPv4)
 		{
-			NWeb::NHTTP::CURL URL{NStr::fg_Format("wss://[IPv4:0.0.0.0]:{}/", _Port)};
+			NWeb::NHTTP::CUrl URL{NStr::fg_Format("wss://[IPv4:0.0.0.0]:{}/", _Port)};
 			m_ListenAddresses.f_Insert(URL);
 		}
 		if (_AddressType == NNetwork::ENetAddressType_None || _AddressType == NNetwork::ENetAddressType_TCPv6)
 		{
-			NWeb::NHTTP::CURL URL{NStr::fg_Format("wss://[IPv6:::]:{}/", _Port)};
+			NWeb::NHTTP::CUrl URL{NStr::fg_Format("wss://[IPv6:::]:{}/", _Port)};
 			m_ListenAddresses.f_Insert(URL);
 		}
 	}
@@ -565,7 +565,7 @@ namespace NMib::NConcurrency
 	{
 	}
 
-	CActorDistributionListenSettings::CActorDistributionListenSettings(NContainer::TCVector<NWeb::NHTTP::CURL> const &_Addresses)
+	CActorDistributionListenSettings::CActorDistributionListenSettings(NContainer::TCVector<NWeb::NHTTP::CUrl> const &_Addresses)
 		: m_ListenAddresses(_Addresses)
 	{
 	}

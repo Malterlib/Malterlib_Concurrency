@@ -80,7 +80,7 @@ namespace NMib::NConcurrency::NActorDistributionManagerInternal
 		void f_SetLastError(NStr::CStr const &_Error);
 
 		NStr::CStr m_ConnectionID;
-		NWeb::NHTTP::CURL m_ServerURL;
+		NWeb::NHTTP::CUrl m_ServerURL;
 		NStorage::TCSharedPointer<NNetwork::CAuthenticatedUnixContext> m_pAuthenticatedUnixContext; // Used instead of TLS for unix socket connections
 		umint m_ConnectionSequence = 0;
 		bool m_bConnected = false;
@@ -356,7 +356,7 @@ namespace NMib::NConcurrency::NActorDistributionManagerInternal
 		TCActor<NWeb::CWebSocketServerActor> m_WebsocketServer;
 		CActorSubscription m_ListenCallbackSubscription;
 		NStr::CStr m_LastReportedError;
-		NContainer::TCVector<NWeb::NHTTP::CURL> m_ListenAddresses;
+		NContainer::TCVector<NWeb::NHTTP::CUrl> m_ListenAddresses;
 	};
 
 	struct CDecodedClientConnectionSetting
@@ -498,7 +498,7 @@ namespace NMib::NConcurrency
 		void fp_DestroyServerConnection(CServerConnection &_Connection, bool _bSaveHost, NStr::CStr const &_Error, bool _bLastActiveNormalClosure);
 
 		NStr::CStr fp_TranslateHostname(NStr::CStr const &_Hostname) const;
-		NWeb::NHTTP::CURL fp_TranslateURL(NWeb::NHTTP::CURL const &_URL) const;
+		NWeb::NHTTP::CUrl fp_TranslateURL(NWeb::NHTTP::CUrl const &_URL) const;
 
 		void fp_ResetHostState(CHost &_Host, CConnection *_pSaveConnection, bool _bSaveInactive, NStr::CStr const &_Error);
 		TCFuture<void> fp_OnNewConnection(NStr::CStr _ListenID, NWeb::CWebSocketNewServerConnection _NewServerConnection);

@@ -15,7 +15,7 @@ namespace NMib::NConcurrency
 	{
 		TCActor<CDistributedActorTrustManager> m_TrustManager;
 		TCActor<CActorDistributionManager> m_DistributionManager;
-		NWeb::NHTTP::CURL m_Address;
+		NWeb::NHTTP::CUrl m_Address;
 	};
 
 	struct CDistributedApp_LaunchInfoData

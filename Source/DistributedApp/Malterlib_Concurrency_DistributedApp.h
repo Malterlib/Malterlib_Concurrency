@@ -70,7 +70,7 @@ namespace NMib::NConcurrency
 		TCDistributedActor<CDistributedAppInterfaceServer> m_AppInterfaceServer;
 		CTrustedActorInfo m_AppInterfaceServerActorInfo;
 		TCActor<CDistiributedAppLogActor> m_LogActor;
-		NWeb::NHTTP::CURL m_LocalAddress;
+		NWeb::NHTTP::CUrl m_LocalAddress;
 		TCWeakActor<CDistributedAppActor> m_AppActor;
 		NStr::CStr m_HostID;
 		NStr::CStr m_CommandLineHostID;
@@ -558,8 +558,8 @@ namespace NMib::NConcurrency
 		bool fp_HasCommandLineAccess(NStr::CStr const &_HostID);
 
 		bool fp_UseAuthenticatedUnixForLocalSockets() const;
-		NWeb::NHTTP::CURL fp_GetLocalAddress() const;
-		NWeb::NHTTP::CURL fp_GetLocalAddressForTransport(bool _bAuthenticatedUnix) const;
+		NWeb::NHTTP::CUrl fp_GetLocalAddress() const;
+		NWeb::NHTTP::CUrl fp_GetLocalAddressForTransport(bool _bAuthenticatedUnix) const;
 		NStr::CStr fp_GetLocalHostname(ELocalSocketFlag _Flags) const;
 		NContainer::TCMap<NStr::CStr, NStr::CStr> fp_GetTranslateHostnames() const;
 		void fp_MakeActive();

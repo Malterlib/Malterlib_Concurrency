@@ -355,7 +355,7 @@ namespace NMib::NConcurrency
 			auto &Address = ListenEntry.f_Key();
 			auto &Listen = ListenEntry.f_Value().m_ListenConfig;
 
-			CActorDistributionListenSettings ListenSettings(NContainer::fg_CreateVector<NWeb::NHTTP::CURL>(Address.m_URL));
+			CActorDistributionListenSettings ListenSettings(NContainer::fg_CreateVector<NWeb::NHTTP::CUrl>(Address.m_URL));
 
 			auto *pServerCert = m_ServerCertificates.f_FindEqual(Address.m_URL.f_GetHost());
 			if (!pServerCert)

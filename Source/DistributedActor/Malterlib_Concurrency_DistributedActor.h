@@ -207,7 +207,7 @@ namespace NMib::NConcurrency
 		void f_GenerateNewCert(NContainer::TCVector<NStr::CStr> const &_HostNames, NCryptography::CPublicKeySetting const &_KeySetting = fs_DefaultKeySetting());
 		NContainer::CByteVector f_GenerateRequest() const;
 		NContainer::CByteVector f_SignRequest(NContainer::CByteVector const &_Request);
-		void f_AddRemoteServer(NWeb::NHTTP::CURL const &_URL, NContainer::CByteVector const &_ServerCert, NContainer::CByteVector const &_ClientCert);
+		void f_AddRemoteServer(NWeb::NHTTP::CUrl const &_URL, NContainer::CByteVector const &_ServerCert, NContainer::CByteVector const &_ClientCert);
 		NStr::CStr f_GetHostID() const;
 
 		template <typename tf_CStream>
@@ -220,7 +220,7 @@ namespace NMib::NConcurrency
 		NContainer::CSecureByteVector m_PrivateKey;
 		NContainer::CByteVector m_PublicCertificate;
 
-		NContainer::TCMap<NWeb::NHTTP::CURL, CActorDistributionCryptographyRemoteServer> m_RemoteClientCertificates;
+		NContainer::TCMap<NWeb::NHTTP::CUrl, CActorDistributionCryptographyRemoteServer> m_RemoteClientCertificates;
 
 		NContainer::TCMap<NStr::CStr, NContainer::CByteVector> m_SignedClientCertificates;
 
@@ -241,7 +241,7 @@ namespace NMib::NConcurrency
 
 		void f_SetCryptography(CActorDistributionCryptographySettings const &_Settings);
 
-		NWeb::NHTTP::CURL m_ServerURL;           // The scheme selects the transport: wss uses TLS, wsa uses the authenticated unix handshake
+		NWeb::NHTTP::CUrl m_ServerURL;           // The scheme selects the transport: wss uses TLS, wsa uses the authenticated unix handshake
 		NContainer::CByteVector m_PublicServerCertificate;
 		NContainer::CByteVector m_PublicClientCertificate;
 		NContainer::CSecureByteVector m_PrivateClientKey;
@@ -256,12 +256,12 @@ namespace NMib::NConcurrency
 	struct CActorDistributionListenSettings
 	{
 		CActorDistributionListenSettings(uint16 _Port, NNetwork::ENetAddressType _AddressType = NNetwork::ENetAddressType_None);
-		CActorDistributionListenSettings(NContainer::TCVector<NWeb::NHTTP::CURL> const &_Addresses);
+		CActorDistributionListenSettings(NContainer::TCVector<NWeb::NHTTP::CUrl> const &_Addresses);
 		~CActorDistributionListenSettings();
 
 		void f_SetCryptography(CActorDistributionCryptographySettings const &_Settings);
 
-		NContainer::TCVector<NWeb::NHTTP::CURL> m_ListenAddresses; // The scheme selects the transport per address: wss uses TLS, wsa uses the authenticated unix handshake
+		NContainer::TCVector<NWeb::NHTTP::CUrl> m_ListenAddresses; // The scheme selects the transport per address: wss uses TLS, wsa uses the authenticated unix handshake
 		NContainer::CSecureByteVector m_PrivateKey;
 		NContainer::CByteVector m_CACertificate;
 		NContainer::CByteVector m_PublicCertificate;
@@ -428,7 +428,7 @@ namespace NMib::NConcurrency
 		TCFuture<void> f_Stop();
 
 		bool f_IsActive() const;
-		TCFuture<NContainer::TCVector<NWeb::NHTTP::CURL>> f_GetListenAddresses();
+		TCFuture<NContainer::TCVector<NWeb::NHTTP::CUrl>> f_GetListenAddresses();
 
 #if DMibConfig_Tests_Enable
 		TCFuture<void> f_Debug_BreakAllConnections(fp64 _Timeout, NNetwork::ESocketDebugFlag _DebugFlags);
@@ -693,7 +693,7 @@ namespace NMib::NConcurrency
 			template <typename tf_CStream>
 			void f_Stream(tf_CStream &_Stream);
 
-			NWeb::NHTTP::CURL m_URL;
+			NWeb::NHTTP::CUrl m_URL;
 			CWebsocketDebugStats m_WebsocketStats;
 			bool m_bIncoming = false;
 			bool m_bIdentified = false;
@@ -880,7 +880,7 @@ namespace NMib::NConcurrency
 		void fp_CleanupRemoteContext(NFunction::TCFunction<void (CActorDistributionManagerInternal &_Internal)> const &_fCleanup);
 		void fp_FlushSendPacketQueue(NStorage::TCSharedPointerSupportWeak<NPrivate::ICHost> &&_pHost);
 		TCFuture<void> fp_RemoveListen(NStr::CStr _ListenID);
-		TCFuture<NContainer::TCVector<NWeb::NHTTP::CURL>> fp_GetListenAddresses(NStr::CStr _ListenID);
+		TCFuture<NContainer::TCVector<NWeb::NHTTP::CUrl>> fp_GetListenAddresses(NStr::CStr _ListenID);
 #if DMibConfig_Tests_Enable
 		TCFuture<void> fp_Debug_BreakAllListenConnections(NStr::CStr _ListenID, fp64 _Timeout, NNetwork::ESocketDebugFlag _DebugFlags);
 		TCFuture<void> fp_Debug_SetListenServerBroken(NStr::CStr _ListenID, bool _bBroken);

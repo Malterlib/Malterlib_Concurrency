@@ -2631,7 +2631,7 @@ void CDistributedActor_Tests::fp_BasicTests(NStr::CStr const &_Address)
 	CActorDistributionCryptographySettings ServerCryptography{ServerHostID};
 	ServerCryptography.f_GenerateNewCert(fg_CreateVector<CStr>(_Address), CDistributedActorTestKeySettings{});
 
-	NWeb::NHTTP::CURL ConnectAddress;
+	NWeb::NHTTP::CUrl ConnectAddress;
 
 	if (_Address == "localhost")
 	{

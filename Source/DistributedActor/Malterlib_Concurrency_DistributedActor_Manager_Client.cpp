@@ -628,6 +628,8 @@ namespace NMib::NConcurrency
 		else
 		{
 			ClientSettings.m_CACertificateData = _Settings.m_PublicServerCertificate;
+			// The pin is a server certificate or a trust root, and trust roots were created without the CA bit
+			ClientSettings.m_VerificationFlags |= NNetwork::CSSLSettings::EVerificationFlag_AllowPinnedTrustAnchor;
 			try
 			{
 				RealHostID = CActorDistributionManager::fs_GetCertificateHostID(_Settings.m_PublicServerCertificate);

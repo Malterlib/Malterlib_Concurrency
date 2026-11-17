@@ -562,6 +562,8 @@ namespace NMib::NConcurrency
 		ServerSettings.m_PrivateKeyData = _Settings.m_PrivateKey;
 		ServerSettings.m_CACertificateData = _Settings.m_CACertificate;
 		ServerSettings.m_VerificationFlags |= NNetwork::CSSLSettings::EVerificationFlag_AllowMissingPeerCertificate;
+		// Client certificates are signed by server certificates and by trust roots, and trust roots were created without the CA bit
+		ServerSettings.m_VerificationFlags |= NNetwork::CSSLSettings::EVerificationFlag_AllowPinnedTrustAnchor;
 
 		NStorage::TCSharedPointer<NNetwork::CSSLContext> pServerContext;
 		NStorage::TCSharedPointer<NNetwork::CAuthenticatedUnixContext> pAuthenticatedUnixContext;

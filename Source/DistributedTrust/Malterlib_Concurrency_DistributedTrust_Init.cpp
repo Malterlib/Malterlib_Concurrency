@@ -143,7 +143,7 @@ namespace NMib::NConcurrency
 			Extension.m_bCritical = false;
 			Extension.m_Value = m_BasicConfig.m_HostID;
 
-			// The anchor's pathlen:0 must be enforced explicitly because BoringSSL checks only untrusted certificates.
+			// pathlen:0 limits the root to signing end-entity certificates.
 			Options.f_AddExtension_BasicConstraints(true, true, 0);
 			Options.f_AddExtension_KeyUsage(NCryptography::EKeyUsage_CertificateSign | NCryptography::EKeyUsage_CRLSign, true);
 

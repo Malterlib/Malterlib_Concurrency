@@ -13,6 +13,7 @@
 #include <Mib/Concurrency/DistributedActor>
 #include <Mib/Concurrency/ActorFunctor>
 #include <Mib/Concurrency/DistributedActorTestHelpers>
+#include <Mib/Cryptography/Certificate>
 #include <Mib/Cryptography/RandomID>
 #include <Mib/Log/Destinations>
 #include <Mib/Function/Function>
@@ -1216,6 +1217,8 @@ private:
 
 	void fp_BasicTests(NStr::CStr const &_Address);
 
+	void fp_LegacyRootTests();
+
 	void fp_AnonymousClientTests();
 
 	void fp_OnDisconnectedTests();
@@ -1642,6 +1645,10 @@ void CDistributedActor_Tests::f_FunctionalTests()
 		DMibTestSuite("Basics Unix Sockets")
 		{
 			fp_BasicTests("UNIX:" + fg_GetSafeUnixSocketPath("{}/TestDistributedActor.socket"_f << NMib::NFile::CFile::fs_GetProgramDirectory()));
+		};
+		DMibTestSuite("Legacy root")
+		{
+			fp_LegacyRootTests();
 		};
 		DMibTestSuite("Anonymous client")
 		{
@@ -2777,6 +2784,89 @@ void CDistributedActor_Tests::fp_BasicTests(NStr::CStr const &_Address)
 
 	ListenReference.f_Stop().f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout);
 	DMibExpectExceptionType(ListenReference.f_Stop().f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout), NException::CException);
+}
+
+// A trust root of a trust manager from before trust roots had the CA bit, which issued the certificate that the server listens
+// with and the certificate of the client, and which the client pins, as a trust ticket gives it
+void CDistributedActor_Tests::fp_LegacyRootTests()
+{
+	CActorRunLoopTestHelper RunLoopHelper;
+
+	CStr ServerHostID = NCryptography::fg_RandomID();
+	CStr ClientHostID = NCryptography::fg_RandomID();
+
+	CActorDistributionManagerInitSettings ServerSettings{ServerHostID, {}};
+	ServerSettings.m_ReconnectDelay = 1_ms;
+	CActorDistributionManagerInitSettings ClientSettings{ClientHostID, {}};
+	ClientSettings.m_ReconnectDelay = 1_ms;
+
+	TCActor<CActorDistributionManager> ServerManager = fg_ConstructActor<CActorDistributionManager>(ServerSettings);
+	TCActor<CActorDistributionManager> ClientManager = fg_ConstructActor<CActorDistributionManager>(ClientSettings);
+
+	NCryptography::CPublicKeySetting KeySetting = CDistributedActorTestKeySettings{};
+
+	// Self-signed without basic constraints
+	CActorDistributionCryptographySettings RootCryptography{ServerHostID};
+	RootCryptography.f_GenerateNewCert(fg_CreateVector<CStr>("localhost"), KeySetting);
+
+	// As the trust manager issues the certificates that it listens with
+	CByteVector ListenCertificate;
+	CSecureByteVector ListenPrivateKey;
+	{
+		NCryptography::CCertificateOptions Options;
+		Options.m_KeySetting = KeySetting;
+		Options.m_CommonName = "Malterlib Distributed Actors Listen - localhost";
+		Options.m_Hostnames.f_Insert("localhost");
+		auto &Extension = Options.m_Extensions["MalterlibHostID"].f_Insert();
+		Extension.m_bCritical = false;
+		Extension.m_Value = ServerHostID;
+
+		CByteVector CertificateRequest;
+		NCryptography::CCertificate::fs_GenerateClientCertificateRequest(Options, CertificateRequest, ListenPrivateKey);
+
+		NCryptography::CCertificateSignOptions SignOptions;
+		SignOptions.m_Serial = 2;
+		SignOptions.m_Days = 365;
+		SignOptions.m_LeafRole = NCryptography::ECertificateLeafRole_ServerAuth;
+		SignOptions.m_AllowedKeyTypes.f_Insert(KeySetting);
+		SignOptions.m_AllowedRequestDigests.f_Insert(NCryptography::fg_GetAutomaticDigestType(KeySetting));
+		SignOptions.m_AllowedRequestExtensions.f_Insert("1.3.6.1.4.1.47722.1.1");
+		SignOptions.m_AllowedRequestExtensions.f_Insert("2.5.29.17");
+
+		NCryptography::CCertificate::fs_SignClientCertificate(RootCryptography.m_PublicCertificate, RootCryptography.m_PrivateKey, CertificateRequest, ListenCertificate, SignOptions);
+	}
+
+	NWeb::NHTTP::CURL ConnectAddress;
+	ConnectAddress = fg_Format("wss://{}:31395/", "localhost");
+
+	CActorDistributionListenSettings ListenSettings{fg_CreateVector(ConnectAddress)};
+	ListenSettings.m_PublicCertificate = ListenCertificate;
+	ListenSettings.m_CACertificate = RootCryptography.m_PublicCertificate;
+	ListenSettings.m_PrivateKey = ListenPrivateKey;
+	ListenSettings.m_MinimumCryptoStrength = NCryptography::ECryptoStrength::mc_EquivalentSymmetric128bit;
+	ListenSettings.m_bRetryOnListenFailure = false;
+	ListenSettings.m_ListenFlags = ENetFlag_None;
+	CDistributedActorListenReference ListenReference = ServerManager(&CActorDistributionManager::f_Listen, ListenSettings).f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout);
+
+	CActorDistributionConnectionSettings ConnectionSettings;
+	ConnectionSettings.m_ServerURL = ConnectAddress;
+	CActorDistributionCryptographySettings ClientCryptography{ClientHostID};
+	ClientCryptography.f_GenerateNewCert(fg_CreateVector<CStr>("localhost"), KeySetting);
+	auto SignedRequest = RootCryptography.f_SignRequest(ClientCryptography.f_GenerateRequest());
+	ClientCryptography.f_AddRemoteServer(ConnectionSettings.m_ServerURL, RootCryptography.m_PublicCertificate, SignedRequest);
+
+	ConnectionSettings.f_SetCryptography(ClientCryptography);
+	ConnectionSettings.m_MinimumCryptoStrength = NCryptography::ECryptoStrength::mc_EquivalentSymmetric128bit;
+	ConnectionSettings.m_bRetryConnectOnFirstFailure = false;
+	ConnectionSettings.m_bRetryConnectOnFailure = false;
+
+	auto ConnectionResult = ClientManager(&CActorDistributionManager::f_Connect, ConnectionSettings, 60.0).f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout);
+
+	DMibExpect(ConnectionResult.m_CertificateChain.f_GetLen(), ==, umint(2));
+	DMibExpect(ConnectionResult.m_HostInfo.m_HostID, ==, ServerHostID);
+
+	ConnectionResult.m_ConnectionReference.f_Disconnect().f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout);
+	ListenReference.f_Stop().f_CallSync(RunLoopHelper.m_pRunLoop, gs_Timeout);
 }
 
 void CDistributedActor_Tests::fp_AnonymousClientTests()

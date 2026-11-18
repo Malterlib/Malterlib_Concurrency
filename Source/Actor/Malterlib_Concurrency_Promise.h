@@ -986,7 +986,7 @@ namespace NMib::NConcurrency
 		void operator > (NContainer::TCMapResult<TCFuture<t_CReturnValue> &> &&_MapResult) &&;
 
 		template <typename tf_FOnResult>
-		void operator > (TCDirectResultFunctor<tf_FOnResult> &&_fOnResult) &&;
+		void operator > (TCDirectResultFunctor<tf_FOnResult> &&_OnResult) &&;
 
 		template <typename tf_CKey, typename tf_CForwardKey>
 		inline_always void operator > (TCFutureMapBoundKey<tf_CKey, t_CReturnValue, tf_CForwardKey> &&_BoundKey) &&;

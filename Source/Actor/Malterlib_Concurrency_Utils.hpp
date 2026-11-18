@@ -1091,10 +1091,10 @@ namespace NMib::NConcurrency
 
 	template <typename t_CReturnValue>
 	template <typename tf_FOnResult>
-	void TCFuture<t_CReturnValue>::operator > (TCDirectResultFunctor<tf_FOnResult> &&_fOnResult) &&
+	void TCFuture<t_CReturnValue>::operator > (TCDirectResultFunctor<tf_FOnResult> &&_OnResult) &&
 	{
 		auto This = fg_Move(*this);
-		This.f_OnResultSet(fg_Move(_fOnResult.m_fOnResult));
+		This.f_OnResultSet(fg_Move(_OnResult.m_fOnResult));
 	}
 
 	template <typename t_CReturnValue>

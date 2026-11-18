@@ -7,7 +7,9 @@ Property.CMakeOutputPath_cppcoro: string = `@('.'->MakeAbsolute())`->MakeAbsolut
 		SearchPath += [
 			`@('../../../../External/cppcoro'->MakeAbsolute())/include`->MakeAbsolute()
 		]
-		PreprocessorDefines += []
+		PreprocessorDefines += [
+			"NDEBUG"
+		]
 	}
 	Property.MalterlibTargetNameType "Normal"
 	Compile.AllowNonExisting true

@@ -8,7 +8,10 @@ Property.CMakeOutputPath_cppcoro: string = `@('.'->MakeAbsolute())`->MakeAbsolut
 			`@('../../../../External/cppcoro'->MakeAbsolute())/include`->MakeAbsolute()
 		]
 		PreprocessorDefines += [
-			"_SILENCE_EXPERIMENTAL_FILESYSTEM_DEPRECATION_WARNING=1"
+			"NDEBUG",
+			"WIN32",
+			"_SILENCE_EXPERIMENTAL_FILESYSTEM_DEPRECATION_WARNING=1",
+			"_WINDOWS"
 		]
 	}
 	Property.MalterlibTargetNameType "Normal"

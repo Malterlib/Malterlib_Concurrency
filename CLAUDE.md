@@ -650,7 +650,24 @@ m_Value = Result;
 
 ### Error Handling with Coroutines
 
+A `TCFuture` coroutine must not throw. Return errors with `co_return DMibErrorInstance(...)` or let a failed `co_await`
+resolve the coroutine with its error. Code that can throw, such as parsing or `f_ToString` on a value that may be empty,
+goes inside a capture scope, `auto CaptureScope = co_await (g_CaptureExceptions % "Context");`, or the whole coroutine
+opts in with `co_await ECoroutineFlag_CaptureExceptions;` (or `ECoroutineFlag_CaptureMalterlibExceptions` for Malterlib
+exceptions only). Both turn the exception into the coroutine's error result. An exception that escapes the coroutine
+outside them crashes the process on purpose.
+
 ```cpp
+// INCORRECT: throws outside a capture scope, which crashes the process
+CStr ExtraInfo = Version.m_ExtraInfo.f_ToString(nullptr);
+
+// CORRECT: the exception becomes the error result of the coroutine
+CStr ExtraInfo;
+{
+	auto CaptureScope = co_await (g_CaptureExceptions % "Error encoding extra info");
+	ExtraInfo = Version.m_ExtraInfo.f_ToString(nullptr);
+}
+
 // INCORRECT: co_await in catch block (compilation error)
 try
 {
@@ -743,6 +760,7 @@ MalterlibConcurrency_DebugSubscriptions true    // Subscription logging
 9. **Deadlocks**: Avoid circular actor dependencies
 10. **co_await in catch blocks**: Cannot use `co_await` in catch handlers - use `g_CaptureExceptions` instead
 11. **Exception message operator precedence**: When using `% "message"` with `co_await`, parenthesize properly: `co_await ((...) % "message")`
+12. **Throwing in coroutines**: An exception that escapes a `TCFuture` coroutine outside a `g_CaptureExceptions` scope or `ECoroutineFlag_CaptureExceptions` crashes the process; put code that can throw inside one
 
 ## Advanced Features
 

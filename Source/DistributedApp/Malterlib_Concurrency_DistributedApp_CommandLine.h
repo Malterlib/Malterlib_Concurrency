@@ -47,6 +47,12 @@ namespace NMib::NConcurrency
 		bool m_bClipboardSupported = false;
 	};
 
+	// Answers a query from the app in the process of the command line. It gets the parameters the command line parsed for
+	// the command, before the app validates them. It runs on the app actor of that process, the actor that registered the
+	// command, where the queries of every invocation take turns
+	using FCommandLineQuery = NFunction::TCFunctionMovable<TCFuture<NEncoding::CEJsonSorted> (NEncoding::CEJsonSorted _Params, NEncoding::CEJsonSorted _Query)>;
+	using FCommandLineQueryActorFunctor = TCActorFunctor<TCFuture<NEncoding::CEJsonSorted> (NEncoding::CEJsonSorted _Params, NEncoding::CEJsonSorted _Query)>;
+
 	struct ICCommandLineControl : public CActor
 	{
 		enum EProtocolVersion : uint32
@@ -56,8 +62,9 @@ namespace NMib::NConcurrency
 			, EProtocolVersion_SupportScreenChange = 0x108
 			, EProtocolVersion_SupportClipboard    = 0x109
 			, EProtocolVersion_SupportStdErrBinary = 0x10A
+			, EProtocolVersion_SupportQuery        = 0x10B
 
-			, EProtocolVersion_Current = 0x10A
+			, EProtocolVersion_Current = 0x10B
 		};
 
 		struct CU2FAuthenticate
@@ -150,6 +157,9 @@ namespace NMib::NConcurrency
 
 		virtual NConcurrency::TCFuture<CU2FRegister::CResult> f_U2F_Register(CU2FRegister _Register) = 0;
 		virtual NConcurrency::TCFuture<CU2FAuthenticate::CResult> f_U2F_Authenticate(CU2FAuthenticate _Authenticate) = 0;
+
+		// Answered by the query handler that the command was registered with, in the process of the command line
+		virtual NConcurrency::TCFuture<NEncoding::CEJsonSorted> f_Query(NEncoding::CEJsonSorted _Query) = 0;
 	};
 
 	struct CCommandLineControl
@@ -165,6 +175,10 @@ namespace NMib::NConcurrency
 
 		NConcurrency::TCFuture<ICCommandLineControl::CU2FRegister::CResult> f_U2F_Register(ICCommandLineControl::CU2FRegister &&_Register);
 		NConcurrency::TCFuture<ICCommandLineControl::CU2FAuthenticate::CResult> f_U2F_Authenticate(ICCommandLineControl::CU2FAuthenticate &&_Authenticate);
+
+		// False when the connected command line peer negotiated a protocol without f_Query
+		bool f_SupportsQuery() const;
+		NConcurrency::TCFuture<NEncoding::CEJsonSorted> f_Query(NEncoding::CEJsonSorted &&_Query) const;
 
 		void operator += (ch8 const *_pStdOut) const;
 		void operator %= (ch8 const *_pStdErr) const;
@@ -266,6 +280,7 @@ namespace NMib::NConcurrency
 						NEncoding::CEJsonOrdered &&_CommandDescription
 						, NFunction::TCFunctionMovable<TCFuture<uint32> (NEncoding::CEJsonSorted &&_Params, NStorage::TCSharedPointer<CCommandLineControl> &&_pCommandLine)> &&_fRunCommand
 						, EDistributedAppCommandFlag _Flags = EDistributedAppCommandFlag_None
+						, FCommandLineQuery &&_fQuery = nullptr
 					)
 					-> typename t_CCommandLineSpecification::CCommand
 				;
@@ -290,6 +305,7 @@ namespace NMib::NConcurrency
 				NStorage::TCSharedPointer<TCActorFunctor<TCFuture<uint32> (NEncoding::CEJsonSorted _Parameters, NStorage::TCSharedPointer<CCommandLineControl> _pCommandLine)>>
 					m_pActorRunCommand
 				;
+				NStorage::TCSharedPointer<FCommandLineQueryActorFunctor> m_pQuery;
 				EDistributedAppCommandFlag m_Flags = EDistributedAppCommandFlag_None;
 			};
 		};
@@ -303,6 +319,7 @@ namespace NMib::NConcurrency
 			NEncoding::CEJsonOrdered &&_CommandDescription
 			, NFunction::TCFunctionMovable<TCFuture<uint32> (NEncoding::CEJsonSorted &&_Params, NStorage::TCSharedPointer<CCommandLineControl> &&_pCommandLine)> &&_fRunCommand
 			, EDistributedAppCommandFlag _Flags
+			, FCommandLineQuery &&_fQuery
 		)
 		-> NCommandLine::TCCommandLineSpecification<CCommandLineSpecificationDistributedAppCustomization>::CCommand
 	;

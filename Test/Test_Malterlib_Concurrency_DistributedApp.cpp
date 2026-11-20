@@ -92,6 +92,50 @@ namespace
 
 		Section.f_RegisterCommand
 			(
+				{
+					"Names"_o= _o["--test-query"]
+					, "Description"_o= "Return the sum the command line answers a query with."
+					, "Options"_o=
+					{
+						"Integer?"_o=
+						{
+							"Names"_o= _o["--integer"]
+							, "Default"_o= 5
+							, "Description"_o= "Added to the value of the query."
+						}
+					}
+				}
+				, [](NEncoding::CEJsonSorted const _Params, NStorage::TCSharedPointer<CCommandLineControl> _pCommandLine) -> TCFuture<uint32>
+				{
+					if (!_pCommandLine->f_SupportsQuery())
+						co_return 1000;
+
+					CEJsonSorted Answer = co_await _pCommandLine->f_Query({"Value"_= 30});
+
+					co_return Answer["Sum"].f_Integer();
+				}
+				, EDistributedAppCommandFlag_None
+				, [](CEJsonSorted _Params, CEJsonSorted _Query) -> TCFuture<CEJsonSorted>
+				{
+					co_return {"Sum"_= _Query["Value"].f_Integer() + _Params["Integer"].f_Integer()};
+				}
+			)
+		;
+
+		Section.f_RegisterCommand
+			(
+				{"Names"_o= _o["--test-query-unanswered"], "Description"_o= "Return 1 when a query of a command without a handler fails."}
+				, [](NEncoding::CEJsonSorted const _Params, NStorage::TCSharedPointer<CCommandLineControl> _pCommandLine) -> TCFuture<uint32>
+				{
+					auto Answer = co_await _pCommandLine->f_Query({"Value"_= 30}).f_Wrap();
+
+					co_return Answer ? 0 : 1;
+				}
+			)
+		;
+
+		Section.f_RegisterCommand
+			(
 				{"Names"_o= _o["--test-remote-session"], "Description"_o= "Return 1 for a session through the app's listener."}
 				, [](NEncoding::CEJsonSorted const _Params, NStorage::TCSharedPointer<CCommandLineControl> _pCommandLine) -> TCFuture<uint32>
 				{
@@ -194,7 +238,15 @@ namespace
 		void f_DoTests();
 
 	private:
-		void fp_RunTests(TCFunction<void (CDistributedAppCommandLineClient &_Client)> &&_fTests, CStr const &_Name, bool _bInProcessOnly = false);
+		// The client the tests get: the one of the app's own process, or one that connects to the app's listener the way a
+		// command line in another process does
+		enum class EClient
+		{
+			mc_InProcess
+			, mc_Listener
+		};
+
+		void fp_RunTests(TCFunction<void (CDistributedAppCommandLineClient &_Client)> &&_fTests, CStr const &_Name, bool _bInProcessOnly = false, EClient _Client = EClient::mc_InProcess);
 	};
 
 	void CDistributedApp_Tests::f_DoTests()
@@ -393,6 +445,15 @@ namespace
 							DMibTestPath("General");
 							aint Ret = _Client.f_RunCommandLine(fg_CreateVector<CStr>("App", "--test-actor", "--integer", "66"));
 							DMibExpect(Ret, ==, 66);
+
+							{
+								DMibTestPath("Query");
+								aint Sum = _Client.f_RunCommandLine(fg_CreateVector<CStr>("App", "--test-query", "--integer", "12"));
+								DMibExpect(Sum, ==, 42);
+
+								aint Unanswered = _Client.f_RunCommandLine(fg_CreateVector<CStr>("App", "--test-query-unanswered"));
+								DMibExpect(Unanswered, ==, 1);
+							}
 						}
 						, "TestDistAppCommandLineActor"
 					)
@@ -411,15 +472,41 @@ namespace
 
 							aint OwnHost = _Client.f_RunCommandLine(fg_CreateVector<CStr>("App", "--test-calling-host"));
 							DMibExpect(OwnHost, ==, 1);
+
+							aint Sum = _Client.f_RunCommandLine(fg_CreateVector<CStr>("App", "--test-query"));
+							DMibExpect(Sum, ==, 35);
 						}
 						, "TestDistAppCommandLineInProcess"
+					)
+				;
+			};
+
+			DMibTestSuite("Through listener")
+			{
+				// The query goes over the connection to the app, with the handler on the app actor of the client's side
+				fp_RunTests
+					(
+						[](CDistributedAppCommandLineClient &_Client)
+						{
+							aint Remote = _Client.f_RunCommandLine(fg_CreateVector<CStr>("App", "--test-remote-session"));
+							DMibExpect(Remote, ==, 1);
+
+							aint Sum = _Client.f_RunCommandLine(fg_CreateVector<CStr>("App", "--test-query", "--integer", "12"));
+							DMibExpect(Sum, ==, 42);
+
+							aint Unanswered = _Client.f_RunCommandLine(fg_CreateVector<CStr>("App", "--test-query-unanswered"));
+							DMibExpect(Unanswered, ==, 1);
+						}
+						, "TestDistAppCommandLineListener"
+						, false
+						, EClient::mc_Listener
 					)
 				;
 			};
 		};
 	}
 
-	void CDistributedApp_Tests::fp_RunTests(TCFunction<void (CDistributedAppCommandLineClient &_Client)> &&_fTests, CStr const &_Name, bool _bInProcessOnly)
+	void CDistributedApp_Tests::fp_RunTests(TCFunction<void (CDistributedAppCommandLineClient &_Client)> &&_fTests, CStr const &_Name, bool _bInProcessOnly, EClient _Client)
 	{
 		CStr ConfigDir = NFile::CFile::fs_GetProgramDirectory() / _Name;
 		fg_TestAddCleanupPath(ConfigDir);
@@ -441,9 +528,32 @@ namespace
 
 		auto AppActor = fg_ConstructActor<CTestDistributedApp>(_Name, _bInProcessOnly);
 		AppActor(&CDistributedAppActor::f_StartApp, NEncoding::CEJsonSorted{}, TCActor<CDistiributedAppLogActor>{}, EDistributedAppType_InProcess).f_CallSync(RunLoopHelper.m_pRunLoop);
-		CDistributedAppCommandLineClient CommandLineClient = AppActor(&CDistributedAppActor::f_GetCommandLineClient, RunLoopHelper.m_pRunLoop, nullptr).f_CallSync(RunLoopHelper.m_pRunLoop);
+		NStorage::TCOptional<CDistributedAppCommandLineClient> ListenerClient;
+		CDistributedAppActor::FMutateCommandLine fMutateCommandLine;
 
-		_fTests(CommandLineClient);
+		// A client made without the app's actor has no in-process shortcut, so it connects to the listener
+		if (_Client == EClient::mc_Listener)
+		{
+			fMutateCommandLine = [&ListenerClient, pRunLoop = RunLoopHelper.m_pRunLoop]
+				(NStorage::TCSharedPointer<CDistributedAppCommandLineSpecification> _pSpecification, CDistributedAppActor_Settings _Settings) -> TCFuture<void>
+				{
+					ListenerClient = fg_Construct(_Settings, fg_Move(_pSpecification), NContainer::TCMap<CStr, CStr>{}, pRunLoop);
+					return g_Void;
+				}
+			;
+		}
+
+		CDistributedAppCommandLineClient CommandLineClient = AppActor(&CDistributedAppActor::f_GetCommandLineClient, RunLoopHelper.m_pRunLoop, fg_Move(fMutateCommandLine))
+			.f_CallSync(RunLoopHelper.m_pRunLoop)
+		;
+
+		if (ListenerClient)
+		{
+			_fTests(*ListenerClient);
+			ListenerClient.f_Clear();
+		}
+		else
+			_fTests(CommandLineClient);
 
 		AppActor->f_BlockDestroy(RunLoopHelper.m_pRunLoop->f_ActorDestroyLoop());
 	}

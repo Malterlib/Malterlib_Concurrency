@@ -36,6 +36,7 @@ namespace NMib::NConcurrency
 		DMibPublishActorFunction(ICCommandLineControl::f_StdErrBinary);
 		DMibPublishActorFunction(ICCommandLineControl::f_U2F_Register);
 		DMibPublishActorFunction(ICCommandLineControl::f_U2F_Authenticate);
+		DMibPublishActorFunction(ICCommandLineControl::f_Query);
 	}
 
 	ICCommandLineControl::~ICCommandLineControl() = default;
@@ -259,6 +260,21 @@ namespace NMib::NConcurrency
 		if (!f_SupportsClipboard())
 			return DMibErrorInstance("Command line peer does not support clipboard access");
 		return m_ControlActor.f_CallActor(&ICCommandLineControl::f_Clipboard_SetText)(_Text);
+	}
+
+	bool CCommandLineControl::f_SupportsQuery() const
+	{
+		if (!m_ControlActor)
+			return false;
+
+		return m_ControlActor.f_GetProtocolVersions().m_MaxSupported >= ICCommandLineControl::EProtocolVersion_SupportQuery;
+	}
+
+	TCFuture<NEncoding::CEJsonSorted> CCommandLineControl::f_Query(NEncoding::CEJsonSorted &&_Query) const
+	{
+		if (!f_SupportsQuery())
+			return DMibErrorInstance("Command line peer does not support queries");
+		return m_ControlActor.f_CallActor(&ICCommandLineControl::f_Query)(fg_Move(_Query));
 	}
 
 	TCFuture<CStrIO> CCommandLineControl::f_Clipboard_GetText() const

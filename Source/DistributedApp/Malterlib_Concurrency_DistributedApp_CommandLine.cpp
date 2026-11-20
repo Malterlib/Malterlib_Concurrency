@@ -21,6 +21,7 @@ namespace NMib::NConcurrency
 			NEncoding::CEJsonOrdered &&_CommandDescription
 			, NFunction::TCFunctionMovable<TCFuture<uint32> (NEncoding::CEJsonSorted &&_Params, NStorage::TCSharedPointer<CCommandLineControl> &&_pCommandLine)> &&_fRunCommand
 			, EDistributedAppCommandFlag _Flags
+			, FCommandLineQuery &&_fQuery
 		)
 		-> typename t_CCommandLineSpecification::CCommand
 	{
@@ -29,6 +30,8 @@ namespace NMib::NConcurrency
 		auto &Internal = *(this->mp_pInternal);
 		auto *pCommand = Internal.f_RegisterCommand(Section, fg_Move(_CommandDescription));
 		pCommand->m_pActorRunCommand = fg_Construct(g_ActorFunctor / fg_Move(_fRunCommand));
+		if (_fQuery)
+			pCommand->m_pQuery = fg_Construct(g_ActorFunctor / fg_Move(_fQuery));
 		pCommand->m_Flags = _Flags;
 		return typename t_CCommandLineSpecification::CCommand(this->mp_pInternal, pCommand);
 	}
@@ -57,6 +60,7 @@ namespace NMib::NConcurrency
 			NEncoding::CEJsonOrdered &&_CommandDescription
 			, NFunction::TCFunctionMovable<TCFuture<uint32> (NEncoding::CEJsonSorted &&_Params, NStorage::TCSharedPointer<CCommandLineControl> &&_pCommandLine)> &&_fRunCommand
 			, EDistributedAppCommandFlag _Flags
+			, FCommandLineQuery &&_fQuery
 		)
 		-> TCCommandLineSpecification<CCommandLineSpecificationDistributedAppCustomization>::CCommand
 	;

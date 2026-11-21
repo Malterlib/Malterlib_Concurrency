@@ -60,6 +60,14 @@ namespace NMib::NConcurrency
 	{
 		struct CCommandLineControlActor : public ICCommandLineControl
 		{
+			CCommandLineControlActor
+				(
+					NStorage::TCSharedPointer<FCommandLineRequestHandlerActorFunctor> const &_pHandleRequest
+					, NEncoding::CEJsonSorted &&_Params
+					, NStorage::TCSharedPointer<CRunLoop> const &_pRunLoop
+				)
+			;
+
 			TCFuture<TCActorSubscriptionWithID<>> f_RegisterForStdInBinary(FOnBinaryInput _fOnInput, NProcess::EStdInReaderFlag _Flags) override;
 			TCFuture<TCActorSubscriptionWithID<>> f_RegisterForCancellation(FOnCancel _fOnCancel) override;
 			TCFuture<TCActorSubscriptionWithID<>> f_RegisterForScreenChange(FOnScreenChange _fOnScreenChange) override;
@@ -77,6 +85,7 @@ namespace NMib::NConcurrency
 			TCFuture<bool> f_Cancel();
 			NConcurrency::TCFuture<CU2FRegister::CResult> f_U2F_Register(CU2FRegister _Register) override;
 			NConcurrency::TCFuture<CU2FAuthenticate::CResult> f_U2F_Authenticate(CU2FAuthenticate _Authenticate) override;
+			TCFuture<NEncoding::CEJsonSorted> f_Request(NEncoding::CEJsonSorted _Request) override;
 			TCFuture<void> f_ScreenChange(CScreenChange _ScreenChange);
 
 			static constexpr EPriority mc_Priority = EPriority_NormalHighCPU;
@@ -100,6 +109,9 @@ namespace NMib::NConcurrency
 
 			void fp_UpdateScreenChangeWatcher();
 
+			NStorage::TCSharedPointer<FCommandLineRequestHandlerActorFunctor> mp_pHandleRequest;
+			NEncoding::CEJsonSorted mp_Params;               // Kept only when the command has a request handler
+			NStorage::TCSharedPointer<CRunLoop> mp_pRunLoop; // The run loop the command line client thread waits on while the command runs
 			TCActor<NProcess::CStdInActor> mp_InputActor;
 			NContainer::TCMap<NStr::CStr, CCancellationSubscription> mp_CancellationSubscriptions;
 			NContainer::TCMap<NStr::CStr, CScreenChangeSubscription> mp_ScreenChangeSubscriptions;
@@ -109,6 +121,18 @@ namespace NMib::NConcurrency
 			COnScopeExitShared mp_ScreenChangeWatcher; // Held only while both a screen subscriber and an input registration exist.
 			bool mp_bCancelled = false;
 		};
+
+		CCommandLineControlActor::CCommandLineControlActor
+			(
+				NStorage::TCSharedPointer<FCommandLineRequestHandlerActorFunctor> const &_pHandleRequest
+				, NEncoding::CEJsonSorted &&_Params
+				, NStorage::TCSharedPointer<CRunLoop> const &_pRunLoop
+			)
+			: mp_pHandleRequest(_pHandleRequest)
+			, mp_Params(fg_Move(_Params))
+			, mp_pRunLoop(_pRunLoop)
+		{
+		}
 
 		TCFuture<TCActorSubscriptionWithID<>> CCommandLineControlActor::f_RegisterForStdInBinary(FOnBinaryInput _fOnInput, NProcess::EStdInReaderFlag _Flags)
 		{
@@ -346,6 +370,17 @@ namespace NMib::NConcurrency
 			auto Result = co_await CU2FHelpers::fs_Authenticate(fg_Move(Authenticate));
 
 			co_return {.m_AppDigest = Result.m_AppDigest, .m_Signature = fg_Move(Result.m_Signature)};
+		}
+
+		TCFuture<NEncoding::CEJsonSorted> CCommandLineControlActor::f_Request(NEncoding::CEJsonSorted _Request)
+		{
+			if (auto pDestroyed = fp_CheckDestroyed())
+				co_return pDestroyed;
+
+			if (!mp_pHandleRequest)
+				co_return DMibErrorInstance("The command does not handle requests");
+
+			co_return co_await (*mp_pHandleRequest)(mp_Params, fg_Move(_Request), mp_pRunLoop);
 		}
 
 		TCFuture<void> CCommandLineControlActor::f_ScreenChange(CScreenChange _ScreenChange)
@@ -604,7 +639,13 @@ namespace NMib::NConcurrency
 				;
 			}
 
-			TCDistributedActor<CCommandLineControlActor> ControlActor = DistributionManager->f_ConstructActor<CCommandLineControlActor>();
+			TCDistributedActor<CCommandLineControlActor> ControlActor = DistributionManager->f_ConstructActor<CCommandLineControlActor>
+				(
+					Command.m_pHandleRequest
+					, Command.m_pHandleRequest ? NEncoding::CEJsonSorted(_Params) : NEncoding::CEJsonSorted()
+					, Internal.m_pRunLoop
+				)
+			;
 
 			CCommandLineControl CommandLineControl;
 			CommandLineControl.m_ControlActor = ControlActor->f_ShareInterface<ICCommandLineControl>();

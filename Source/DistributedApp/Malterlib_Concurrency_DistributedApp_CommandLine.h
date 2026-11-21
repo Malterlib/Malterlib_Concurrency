@@ -47,6 +47,21 @@ namespace NMib::NConcurrency
 		bool m_bClipboardSupported = false;
 	};
 
+	// Handles a request from the app in the command line process and returns the answer. _Params are the parameters as the command line client parsed
+	// them, not the copy the app validated. _pRunLoop is the run loop the command line client thread waits on, for work that must run on that thread. The
+	// handler runs on the actor that registered the command, and calls can interleave when it suspends. Return errors in the future: an exception that
+	// escapes the handler uncaptured terminates the command line process
+	using FCommandLineRequestHandler = NFunction::TCFunctionMovable
+		<
+			TCFuture<NEncoding::CEJsonSorted> (NEncoding::CEJsonSorted _Params, NEncoding::CEJsonSorted _Request, NStorage::TCSharedPointer<CRunLoop> _pRunLoop)
+		>
+	;
+	using FCommandLineRequestHandlerActorFunctor = TCActorFunctor
+		<
+			TCFuture<NEncoding::CEJsonSorted> (NEncoding::CEJsonSorted _Params, NEncoding::CEJsonSorted _Request, NStorage::TCSharedPointer<CRunLoop> _pRunLoop)
+		>
+	;
+
 	struct ICCommandLineControl : public CActor
 	{
 		enum EProtocolVersion : uint32
@@ -56,8 +71,9 @@ namespace NMib::NConcurrency
 			, EProtocolVersion_SupportScreenChange = 0x108
 			, EProtocolVersion_SupportClipboard    = 0x109
 			, EProtocolVersion_SupportStdErrBinary = 0x10A
+			, EProtocolVersion_SupportRequest      = 0x10B
 
-			, EProtocolVersion_Current = 0x10A
+			, EProtocolVersion_Current = 0x10B
 		};
 
 		struct CU2FAuthenticate
@@ -150,6 +166,9 @@ namespace NMib::NConcurrency
 
 		virtual NConcurrency::TCFuture<CU2FRegister::CResult> f_U2F_Register(CU2FRegister _Register) = 0;
 		virtual NConcurrency::TCFuture<CU2FAuthenticate::CResult> f_U2F_Authenticate(CU2FAuthenticate _Authenticate) = 0;
+
+		// Handled by the request handler that the command was registered with, in the process of the command line; fails without one
+		virtual NConcurrency::TCFuture<NEncoding::CEJsonSorted> f_Request(NEncoding::CEJsonSorted _Request) = 0;
 	};
 
 	struct CCommandLineControl
@@ -165,6 +184,9 @@ namespace NMib::NConcurrency
 
 		NConcurrency::TCFuture<ICCommandLineControl::CU2FRegister::CResult> f_U2F_Register(ICCommandLineControl::CU2FRegister &&_Register);
 		NConcurrency::TCFuture<ICCommandLineControl::CU2FAuthenticate::CResult> f_U2F_Authenticate(ICCommandLineControl::CU2FAuthenticate &&_Authenticate);
+
+		bool f_SupportsRequest() const;
+		NConcurrency::TCFuture<NEncoding::CEJsonSorted> f_Request(NEncoding::CEJsonSorted &&_Request) const;
 
 		void operator += (ch8 const *_pStdOut) const;
 		void operator %= (ch8 const *_pStdErr) const;
@@ -266,6 +288,7 @@ namespace NMib::NConcurrency
 						NEncoding::CEJsonOrdered &&_CommandDescription
 						, NFunction::TCFunctionMovable<TCFuture<uint32> (NEncoding::CEJsonSorted &&_Params, NStorage::TCSharedPointer<CCommandLineControl> &&_pCommandLine)> &&_fRunCommand
 						, EDistributedAppCommandFlag _Flags = EDistributedAppCommandFlag_None
+						, FCommandLineRequestHandler &&_fHandleRequest = nullptr
 					)
 					-> typename t_CCommandLineSpecification::CCommand
 				;
@@ -290,6 +313,7 @@ namespace NMib::NConcurrency
 				NStorage::TCSharedPointer<TCActorFunctor<TCFuture<uint32> (NEncoding::CEJsonSorted _Parameters, NStorage::TCSharedPointer<CCommandLineControl> _pCommandLine)>>
 					m_pActorRunCommand
 				;
+				NStorage::TCSharedPointer<FCommandLineRequestHandlerActorFunctor> m_pHandleRequest;
 				EDistributedAppCommandFlag m_Flags = EDistributedAppCommandFlag_None;
 			};
 		};
@@ -303,6 +327,7 @@ namespace NMib::NConcurrency
 			NEncoding::CEJsonOrdered &&_CommandDescription
 			, NFunction::TCFunctionMovable<TCFuture<uint32> (NEncoding::CEJsonSorted &&_Params, NStorage::TCSharedPointer<CCommandLineControl> &&_pCommandLine)> &&_fRunCommand
 			, EDistributedAppCommandFlag _Flags
+			, FCommandLineRequestHandler &&_fHandleRequest
 		)
 		-> NCommandLine::TCCommandLineSpecification<CCommandLineSpecificationDistributedAppCustomization>::CCommand
 	;

@@ -36,6 +36,7 @@ namespace NMib::NConcurrency
 		DMibPublishActorFunction(ICCommandLineControl::f_StdErrBinary);
 		DMibPublishActorFunction(ICCommandLineControl::f_U2F_Register);
 		DMibPublishActorFunction(ICCommandLineControl::f_U2F_Authenticate);
+		DMibPublishActorFunction(ICCommandLineControl::f_Request);
 	}
 
 	ICCommandLineControl::~ICCommandLineControl() = default;
@@ -259,6 +260,22 @@ namespace NMib::NConcurrency
 		if (!f_SupportsClipboard())
 			return DMibErrorInstance("Command line peer does not support clipboard access");
 		return m_ControlActor.f_CallActor(&ICCommandLineControl::f_Clipboard_SetText)(_Text);
+	}
+
+	// Whether the command line client can receive requests. It doesn't tell whether the command has a request handler
+	bool CCommandLineControl::f_SupportsRequest() const
+	{
+		if (!m_ControlActor)
+			return false;
+
+		return m_ControlActor.f_GetProtocolVersions().m_MaxSupported >= ICCommandLineControl::EProtocolVersion_SupportRequest;
+	}
+
+	TCFuture<NEncoding::CEJsonSorted> CCommandLineControl::f_Request(NEncoding::CEJsonSorted &&_Request) const
+	{
+		if (!f_SupportsRequest())
+			return DMibErrorInstance("Command line peer does not support requests");
+		return m_ControlActor.f_CallActor(&ICCommandLineControl::f_Request)(fg_Move(_Request));
 	}
 
 	TCFuture<CStrIO> CCommandLineControl::f_Clipboard_GetText() const

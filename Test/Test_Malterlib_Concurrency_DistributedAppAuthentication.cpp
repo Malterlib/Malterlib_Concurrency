@@ -963,6 +963,8 @@ namespace NTestAuthentication
 
 		TCFuture<CU2FAuthenticate::CResult> f_U2F_Authenticate(CU2FAuthenticate _Authenticate) override;
 
+		TCFuture<NEncoding::CEJsonSorted> f_Request(NEncoding::CEJsonSorted _Request) override;
+
 	private:
 		TCFuture<void> fp_Destroy() override;
 
@@ -1094,6 +1096,11 @@ namespace NTestAuthentication
 	TCFuture<ICCommandLineControl::CU2FAuthenticate::CResult> CCommandLineControlActorTest::f_U2F_Authenticate(CU2FAuthenticate _Authenticate)
 	{
 		co_return {};
+	}
+
+	TCFuture<NEncoding::CEJsonSorted> CCommandLineControlActorTest::f_Request(NEncoding::CEJsonSorted _Request)
+	{
+		co_return DMibErrorInstance("The test command line does not handle requests");
 	}
 
 	TCFuture<void> CCommandLineControlActorTest::fp_Destroy()

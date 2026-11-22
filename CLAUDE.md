@@ -537,7 +537,7 @@ TCFuture<void> f_Process(CStr _Key)
 {
 	CValue *pValue = nullptr;
 
-	co_await fg_OnResume
+	auto OnResume = co_await fg_OnResume
 		(
 			[&]() -> CExceptionPointer
 			{
@@ -559,7 +559,10 @@ TCFuture<void> f_Process(CStr _Key)
 - `co_await` the helper and keep its result in a named variable: the cleanup starts when that variable goes out of scope. Do not move the result to a longer-lived place: the cleanup can then run after the locals it refers to are gone, and the result must not outlive the coroutine that awaited the helper, since its destructor registers the cleanup with that coroutine.
 - The cleanup function may capture by reference, but after its first real suspension the locals it refers to can be gone, so it copies or moves what it needs from them into its own locals before that. `co_await ECoroutineFlag_CaptureExceptions` does not suspend.
 - These helpers schedule destruction on the owning actor.
-- Pair `fg_OnResume` with any pointer captures when the coroutine is going to suspend before dereferencing actor-owned data. While the coroutine is cancelled if the actor dies, other actor calls can mutate or erase those structures during the suspension, so re-validation on resume avoids stale references.
+- `co_await fg_OnResume(...)` runs the callable at once, ending the coroutine with its error if it returns one, and then again every time the coroutine resumes while the returned scope lives. Keep the scope in a named variable for the stretch of code the condition guards; the check stops when it goes out of scope.
+- Use it instead of repeating a check after each `co_await`: to check at every resume that a condition still holds, like an entry that must not be deleted, an operation that must not be stopping or aborted, or a generation that must not change, and to find pointers into actor state again, since other actor calls can change or erase that state while the coroutine is suspended.
+- A failed check ends the coroutine without the result of the `co_await` it resumes from, and no code after that `co_await` runs, also not the code after the scope. Code that must run even when the condition no longer holds, like a stop after a failed launch or handling a result that must be kept, must not be guarded: put the scope in a block that ends before that code. Cleanup that must run when a check fails, like an `fg_AsyncDestroy` result, must be registered before that check, so before the scope when it must also cover the first check.
+- The callable must not throw, since on resume it runs in a `noexcept` function. It is not a coroutine, so it can't suspend. It can return a `TCAsyncResult<T>` instead, with the return type of the coroutine as `T`, which ends the coroutine with its value or error when it is set.
 
 ## Local Command Sessions
 

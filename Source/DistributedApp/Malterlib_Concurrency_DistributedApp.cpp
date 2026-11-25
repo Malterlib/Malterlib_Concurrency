@@ -444,9 +444,10 @@ namespace NMib::NConcurrency
 						{
 							auto &Address = Candidates.fs_GetKey(ListenConfig);
 
-							// Instances that share a root remove each other's base listens when their settings place them in different directories,
-							// as a different enclave length can. Every process of a root runs with the same MalterlibDistributedAppLocalSocketPrefix, so
-							// a listen under another prefix is one that an earlier run left
+							// Instances that share a root must place their base listens in one directory, which ordinary roots, prefixes and enclave
+							// names do: an enclave long enough to move the sockets of one instance to another directory makes the instances remove each
+							// other's base listens. Every process of a root runs with the same MalterlibDistributedAppLocalSocketPrefix, so a listen
+							// under another prefix is one that an earlier run left
 							if (Settings.f_IsLocalSocketListenOfRoot(Address.m_URL, Flags))
 								UnusedListens.m_OfRoot[Address] = ListenConfig;
 							else if
@@ -467,7 +468,8 @@ namespace NMib::NConcurrency
 		;
 
 		// Another spelling of this root hashes to another socket directory, which can't be told apart from the directory of another root, so these
-		// are compared with the address the app state recorded for the listen outside the root
+		// are compared with the address the app state recorded for the listen outside the root. A listen that a version without that record left
+		// under another spelling of the root stays, since an app keeps the spelling of its root across an upgrade
 		if (!ListensElsewhere.f_IsEmpty())
 		{
 			if (Internal.m_StateLoad.f_IsValid())

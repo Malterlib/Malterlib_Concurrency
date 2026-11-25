@@ -234,7 +234,7 @@ namespace NMib::NConcurrency
 			for (auto &ListenAddress : WildcardListens)
 			{
 				// A listen can be removed while an earlier lookup is suspended. A listen on any port matches by the port it is bound to, and by none
-				// before it is bound
+				// before it is bound. A listen removed after its lookup leaves a ticket that fails to connect, as a removal after the ticket is issued does
 				auto BoundAddress = co_await Internal.f_GetBoundListenAddress(ListenAddress).f_Wrap();
 				if (!BoundAddress)
 					continue;

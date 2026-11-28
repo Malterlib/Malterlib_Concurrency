@@ -3,6 +3,7 @@
 
 #include "Malterlib_Concurrency_AsyncDestroy.h"
 
+#include <Mib/Concurrency/ConcurrencyManager>
 #include <Mib/Concurrency/LogError>
 
 namespace NMib::NConcurrency
@@ -74,6 +75,20 @@ namespace NMib::NConcurrency
 
 	namespace NPrivate
 	{
+		TCFuture<void> fg_SynchronizeWithActor(TCActor<> const &_Actor)
+		{
+			if (_Actor.f_IsEmpty())
+				return g_Void;
+
+			DMibFastCheck(fg_GetActorInternal(_Actor)->f_RunsCallsOneAtATime());
+
+			// The call holds the actor, which a delegated actor's queue only refers to weakly, also when the caller lets go of it first
+			return g_Dispatch(_Actor) / [Actor = _Actor]
+				{
+				}
+			;
+		}
+
 		void fg_AsyncDestroyLogErrorHelper(CAsyncResult const &_Result)
 		{
 			_Result > fg_LogError("Mib/Concurrency", "Failed to async destroy");

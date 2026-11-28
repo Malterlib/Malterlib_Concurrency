@@ -294,4 +294,32 @@ namespace NMib::NConcurrency
 	{
 		return TCAsyncDestroyAwaiter<TCActor<tf_CActor>, TCActor<tf_CActor>>(_ToDestroy);
 	}
+
+	// Waits, when the coroutine returns, for a call on _Actor, so that what the coroutine dispatched to the actor and awaited is over,
+	// its captures destroyed, before its result resumes the caller: the actor destroys a dispatched function and its captures after
+	// the function's result has already resumed the coroutine. It doesn't wait for calls that others queue on the actor, nor for a
+	// dispatched coroutine that moves on to another actor, as with fg_ContinueRunningOnActor, which destroys its captures there.
+	// _Actor is read when the coroutine returns, so it must outlive the returned async destroy and still name the same actor. A
+	// sham actor, as fg_ThisConcurrentActor(), picks a real actor for each call, and a direct call actor runs calls on the caller's
+	// thread, so no call on them waits for an earlier one: they are refused by their holder type, which needn't be complete here, and
+	// with a fast check for a type erased actor, one delegated to them, or one whose holder derives from theirs.
+	template <typename tf_CActor>
+	auto fg_SynchronizeOnExit(TCActor<tf_CActor> &_Actor)
+		requires (!NTraits::cIsSame<typename tf_CActor::CActorHolder, CShamActorHolder> && !NTraits::cIsSame<typename tf_CActor::CActorHolder, CDirectCallActorHolder>)
+	{
+		return fg_AsyncDestroyByValue
+			(
+				[pActor = &_Actor]() -> TCFuture<void>
+				{
+					return NPrivate::fg_SynchronizeWithActor(*pActor);
+				}
+			)
+		;
+	}
+
+	// Also releases the checkout, only after the synchronization, so that no other checkout queues work on the actor before it
+	inline auto fg_SynchronizeOnExit(CBlockingActorCheckout &_Checkout)
+	{
+		return fg_AsyncDestroy(_Checkout);
+	}
 }

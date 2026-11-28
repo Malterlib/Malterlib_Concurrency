@@ -82,6 +82,7 @@ namespace NMib::NConcurrency
 		inline_always void f_QueueProcessEntry(CConcurrentRunQueueEntryHolder &&_Entry, CConcurrencyThreadLocal &_ThreadLocal);
 		bool f_ImmediateDelete() const;
 		bool f_IsAlwaysAlive() const;
+		bool f_RunsCallsOneAtATime() const;
 		bool f_IsHolderDestroyed() const;
 #if DMibEnableSafeCheck > 0
 		bool f_CurrentlyProcessing() const;
@@ -160,6 +161,7 @@ namespace NMib::NConcurrency
 		uint8 mp_bImmediateDelete:1 = false;
 		uint8 mp_bIsAlwaysAlive:1 = false;
 		uint8 mp_bHasOverriddenDestroy:1 = false;
+		uint8 mp_bRunsCallsOneAtATime:1 = true; // Calls run one at a time, on this actor
 
 		uint8 mp_PaddingZone1[fg_AlignUpConstExpr(mcp_AlignmentZone1Size, DMibPMemoryCacheLineSize) - mcp_AlignmentZone1Size];
 

@@ -4,6 +4,7 @@
 #include <Mib/Core/Core>
 #include <Mib/Concurrency/ConcurrencyManager>
 #include <Mib/Concurrency/LogError>
+#include <Mib/Concurrency/AsyncDestroy>
 
 #include "Malterlib_Concurrency_ArenaGC.h"
 
@@ -2340,6 +2341,26 @@ namespace NMib::NConcurrency
 	bool CBlockingActorCheckout::f_IsValid() const
 	{
 		return !!mp_pBlockingActorStorage;
+	}
+
+	// Releases the checkout once the blocking actor has finished what was dispatched to it, including the destruction of the
+	// dispatched functions and their captures, which the actor does after their results have resumed the caller. The handler of
+	// the call's result holds the checkout, so it stays checked out also when the caller is gone before the call has run.
+	TCFuture<void> CBlockingActorCheckout::f_Destroy() &&
+	{
+		if (!f_IsValid())
+			return g_Void;
+
+		TCPromiseFuturePair<void> Promise;
+		auto Synchronize = NPrivate::fg_SynchronizeWithActor(f_Actor());
+		fg_Move(Synchronize) > g_DirectResult / [Checkout = fg_Move(*this), Promise = fg_Move(Promise.m_Promise)](TCAsyncResult<void> &&_Result) mutable
+			{
+				Checkout.f_Clear();
+				Promise.f_SetResult(fg_Move(_Result));
+			}
+		;
+
+		return fg_Move(Promise.m_Future);
 	}
 
 	CRoundRobinBlockingActors::CRoundRobinBlockingActors(umint _Capacity)

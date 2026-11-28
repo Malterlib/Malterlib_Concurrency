@@ -454,6 +454,11 @@ namespace NMib::NConcurrency
 		return mp_bIsAlwaysAlive;
 	}
 
+	bool CActorHolder::f_RunsCallsOneAtATime() const
+	{
+		return mp_bRunsCallsOneAtATime;
+	}
+
 	void CActorHolder::fp_DestroyThreaded()
 	{
 	}
@@ -1303,6 +1308,8 @@ namespace NMib::NConcurrency
 		if (mp_pDelegateTo->mp_DestroyInitiated.f_Load())
 			throw DMibImpExceptionInstance(CExceptionActorIsBeingDestroyed, "Cannot register a delegated actor while its parent is being destroyed");
 
+		mp_bRunsCallsOneAtATime = mp_pDelegateTo->f_RunsCallsOneAtATime(); // Its calls run on the actor it delegates to
+
 		_DelegateToActor.mp_pInternalActor->f_QueueProcess
 			(
 				[pDelegateTo = _DelegateToActor.mp_pInternalActor, pThis = TCActorHolderSharedPointer<CDelegatedActorHolder>{this}](CConcurrencyThreadLocal &_ThreadLocal)
@@ -1454,6 +1461,7 @@ namespace NMib::NConcurrency
 		)
 		: CDefaultActorHolder(_pConcurrencyManager, _bImmediateDelete, _Priority, fg_Move(_pDistributedActorData))
 	{
+		mp_bRunsCallsOneAtATime = false; // Runs calls on the caller's thread
 	}
 
 	CDirectCallActorHolder::~CDirectCallActorHolder()
@@ -1496,6 +1504,7 @@ namespace NMib::NConcurrency
 		)
 		: CDefaultActorHolder(_pConcurrencyManager, _bImmediateDelete, _Priority, fg_Move(_pDistributedActorData))
 	{
+		mp_bRunsCallsOneAtATime = false; // Passes each call to a real actor of its own choosing
 	}
 
 	CShamActorHolder::~CShamActorHolder()

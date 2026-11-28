@@ -82,6 +82,21 @@ namespace NMib::NConcurrency
 	using CAsyncDestroyAwaiter = TCAsyncDestroyAwaiter<FUnitVoidFutureFunction, FUnitVoidFutureFunction>;
 
 	CAsyncDestroyAwaiter fg_AsyncDestroyGeneric(FUnitVoidFutureFunction &&_fDestroy);
+
+	struct CShamActorHolder;
+	struct CDirectCallActorHolder;
+
+	namespace NPrivate
+	{
+		TCFuture<void> fg_SynchronizeWithActor(TCActor<> const &_Actor);
+	}
+
+	template <typename tf_CActor>
+	auto fg_SynchronizeOnExit(TCActor<tf_CActor> &_Actor)
+		requires (!NTraits::cIsSame<typename tf_CActor::CActorHolder, CShamActorHolder> && !NTraits::cIsSame<typename tf_CActor::CActorHolder, CDirectCallActorHolder>)
+	;
+
+	inline auto fg_SynchronizeOnExit(CBlockingActorCheckout &_Checkout);
 }
 
 #include "Malterlib_Concurrency_AsyncDestroy.hpp"

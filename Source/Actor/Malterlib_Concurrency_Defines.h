@@ -615,6 +615,7 @@ namespace NMib::NConcurrency
 
 		void f_Clear();
 		bool f_IsValid() const;
+		TCFuture<void> f_Destroy() &&;
 
 		TCActor<CBlockingActor> const &f_Actor() const;
 		TCFutureOnResultOverSized<void> f_MoveResultHandler(NStr::CStr const &_Category, NStr::CStr const &_Error);

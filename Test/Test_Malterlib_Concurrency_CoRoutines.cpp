@@ -24,6 +24,30 @@ namespace NMib::NConcurrency::NTest
 	using namespace NMib::NMemory;
 	using namespace NMib::NStr;
 
+	template <typename t_CActor>
+	concept cCanSynchronizeOnExit = requires (TCActor<t_CActor> &_Actor)
+		{
+			fg_SynchronizeOnExit(_Actor);
+		}
+	;
+
+	// The returned async destroy reads the actor when the coroutine returns, so a temporary that is gone by then is refused
+	template <typename t_CActor>
+	concept cCanSynchronizeOnExitTemporary = requires
+		{
+			fg_SynchronizeOnExit(TCActor<t_CActor>());
+		}
+	;
+
+	static_assert(cCanSynchronizeOnExit<CActor>);
+	static_assert(cCanSynchronizeOnExit<CBlockingActor>);
+	static_assert(cCanSynchronizeOnExit<CConcurrentActor>);
+	static_assert(!cCanSynchronizeOnExit<CThisConcurrentActor>);
+	static_assert(!cCanSynchronizeOnExit<COtherConcurrentActor>);
+	static_assert(!cCanSynchronizeOnExit<CDynamicConcurrentActor>);
+	static_assert(!cCanSynchronizeOnExit<CDirectCallActor>);
+	static_assert(!cCanSynchronizeOnExitTemporary<CActor>);
+
 	DMibImpErrorClassDefine(CCustomException, NMib::NException::CException);
 	DMibImpErrorClassImplement(CCustomException);
 
@@ -1862,6 +1886,18 @@ namespace NMib::NConcurrency::NTest
 			TCSharedPointer<CAsyncDestroyTestState> m_pTestState;
 		};
 
+		// A capture of a dispatched function whose destruction takes long enough for the caller to resume before it's over
+		struct CSlowDestructedCapture
+		{
+			CSlowDestructedCapture(TCSharedPointer<CAsyncDestroyTestState> const &_pTestState);
+
+			CSlowDestructedCapture(CSlowDestructedCapture &&_Other) = default;
+
+			~CSlowDestructedCapture();
+
+			TCSharedPointer<CAsyncDestroyTestState> m_pTestState;
+		};
+
 		struct CAsyncDestroyActor : public CActor
 		{
 			CAsyncDestroyActor(TCSharedPointer<CAsyncDestroyTestState> const &_pTestState);
@@ -1926,6 +1962,20 @@ namespace NMib::NConcurrency::NTest
 		co_await g_Yield;
 		++m_pTestState->m_nDestroyed;
 		co_return {};
+	}
+
+	CCoroutines_Tests::CSlowDestructedCapture::CSlowDestructedCapture(TCSharedPointer<CAsyncDestroyTestState> const &_pTestState)
+		: m_pTestState(_pTestState)
+	{
+	}
+
+	CCoroutines_Tests::CSlowDestructedCapture::~CSlowDestructedCapture()
+	{
+		if (!m_pTestState)
+			return;
+
+		NSys::fg_Thread_Sleep(0.1f);
+		++m_pTestState->m_nDestructed;
 	}
 
 	CCoroutines_Tests::CAsyncDestroyActor::CAsyncDestroyActor(TCSharedPointer<CAsyncDestroyTestState> const &_pTestState)
@@ -3209,6 +3259,108 @@ namespace NMib::NConcurrency::NTest
 				;
 
 				DMibExpectException(Result.f_Access(), DMibErrorInstance("Test"));
+
+				co_return {};
+			};
+			DMibTestCategory("Blocking Actor Checkout") -> TCFuture<void>
+			{
+				TCSharedPointer<CAsyncDestroyTestState> pTestState = fg_Construct();
+
+				co_await fg_CallSafe
+					(
+						[pTestState]() -> TCFuture<void>
+						{
+							auto BlockingActorCheckout = fg_BlockingActor();
+							auto DestroyCheckout = co_await fg_AsyncDestroy(BlockingActorCheckout);
+
+							co_await
+								(
+									g_Dispatch(BlockingActorCheckout) / [Capture = CSlowDestructedCapture(pTestState)]
+									{
+									}
+								)
+							;
+
+							co_return {};
+						}
+					)
+				;
+
+				DMibExpect(pTestState->m_nDestructed.f_Load(), ==, 1);
+
+				co_return {};
+			};
+			DMibTestCategory("Synchronize On Exit") -> TCFuture<void>
+			{
+				TCSharedPointer<CAsyncDestroyTestState> pTestState = fg_Construct();
+
+				co_await fg_CallSafe
+					(
+						[pTestState]() -> TCFuture<void>
+						{
+							auto BlockingActorCheckout = fg_BlockingActor();
+							auto Synchronize = co_await fg_SynchronizeOnExit(BlockingActorCheckout);
+
+							co_await
+								(
+									g_Dispatch(BlockingActorCheckout) / [Capture = CSlowDestructedCapture(pTestState)]
+									{
+									}
+								)
+							;
+
+							co_return {};
+						}
+					)
+				;
+
+				DMibExpect(pTestState->m_nDestructed.f_Load(), ==, 1);
+
+				co_return {};
+			};
+			DMibTestCategory("Synchronize On Exit Coroutine") -> TCFuture<void>
+			{
+				TCSharedPointer<CAsyncDestroyTestState> pTestState = fg_Construct();
+
+				co_await fg_CallSafe
+					(
+						[pTestState]() -> TCFuture<void>
+						{
+							auto BlockingActorCheckout = fg_BlockingActor();
+							TCActor<CBlockingActor> Actor = BlockingActorCheckout.f_Actor();
+							auto Synchronize = co_await fg_SynchronizeOnExit(Actor);
+
+							co_await
+								(
+									g_Dispatch(BlockingActorCheckout) / [Capture = CSlowDestructedCapture(pTestState)]() -> TCFuture<void>
+									{
+										co_return {};
+									}
+								)
+							;
+
+							co_return {};
+						}
+					)
+				;
+
+				DMibExpect(pTestState->m_nDestructed.f_Load(), ==, 1);
+
+				co_return {};
+			};
+			DMibTestCategory("Synchronize On Exit Empty") -> TCFuture<void>
+			{
+				co_await fg_CallSafe
+					(
+						[]() -> TCFuture<void>
+						{
+							TCActor<> Actor;
+							auto Synchronize = co_await fg_SynchronizeOnExit(Actor);
+
+							co_return {};
+						}
+					)
+				;
 
 				co_return {};
 			};

@@ -557,6 +557,12 @@ TCFuture<void> f_Process(CStr _Key)
 - Use the `fg_AsyncDestroy` helper instead of manual `g_OnScopeExit` plumbing when an actor/functor needs structured teardown.
 - Schedule the helper before the first suspension and capture by reference only while the cleanup body stays before its first real suspension. `co_await ECoroutineFlag_CaptureExceptions` does not suspend, so captured references are still safe across that await. After the first actual suspension point of the cleanup function the references WILL be invalid, so copy or move anything needed into locals before that point.
 - These helpers schedule destruction on the owning actor.
+- An actor destroys a dispatched function and its captures after the function's result has resumed the caller. When the
+  captures must be gone before the coroutine returns, as a copy of something the caller destroys afterwards, use
+  `auto Synchronize = co_await fg_SynchronizeOnExit(Actor);`, which waits for a call on the actor when the coroutine
+  returns. Given a blocking actor checkout, it also releases the checkout only after that call. It covers what the
+  coroutine dispatched and awaited, not a dispatched coroutine that moves on to another actor. Sham actors, as `fg_ThisConcurrentActor()`, pick a
+  real actor for each call and direct call actors run calls on the caller's thread, so they are refused.
 - Pair `fg_OnResume` with any pointer captures when the coroutine is going to suspend before dereferencing actor-owned data. While the coroutine is cancelled if the actor dies, other actor calls can mutate or erase those structures during the suspension, so re-validation on resume avoids stale references.
 
 ## Local Command Sessions

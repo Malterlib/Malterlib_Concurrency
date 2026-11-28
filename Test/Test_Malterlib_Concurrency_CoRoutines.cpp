@@ -1898,6 +1898,13 @@ namespace NMib::NConcurrency::NTest
 			TCSharedPointer<CAsyncDestroyTestState> m_pTestState;
 		};
 
+		struct CFinalSuspensionTestState
+		{
+			TCPromiseFuturePair<void> m_Returned;
+			NThread::CEventAutoReset m_ReleaseAsyncDestroy;
+			NAtomic::TCAtomic<bool> m_bAsyncDestroyTimedOut = false;
+		};
+
 		struct CAsyncDestroyActor : public CActor
 		{
 			CAsyncDestroyActor(TCSharedPointer<CAsyncDestroyTestState> const &_pTestState);
@@ -1925,6 +1932,8 @@ namespace NMib::NConcurrency::NTest
 
 			TCFuture<void> fp_Destroy() override;
 		};
+
+		static TCFuture<void> fsp_TestFinalSuspensionAfterDestroy(TCActor<> _Owner, TCActor<> _ToDestroy);
 
 		TCFuture<void> fp_BlockOnAllThreads();
 
@@ -1976,6 +1985,49 @@ namespace NMib::NConcurrency::NTest
 
 		NSys::fg_Thread_Sleep(0.1f);
 		++m_pTestState->m_nDestructed;
+	}
+
+	// A coroutine on _Owner waits in final suspension for an async destroy, which finishes on another actor after _ToDestroy is
+	// destroyed: the future the caller holds still gets its result
+	TCFuture<void> CCoroutines_Tests::fsp_TestFinalSuspensionAfterDestroy(TCActor<> _Owner, TCActor<> _ToDestroy)
+	{
+		TCSharedPointer<CFinalSuspensionTestState> pTestState = fg_Construct();
+		auto TargetCheckout = fg_BlockingActor();
+		TCActor<CBlockingActor> Target = TargetCheckout.f_Actor();
+
+		TCFuture<void> Work = g_Dispatch(_Owner) / [pTestState, Target]() -> TCFuture<void>
+			{
+				auto AsyncDestroy = co_await fg_AsyncDestroyByValue
+					(
+						[pTestState, Target]() -> TCFuture<void>
+						{
+							return g_Dispatch(Target) / [pTestState]
+								{
+									if (pTestState->m_ReleaseAsyncDestroy.f_WaitTimeout(5.0))
+										pTestState->m_bAsyncDestroyTimedOut.f_Store(true);
+								}
+							;
+						}
+					)
+				;
+
+				pTestState->m_Returned.m_Promise.f_SetResult();
+
+				co_return {};
+			}
+		;
+
+		co_await fg_Move(pTestState->m_Returned.m_Future);
+		co_await fg_Move(_ToDestroy).f_Destroy();
+		DMibExpect(Work.f_IsSet(), ==, false);
+
+		pTestState->m_ReleaseAsyncDestroy.f_Signal();
+		auto Result = co_await fg_Move(Work).f_Timeout(5.0, "No result after the destroy").f_Wrap();
+
+		DMibExpect(pTestState->m_bAsyncDestroyTimedOut.f_Load(), ==, false);
+		DMibExpect(!!Result, ==, true);
+
+		co_return {};
 	}
 
 	CCoroutines_Tests::CAsyncDestroyActor::CAsyncDestroyActor(TCSharedPointer<CAsyncDestroyTestState> const &_pTestState)
@@ -3361,6 +3413,29 @@ namespace NMib::NConcurrency::NTest
 						}
 					)
 				;
+
+				co_return {};
+			};
+			DMibTestCategory("Owner Destroyed In Final Suspension") -> TCFuture<void>
+			{
+				TCActor<> Owner = fg_ConstructActor<CActor>();
+				co_await fsp_TestFinalSuspensionAfterDestroy(Owner, Owner);
+
+				co_return {};
+			};
+			DMibTestCategory("Delegated Owner Destroyed In Final Suspension") -> TCFuture<void>
+			{
+				TCActor<CActor> Parent = fg_Construct();
+				TCActor<CTestDestroyDelegatedActor> Owner{fg_Construct(), Parent};
+				co_await fsp_TestFinalSuspensionAfterDestroy(Owner, Owner);
+
+				co_return {};
+			};
+			DMibTestCategory("Parent Of Delegated Owner Destroyed In Final Suspension") -> TCFuture<void>
+			{
+				TCActor<CActor> Parent = fg_Construct();
+				TCActor<CTestDestroyDelegatedActor> Owner{fg_Construct(), Parent};
+				co_await fsp_TestFinalSuspensionAfterDestroy(Owner, Parent);
 
 				co_return {};
 			};

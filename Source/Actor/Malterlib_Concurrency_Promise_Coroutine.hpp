@@ -486,14 +486,28 @@ namespace NMib::NConcurrency
 					{
 						Actor.f_GetRealActor()->f_QueueProcess
 							(
-								[Actor, KeepAlive = fg_Move(KeepAlive), Result = fg_Move(_Result)](CConcurrencyThreadLocal &_ThreadLocal) mutable
+								[
+									DestroyFrame = g_OnScopeExit / [Actor, KeepAlive = fg_Move(KeepAlive), Result = fg_Move(_Result)]() mutable
+									{
+										if (!KeepAlive.f_HasValidCoroutine())
+											return;
+
+										// Also when this call is dropped without running, as its actor was destroyed first: a caller holding the
+										// future keeps the promise data, so nothing else destroys the frame, which gives the result. A delegated
+										// actor's calls run in its scope, on the thread of the actor it delegates to.
+										CCurrentlyProcessingActorScope ProcessingScope(fg_ConcurrencyThreadLocal(), Actor);
+
+										auto Handle = KeepAlive.template f_Coroutine<CFutureCoroutineContext>();
+
+										if (!Result)
+											KeepAlive.f_PromiseData().f_SetExceptionNoReportAppendable(fg_Move(Result).f_GetException());
+
+										NPrivate::fg_DestroyCoroutine(Handle);
+									}
+								]
+								(CConcurrencyThreadLocal &_ThreadLocal) mutable
 								{
-									auto Handle = KeepAlive.template f_Coroutine<CFutureCoroutineContext>();
-
-									if (!Result)
-										KeepAlive.f_PromiseData().f_SetExceptionNoReportAppendable(fg_Move(Result).f_GetException());
-
-									NPrivate::fg_DestroyCoroutine(Handle);
+									DestroyFrame();
 								}
 							)
 						;
